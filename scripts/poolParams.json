@@ -1,0 +1,12 @@
+{
+    "address": "0x559c731c7771550e0d334cde6643cef581faaf59",
+    "lpToken": "0x63AdF6A698C48D61848aD7C4541Cf7D49Bd8060C",
+    "nft": "0xBB64fa45803c9BbaA346410e51A1A8E99E658707",
+    "bondingCurve": "0x3764b9FE584719C4570725A2b5A2485d418A186E",
+    "delta": "1050000000000000",
+    "fee": "10000000000000",
+    "rewardToken": "0x58ab206e7d810e10c9bdd44aa86fc1d96f367d4f",
+    "startTime": "1663130700",
+    "endTime": "1663136100",
+    "rewardRate": "370370370370370370" 
+}
