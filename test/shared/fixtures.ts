@@ -11,25 +11,34 @@ export async function collectionswapFixture() {
     lsSVMPairFactory.address
   );
 
-  return { exponentialCurve, collectionswap };
+  return { exponentialCurve, collectionswap, collection };
 }
 
-export async function erc20Fixture() {
-  const ERC20 = await ethers.getContractFactory("ERC20PresetMinterPauser");
+export async function collectionstakerFixture() {
+  const { collectionswap, collection, exponentialCurve } =
+    await collectionswapFixture();
+  const Collectionstaker = await ethers.getContractFactory("Collectionstaker");
+  const collectionstaker = await Collectionstaker.connect(collection).deploy(
+    collectionswap.address
+  );
+  return { collectionswap, collectionstaker, exponentialCurve };
+}
+
+export async function rewardTokenFixture() {
+  const RewardToken = await ethers.getContractFactory(
+    "ERC20PresetMinterPauser"
+  );
   return await Promise.all(
     [...Array(3).keys()].map(async (i) => {
-      const name = "ERC20" + String.fromCharCode(i + "A".charCodeAt(0));
-      return await ERC20.deploy(name, name);
+      return await RewardToken.deploy("Reward Token", "RWT");
     })
   );
 }
 
-export async function erc721Fixture() {
-  const ERC721 = await ethers.getContractFactory(
-    "ERC721PresetMinterPauserAutoId"
-  );
-  const erc721 = await ERC721.deploy("ERC721", "ERC721", "");
-  return { erc721 };
+export async function nftFixture() {
+  const NFT = await ethers.getContractFactory("ERC721PresetMinterPauserAutoId");
+  const nft = await NFT.deploy("NFT", "NFT", "");
+  return { nft };
 }
 
 export async function lsSVMFixture() {

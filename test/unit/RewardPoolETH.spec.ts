@@ -9,27 +9,28 @@ import { ethers } from "hardhat";
 
 import {
   collectionswapFixture,
-  erc20Fixture,
-  erc721Fixture,
-} from "./shared/fixtures";
-import { getSigners } from "./shared/signers";
+  rewardTokenFixture,
+  nftFixture,
+} from "../shared/fixtures";
+import { createPairEth, mintNfts } from "../shared/helpers";
+import { getSigners } from "../shared/signers";
 
 import type {
   Collectionswap,
-  ERC20PresetMinterPauser,
-  ERC721PresetMinterPauserAutoId,
   ExponentialCurve,
   ICurve,
+  IERC20,
+  IERC721,
   RewardPoolETH,
-} from "../typechain-types";
+} from "../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumberish } from "ethers";
 
 describe("RewardPoolETH", function () {
   let collectionswap: Collectionswap;
-  let rewardTokens: ERC20PresetMinterPauser[];
+  let rewardTokens: IERC20[];
   let rewards: BigNumberish[];
-  let erc721: ERC721PresetMinterPauserAutoId;
+  let nft: IERC721;
   let exponentialCurve: ExponentialCurve;
   let lpTokenId: BigNumberish;
   let lpTokenId1: BigNumberish;
@@ -51,7 +52,7 @@ describe("RewardPoolETH", function () {
       collectionswap,
       rewardTokens,
       rewards,
-      erc721,
+      nft,
       exponentialCurve,
       lpTokenId,
       lpTokenId1,
@@ -66,8 +67,8 @@ describe("RewardPoolETH", function () {
     const { owner, user, user1 } = await getSigners();
 
     let { collectionswap, exponentialCurve } = await collectionswapFixture();
-    const rewardTokens = (await erc20Fixture()).slice(0, numRewardTokens);
-    let { erc721 } = await erc721Fixture();
+    const rewardTokens = (await rewardTokenFixture()).slice(0, numRewardTokens);
+    let { nft } = await nftFixture();
 
     const rewards = [
       ethers.utils.parseEther("5"),
@@ -83,7 +84,7 @@ describe("RewardPoolETH", function () {
     let rewardPool = await RewardPool.connect(collectionswap.signer).deploy(
       owner.address,
       collectionswap.address,
-      erc721.address,
+      nft.address,
       exponentialCurve.address,
       ethers.utils.parseEther("1.5"),
       ethers.BigNumber.from("200000000000000000"),
@@ -96,11 +97,11 @@ describe("RewardPoolETH", function () {
     for (let i = 0; i < numRewardTokens; i++) {
       await rewardTokens[i].mint(rewardPool.address, rewards[i]);
     }
-    const nftTokenId = await mintErc721(erc721, user.address);
-    const nftTokenId1 = await mintErc721(erc721, user1.address);
+    const nftTokenIds = await mintNfts(nft, user.address);
+    const nftTokenIds1 = await mintNfts(nft, user1.address);
 
     collectionswap = collectionswap.connect(user);
-    erc721 = erc721.connect(user);
+    nft = nft.connect(user);
     rewardPool = rewardPool.connect(user);
 
     const params = {
@@ -111,23 +112,26 @@ describe("RewardPoolETH", function () {
       value: ethers.utils.parseEther("2"),
     };
 
-    const lpTokenId = await createPairEth(collectionswap, {
+    const { lpTokenId } = await createPairEth(collectionswap, {
       ...params,
-      nft: erc721,
-      nftTokenIds: [nftTokenId],
+      nft,
+      nftTokenIds,
     });
 
-    const lpTokenId1 = await createPairEth(collectionswap.connect(user1), {
-      ...params,
-      nft: erc721.connect(user1),
-      nftTokenIds: [nftTokenId1],
-    });
+    const { lpTokenId: lpTokenId1 } = await createPairEth(
+      collectionswap.connect(user1),
+      {
+        ...params,
+        nft: nft.connect(user1),
+        nftTokenIds: nftTokenIds1,
+      }
+    );
 
     return {
       collectionswap,
       rewardTokens,
       rewards,
-      erc721,
+      nft,
       exponentialCurve,
       lpTokenId,
       lpTokenId1,
@@ -414,46 +418,3 @@ describe("RewardPoolETH", function () {
     });
   });
 });
-
-async function mintErc721(
-  erc721: ERC721PresetMinterPauserAutoId,
-  to: string
-): Promise<string> {
-  const response = await erc721.mint(to);
-  const receipt = await response.wait();
-  return receipt.events![0].args!.tokenId;
-}
-
-async function createPairEth(
-  collectionswap: Collectionswap,
-  {
-    nft,
-    bondingCurve,
-    delta,
-    fee,
-    spotPrice,
-    nftTokenIds,
-    value,
-  }: {
-    nft: ERC721PresetMinterPauserAutoId;
-    bondingCurve: ICurve;
-    delta: BigNumberish;
-    fee: BigNumberish;
-    spotPrice: BigNumberish;
-    nftTokenIds: BigNumberish[];
-    value: BigNumberish;
-  }
-): Promise<BigNumberish> {
-  await nft.setApprovalForAll(collectionswap.address, true);
-  const response = await collectionswap.createDirectPairETH(
-    nft.address,
-    bondingCurve.address,
-    delta,
-    fee,
-    spotPrice,
-    nftTokenIds,
-    { value }
-  );
-  const receipt = await response.wait();
-  return receipt.events?.at(-1)!.args!.tokenId;
-}
