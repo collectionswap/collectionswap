@@ -204,26 +204,13 @@ contract RewardPoolETH is IERC721Receiver {
         if (totalSupply() == 0 || lastRewardTime <= lastUpdateTime) {
             return rewardPerTokenStored[_rewardToken];
         }
-        return
-            // rewardPerTokenStored.add(
-            //     lastTimeRewardApplicable()
-            //         .sub(lastUpdateTime)
-            //         .mul(rewardRate)
-            //         .mul(1e18)
-            //         .div(totalSupply())
-            // );
-            rewardPerTokenStored[_rewardToken] + (
+        return rewardPerTokenStored[_rewardToken] + (
                 (lastRewardTime - lastUpdateTime) * rewardRates[_rewardToken] * 1e18 / totalSupply()
             );
     }
 
     function earned(address account, IERC20 _rewardToken) public view returns (uint256) {
-        return
-            // balanceOf(account)
-            //         .mul(rewardPerToken().sub(userRewardPerTokenPaid[account]))
-            //         .div(1e18)
-            //         .add(rewards[account]);
-            balanceOf(account)
+        return balanceOf(account)
                 * (rewardPerToken(_rewardToken) - userRewardPerTokenPaid[_rewardToken][account])
                 / (1e18)
                 + rewards[_rewardToken][account];
