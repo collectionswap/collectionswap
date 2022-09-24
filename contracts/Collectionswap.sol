@@ -196,7 +196,6 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint128 _spotPrice,
         uint256[] calldata _initialNFTIDs
     ) external payable nonReentrant returns (ILSSVMPairETH newPair) {
-        require(msg.value >= _spotPrice, "insufficient ETH for bid");
         ILSSVMPairFactory factory = _factory;
         transferOwnershipNFTList(
             factory,

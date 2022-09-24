@@ -1,5 +1,5 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
-import { expect } from "chai";
+import { expect, use } from "chai";
 import { ethers } from "hardhat";
 
 import {
@@ -62,7 +62,7 @@ describe("integration", function () {
     } = await loadFixture(integrationFixture);
 
     const initialNftTokenIds = await mintNfts(nft, user.address);
-    const initialETH = ethers.utils.parseEther("5");
+    const initialETH = ethers.utils.parseEther("25");
 
     // user should have the eth and nfts
     expect(

@@ -240,10 +240,11 @@ describe('Collectionswap', function () {
         poolType,
         delta,
         fee,
-        spotPrice,
+        spotPrice.mul(ethers.BigNumber.from(`${1e10}`)),
         initialNFTIDs,
         {
-          value: ethers.BigNumber.from(`${1.2e16}`),
+          // value: ethers.BigNumber.from(`${1.2e16}`),
+          value: ethers.BigNumber.from(`${1.2e16}`).mul(ethers.BigNumber.from(`${1e3}`)),
           gasLimit: 1000000
         }
       )
@@ -253,6 +254,8 @@ describe('Collectionswap', function () {
       const externalTrader = otherAccount4
       const externalTraderNftsIHave = [222]
       const [bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj] = (await lssvmPairETH.getSellNFTQuote(externalTraderNftsIHave.length))
+
+      // console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
 
       await mintTokensAndApprove(externalTraderNftsIHave, nftContractCollection, otherAccount4, lssvmPairFactory)
       await expect(lssvmPairETH.connect(externalTrader).swapNFTsForToken(externalTraderNftsIHave, bidInputAmount, externalTrader.address, false, ethers.constants.AddressZero)).to.be.revertedWith('ETH_TRANSFER_FAILED')
