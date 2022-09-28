@@ -33,7 +33,6 @@ contract RewardPoolETH is IERC721Receiver {
     mapping(uint256 => LPTokenInfo) public lpTokenInfo;
 
     IERC20[] public rewardTokens;
-    mapping(IERC20 => bool) public rewardTokenValid;
 
     uint256 public periodFinish;
     uint256 public rewardSweepTime;
@@ -105,7 +104,6 @@ contract RewardPoolETH is IERC721Receiver {
         rewardTokens = _rewardTokens;
         for (uint i; i < rewardTokens.length;) {
             rewardRates[_rewardTokens[i]] = _rewardRates[i];
-            rewardTokenValid[_rewardTokens[i]] = true;
             unchecked {
                 ++i;
             }
@@ -129,7 +127,6 @@ contract RewardPoolETH is IERC721Receiver {
         for (uint i; i < inputRewardTokens.length;) {
             IERC20 inputRewardToken = inputRewardTokens[i];
             require(address(inputRewardToken) == address(rewardTokens[i]), "inputRewardTokens must be in the same order as rewardTokens");
-            require(rewardTokenValid[inputRewardToken], "Invalid reward token");
 
             inputRewardToken.safeTransferFrom(msg.sender, address(this), inputRewardAmounts[i]);
             rewardRates[inputRewardToken] = inputRewardAmounts[i] / (_newPeriodFinish - block.timestamp);
