@@ -138,6 +138,10 @@ describe('Collectionswap', function () {
 
     const Curve = await ethers.getContractFactory('ExponentialCurve')
     const curve = await Curve.deploy()
+
+    const LinearCurve = await ethers.getContractFactory('LinearCurve')
+    const linearCurve = await LinearCurve.deploy()
+
     const nftContractCollection = myERC721
     const assetRecipient = ethers.constants.AddressZero
     const poolType = await (lssvmPairEnumerableETH.poolType())
@@ -148,12 +152,13 @@ describe('Collectionswap', function () {
 
     const initialNFTIDs = [999, 1000, 1001]
     await lssvmPairFactory.setBondingCurveAllowed(curve.address, true)
+    await lssvmPairFactory.setBondingCurveAllowed(linearCurve.address, true)
 
     const Collectionswap = await ethers.getContractFactory('Collectionswap')
     const collectionswap = await Collectionswap.deploy(lssvmPairFactory.address)
     // console.log(`Collectionswap deployed to ${collectionswap.address}`)
 
-    return { collectionswap, lssvmPairFactory, lssvmPairEnumerableETH, lssvmPairMissingEnumerableETH, lssvmPairEnumerableERC20, lssvmPairMissingEnumerableERC20, curve, nftContractCollection, assetRecipient, poolType, delta, fee, spotPrice, initialNFTIDs, rawSpot, rawPctDelta, rawPctFee, rawPctProtocolFee, otherAccount0, otherAccount1, otherAccount2, otherAccount3, otherAccount4 }
+    return { collectionswap, lssvmPairFactory, lssvmPairEnumerableETH, lssvmPairMissingEnumerableETH, lssvmPairEnumerableERC20, lssvmPairMissingEnumerableERC20, curve, nftContractCollection, assetRecipient, poolType, delta, fee, spotPrice, initialNFTIDs, rawSpot, rawPctDelta, rawPctFee, rawPctProtocolFee, otherAccount0, otherAccount1, otherAccount2, otherAccount3, otherAccount4,linearCurve }
   }
 
   describe('Direct interactions with sudoswap', function () {
@@ -263,6 +268,54 @@ describe('Collectionswap', function () {
       // can withdraw
       await lssvmPairETH.withdrawAllETH()
       await lssvmPairETH.withdrawERC721(nftContractCollection.address, initialNFTIDs)
+    })
+
+
+    it('Should accrue ETH when repeated bought/sold into', async function () {
+      const { lssvmPairFactory, nftContractCollection,linearCurve, curve, assetRecipient, poolType, delta, fee, spotPrice, initialNFTIDs, rawSpot, rawPctFee, rawPctDelta, rawPctProtocolFee, otherAccount0, otherAccount4 } = await deployCollectionswap()
+      let nftList = [1,2,3,4,5]
+      await mintTokensAndApprove(nftList, nftContractCollection, otherAccount0, lssvmPairFactory)
+      const lssvmPairETHContractTx: ContractTransaction = await lssvmPairFactory.createPairETH(
+        nftContractCollection.address,
+        linearCurve.address,
+        assetRecipient,
+        poolType,
+        ethers.utils.parseEther('0.25'),
+        ethers.utils.parseEther('0.1'),
+        ethers.utils.parseEther('1'),
+        nftList,
+        {
+          // value: ethers.BigNumber.from(`${1.2e16}`),
+          value: ethers.BigNumber.from(`${5e18}`),
+          gasLimit: 1000000
+        }
+      )
+      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx)
+      const lssvmPairETH = await ethers.getContractAt('LSSVMPairETH', newPairAddress)
+
+      const externalTrader = otherAccount4
+      const externalTraderNftsIHave = [222,223,224]
+      await mintTokensAndApprove(externalTraderNftsIHave, nftContractCollection, otherAccount4, lssvmPairFactory)
+
+      let poolBalance = await ethers.provider.getBalance(lssvmPairETH.address)
+      console.log('balance of pair',poolBalance)
+      await nftContractCollection.connect(externalTrader).setApprovalForAll(lssvmPairETH.address,true)
+      for (let i = 0; i < 20; i++) {
+        // sell my NFT into the pair
+        const [bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj] = (await lssvmPairETH.getSellNFTQuote(1))
+        // console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
+        await lssvmPairETH.connect(externalTrader).swapNFTsForToken([222], bidInputAmount, externalTrader.address, false, ethers.constants.AddressZero)
+
+        const [askError, askNewSpotPrice, askNewDelta, askOutputAmount, askProtocolFee, asknObj] = (await lssvmPairETH.getBuyNFTQuote(1))
+
+        await lssvmPairETH.connect(externalTrader).swapTokenForSpecificNFTs([222], askOutputAmount, externalTrader.address, false, ethers.constants.AddressZero,{value:askOutputAmount})
+
+        let newBalance = await ethers.provider.getBalance(lssvmPairETH.address)
+        expect(newBalance.gt(poolBalance)).to.be.true
+        console.log('balance of pair',i,await ethers.provider.getBalance(lssvmPairETH.address))
+
+        poolBalance = newBalance
+      }
     })
   })
 

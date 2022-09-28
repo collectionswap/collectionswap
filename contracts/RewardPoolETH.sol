@@ -33,9 +33,10 @@ contract RewardPoolETH is IERC721Receiver {
     mapping(uint256 => LPTokenInfo) public lpTokenInfo;
 
     IERC20[] public rewardTokens;
+    mapping(IERC20 => bool) public rewardTokenValid;
 
     uint256 public periodFinish;
-    uint256 public immutable rewardSweepTime;
+    uint256 public rewardSweepTime;
     mapping(IERC20 => uint256) public rewardRates;
     uint256 public lastUpdateTime;
     mapping(IERC20 => uint256) public rewardPerTokenStored;
@@ -104,6 +105,7 @@ contract RewardPoolETH is IERC721Receiver {
         rewardTokens = _rewardTokens;
         for (uint i; i < rewardTokens.length;) {
             rewardRates[_rewardTokens[i]] = _rewardRates[i];
+            rewardTokenValid[_rewardTokens[i]] = true;
             unchecked {
                 ++i;
             }
@@ -111,6 +113,33 @@ contract RewardPoolETH is IERC721Receiver {
         lastUpdateTime = _startTime;
         periodFinish = _periodFinish;
         rewardSweepTime = _periodFinish + 180 days;
+    }
+
+    function rechargeRewardPool(
+        IERC20[] memory inputRewardTokens,
+        uint256[] memory inputRewardAmounts,
+        uint256 _newPeriodFinish
+        ) external updateReward(address(0)) {
+        
+        require(msg.sender == deployer, "Not authorized");
+        require(_newPeriodFinish > block.timestamp, "Invalid period finish");
+        require(block.timestamp > periodFinish, "Cannot recharge before period finish");
+        require(inputRewardTokens.length == inputRewardAmounts.length, "Inconsistent length");
+
+        for (uint i; i < inputRewardTokens.length;) {
+            IERC20 inputRewardToken = inputRewardTokens[i];
+            require(address(inputRewardToken) == address(rewardTokens[i]), "inputRewardTokens must be in the same order as rewardTokens");
+            require(rewardTokenValid[inputRewardToken], "Invalid reward token");
+
+            inputRewardToken.safeTransferFrom(msg.sender, address(this), inputRewardAmounts[i]);
+            rewardRates[inputRewardToken] = inputRewardAmounts[i] / (_newPeriodFinish - block.timestamp);
+            unchecked {
+                ++i;
+            }
+        }
+        lastUpdateTime = block.timestamp;
+        periodFinish = _newPeriodFinish;
+        rewardSweepTime = _newPeriodFinish + 180 days;
     }
 
     function sweepRewards() external {
