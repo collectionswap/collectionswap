@@ -95,6 +95,8 @@ contract RewardPoolETH is IERC721Receiver {
         uint256 _startTime,
         uint256 _periodFinish
     ) {
+        // check if it supports ERC721
+        require(_nft.supportsInterface(0x80ac58cd), "NFT should be ERC721");
         deployer = _deployer;
         lpToken = _lpToken;
         nft = _nft;
