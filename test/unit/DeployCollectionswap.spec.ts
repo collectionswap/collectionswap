@@ -136,6 +136,10 @@ describe('Collectionswap', function () {
     const MyERC721 = await ethers.getContractFactory('Alchemy')
     const myERC721 = await MyERC721.deploy()
 
+
+    const MyERC1155 = await ethers.getContractFactory('MyERC1155')
+    const myERC1155 = await MyERC1155.deploy()
+
     const Curve = await ethers.getContractFactory('ExponentialCurve')
     const curve = await Curve.deploy()
 
@@ -143,6 +147,7 @@ describe('Collectionswap', function () {
     const linearCurve = await LinearCurve.deploy()
 
     const nftContractCollection = myERC721
+    const nftContractCollection1155 = myERC1155
     const assetRecipient = ethers.constants.AddressZero
     const poolType = await (lssvmPairEnumerableETH.poolType())
 
@@ -158,7 +163,7 @@ describe('Collectionswap', function () {
     const collectionswap = await Collectionswap.deploy(lssvmPairFactory.address)
     // console.log(`Collectionswap deployed to ${collectionswap.address}`)
 
-    return { collectionswap, lssvmPairFactory, lssvmPairEnumerableETH, lssvmPairMissingEnumerableETH, lssvmPairEnumerableERC20, lssvmPairMissingEnumerableERC20, curve, nftContractCollection, assetRecipient, poolType, delta, fee, spotPrice, initialNFTIDs, rawSpot, rawPctDelta, rawPctFee, rawPctProtocolFee, otherAccount0, otherAccount1, otherAccount2, otherAccount3, otherAccount4,linearCurve }
+    return { collectionswap, lssvmPairFactory, lssvmPairEnumerableETH, lssvmPairMissingEnumerableETH, lssvmPairEnumerableERC20, lssvmPairMissingEnumerableERC20, curve, nftContractCollection, assetRecipient, poolType, delta, fee, spotPrice, initialNFTIDs, rawSpot, rawPctDelta, rawPctFee, rawPctProtocolFee, otherAccount0, otherAccount1, otherAccount2, otherAccount3, otherAccount4,linearCurve , nftContractCollection1155}
   }
 
   describe('Direct interactions with sudoswap', function () {

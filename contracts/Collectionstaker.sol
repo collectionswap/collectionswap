@@ -3,8 +3,9 @@ pragma solidity ^0.8.0;
 
 import "./ICollectionswap.sol";
 import "./RewardPoolETH.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Collectionstaker {
+contract Collectionstaker is Ownable {
     using SafeERC20 for IERC20;
 
     ICollectionswap lpToken;
@@ -52,6 +53,7 @@ contract Collectionstaker {
         }
 
         RewardPoolETH rewardPool = new RewardPoolETH(
+            owner(),
             msg.sender,
             lpToken,
             nft,

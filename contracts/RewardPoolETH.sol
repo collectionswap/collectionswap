@@ -21,6 +21,7 @@ contract RewardPoolETH is IERC721Receiver {
     uint128 private reserve0; // uses single storage slot, accessible via getReserves
     uint128 private reserve1; // uses single storage slot, accessible via getReserves
 
+    address protocolOwner;
     address deployer;
     ICollectionswap public lpToken;
     IERC721 nft;
@@ -28,11 +29,15 @@ contract RewardPoolETH is IERC721Receiver {
     uint128 delta;
     uint96 fee;
 
+    uint256 public constant MAX_REWARD_TOKENS = 5;
+
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
     mapping(uint256 => LPTokenInfo) public lpTokenInfo;
 
     IERC20[] public rewardTokens;
+    mapping(IERC20 => bool) public rewardTokenValid;
+    // mapping(IERC20 => uint256) public rewardRatesMemo;
 
     uint256 public periodFinish;
     uint256 public rewardSweepTime;
@@ -84,6 +89,7 @@ contract RewardPoolETH is IERC721Receiver {
     }
 
     constructor(
+        address _protocolOwner,
         address _deployer,
         ICollectionswap _lpToken,
         IERC721 _nft,
@@ -95,6 +101,7 @@ contract RewardPoolETH is IERC721Receiver {
         uint256 _startTime,
         uint256 _periodFinish
     ) {
+        protocolOwner = _protocolOwner;
         deployer = _deployer;
         lpToken = _lpToken;
         nft = _nft;
@@ -103,7 +110,9 @@ contract RewardPoolETH is IERC721Receiver {
         fee = _fee;
         rewardTokens = _rewardTokens;
         for (uint i; i < rewardTokens.length;) {
+            require(!rewardTokenValid[_rewardTokens[i]], "Duplicate reward token");
             rewardRates[_rewardTokens[i]] = _rewardRates[i];
+            rewardTokenValid[_rewardTokens[i]] = true;
             unchecked {
                 ++i;
             }
@@ -113,27 +122,74 @@ contract RewardPoolETH is IERC721Receiver {
         rewardSweepTime = _periodFinish + 180 days;
     }
 
-    function rechargeRewardPool(
+    function rechargeRewardPool(        
         IERC20[] memory inputRewardTokens,
         uint256[] memory inputRewardAmounts,
         uint256 _newPeriodFinish
         ) external updateReward(address(0)) {
         
-        require(msg.sender == deployer, "Not authorized");
+        require(msg.sender == deployer || msg.sender == protocolOwner , "Not authorized");
         require(_newPeriodFinish > block.timestamp, "Invalid period finish");
         require(block.timestamp > periodFinish, "Cannot recharge before period finish");
+        require(inputRewardTokens.length >0, "Must have >0 reward token");
         require(inputRewardTokens.length == inputRewardAmounts.length, "Inconsistent length");
+        require(inputRewardTokens.length <= MAX_REWARD_TOKENS, "Too many reward tokens");
 
+        uint256 newTokens = 0;
         for (uint i; i < inputRewardTokens.length;) {
             IERC20 inputRewardToken = inputRewardTokens[i];
-            require(address(inputRewardToken) == address(rewardTokens[i]), "inputRewardTokens must be in the same order as rewardTokens");
-
-            inputRewardToken.safeTransferFrom(msg.sender, address(this), inputRewardAmounts[i]);
-            rewardRates[inputRewardToken] = inputRewardAmounts[i] / (_newPeriodFinish - block.timestamp);
+            if (!rewardTokenValid[inputRewardToken]) {
+                newTokens = newTokens + 1;
+            }
+            for (uint j; j < i;) {
+                require(address(inputRewardToken) != address(inputRewardTokens[j]), "Duplicate reward token");
+                unchecked {
+                    ++j;
+                }
+            }
             unchecked {
                 ++i;
             }
         }
+        uint256 rewardTokensLength = rewardTokens.length;
+        require(newTokens+rewardTokensLength <= MAX_REWARD_TOKENS, "Too many reward tokens");
+
+        IERC20[MAX_REWARD_TOKENS] memory newRewardTokens;
+        for (uint j; j < rewardTokens.length;) {
+            IERC20 rewardToken = rewardTokens[j];
+            newRewardTokens[j] = rewardToken;
+            rewardRates[rewardToken] = 0; // zero out memo-rates
+            unchecked {
+                ++j;
+            }
+        }
+
+        for (uint i; i < inputRewardTokens.length;) {
+            IERC20 inputRewardToken = inputRewardTokens[i];
+            if (inputRewardAmounts[i]>0) {
+                inputRewardToken.safeTransferFrom(msg.sender, address(this), inputRewardAmounts[i]);
+                if (!rewardTokenValid[inputRewardToken]) {
+                    newRewardTokens[rewardTokensLength] = inputRewardToken;
+                    rewardTokensLength = rewardTokensLength + 1;
+                    rewardTokenValid[inputRewardToken] = true;
+                } 
+                rewardRates[inputRewardToken] = inputRewardAmounts[i] / (_newPeriodFinish - block.timestamp);
+                require(rewardRates[inputRewardToken] != 0, "0 reward rate");
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        // make final array
+        IERC20[] memory finalRewardTokens = new IERC20[](rewardTokensLength);
+        for (uint k; k < rewardTokensLength;) {
+            finalRewardTokens[k] = (newRewardTokens[k]);
+            unchecked {
+                ++k;
+            }
+        }
+        rewardTokens = finalRewardTokens;
+
         lastUpdateTime = block.timestamp;
         periodFinish = _newPeriodFinish;
         rewardSweepTime = _newPeriodFinish + 180 days;
