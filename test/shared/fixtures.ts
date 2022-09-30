@@ -21,7 +21,7 @@ export async function collectionstakerFixture() {
   const collectionstaker = await Collectionstaker.connect(collection).deploy(
     collectionswap.address
   );
-  return { collectionswap, collectionstaker, exponentialCurve };
+  return { collectionswap, collectionstaker, exponentialCurve, collection };
 }
 
 export async function rewardTokenFixture() {

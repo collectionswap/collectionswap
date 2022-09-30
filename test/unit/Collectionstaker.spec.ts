@@ -1,5 +1,6 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers } from "hardhat";
+import { expect } from 'chai'
 
 import {
   collectionstakerFixture as _collectionstakerFixture,
@@ -13,7 +14,7 @@ describe("Collectionstaker", function () {
 
   async function collectionstakerFixture() {
     const { protocol } = await getSigners();
-    const { collectionstaker, exponentialCurve } =
+    const { collectionstaker, exponentialCurve, collection } =
       await _collectionstakerFixture();
     const rewardTokens = (await rewardTokenFixture()).slice(0, numRewardTokens);
     const { nft } = await nftFixture();
@@ -25,6 +26,7 @@ describe("Collectionstaker", function () {
 
     return {
       collectionstaker: collectionstaker.connect(protocol),
+      collection,
       exponentialCurve,
       rewardTokens,
       rewards,
@@ -36,6 +38,11 @@ describe("Collectionstaker", function () {
   describe("Deployment", function () {
     it("Should deploy", async function () {
       await loadFixture(collectionstakerFixture);
+    });
+
+    it("Should have the correct owner", async function () {
+      const {collection,collectionstaker} = await loadFixture(collectionstakerFixture);
+      await expect(await collectionstaker.owner()).to.be.equal(collection.address);
     });
   });
 

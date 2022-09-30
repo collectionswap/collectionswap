@@ -41,7 +41,7 @@ describe("RewardPoolETH", function () {
   let user: SignerWithAddress;
   let user1: SignerWithAddress;
   let user2: SignerWithAddress;
-  let hypotheticalProtocolOwner: SignerWithAddress;
+  let collection: SignerWithAddress;
 
   const numRewardTokens = 2;
   const dayDuration = 86400;
@@ -66,12 +66,12 @@ describe("RewardPoolETH", function () {
       user,
       user1,
       user2,
-      hypotheticalProtocolOwner
+      collection
     } = await loadFixture(rewardPoolFixture));
   });
 
   async function rewardPoolFixture() {
-    const { owner, user, user1 , user2, hypotheticalProtocolOwner} = await getSigners();
+    const { owner, user, user1 , user2, collection} = await getSigners();
 
     let { collectionswap, exponentialCurve } = await collectionswapFixture();
     const allRewardTokens = await rewardTokenFixture();
@@ -92,7 +92,7 @@ describe("RewardPoolETH", function () {
 
     const RewardPool = await ethers.getContractFactory("RewardPoolETH");
     let rewardPool = await RewardPool.connect(collectionswap.signer).deploy(
-      hypotheticalProtocolOwner.address,
+      collection.address,
       owner.address,
       collectionswap.address,
       nft.address,
@@ -152,7 +152,7 @@ describe("RewardPoolETH", function () {
       user,
       user1,
       user2,
-      hypotheticalProtocolOwner
+      collection
     };
   }
 
@@ -386,7 +386,7 @@ describe("RewardPoolETH", function () {
   describe("Recharging the pool", function () {
 
     for (let extra = 1; extra <= 5; extra++) { 
-      it(`Recharge the pool with 2+${extra} same tokens (from 0 index) should succeed (from hypotheticalProtocolOwner)`, async function () {
+      it(`Recharge the pool with 2+${extra} same tokens (from 0 index) should succeed (from collection AKA protocol owner)`, async function () {
         for (let i = 0; i < 5; i++) {
           // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
@@ -403,8 +403,8 @@ describe("RewardPoolETH", function () {
         for (let i = startIndex; i < endIndex; i++) {
           const rewardToken = allRewardTokens[i];        
           newRewardsList.push(newRewardAmount)
-          await rewardToken.mint(hypotheticalProtocolOwner.address, newRewardAmount);
-          const response = await rewardToken.connect(hypotheticalProtocolOwner).approve(
+          await rewardToken.mint(collection.address, newRewardAmount);
+          const response = await rewardToken.connect(collection).approve(
             rewardPool.address,
             newRewardAmount )
         }  
@@ -415,7 +415,7 @@ describe("RewardPoolETH", function () {
         expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish()) ; 
         const newEndTime = (await time.latest()) + 1000 + rewardDuration;      
         // console.log(otherRewardTokens.map(token => token.address))
-        await (rewardPool.connect(hypotheticalProtocolOwner).rechargeRewardPool(
+        await (rewardPool.connect(collection).rechargeRewardPool(
           otherRewardTokens.map(token => token.address), 
           otherRewards,
           newEndTime
