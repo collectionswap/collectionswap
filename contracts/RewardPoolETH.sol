@@ -132,9 +132,7 @@ contract RewardPoolETH is IERC721Receiver {
         require(msg.sender == deployer || msg.sender == protocolOwner , "Not authorized");
         require(_newPeriodFinish > block.timestamp, "Invalid period finish");
         require(block.timestamp > periodFinish, "Cannot recharge before period finish");
-        require(inputRewardTokens.length >0, "Must have >0 reward token");
         require(inputRewardTokens.length == inputRewardAmounts.length, "Inconsistent length");
-        require(inputRewardTokens.length <= MAX_REWARD_TOKENS, "Too many reward tokens");
 
         uint256 newTokens = 0;
         for (uint i; i < inputRewardTokens.length;) {
