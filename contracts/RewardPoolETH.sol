@@ -51,6 +51,7 @@ contract RewardPoolETH is IERC721Receiver {
     event Withdrawn(address indexed user, uint256 tokenId, uint256 amount);
     event RewardPaid(IERC20 indexed rewardToken, address indexed user, uint256 reward);
     event RewardSwept();
+    event RewardPoolRecharged(IERC20[] rewardTokens, uint256[] rewards, uint256 startTime, uint256 endTime);
 
     modifier updateReward(address account) {
         // skip update after rewards program starts
@@ -193,6 +194,8 @@ contract RewardPoolETH is IERC721Receiver {
         lastUpdateTime = block.timestamp;
         periodFinish = _newPeriodFinish;
         rewardSweepTime = _newPeriodFinish + 180 days;
+
+        emit RewardPoolRecharged(inputRewardTokens, inputRewardAmounts, block.timestamp, _newPeriodFinish);
     }
 
     function sweepRewards() external {
