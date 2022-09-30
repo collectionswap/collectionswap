@@ -37,7 +37,6 @@ contract RewardPoolETH is IERC721Receiver {
 
     IERC20[] public rewardTokens;
     mapping(IERC20 => bool) public rewardTokenValid;
-    // mapping(IERC20 => uint256) public rewardRatesMemo;
 
     uint256 public periodFinish;
     uint256 public rewardSweepTime;
@@ -102,6 +101,7 @@ contract RewardPoolETH is IERC721Receiver {
         uint256 _periodFinish
     ) {
         protocolOwner = _protocolOwner;
+        require(_nft.supportsInterface(0x80ac58cd), "NFT should be ERC721"); // check if it supports ERC721
         deployer = _deployer;
         lpToken = _lpToken;
         nft = _nft;
