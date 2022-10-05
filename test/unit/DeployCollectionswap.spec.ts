@@ -3,7 +3,15 @@ import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { Contract, ContractTransaction } from "ethers";
+import type { ContractTransaction } from "ethers";
+import { CURVE_TYPE, config, mintTokensAndApprove } from "../shared/constants";
+import { formatEther } from "ethers/lib/utils";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { everythingFixture } from "../shared/fixtures";
+import { LSSVMPairETH } from "../../typechain-types";
+
+const MAX_QTY_TO_QUOTE = 5;
+const MAX_DELTA_ITEMS = 3;
 
 console.log(
   `gas: 1m gas at 10 gwei gasPrice at $2000 ETH is ${
@@ -33,22 +41,163 @@ function sqrtBigNumber(value: BigNumber): BigNumber {
   );
 }
 
-function exponentialCalcAsk(
-  spot: number,
-  pctDelta: number,
-  fee: number,
-  protocolFee: number
-): number {
-  return (1 + fee + protocolFee) * (1 + pctDelta) * spot;
+// TODO: Uncomment when sigmoid implemented
+// /**
+//  * K is already normalized by dividing by 16
+//  */
+// function parseSigmoidDelta(_delta: BigNumber): {
+//   k: number;
+//   deltaN: number;
+//   deltaP: number;
+// } {
+//   const k = _delta.shr(120).toNumber() / 16;
+//   const deltaP = Number(
+//     formatEther(
+//       _delta.and(ethers.BigNumber.from("0x000000000000003fffffffffffffffff"))
+//     )
+//   );
+//   const deltaN = Number(
+//     _delta.and(ethers.BigNumber.from("0x00ffffffffffffc00000000000000000"))
+//   );
+//   return { k, deltaN, deltaP };
+// }
+
+async function sellToPool(
+  lssvmPairETH: LSSVMPairETH,
+  externalTrader: SignerWithAddress,
+  nftToSell: number
+) {
+  const [
+    _bidError,
+    _bidNewSpotPrice,
+    _bidNewDelta,
+    bidInputAmount,
+    _bidProtocolFee,
+    _bidnObj,
+  ] = await lssvmPairETH.getSellNFTQuote(1);
+  // Console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
+  await lssvmPairETH
+    .connect(externalTrader)
+    .swapNFTsForToken(
+      [nftToSell],
+      bidInputAmount,
+      externalTrader.address,
+      false,
+      ethers.constants.AddressZero
+    );
 }
 
-function exponentialCalcBid(
-  spot: number,
-  _pctDelta: number,
-  fee: number,
-  protocolFee: number
+async function buyFromPool(
+  lssvmPairETH: LSSVMPairETH,
+  externalTrader: SignerWithAddress,
+  nftToBuy: number
+) {
+  const [
+    _askError,
+    _askNewSpotPrice,
+    _askNewDelta,
+    askOutputAmount,
+    _askProtocolFee,
+    _asknObj,
+  ] = await lssvmPairETH.getBuyNFTQuote(1);
+
+  await lssvmPairETH
+    .connect(externalTrader)
+    .swapTokenForSpecificNFTs(
+      [nftToBuy],
+      askOutputAmount,
+      externalTrader.address,
+      false,
+      ethers.constants.AddressZero,
+      { value: askOutputAmount }
+    );
+}
+
+function calculateAsk(
+  changeInItemsInPool: number,
+  _spot: BigNumber,
+  _delta: BigNumber,
+  _fee: BigNumber,
+  _protocolFee: BigNumber
 ): number {
-  return (1 - fee - protocolFee) * spot;
+  const [spot, delta, fee, protocolFee] = [
+    _spot,
+    _delta,
+    _fee,
+    _protocolFee,
+  ].map((bigNumber) => {
+    return Number(formatEther(bigNumber));
+  });
+  // Use quantity as -changeInItemsInPool since asks decrease the number in the pool
+  if (CURVE_TYPE === "exponential") {
+    return (1 + fee + protocolFee) * delta ** (-changeInItemsInPool + 1) * spot;
+  }
+
+  if (CURVE_TYPE === "linear") {
+    return (
+      (spot + delta * (-changeInItemsInPool + 1)) * (1 + fee + protocolFee)
+    );
+  }
+
+  // TODO: Uncomment when sigmoid implemented
+  // if (CURVE_TYPE === "sigmoid") {
+  //   const { k, deltaP } = parseSigmoidDelta(_delta);
+  //   return spot + deltaP / (1 + 2 ** -(k * (-changeInItemsInPool + 1)));
+  // }
+
+  throw new Error(`Unrecognized curve type: ${CURVE_TYPE}`);
+}
+
+function calculateBid(
+  changeInItemsInPool: number,
+  _spot: BigNumber,
+  _delta: BigNumber,
+  _fee: BigNumber,
+  _protocolFee: BigNumber
+): number {
+  const [spot, delta, fee, protocolFee] = [
+    _spot,
+    _delta,
+    _fee,
+    _protocolFee,
+  ].map((bigNumber) => {
+    return Number(formatEther(bigNumber));
+  });
+  if (CURVE_TYPE === "exponential") {
+    return ((1 - fee - protocolFee) * spot) / delta ** changeInItemsInPool;
+  }
+
+  if (CURVE_TYPE === "linear") {
+    return (spot - delta * changeInItemsInPool) * (1 - fee - protocolFee);
+  }
+
+  // TODO: Uncomment when sigmoid implemented
+  // if (CURVE_TYPE === "sigmoid") {
+  //   const { k, deltaP } = parseSigmoidDelta(_delta);
+  //   return spot + deltaP / (1 + 2 ** -(k * -(changeInItemsInPool + 1)));
+  // }
+
+  throw new Error(`Unrecognized curve type: ${CURVE_TYPE}`);
+}
+
+/**
+ * Returns the sum of `fn(i, ...args)` for i in [`initialValue`, `initialValue` + `count`)
+ */
+function cumulativeSum(
+  fn: (i: number, ...args: any[]) => number,
+  initialValue: number,
+  count: number,
+  increment: number,
+  ...args: any[]
+): number {
+  let out = 0;
+  let i = initialValue;
+  for (let iteration = 0; iteration < count; iteration++) {
+    out += fn(i, ...args);
+    i += increment;
+  }
+
+  return out;
 }
 
 function convertToBigNumber(value: number): BigNumber {
@@ -102,142 +251,7 @@ async function getPoolAddress(tx: ContractTransaction, showGas = false) {
   return { newPairAddress, newTokenId };
 }
 
-async function mintTokensAndApprove(
-  initialNFTIDs: number[],
-  myERC721: Contract,
-  thisAccount: SignerWithAddress,
-  lssvmPairFactory: Contract
-) {
-  for (const nftId of initialNFTIDs) {
-    await myERC721.safeMint(
-      thisAccount.address,
-      nftId,
-      "https://www.google.com/"
-    );
-    await myERC721
-      .connect(thisAccount)
-      .approve(lssvmPairFactory.address, nftId);
-    // Console.log(`owner of ${nftId} is '${await myERC721.ownerOf(nftId)}'`)
-  }
-}
-
 describe("Collectionswap", function () {
-  // Async function deployRewardPoolFactory() {
-
-  // }
-
-  async function deployCollectionswap() {
-    const LSSVMPairEnumerableETH = await ethers.getContractFactory(
-      "LSSVMPairEnumerableETH"
-    );
-    const lssvmPairEnumerableETH = await LSSVMPairEnumerableETH.deploy();
-
-    const LSSVMPairMissingEnumerableETH = await ethers.getContractFactory(
-      "LSSVMPairMissingEnumerableETH"
-    );
-    const lssvmPairMissingEnumerableETH =
-      await LSSVMPairMissingEnumerableETH.deploy();
-
-    const LSSVMPairEnumerableERC20 = await ethers.getContractFactory(
-      "LSSVMPairEnumerableERC20"
-    );
-    const lssvmPairEnumerableERC20 = await LSSVMPairEnumerableERC20.deploy();
-
-    const LSSVMPairMissingEnumerableERC20 = await ethers.getContractFactory(
-      "LSSVMPairMissingEnumerableERC20"
-    );
-    const lssvmPairMissingEnumerableERC20 =
-      await LSSVMPairMissingEnumerableERC20.deploy();
-    const payoutAddress = ethers.constants.AddressZero;
-
-    const rawPctProtocolFee = 0.005;
-    const rawPctFee = 0.01;
-    const rawPctDelta = 0.05;
-    const rawSpot = 1;
-
-    const protocolFeeMultiplier = convertToBigNumber(rawPctProtocolFee);
-    const LSSVMPairFactory = await ethers.getContractFactory(
-      "LSSVMPairFactory"
-    );
-    const lssvmPairFactory = await LSSVMPairFactory.deploy(
-      lssvmPairEnumerableETH.address,
-      lssvmPairMissingEnumerableETH.address,
-      lssvmPairEnumerableERC20.address,
-      lssvmPairMissingEnumerableERC20.address,
-      payoutAddress,
-      protocolFeeMultiplier
-    );
-    // Console.log(`LSSVMPairFactory deployed to ${lssvmPairFactory.address}`)
-
-    const [
-      otherAccount0,
-      otherAccount1,
-      otherAccount2,
-      otherAccount3,
-      otherAccount4,
-    ] = await ethers.getSigners();
-    // Console.log([otherAccount0.address, otherAccount1.address, otherAccount2.address, otherAccount3.address, otherAccount4.address])
-
-    const MyERC721 = await ethers.getContractFactory("Alchemy");
-    const myERC721 = await MyERC721.deploy();
-
-    const MyERC1155 = await ethers.getContractFactory("MyERC1155");
-    const myERC1155 = await MyERC1155.deploy();
-
-    const Curve = await ethers.getContractFactory("ExponentialCurve");
-    const curve = await Curve.deploy();
-
-    const LinearCurve = await ethers.getContractFactory("LinearCurve");
-    const linearCurve = await LinearCurve.deploy();
-
-    const nftContractCollection = myERC721;
-    const nftContractCollection1155 = myERC1155;
-    const assetRecipient = ethers.constants.AddressZero;
-    const poolType = await lssvmPairEnumerableETH.poolType();
-
-    const delta = convertToBigNumber(rawPctDelta + 1);
-    const fee = convertToBigNumber(rawPctFee);
-    const spotPrice = convertToBigNumber(rawSpot);
-
-    const initialNFTIDs = [999, 1000, 1001];
-    await lssvmPairFactory.setBondingCurveAllowed(curve.address, true);
-    await lssvmPairFactory.setBondingCurveAllowed(linearCurve.address, true);
-
-    const Collectionswap = await ethers.getContractFactory("Collectionswap");
-    const collectionswap = await Collectionswap.deploy(
-      lssvmPairFactory.address
-    );
-    // Console.log(`Collectionswap deployed to ${collectionswap.address}`)
-
-    return {
-      collectionswap,
-      lssvmPairFactory,
-      lssvmPairEnumerableETH,
-      lssvmPairMissingEnumerableETH,
-      lssvmPairEnumerableERC20,
-      lssvmPairMissingEnumerableERC20,
-      curve,
-      nftContractCollection,
-      assetRecipient,
-      poolType,
-      delta,
-      fee,
-      spotPrice,
-      initialNFTIDs,
-      rawSpot,
-      rawPctDelta,
-      rawPctFee,
-      rawPctProtocolFee,
-      otherAccount0,
-      otherAccount1,
-      otherAccount2,
-      otherAccount3,
-      otherAccount4,
-      linearCurve,
-      nftContractCollection1155,
-    };
-  }
-
   describe("Direct interactions with sudoswap", function () {
     it("Should have a spot price", async function () {
       const {
@@ -252,7 +266,7 @@ describe("Collectionswap", function () {
         initialNFTIDs,
         rawSpot,
         otherAccount0,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       await mintTokensAndApprove(
         initialNFTIDs,
         nftContractCollection,
@@ -285,104 +299,188 @@ describe("Collectionswap", function () {
       expect(poolSpotPrice).to.equal(convertToBigNumber(rawSpot));
     });
 
-    it("Should have an accurate ask price", async function () {
-      const {
-        lssvmPairFactory,
-        nftContractCollection,
-        curve,
-        assetRecipient,
-        poolType,
-        delta,
-        fee,
-        spotPrice,
-        initialNFTIDs,
-        rawSpot,
-        rawPctFee,
-        rawPctDelta,
-        rawPctProtocolFee,
-        otherAccount0,
-      } = await deployCollectionswap();
-      await mintTokensAndApprove(
-        initialNFTIDs,
-        nftContractCollection,
-        otherAccount0,
-        lssvmPairFactory
-      );
-      const lssvmPairETHContractTx: ContractTransaction =
-        await lssvmPairFactory.createPairETH(
-          nftContractCollection.address,
-          curve.address,
-          assetRecipient,
-          poolType,
-          delta,
-          fee,
-          spotPrice,
-          initialNFTIDs,
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
-      );
-      const buyPriceQuote = (await lssvmPairETH.getBuyNFTQuote(1))[3];
-      const buyPriceQuoteSelfCalc = convertToBigNumber(
-        exponentialCalcAsk(rawSpot, rawPctDelta, rawPctFee, rawPctProtocolFee)
-      );
-      expect(closeEnough(buyPriceQuote, buyPriceQuoteSelfCalc)).to.be.true;
-    });
+    describe("Pool price quotes", function () {
+      for (let i = -MAX_DELTA_ITEMS; i <= MAX_DELTA_ITEMS; i++) {
+        for (let j = 1; j <= MAX_QTY_TO_QUOTE; j++) {
+          it(`Should have an accurate ask price quote for ${j} items when pool has a net gain of ${i} tokens`, async function () {
+            const {
+              lssvmPairFactory,
+              nftContractCollection,
+              curve,
+              assetRecipient,
+              poolType,
+              delta,
+              fee,
+              spotPrice,
+              bigPctProtocolFee,
+              otherAccount0,
+              otherAccount5: externalTrader,
+            } = await loadFixture(everythingFixture);
+            const nftList = [1, 2, 3, 4, 5];
+            await mintTokensAndApprove(
+              nftList,
+              nftContractCollection,
+              otherAccount0,
+              lssvmPairFactory
+            );
+            const lssvmPairETHContractTx: ContractTransaction =
+              await lssvmPairFactory.createPairETH(
+                nftContractCollection.address,
+                curve.address,
+                assetRecipient,
+                poolType,
+                config.bigDelta,
+                config.bigPctFee,
+                config.bigSpot,
+                nftList,
+                {
+                  // Value: ethers.BigNumber.from(`${1.2e16}`),
+                  value: ethers.BigNumber.from(`${5e18}`),
+                  gasLimit: 1000000,
+                }
+              );
+            const { newPairAddress } = await getPoolAddress(
+              lssvmPairETHContractTx
+            );
+            const lssvmPairETH = await ethers.getContractAt(
+              "LSSVMPairETH",
+              newPairAddress
+            );
 
-    it("Should have an accurate bid price", async function () {
-      const {
-        lssvmPairFactory,
-        nftContractCollection,
-        curve,
-        assetRecipient,
-        poolType,
-        delta,
-        fee,
-        spotPrice,
-        initialNFTIDs,
-        rawSpot,
-        rawPctFee,
-        rawPctDelta,
-        rawPctProtocolFee,
-        otherAccount0,
-      } = await deployCollectionswap();
-      await mintTokensAndApprove(
-        initialNFTIDs,
-        nftContractCollection,
-        otherAccount0,
-        lssvmPairFactory
-      );
-      const lssvmPairETHContractTx: ContractTransaction =
-        await lssvmPairFactory.createPairETH(
-          nftContractCollection.address,
-          curve.address,
-          assetRecipient,
-          poolType,
-          delta,
-          fee,
-          spotPrice,
-          initialNFTIDs,
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
-      );
-      const sellPriceQuote = (await lssvmPairETH.getSellNFTQuote(1))[3];
-      const sellPriceQuoteSelfCalc = convertToBigNumber(
-        exponentialCalcBid(rawSpot, rawPctDelta, rawPctFee, rawPctProtocolFee)
-      );
-      expect(closeEnough(sellPriceQuote, sellPriceQuoteSelfCalc)).to.be.true;
+            const externalTraderNfts = [123456, 123457, 123458];
+            await mintTokensAndApprove(
+              externalTraderNfts,
+              nftContractCollection,
+              externalTrader,
+              lssvmPairFactory
+            );
+
+            await nftContractCollection
+              .connect(externalTrader)
+              .setApprovalForAll(lssvmPairETH.address, true);
+
+            // Start the pool with the right amount of nfts
+            if (i < 0) {
+              for (let k = 0; k < -i; k++) {
+                await buyFromPool(lssvmPairETH, externalTrader, nftList[k]);
+              }
+            } else if (i > 0) {
+              for (let k = 0; k < i; k++) {
+                await sellToPool(
+                  lssvmPairETH,
+                  externalTrader,
+                  externalTraderNfts[k]
+                );
+              }
+            }
+
+            const buyPriceQuote = (await lssvmPairETH.getBuyNFTQuote(j))[3];
+            const buyPriceQuoteSelfCalc = convertToBigNumber(
+              cumulativeSum(
+                calculateAsk,
+                i,
+                j,
+                -1, // Number of items in the pool decreases more for each additional qty in an ask
+                spotPrice,
+                delta,
+                fee,
+                bigPctProtocolFee
+              )
+            );
+            expect(closeEnough(buyPriceQuote, buyPriceQuoteSelfCalc)).to.be
+              .true;
+          });
+
+          it(`Should have an accurate bid price quote for ${j} items when pool has a net gain of ${i} tokens`, async function () {
+            const {
+              lssvmPairFactory,
+              nftContractCollection,
+              curve,
+              assetRecipient,
+              poolType,
+              delta,
+              fee,
+              spotPrice,
+              bigPctProtocolFee,
+              otherAccount0,
+              otherAccount5: externalTrader,
+            } = await loadFixture(everythingFixture);
+            const nftList = [1, 2, 3, 4, 5];
+            await mintTokensAndApprove(
+              nftList,
+              nftContractCollection,
+              otherAccount0,
+              lssvmPairFactory
+            );
+            const lssvmPairETHContractTx: ContractTransaction =
+              await lssvmPairFactory.createPairETH(
+                nftContractCollection.address,
+                curve.address,
+                assetRecipient,
+                poolType,
+                config.bigDelta,
+                config.bigPctFee,
+                config.bigSpot,
+                nftList,
+                {
+                  // Value: ethers.BigNumber.from(`${1.2e16}`),
+                  value: ethers.BigNumber.from(`${5e18}`),
+                  gasLimit: 1000000,
+                }
+              );
+            const { newPairAddress } = await getPoolAddress(
+              lssvmPairETHContractTx
+            );
+            const lssvmPairETH = await ethers.getContractAt(
+              "LSSVMPairETH",
+              newPairAddress
+            );
+
+            const externalTraderNfts = [123456, 123457, 123458];
+            await mintTokensAndApprove(
+              externalTraderNfts,
+              nftContractCollection,
+              externalTrader,
+              lssvmPairFactory
+            );
+
+            await nftContractCollection
+              .connect(externalTrader)
+              .setApprovalForAll(lssvmPairETH.address, true);
+
+            // Start the pool with the right amount of nfts
+            if (i < 0) {
+              for (let k = 0; k < -i; k++) {
+                await buyFromPool(lssvmPairETH, externalTrader, nftList[k]);
+              }
+            } else if (i > 0) {
+              for (let k = 0; k < i; k++) {
+                await sellToPool(
+                  lssvmPairETH,
+                  externalTrader,
+                  externalTraderNfts[k]
+                );
+              }
+            }
+
+            const sellPriceQuote = (await lssvmPairETH.getSellNFTQuote(j))[3];
+            const sellPriceQuoteSelfCalc = convertToBigNumber(
+              cumulativeSum(
+                calculateBid,
+                i,
+                j,
+                1, // Number of items in the pool increases more for each additional qty in a bid
+                spotPrice,
+                delta,
+                fee,
+                bigPctProtocolFee
+              )
+            );
+            expect(closeEnough(sellPriceQuote, sellPriceQuoteSelfCalc)).to.be
+              .true;
+          });
+        }
+      }
     });
 
     it("Should have errors if value is not enough to bid, AND is sold into", async function () {
@@ -398,7 +496,7 @@ describe("Collectionswap", function () {
         initialNFTIDs,
         otherAccount0,
         otherAccount4,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       await mintTokensAndApprove(
         initialNFTIDs,
         nftContractCollection,
@@ -472,12 +570,12 @@ describe("Collectionswap", function () {
       const {
         lssvmPairFactory,
         nftContractCollection,
-        linearCurve,
+        curve,
         assetRecipient,
         poolType,
         otherAccount0,
         otherAccount4,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const nftList = [1, 2, 3, 4, 5];
       await mintTokensAndApprove(
         nftList,
@@ -488,12 +586,12 @@ describe("Collectionswap", function () {
       const lssvmPairETHContractTx: ContractTransaction =
         await lssvmPairFactory.createPairETH(
           nftContractCollection.address,
-          linearCurve.address,
+          curve.address,
           assetRecipient,
           poolType,
-          ethers.utils.parseEther("0.25"),
-          ethers.utils.parseEther("0.1"),
-          ethers.utils.parseEther("1"),
+          config.bigDelta,
+          config.bigPctFee,
+          config.bigSpot,
           nftList,
           {
             // Value: ethers.BigNumber.from(`${1.2e16}`),
@@ -590,7 +688,7 @@ describe("Collectionswap", function () {
         spotPrice,
         otherAccount0,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
 
       const listOfListOfTokens = [[1], [2, 3], [4, 5, 6], [7, 8, 9, 10]];
 
@@ -695,7 +793,7 @@ describe("Collectionswap", function () {
         otherAccount1,
         otherAccount2,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       await mintTokensAndApprove(
         initialNFTIDs,
         nftContractCollection,
@@ -896,7 +994,7 @@ describe("Collectionswap", function () {
         otherAccount1,
         otherAccount2,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
 
       const theseAccounts = [otherAccount0, otherAccount1, otherAccount2];
       let i = 1;
@@ -958,7 +1056,7 @@ describe("Collectionswap", function () {
         spotPrice,
         otherAccount0,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
 
       //   Const theseAccounts = [otherAccount0, otherAccount1, otherAccount2]
       const theseAccounts = [otherAccount0];
@@ -1020,7 +1118,7 @@ describe("Collectionswap", function () {
         otherAccount1,
         otherAccount2,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
 
       const theseAccounts = [otherAccount0, otherAccount1, otherAccount2];
       let poolAddresses: string[] = [];
@@ -1080,9 +1178,9 @@ describe("Collectionswap", function () {
         targetPool
       );
       // Send enough for n+1 NFTs
-      const maxExpectedTokenInput = convertToBigNumber(
-        rawSpot * (nftsIWant.length + 1)
-      );
+      const maxExpectedTokenInput = (
+        await lssvmPairETH.getBuyNFTQuote(nftsIWant.length)
+      )[3];
 
       // Console.log(await lssvmPairETH.spotPrice())
       // console.log(await lssvmPairETH.getAllHeldIds())
@@ -1233,7 +1331,7 @@ describe("Collectionswap", function () {
         lssvmPairFactory,
         assetRecipient,
         poolType,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const RewardPoolFactory = await ethers.getContractFactory(
         "RewardPoolFactory"
       );
@@ -1395,7 +1493,7 @@ describe("Collectionswap", function () {
         lssvmPairFactory,
         assetRecipient,
         poolType,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const RewardPoolFactory = await ethers.getContractFactory(
         "RewardPoolFactory"
       );
@@ -1536,7 +1634,7 @@ describe("Collectionswap", function () {
         assetRecipient,
         poolType,
         rawSpot,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const RewardPoolFactory = await ethers.getContractFactory(
         "RewardPoolFactory"
       );
@@ -1790,7 +1888,7 @@ describe("Collectionswap", function () {
     });
 
     it("should have owner be able to rescue ERC20 tokens directly sent to the CollectionSwap contract", async function () {
-      const { collectionswap } = await deployCollectionswap();
+      const { collectionswap } = await loadFixture(everythingFixture);
       const MyERC20 = await ethers.getContractFactory("Test20");
       const myERC20 = await MyERC20.deploy();
       // Accidentally send to CollectionSwap contract directly
@@ -1802,7 +1900,9 @@ describe("Collectionswap", function () {
     });
 
     it("should prevent non-users from rescuing ERC20 tokens directly sent to the CollectionSwap contract", async function () {
-      const { otherAccount1, collectionswap } = await deployCollectionswap();
+      const { otherAccount1, collectionswap } = await loadFixture(
+        everythingFixture
+      );
       const MyERC20 = await ethers.getContractFactory("Test20");
       const myERC20 = await MyERC20.deploy();
       await expect(
@@ -1824,7 +1924,7 @@ describe("Collectionswap", function () {
         spotPrice,
         otherAccount0,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const tokenIdList = [500, 1000, 1500];
       await mintTokensAndApprove(
         tokenIdList,
@@ -1867,7 +1967,7 @@ describe("Collectionswap", function () {
         nftContractCollection,
         otherAccount0,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const tokenIdList = [500, 1000, 1500];
       await mintTokensAndApprove(
         tokenIdList,
@@ -1893,7 +1993,7 @@ describe("Collectionswap", function () {
 
     it("should prevent non-users from rescuing ERC721 tokens directly sent to the CollectionSwap contract", async function () {
       const { nftContractCollection, otherAccount1, collectionswap } =
-        await deployCollectionswap();
+        await loadFixture(everythingFixture);
       await expect(
         collectionswap
           .connect(otherAccount1)
@@ -1913,7 +2013,7 @@ describe("Collectionswap", function () {
         spotPrice,
         otherAccount0,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const tokenIdList = [500, 1000, 1500];
       await mintTokensAndApprove(
         tokenIdList,
@@ -1961,7 +2061,7 @@ describe("Collectionswap", function () {
         otherAccount0,
         otherAccount2,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const tokenIdList = [500, 1000, 1500];
       await mintTokensAndApprove(
         tokenIdList,
@@ -2006,7 +2106,7 @@ describe("Collectionswap", function () {
         spotPrice,
         otherAccount0,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const tokenIdList = [500, 1000, 1500];
       await mintTokensAndApprove(
         tokenIdList,
@@ -2041,7 +2141,9 @@ describe("Collectionswap", function () {
     });
 
     it("should be able to rescue ERC1155 tokens sent to the CollectionSwap contract directly", async function () {
-      const { otherAccount0, collectionswap } = await deployCollectionswap();
+      const { otherAccount0, collectionswap } = await loadFixture(
+        everythingFixture
+      );
       const MyERC1155 = await ethers.getContractFactory("Test1155");
       const myERC1155 = await MyERC1155.deploy();
       const tokenId = 1;
@@ -2060,7 +2162,7 @@ describe("Collectionswap", function () {
 
     it("should prevent non-users from rescuing ERC1155 tokens directly sent to the CollectionSwap contract", async function () {
       const { nftContractCollection, otherAccount1, collectionswap } =
-        await deployCollectionswap();
+        await loadFixture(everythingFixture);
       await expect(
         collectionswap
           .connect(otherAccount1)
@@ -2070,7 +2172,7 @@ describe("Collectionswap", function () {
 
     it("should prevent non-approved callers from rescuing ERC1155 tokens", async function () {
       const { nftContractCollection, otherAccount2, collectionswap } =
-        await deployCollectionswap();
+        await loadFixture(everythingFixture);
       await expect(
         collectionswap
           .connect(otherAccount2)
@@ -2090,7 +2192,7 @@ describe("Collectionswap", function () {
         spotPrice,
         otherAccount0,
         collectionswap,
-      } = await deployCollectionswap();
+      } = await loadFixture(everythingFixture);
       const tokenIdList = [500, 1000, 1500];
       await mintTokensAndApprove(
         tokenIdList,

@@ -21,7 +21,7 @@ describe("integration", function () {
 
   async function integrationFixture() {
     const { owner, protocol, user } = await getSigners();
-    const { collectionswap, collectionstaker, exponentialCurve } =
+    const { collectionswap, collectionstaker, curve } =
       await collectionstakerFixture();
     const rewardTokens = (await rewardTokenFixture()).slice(0, numRewardTokens);
     const rewards = [
@@ -37,7 +37,7 @@ describe("integration", function () {
     return {
       collectionswap: collectionswap.connect(user),
       collectionstaker: collectionstaker.connect(protocol),
-      exponentialCurve: exponentialCurve as unknown as ICurve,
+      curve: curve as unknown as ICurve,
       rewardTokens: rewardTokens.map((rewardToken) =>
         rewardToken.connect(protocol)
       ),
@@ -53,7 +53,7 @@ describe("integration", function () {
     const {
       collectionswap,
       collectionstaker,
-      exponentialCurve,
+      curve,
       rewardTokens,
       rewards,
       nft,
@@ -77,7 +77,7 @@ describe("integration", function () {
     const fee = ethers.utils.parseEther("0.01");
     const params = {
       nft: nft.connect(user) as unknown as IERC721,
-      bondingCurve: exponentialCurve,
+      bondingCurve: curve,
       delta,
       fee,
     };

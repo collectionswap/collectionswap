@@ -14,7 +14,7 @@ describe("Collectionstaker", function () {
 
   async function collectionstakerFixture() {
     const { protocol } = await getSigners();
-    const { collectionstaker, exponentialCurve, collection } =
+    const { collectionstaker, curve, collection } =
       await _collectionstakerFixture();
     const rewardTokens = (await rewardTokenFixture()).slice(0, numRewardTokens);
     const { nft } = await nftFixture();
@@ -27,7 +27,7 @@ describe("Collectionstaker", function () {
     return {
       collectionstaker: collectionstaker.connect(protocol),
       collection,
-      exponentialCurve,
+      curve,
       rewardTokens,
       rewards,
       nft,
@@ -51,14 +51,8 @@ describe("Collectionstaker", function () {
   describe("Incentive", function () {
     it("Should create a reward pool", async function () {
       const { owner } = await getSigners();
-      const {
-        collectionstaker,
-        rewardTokens,
-        rewards,
-        nft,
-        exponentialCurve,
-        protocol,
-      } = await loadFixture(collectionstakerFixture);
+      const { collectionstaker, rewardTokens, rewards, nft, curve, protocol } =
+        await loadFixture(collectionstakerFixture);
 
       for (let i = 0; i < numRewardTokens; i++) {
         const rewardToken = rewardTokens[i];
@@ -74,7 +68,7 @@ describe("Collectionstaker", function () {
       const endTime = startTime + 86400;
       await collectionstaker.createIncentiveETH(
         nft.address,
-        exponentialCurve.address,
+        curve.address,
         ethers.utils.parseEther("1.5"),
         ethers.BigNumber.from("200000000000000000"),
         rewardTokens.map((rewardToken) => rewardToken.address),

@@ -27,7 +27,9 @@ jobs:
 
       # The described bash commands will be executed
       - name: Install Dependencies
-        run: yarn 
+        run: yarn
 
       - name: Run Tests
-        run: npx hardhat test
+        run: |
+          CURVE_TYPE=linear npx hardhat test
+          CURVE_TYPE=exponential npx hardhat test
