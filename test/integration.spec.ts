@@ -1,5 +1,5 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
-import { expect, use } from "chai";
+import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import {
@@ -13,7 +13,7 @@ import { getSigners } from "./shared/signers";
 import type { ICurve, IERC721 } from "../typechain-types";
 
 describe("integration", function () {
-  // removing the last few digits when comparing, since we have 18
+  // Removing the last few digits when comparing, since we have 18
   // so this should be fine
   const removePrecision = 1000000;
 
@@ -48,6 +48,7 @@ describe("integration", function () {
       user,
     };
   }
+
   it("Should integrate", async function () {
     const {
       collectionswap,
@@ -56,7 +57,6 @@ describe("integration", function () {
       rewardTokens,
       rewards,
       nft,
-      owner,
       protocol,
       user,
     } = await loadFixture(integrationFixture);
@@ -64,7 +64,7 @@ describe("integration", function () {
     const initialNftTokenIds = await mintNfts(nft, user.address);
     const initialETH = ethers.utils.parseEther("25");
 
-    // user should have the eth and nfts
+    // User should have the eth and nfts
     expect(
       await ethers.provider.getBalance(user.address)
     ).to.greaterThanOrEqual(initialETH);
@@ -76,7 +76,7 @@ describe("integration", function () {
     const delta = ethers.utils.parseEther("1.05");
     const fee = ethers.utils.parseEther("0.01");
     const params = {
-      nft: nft.connect(user),
+      nft: nft.connect(user) as unknown as IERC721,
       bondingCurve: exponentialCurve,
       delta,
       fee,
@@ -88,23 +88,23 @@ describe("integration", function () {
       value: initialETH,
     });
     const { lpTokenId, pairAddress } = result;
-    let dBalance = result.dBalance;
+    let { dBalance } = result;
 
-    // user decrease in eth should be equal to eth deposited
+    // User decrease in eth should be equal to eth deposited
     expect(prevBalance.sub(await user.getBalance()).sub(dBalance)).to.equal(
       initialETH
     );
 
-    // sudoswap should now have the eth and nfts
+    // Sudoswap should now have the eth and nfts
     expect(await ethers.provider.getBalance(pairAddress)).to.equal(initialETH);
     for (const nftTokenId of initialNftTokenIds) {
       expect(await nft.ownerOf(nftTokenId)).to.equal(pairAddress);
     }
 
-    // user should be minted an lp token
+    // User should be minted an lp token
     expect(await collectionswap.ownerOf(lpTokenId)).to.equal(user.address);
 
-    // protocol should have the reward tokens
+    // Protocol should have the reward tokens
     for (let i = 0; i < numRewardTokens; i++) {
       expect(await rewardTokens[i].balanceOf(protocol.address)).to.equal(
         rewards[i]
@@ -121,7 +121,7 @@ describe("integration", function () {
       endTime,
     });
 
-    // reward pool should now have the reward tokens
+    // Reward pool should now have the reward tokens
     for (let i = 0; i < numRewardTokens; i++) {
       expect(await rewardTokens[i].balanceOf(rewardPool.address)).to.equal(
         rewards[i]
@@ -131,24 +131,24 @@ describe("integration", function () {
 
     rewardPool = rewardPool.connect(user);
 
-    // user should have the lp token
+    // User should have the lp token
     expect(await collectionswap.ownerOf(lpTokenId)).to.equal(user.address);
 
     await collectionswap.approve(rewardPool.address, lpTokenId);
     await rewardPool.stake(lpTokenId);
 
-    // reward pool should now have the lp token
+    // Reward pool should now have the lp token
     expect(await collectionswap.ownerOf(lpTokenId)).to.equal(
       rewardPool.address
     );
 
-    // time passes to halfway of incentive
+    // Time passes to halfway of incentive
     const period = endTime - startTime;
     await time.increaseTo(startTime + period / 2 - 1);
 
     await rewardPool.getReward();
 
-    // user should get half the rewards
+    // User should get half the rewards
     for (let i = 0; i < numRewardTokens; i++) {
       const rewardRate = await rewardPool.rewardRates(rewardTokens[i].address);
       expect(await rewardTokens[i].balanceOf(user.address)).to.approximately(
@@ -157,15 +157,15 @@ describe("integration", function () {
       );
     }
 
-    // time passes to end of incentive
+    // Time passes to end of incentive
     await time.increaseTo(endTime);
 
     await rewardPool.exit(lpTokenId);
 
-    // user should get back lp token
+    // User should get back lp token
     expect(await collectionswap.ownerOf(lpTokenId)).to.equal(user.address);
 
-    // user should get all the rewards
+    // User should get all the rewards
     for (let i = 0; i < numRewardTokens; i++) {
       const rewardRate = await rewardPool.rewardRates(rewardTokens[i].address);
       expect(await rewardTokens[i].balanceOf(user.address)).to.approximately(
@@ -181,12 +181,12 @@ describe("integration", function () {
     const receipt = await response.wait();
     dBalance = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
-    // lp token should be burnt
+    // Lp token should be burnt
     await expect(collectionswap.ownerOf(lpTokenId)).to.be.revertedWith(
       "ERC721: invalid token ID"
     );
 
-    // user should get back eth and nfts
+    // User should get back eth and nfts
     expect((await user.getBalance()).sub(prevBalance).add(dBalance)).to.equal(
       initialETH
     );

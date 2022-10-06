@@ -16,12 +16,12 @@ export async function mintNfts(
   nft: ERC721PresetMinterPauserAutoId,
   to: string,
   n = 1
-): Promise<[string]> {
-  return await Promise.all(
-    new Array(n).fill().map(async () => {
+): Promise<string[]> {
+  return Promise.all(
+    new Array(n).fill(0).map(async () => {
       const response = await nft.mint(to);
       const receipt = await response.wait();
-      return receipt.events[0].args!.tokenId;
+      return receipt.events![0]!.args!.tokenId;
     })
   );
 }
@@ -79,7 +79,7 @@ export async function createIncentiveEth(
   );
 
   const events = receipt.events!;
-  const poolAddress = events.at(-1).args.poolAddress;
+  const { poolAddress } = events.at(-1)!.args!;
 
   const rewardPool = await ethers.getContractAt("RewardPoolETH", poolAddress);
   return {
@@ -128,7 +128,7 @@ export async function createPairEth(
   const events = receipt.events!;
   return {
     dBalance,
-    pairAddress: events.at(-3).args.poolAddress,
-    lpTokenId: events.at(-2).args.tokenId,
+    pairAddress: events.at(-3)!.args!.poolAddress,
+    lpTokenId: events.at(-2)!.args!.tokenId,
   };
 }

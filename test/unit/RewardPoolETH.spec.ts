@@ -6,7 +6,6 @@ import {
 } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-
 import {
   collectionswapFixture,
   rewardTokenFixture,
@@ -14,10 +13,8 @@ import {
 } from "../shared/fixtures";
 import { createPairEth, mintNfts } from "../shared/helpers";
 import { getSigners } from "../shared/signers";
-
 import type {
   Collectionswap,
-  ExponentialCurve,
   ICurve,
   IERC20,
   IERC721,
@@ -25,27 +22,23 @@ import type {
 } from "../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumberish } from "ethers";
-import { maxHeaderSize } from "http";
 
 describe("RewardPoolETH", function () {
   let collectionswap: Collectionswap;
   let allRewardTokens: IERC20[];
   let rewardTokens: IERC20[];
   let rewards: BigNumberish[];
-  let nft: IERC721;
-  let exponentialCurve: ExponentialCurve;
   let lpTokenId: BigNumberish;
   let lpTokenId1: BigNumberish;
   let rewardPool: RewardPoolETH;
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
   let user1: SignerWithAddress;
-  let user2: SignerWithAddress;
   let collection: SignerWithAddress;
 
   const numRewardTokens = 2;
   const dayDuration = 86400;
-  // removing the last few digits when comparing, since we have 18
+  // Removing the last few digits when comparing, since we have 18
   // so this should be fine
   const removePrecision = 1000000;
 
@@ -57,25 +50,22 @@ describe("RewardPoolETH", function () {
       allRewardTokens,
       rewardTokens,
       rewards,
-      nft,
-      exponentialCurve,
       lpTokenId,
       lpTokenId1,
       rewardPool,
       owner,
       user,
       user1,
-      user2,
-      collection
+      collection,
     } = await loadFixture(rewardPoolFixture));
   });
 
   async function rewardPoolFixture() {
-    const { owner, user, user1 , user2, collection} = await getSigners();
+    const { owner, user, user1, collection } = await getSigners();
 
     let { collectionswap, exponentialCurve } = await collectionswapFixture();
     const allRewardTokens = await rewardTokenFixture();
-    const rewardTokens = (allRewardTokens).slice(0, numRewardTokens);
+    const rewardTokens = allRewardTokens.slice(0, numRewardTokens);
     let { nft } = await nftFixture();
 
     const rewards = [
@@ -87,7 +77,7 @@ describe("RewardPoolETH", function () {
     const rewardRates = rewards.map((reward) =>
       reward.div(endTime - startTime)
     );
-    // endTime = startTime - 1000
+    // EndTime = startTime - 1000
     // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
 
     const RewardPool = await ethers.getContractFactory("RewardPoolETH");
@@ -108,6 +98,7 @@ describe("RewardPoolETH", function () {
     for (let i = 0; i < numRewardTokens; i++) {
       await rewardTokens[i].mint(rewardPool.address, rewards[i]);
     }
+
     const nftTokenIds = await mintNfts(nft, user.address);
     const nftTokenIds1 = await mintNfts(nft, user1.address);
 
@@ -125,7 +116,7 @@ describe("RewardPoolETH", function () {
 
     const { lpTokenId } = await createPairEth(collectionswap, {
       ...params,
-      nft,
+      nft: nft as unknown as IERC721,
       nftTokenIds,
     });
 
@@ -133,7 +124,7 @@ describe("RewardPoolETH", function () {
       collectionswap.connect(user1),
       {
         ...params,
-        nft: nft.connect(user1),
+        nft: nft.connect(user1) as unknown as IERC721,
         nftTokenIds: nftTokenIds1,
       }
     );
@@ -151,8 +142,7 @@ describe("RewardPoolETH", function () {
       owner,
       user,
       user1,
-      user2,
-      collection
+      collection,
     };
   }
 
@@ -190,7 +180,7 @@ describe("RewardPoolETH", function () {
       await collectionswap.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
 
-      // mine to after rewards finish
+      // Mine to after rewards finish
       await time.increase(2 * rewardDuration);
       await rewardPool.exit(lpTokenId);
       for (let i = 0; i < numRewardTokens; i++) {
@@ -204,7 +194,7 @@ describe("RewardPoolETH", function () {
       await collectionswap.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
 
-      // mine to before rewards start
+      // Mine to before rewards start
       await time.setNextBlockTimestamp(await rewardPool.lastUpdateTime());
       await rewardPool.exit(lpTokenId);
       for (let i = 0; i < numRewardTokens; i++) {
@@ -216,7 +206,7 @@ describe("RewardPoolETH", function () {
       await collectionswap.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
 
-      // mine to after start time
+      // Mine to after start time
       await time.increaseTo((await rewardPool.lastUpdateTime()).add(1));
       await rewardPool.getReward();
       for (let i = 0; i < numRewardTokens; i++) {
@@ -241,13 +231,13 @@ describe("RewardPoolETH", function () {
       // The user should still be able to stake and see his stake
       expect(await rewardPool.balanceOf(user.address)).to.not.equal(0);
 
-      // time passes
+      // Time passes
       await time.increase(300);
       const startingBlock = await time.latestBlock();
       const endBlock = startingBlock + 100;
       await mineUpTo(endBlock);
 
-      // but there's no reward after exit.
+      // But there's no reward after exit.
       await rewardPool.exit(lpTokenId);
       for (let i = 0; i < numRewardTokens; i++) {
         expect(await rewardTokens[i].balanceOf(user.address)).to.equal(0);
@@ -260,20 +250,20 @@ describe("RewardPoolETH", function () {
       // The user should still be able to stake and see his stake
       expect(await rewardPool.balanceOf(user.address)).to.not.equal(0);
 
-      // time passes
+      // Time passes
       await mine();
       await time.increase(2 * rewardDuration);
       await mine();
 
-      // get the reward period
+      // Get the reward period
       const period = rewardDuration;
 
-      // make sure the time has passed
+      // Make sure the time has passed
       expect(await time.latest()).to.greaterThan(
         await rewardPool.periodFinish()
       );
 
-      // the only user should get most rewards
+      // The only user should get most rewards
       // there will be some dust in the contract
       await rewardPool.exit(lpTokenId);
 
@@ -299,20 +289,20 @@ describe("RewardPoolETH", function () {
       expect(await rewardPool.balanceOf(user.address)).to.not.equal(0);
       expect(await rewardPool.balanceOf(user1.address)).to.not.equal(0);
 
-      // time passes
+      // Time passes
       await mine();
       await time.increase(rewardDuration * 2);
       await mine();
 
-      // get the reward period
+      // Get the reward period
       const period = rewardDuration;
 
-      // make sure the time has passed
+      // Make sure the time has passed
       expect(await time.latest()).to.greaterThan(
         await rewardPool.periodFinish()
       );
 
-      // the only user should get most rewards
+      // The only user should get most rewards
       // there will be some dust in the contract
       await rewardPool.exit(lpTokenId);
       await rewardPool.connect(user1).exit(lpTokenId1);
@@ -339,7 +329,7 @@ describe("RewardPoolETH", function () {
 
     const poolStartTime = (await rewardPool.lastUpdateTime()).toNumber();
 
-    // time passes
+    // Time passes
     await mine();
     await time.increase(rewardDuration / 2);
     await mine();
@@ -352,20 +342,21 @@ describe("RewardPoolETH", function () {
     await time.increase(rewardDuration);
     await mine();
 
-    // get the reward period
-    const period = rewardDuration;
+    // Get the reward period
     const periodFinish = (await rewardPool.periodFinish()).toNumber();
 
     const phase1 = user1StakeTime - poolStartTime;
     const phase2 = periodFinish - user1StakeTime;
 
-    // make sure the time has passed
+    // Make sure the time has passed
     expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish());
 
-    // the only user should get most rewards
+    // The only user should get most rewards
     // there will be some dust in the contract
     // await rewardPool.connect(owner).exit(lpTokenId);
-    await expect(rewardPool.connect(user1).exit(lpTokenId)).to.be.revertedWith('Not owner');
+    await expect(rewardPool.connect(user1).exit(lpTokenId)).to.be.revertedWith(
+      "Not owner"
+    );
     await rewardPool.exit(lpTokenId);
     await rewardPool.connect(user1).exit(lpTokenId1);
 
@@ -384,167 +375,191 @@ describe("RewardPoolETH", function () {
   });
 
   describe("Recharging the pool", function () {
-
-    for (let extra = 1; extra <= 5; extra++) { 
+    for (let extra = 1; extra <= 5; extra++) {
       it(`Recharge the pool with 2+${extra} same tokens (from 0 index) should succeed (from collection AKA protocol owner)`, async function () {
         for (let i = 0; i < 5; i++) {
-          // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
+          // Try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
-  
+
         await collectionswap.approve(rewardPool.address, lpTokenId);
         await rewardPool.stake(lpTokenId);
         const startIndex = 0;
-        const lengthTokens = extra
-        const endIndex = startIndex + lengthTokens
+        const lengthTokens = extra;
+        const endIndex = startIndex + lengthTokens;
         const otherRewardTokens = allRewardTokens.slice(startIndex, endIndex);
-        // console.log(otherRewardTokens.map(token => token.address))
-        const newRewardAmount = ethers.utils.parseEther("69")
-        const newRewardsList = []
+        // Console.log(otherRewardTokens.map(token => token.address))
+        const newRewardAmount = ethers.utils.parseEther("69");
+        const newRewardsList = [];
         for (let i = startIndex; i < endIndex; i++) {
-          const rewardToken = allRewardTokens[i];        
-          newRewardsList.push(newRewardAmount)
+          const rewardToken = allRewardTokens[i];
+          newRewardsList.push(newRewardAmount);
+          // @ts-ignore
           await rewardToken.mint(collection.address, newRewardAmount);
-          const response = await rewardToken.connect(collection).approve(
-            rewardPool.address,
-            newRewardAmount )
-        }  
-        const otherRewards = otherRewardTokens.map((token) => ethers.utils.parseEther("69"));
+          await rewardToken
+            .connect(collection)
+            .approve(rewardPool.address, newRewardAmount);
+        }
+
+        const otherRewards = otherRewardTokens.map((_) =>
+          ethers.utils.parseEther("69")
+        );
         await mine();
         await time.increase(rewardDuration * 2);
-        await mine();     
-        expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish()) ; 
-        const newEndTime = (await time.latest()) + 1000 + rewardDuration;      
-        // console.log(otherRewardTokens.map(token => token.address))
-        await (rewardPool.connect(collection).rechargeRewardPool(
-          otherRewardTokens.map(token => token.address), 
+        await mine();
+        expect(await time.latest()).to.greaterThan(
+          await rewardPool.periodFinish()
+        );
+        const newEndTime = (await time.latest()) + 1000 + rewardDuration;
+        // Console.log(otherRewardTokens.map(token => token.address))
+        await rewardPool.connect(collection).rechargeRewardPool(
+          otherRewardTokens.map((token) => token.address),
           otherRewards,
           newEndTime
-          ))
-        // concat rewards and tokens
-        const expectedRewardTokens = []
-        // get the max of rewards.length and lengthTokens
+        );
+        // Concat rewards and tokens
+        const expectedRewardTokens = [];
+        // Get the max of rewards.length and lengthTokens
         for (let i = 0; i < Math.max(rewards.length, lengthTokens); i++) {
-          let n = ethers.utils.parseEther('0')
+          let n = ethers.utils.parseEther("0");
           if (i < rewards.length) {
-            n = n.add(rewards[i])
+            n = n.add(rewards[i]);
           }
+
           if (i < lengthTokens) {
-            n = n.add(newRewardsList[i])
+            n = n.add(newRewardsList[i]);
           }
-          expectedRewardTokens.push(n)
+
+          expectedRewardTokens.push(n);
         }
+
         await mine();
         await time.increase(rewardDuration * 2);
-        await mine(); 
+        await mine();
         await rewardPool.getReward();
         for (let i = 0; i < expectedRewardTokens.length; i++) {
-          // console.log(await allRewardTokens[i].balanceOf(user.address))
+          // Console.log(await allRewardTokens[i].balanceOf(user.address))
           // console.log(expectedRewardTokens[i])
-          expect(await allRewardTokens[i].balanceOf(user.address)).to.approximately(expectedRewardTokens[i],removePrecision)
-          // console.log(await rewardTokens(i))
+          expect(
+            await allRewardTokens[i].balanceOf(user.address)
+          ).to.approximately(expectedRewardTokens[i], removePrecision);
+          // Console.log(await rewardTokens(i))
           // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
-      })
+      });
     }
 
-
-    for (let extra = 1; extra <= 5; extra++) { 
+    for (let extra = 1; extra <= 5; extra++) {
       it(`Recharge the pool with 2+${extra} same tokens (from 0 index) should succeed (from pool deployer)`, async function () {
         for (let i = 0; i < 5; i++) {
-          // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
+          // Try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
-  
+
         await collectionswap.approve(rewardPool.address, lpTokenId);
         await rewardPool.stake(lpTokenId);
         const startIndex = 0;
-        const lengthTokens = extra
-        const endIndex = startIndex + lengthTokens
+        const lengthTokens = extra;
+        const endIndex = startIndex + lengthTokens;
         const otherRewardTokens = allRewardTokens.slice(startIndex, endIndex);
-        // console.log(otherRewardTokens.map(token => token.address))
-        const newRewardAmount = ethers.utils.parseEther("69")
-        const newRewardsList = []
+        // Console.log(otherRewardTokens.map(token => token.address))
+        const newRewardAmount = ethers.utils.parseEther("69");
+        const newRewardsList = [];
         for (let i = startIndex; i < endIndex; i++) {
-          const rewardToken = allRewardTokens[i];        
-          newRewardsList.push(newRewardAmount)
+          const rewardToken = allRewardTokens[i];
+          newRewardsList.push(newRewardAmount);
+          // @ts-ignore
           await rewardToken.mint(owner.address, newRewardAmount);
-          const response = await rewardToken.approve(
-            rewardPool.address,
-            newRewardAmount )
-        }  
-        const otherRewards = otherRewardTokens.map((token) => ethers.utils.parseEther("69"));
+          await rewardToken.approve(rewardPool.address, newRewardAmount);
+        }
+
+        const otherRewards = otherRewardTokens.map((_) =>
+          ethers.utils.parseEther("69")
+        );
         await mine();
         await time.increase(rewardDuration * 2);
-        await mine();     
-        expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish()) ; 
-        const newEndTime = (await time.latest()) + 1000 + rewardDuration;      
-        // console.log(otherRewardTokens.map(token => token.address))
-        await (rewardPool.connect(owner).rechargeRewardPool(
-          otherRewardTokens.map(token => token.address), 
+        await mine();
+        expect(await time.latest()).to.greaterThan(
+          await rewardPool.periodFinish()
+        );
+        const newEndTime = (await time.latest()) + 1000 + rewardDuration;
+        // Console.log(otherRewardTokens.map(token => token.address))
+        await rewardPool.connect(owner).rechargeRewardPool(
+          otherRewardTokens.map((token) => token.address),
           otherRewards,
           newEndTime
-          ))
-        // concat rewards and tokens
-        const expectedRewardTokens = []
-        // get the max of rewards.length and lengthTokens
+        );
+        // Concat rewards and tokens
+        const expectedRewardTokens = [];
+        // Get the max of rewards.length and lengthTokens
         for (let i = 0; i < Math.max(rewards.length, lengthTokens); i++) {
-          let n = ethers.utils.parseEther('0')
+          let n = ethers.utils.parseEther("0");
           if (i < rewards.length) {
-            n = n.add(rewards[i])
+            n = n.add(rewards[i]);
           }
+
           if (i < lengthTokens) {
-            n = n.add(newRewardsList[i])
+            n = n.add(newRewardsList[i]);
           }
-          expectedRewardTokens.push(n)
+
+          expectedRewardTokens.push(n);
         }
+
         await mine();
         await time.increase(rewardDuration * 2);
-        await mine(); 
+        await mine();
         await rewardPool.getReward();
         for (let i = 0; i < expectedRewardTokens.length; i++) {
-          // console.log(await allRewardTokens[i].balanceOf(user.address))
+          // Console.log(await allRewardTokens[i].balanceOf(user.address))
           // console.log(expectedRewardTokens[i])
-          expect(await allRewardTokens[i].balanceOf(user.address)).to.approximately(expectedRewardTokens[i],removePrecision)
-          // console.log(await rewardTokens(i))
+          expect(
+            await allRewardTokens[i].balanceOf(user.address)
+          ).to.approximately(expectedRewardTokens[i], removePrecision);
+          // Console.log(await rewardTokens(i))
           // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
-      })
+      });
     }
 
-    for (let extra = 6; extra <= 10; extra++) { 
+    for (let extra = 6; extra <= 10; extra++) {
       it(`Recharge the pool with 2+${extra} same tokens (from 0 index) should fail`, async function () {
         for (let i = 0; i < 5; i++) {
-          // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
+          // Try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
-  
+
         await collectionswap.approve(rewardPool.address, lpTokenId);
         await rewardPool.stake(lpTokenId);
         const startIndex = 0;
-        const lengthTokens = extra
-        const endIndex = startIndex + lengthTokens
+        const lengthTokens = extra;
+        const endIndex = startIndex + lengthTokens;
         const otherRewardTokens = allRewardTokens.slice(startIndex, endIndex);
-        const newRewardAmount = ethers.utils.parseEther("69")
-        const newRewardsList = []
+        const newRewardAmount = ethers.utils.parseEther("69");
+        const newRewardsList = [];
         for (let i = startIndex; i < endIndex; i++) {
-          const rewardToken = allRewardTokens[i];        
-          newRewardsList.push(newRewardAmount)
+          const rewardToken = allRewardTokens[i];
+          newRewardsList.push(newRewardAmount);
+          // @ts-ignore
           await rewardToken.mint(owner.address, newRewardAmount);
-          const response = await rewardToken.approve(
-            rewardPool.address,
-            newRewardAmount )
-        }  
-        const otherRewards = otherRewardTokens.map((token) => ethers.utils.parseEther("69"));
+          await rewardToken.approve(rewardPool.address, newRewardAmount);
+        }
+
+        const otherRewards = otherRewardTokens.map((_) =>
+          ethers.utils.parseEther("69")
+        );
         await mine();
         await time.increase(rewardDuration * 2);
-        await mine();     
-        expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish()) ; 
-        const newEndTime = (await time.latest()) + 1000 + rewardDuration;      
-        // console.log(otherRewardTokens.map(token => token.address))
-        await expect(rewardPool.connect(owner).rechargeRewardPool(
-          otherRewardTokens.map(token => token.address), 
-          otherRewards,
-          newEndTime
-          )).to.be.revertedWith('Too many reward tokens')
-        // concat rewards and tokens
+        await mine();
+        expect(await time.latest()).to.greaterThan(
+          await rewardPool.periodFinish()
+        );
+        const newEndTime = (await time.latest()) + 1000 + rewardDuration;
+        // Console.log(otherRewardTokens.map(token => token.address))
+        await expect(
+          rewardPool.connect(owner).rechargeRewardPool(
+            otherRewardTokens.map((token) => token.address),
+            otherRewards,
+            newEndTime
+          )
+        ).to.be.revertedWith("Too many reward tokens");
+        // Concat rewards and tokens
         // const expectedRewardTokens = []
         // // get the max of rewards.length and lengthTokens
         // for (let i = 0; i < Math.max(rewards.length, lengthTokens); i++) {
@@ -559,7 +574,7 @@ describe("RewardPoolETH", function () {
         // }
         // await mine();
         // await time.increase(rewardDuration * 2);
-        // await mine(); 
+        // await mine();
         // await rewardPool.getReward();
         // for (let i = 0; i < expectedRewardTokens.length; i++) {
         //   // console.log(await allRewardTokens[i].balanceOf(user.address))
@@ -568,47 +583,55 @@ describe("RewardPoolETH", function () {
         //   // console.log(await rewardTokens(i))
         //   // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         // }
-      })
+      });
     }
 
     it(`Duplicate reward tokens are not allowed`, async function () {
       for (let i = 0; i < 5; i++) {
-        // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
+        // Try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
       }
 
-      const extra = 3
+      const extra = 3;
       await collectionswap.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
       const startIndex = 0;
-      const lengthTokens = extra
-      const endIndex = startIndex + lengthTokens
+      const lengthTokens = extra;
+      const endIndex = startIndex + lengthTokens;
       let otherRewardTokens = allRewardTokens.slice(startIndex, endIndex);
-      otherRewardTokens = otherRewardTokens.slice(0,extra-1).concat([otherRewardTokens[1]])
-      // console.log(otherRewardTokens.map(token => token.address))
+      otherRewardTokens = otherRewardTokens
+        .slice(0, extra - 1)
+        .concat([otherRewardTokens[1]]);
+      // Console.log(otherRewardTokens.map(token => token.address))
       // console.log(otherRewardTokens.length)
-    
-      const newRewardAmount = ethers.utils.parseEther("69")
-      const newRewardsList = []
+
+      const newRewardAmount = ethers.utils.parseEther("69");
+      const newRewardsList = [];
       for (let i = startIndex; i < endIndex; i++) {
-        const rewardToken = allRewardTokens[i];        
-        newRewardsList.push(newRewardAmount)
+        const rewardToken = allRewardTokens[i];
+        newRewardsList.push(newRewardAmount);
+        // @ts-ignore
         await rewardToken.mint(owner.address, newRewardAmount.mul(2));
-        const response = await rewardToken.approve(
-          rewardPool.address,
-          newRewardAmount.mul(2) )
-      }  
-      const otherRewards = otherRewardTokens.map((token) => ethers.utils.parseEther("69"));
+        await rewardToken.approve(rewardPool.address, newRewardAmount.mul(2));
+      }
+
+      const otherRewards = otherRewardTokens.map((_) =>
+        ethers.utils.parseEther("69")
+      );
       await mine();
       await time.increase(rewardDuration * 2);
-      await mine();     
-      expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish()) ; 
-      const newEndTime = (await time.latest()) + 1000 + rewardDuration;      
-      // console.log(otherRewardTokens.map(token => token.address))
-      await expect(rewardPool.connect(owner).rechargeRewardPool(
-        otherRewardTokens.map(token => token.address), 
-        otherRewards,
-        newEndTime
-        )).to.be.revertedWith('Duplicate reward token')
+      await mine();
+      expect(await time.latest()).to.greaterThan(
+        await rewardPool.periodFinish()
+      );
+      const newEndTime = (await time.latest()) + 1000 + rewardDuration;
+      // Console.log(otherRewardTokens.map(token => token.address))
+      await expect(
+        rewardPool.connect(owner).rechargeRewardPool(
+          otherRewardTokens.map((token) => token.address),
+          otherRewards,
+          newEndTime
+        )
+      ).to.be.revertedWith("Duplicate reward token");
       // // concat rewards and tokens
       // const expectedRewardTokens = []
       // // get the max of rewards.length and lengthTokens
@@ -624,7 +647,7 @@ describe("RewardPoolETH", function () {
       // }
       // await mine();
       // await time.increase(rewardDuration * 2);
-      // await mine(); 
+      // await mine();
       // await rewardPool.getReward();
       // for (let i = 0; i < expectedRewardTokens.length; i++) {
       //   console.log(await allRewardTokens[i].balanceOf(user.address))
@@ -634,99 +657,107 @@ describe("RewardPoolETH", function () {
       //   // console.log(await rewardTokens(i))
       //   // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
       // }
-    })
+    });
 
-    for (let extra = 1; extra <= 3; extra++) { 
+    for (let extra = 1; extra <= 3; extra++) {
       it(`Recharge the pool with 2+${extra} other tokens should succeed`, async function () {
         for (let i = 0; i < 5; i++) {
-          // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
+          // Try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
-  
+
         await collectionswap.approve(rewardPool.address, lpTokenId);
         await rewardPool.stake(lpTokenId);
-        const startIndex = 2
-        const lengthTokens = extra
-        const endIndex = startIndex + lengthTokens
+        const startIndex = 2;
+        const lengthTokens = extra;
+        const endIndex = startIndex + lengthTokens;
         const otherRewardTokens = allRewardTokens.slice(startIndex, endIndex);
-        const newRewardAmount = ethers.utils.parseEther("69")
-        const newRewardsList = []
+        const newRewardAmount = ethers.utils.parseEther("69");
+        const newRewardsList = [];
         for (let i = startIndex; i < endIndex; i++) {
-          const rewardToken = allRewardTokens[i];        
-          newRewardsList.push(newRewardAmount)
+          const rewardToken = allRewardTokens[i];
+          newRewardsList.push(newRewardAmount);
+          // @ts-ignore
           await rewardToken.mint(owner.address, newRewardAmount);
-          const response = await rewardToken.approve(
-            rewardPool.address,
-            newRewardAmount )
-        }  
-        const otherRewards = otherRewardTokens.map((token) => ethers.utils.parseEther("69"));
+          await rewardToken.approve(rewardPool.address, newRewardAmount);
+        }
+
+        const otherRewards = otherRewardTokens.map((_) =>
+          ethers.utils.parseEther("69")
+        );
         await mine();
         await time.increase(rewardDuration * 2);
-        await mine();     
-        expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish()) ; 
-        const newEndTime = (await time.latest()) + 1000 + rewardDuration;      
-        // console.log(otherRewardTokens.map(token => token.address))
-        await (rewardPool.connect(owner).rechargeRewardPool(
-          otherRewardTokens.map(token => token.address), 
+        await mine();
+        expect(await time.latest()).to.greaterThan(
+          await rewardPool.periodFinish()
+        );
+        const newEndTime = (await time.latest()) + 1000 + rewardDuration;
+        // Console.log(otherRewardTokens.map(token => token.address))
+        await rewardPool.connect(owner).rechargeRewardPool(
+          otherRewardTokens.map((token) => token.address),
           otherRewards,
           newEndTime
-          ))
-        // concat rewards and tokens
-        const expectedRewardTokens = rewards.concat(newRewardsList); 
+        );
+        // Concat rewards and tokens
+        const expectedRewardTokens = rewards.concat(newRewardsList);
         await mine();
         await time.increase(rewardDuration * 2);
-        await mine(); 
+        await mine();
         await rewardPool.getReward();
         for (let i = 0; i < expectedRewardTokens.length; i++) {
-          // console.log(await allRewardTokens[i].balanceOf(user.address))
+          // Console.log(await allRewardTokens[i].balanceOf(user.address))
           // console.log(expectedRewardTokens[i])
-          expect(await allRewardTokens[i].balanceOf(user.address)).to.approximately(expectedRewardTokens[i],removePrecision)
-          // console.log(await rewardTokens(i))
+          expect(
+            await allRewardTokens[i].balanceOf(user.address)
+          ).to.approximately(expectedRewardTokens[i], removePrecision);
+          // Console.log(await rewardTokens(i))
           // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
-
-      })
+      });
     }
 
-
-    for (let extra = 4; extra <= 8; extra++) { 
+    for (let extra = 4; extra <= 8; extra++) {
       it(`Recharge the pool with 2+${extra} other tokens should fail`, async function () {
         for (let i = 0; i < 5; i++) {
-          // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
+          // Try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
         }
-  
+
         await collectionswap.approve(rewardPool.address, lpTokenId);
         await rewardPool.stake(lpTokenId);
-        const startIndex = 2
-        const lengthTokens = extra
-        const endIndex = startIndex + lengthTokens
+        const startIndex = 2;
+        const lengthTokens = extra;
+        const endIndex = startIndex + lengthTokens;
         const otherRewardTokens = allRewardTokens.slice(startIndex, endIndex);
-        const newRewardAmount = ethers.utils.parseEther("69")
+        const newRewardAmount = ethers.utils.parseEther("69");
         for (let i = startIndex; i < endIndex; i++) {
-          const rewardToken = allRewardTokens[i];        
+          const rewardToken = allRewardTokens[i];
+          // @ts-ignore
           await rewardToken.mint(owner.address, newRewardAmount);
-          const response = await rewardToken.approve(
-            rewardPool.address,
-            newRewardAmount )
-        }  
-        const otherRewards = otherRewardTokens.map((token) => ethers.utils.parseEther("69"));
+          await rewardToken.approve(rewardPool.address, newRewardAmount);
+        }
+
+        const otherRewards = otherRewardTokens.map((_) =>
+          ethers.utils.parseEther("69")
+        );
         await mine();
         await time.increase(rewardDuration * 2);
-        await mine();     
-        expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish()) ; 
-        const newEndTime = (await time.latest()) + 1000 + rewardDuration;      
-        // console.log(otherRewardTokens.map(token => token.address))
-        await expect(rewardPool.connect(owner).rechargeRewardPool(
-          otherRewardTokens.map(token => token.address), 
-          otherRewards,
-          newEndTime
-          )).to.be.revertedWith('Too many reward tokens')
-          for (let i = 0; i < 5; i++) {
-            // try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
-          }
-      })
+        await mine();
+        expect(await time.latest()).to.greaterThan(
+          await rewardPool.periodFinish()
+        );
+        const newEndTime = (await time.latest()) + 1000 + rewardDuration;
+        // Console.log(otherRewardTokens.map(token => token.address))
+        await expect(
+          rewardPool.connect(owner).rechargeRewardPool(
+            otherRewardTokens.map((token) => token.address),
+            otherRewards,
+            newEndTime
+          )
+        ).to.be.revertedWith("Too many reward tokens");
+        for (let i = 0; i < 5; i++) {
+          // Try { console.log(await rewardPool.rewardTokens(i)) } catch (error) {}
+        }
+      });
     }
-
-
 
     it("Recharge the pool halfway should fail", async function () {
       await collectionswap.approve(rewardPool.address, lpTokenId);
@@ -734,137 +765,150 @@ describe("RewardPoolETH", function () {
 
       const poolStartTime = (await rewardPool.lastUpdateTime()).toNumber();
       const endTime = (await rewardPool.periodFinish()).toNumber();
-      // time passes
+      // Time passes
       await mine();
       await time.increase(rewardDuration / 2);
-      await mine();     
-      // assuming a 50% time extension at halftime, with 1.5 times the original tokens. 
+      await mine();
+      // Assuming a 50% time extension at halftime, with 1.5 times the original tokens.
       // so the remaining time has 2x the token rate
       // at original endTime, we should have 150% of what we expect
 
       const midPoint = await time.latest();
-      // need to updateReward? via getReward()???
+      // Need to updateReward? via getReward()???
       await rewardPool.connect(owner).getReward();
-      // console.log('debug',midPoint,await rewardPool.lastUpdateTime())
-      const fractionElapsed = (midPoint - poolStartTime)/rewardDuration;
-      // console.log('fraction elapsed', fractionElapsed,(midPoint - poolStartTime));
+      // Console.log('debug',midPoint,await rewardPool.lastUpdateTime())
+      const fractionElapsed = (midPoint - poolStartTime) / rewardDuration;
+      // Console.log('fraction elapsed', fractionElapsed,(midPoint - poolStartTime));
 
-      const newEndTime = endTime + (endTime - poolStartTime)/2;
+      const newEndTime = endTime + (endTime - poolStartTime) / 2;
       const additionalRewardQuantum = 2.5;
-      const expectedEndAmount = ((0.5 + additionalRewardQuantum) / 2) + fractionElapsed
-      const additionalRewards = rewards.map((reward) => reward.mul(ethers.utils.parseEther(additionalRewardQuantum.toString())).div(ethers.utils.parseEther('1')) );
-      const atOriginalEnd = rewards.map((reward) => reward.mul(ethers.utils.parseEther(expectedEndAmount.toString())).div(ethers.utils.parseEther('1')) );
+      const expectedEndAmount =
+        (0.5 + additionalRewardQuantum) / 2 + fractionElapsed;
+      const additionalRewards = rewards.map((reward) =>
+        reward
+          // @ts-ignore
+          .mul(ethers.utils.parseEther(additionalRewardQuantum.toString()))
+          .div(ethers.utils.parseEther("1"))
+      );
+      rewards.map((reward) =>
+        reward
+          // @ts-ignore
+          .mul(ethers.utils.parseEther(expectedEndAmount.toString()))
+          .div(ethers.utils.parseEther("1"))
+      );
 
       for (let i = 0; i < numRewardTokens; i++) {
         const rewardToken = rewardTokens[i];
-        
+
+        // @ts-ignore
         await rewardToken.mint(owner.address, additionalRewards[i]);
-        const response = await rewardTokens[i].approve(
-          rewardPool.address,
-          additionalRewards[i]
-        );
+        await rewardTokens[i].approve(rewardPool.address, additionalRewards[i]);
       }
 
-      // get rewardRates 
+      // Get rewardRates
 
-      let phase1Rewards = []
+      const phase1Rewards = [];
       for (const rewardToken of rewardTokens) {
         const rewardRates = await rewardPool.rewardRates(rewardToken.address);
-        // console.log('reward rate', rewardRates.toString());
+        // Console.log('reward rate', rewardRates.toString());
         phase1Rewards.push(rewardRates.mul(midPoint - poolStartTime));
       }
 
-      // recharge the pool
-      await expect(rewardPool.connect(owner).rechargeRewardPool(
-        rewardTokens.map((token) => token.address),
-        additionalRewards,
-        newEndTime
-      )).to.be.revertedWith('Cannot recharge before period finish');
-
-    })
+      // Recharge the pool
+      await expect(
+        rewardPool.connect(owner).rechargeRewardPool(
+          rewardTokens.map((token) => token.address),
+          additionalRewards,
+          newEndTime
+        )
+      ).to.be.revertedWith("Cannot recharge before period finish");
+    });
 
     it("Recharge: Two users who staked the same amount, both claim at end of first epoch. ", async function () {
       await collectionswap.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
-      
-      await collectionswap.connect(user1).approve(rewardPool.address, lpTokenId1);
+
+      await collectionswap
+        .connect(user1)
+        .approve(rewardPool.address, lpTokenId1);
       await rewardPool.connect(user1).stake(lpTokenId1);
 
-      const poolStartTime = (await rewardPool.lastUpdateTime()).toNumber();
-
       await mine();
-      await time.increase(rewardDuration*2);
-      await mine();      
+      await time.increase(rewardDuration * 2);
+      await mine();
 
       await rewardPool.getReward();
       await rewardPool.connect(user1).getReward();
 
-      const rewardTokenPoolBalancePrevEpoch = await Promise.all(rewardTokens.map((token) => token.balanceOf(rewardPool.address)));
-      
-      // iterate through reward tokens and mint a bit more
+      await Promise.all(
+        rewardTokens.map(async (token) => token.balanceOf(rewardPool.address))
+      );
 
-      const newRewardAmount = ethers.utils.parseEther("69")
+      // Iterate through reward tokens and mint a bit more
+
+      const newRewardAmount = ethers.utils.parseEther("69");
       for (let i = 0; i < numRewardTokens; i++) {
-        const rewardToken = rewardTokens[i];        
+        const rewardToken = rewardTokens[i];
+        // @ts-ignore
         await rewardToken.mint(owner.address, newRewardAmount);
-        const response = await rewardTokens[i].approve(
-          rewardPool.address,
-          newRewardAmount )
+        await rewardTokens[i].approve(rewardPool.address, newRewardAmount);
       }
 
-      // recharge the pool
+      // Recharge the pool
       const newEndTime = (await time.latest()) + 1000 + rewardDuration;
-      // balances before, map through rewardtokens
-      const balancesBefore = await Promise.all(
-        rewardTokens.map((token) => token.balanceOf(rewardPool.address))
+      // Balances before, map through rewardtokens
+      await Promise.all(
+        rewardTokens.map(async (token) => token.balanceOf(rewardPool.address))
       );
       await rewardPool.connect(owner).rechargeRewardPool(
         rewardTokens.map((token) => token.address),
-        rewardTokens.map((token) => newRewardAmount),
+        rewardTokens.map((_) => newRewardAmount),
         newEndTime
-      )     
+      );
 
-      let userBalanceBefore = []
+      const userBalanceBefore = [];
       for (const thisUser of [user, user1]) {
-        userBalanceBefore.push(await Promise.all(
-          rewardTokens.map((token) => token.balanceOf(thisUser.address))
-        ));
+        userBalanceBefore.push(
+          await Promise.all(
+            rewardTokens.map(async (token) => token.balanceOf(thisUser.address))
+          )
+        );
       }
-
 
       await mine();
       await time.increase(rewardDuration / 2);
-      await mine();    
+      await mine();
 
-      // do fucky stuff
-      expect(await time.latest()).to.lessThan(await rewardPool.periodFinish()); 
+      // Do fucky stuff
+      expect(await time.latest()).to.lessThan(await rewardPool.periodFinish());
       await rewardPool.connect(user).getReward();
       await rewardPool.connect(user1).getReward();
 
       await mine();
       await time.increase(rewardDuration * 2);
-      await mine();    
+      await mine();
 
       for (const thisUser of [user, user1]) {
-        // console.log('user',thisUser.address)
+        // Console.log('user',thisUser.address)
 
         // get balances before
         // const balancesBefore = await Promise.all(
         //   rewardTokens.map((token) => token.balanceOf(thisUser.address))
         // );
-        const balancesBefore = userBalanceBefore[[user, user1].indexOf(thisUser)];
+        const balancesBefore =
+          userBalanceBefore[[user, user1].indexOf(thisUser)];
 
         await rewardPool.connect(thisUser).getReward();
 
-        // get balances after
+        // Get balances after
         const balancesAfter = await Promise.all(
-          rewardTokens.map((token) => token.balanceOf(thisUser.address))
+          rewardTokens.map(async (token) => token.balanceOf(thisUser.address))
         );
 
-        // balances after, map through rewardtokens
+        // Balances after, map through rewardtokens
         for (let i = 0; i < numRewardTokens; i++) {
           const diff = balancesAfter[i].sub(balancesBefore[i]);
-          let expectedAmount = (newRewardAmount.div(2))
+          const expectedAmount = newRewardAmount.div(2);
 
           // // user1 did not claim, expect him to get it by the end of next epoch
           // if (thisUser.address === user1.address) {
@@ -872,262 +916,263 @@ describe("RewardPoolETH", function () {
           // }
 
           // console.log('diff',rewardTokens[i].address,diff,balancesAfter[i],balancesBefore[i],(newRewardAmount.div(2)),(newRewardAmount.div(2)).add(rewardTokenPoolBalancePrevEpoch[i]))
-          expect(diff).to.approximately(expectedAmount,removePrecision);
+          expect(diff).to.approximately(expectedAmount, removePrecision);
         }
       }
-      
-      
-
-
-    })
+    });
 
     it("Recharge: Two users who staked the same amount, both did not claim at end of first epoch. ", async function () {
       await collectionswap.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
-      
-      await collectionswap.connect(user1).approve(rewardPool.address, lpTokenId1);
+
+      await collectionswap
+        .connect(user1)
+        .approve(rewardPool.address, lpTokenId1);
       await rewardPool.connect(user1).stake(lpTokenId1);
 
-      const poolStartTime = (await rewardPool.lastUpdateTime()).toNumber();
-
       await mine();
-      await time.increase(rewardDuration*2);
-      await mine();      
+      await time.increase(rewardDuration * 2);
+      await mine();
 
-      // await rewardPool.getReward();
+      // Await rewardPool.getReward();
       // await rewardPool.connect(user1).getReward();
 
-      const rewardTokenPoolBalancePrevEpoch = await Promise.all(rewardTokens.map((token) => token.balanceOf(rewardPool.address)));
+      const rewardTokenPoolBalancePrevEpoch = await Promise.all(
+        rewardTokens.map(async (token) => token.balanceOf(rewardPool.address))
+      );
 
-      // console.log(rewardTokenPoolBalancePrevEpoch)
+      // Console.log(rewardTokenPoolBalancePrevEpoch)
 
-      
       // iterate through reward tokens and mint a bit more
 
-      const newRewardAmount = ethers.utils.parseEther("69")
+      const newRewardAmount = ethers.utils.parseEther("69");
       for (let i = 0; i < numRewardTokens; i++) {
-        const rewardToken = rewardTokens[i];        
+        const rewardToken = rewardTokens[i];
+        // @ts-ignore
         await rewardToken.mint(owner.address, newRewardAmount);
-        const response = await rewardTokens[i].approve(
-          rewardPool.address,
-          newRewardAmount )
+        await rewardTokens[i].approve(rewardPool.address, newRewardAmount);
       }
 
-      // recharge the pool
+      // Recharge the pool
       const newEndTime = (await time.latest()) + 1000 + rewardDuration;
-      // balances before, map through rewardtokens
-      const balancesBefore = await Promise.all(
-        rewardTokens.map((token) => token.balanceOf(rewardPool.address))
+      // Balances before, map through rewardtokens
+      await Promise.all(
+        rewardTokens.map(async (token) => token.balanceOf(rewardPool.address))
       );
-      // console.log(rewardTokens.map((token) => token.address))
+      // Console.log(rewardTokens.map((token) => token.address))
       // console.log(rewardTokens.map((token) => newRewardAmount))
       // console.log(newEndTime)
       await rewardPool.connect(owner).rechargeRewardPool(
         rewardTokens.map((token) => token.address),
-        rewardTokens.map((token) => newRewardAmount),
+        rewardTokens.map((_) => newRewardAmount),
         newEndTime
-      )     
+      );
 
-      let userBalanceBefore = []
+      const userBalanceBefore = [];
       for (const thisUser of [user, user1]) {
-        userBalanceBefore.push(await Promise.all(
-          rewardTokens.map((token) => token.balanceOf(thisUser.address))
-        ));
+        userBalanceBefore.push(
+          await Promise.all(
+            rewardTokens.map(async (token) => token.balanceOf(thisUser.address))
+          )
+        );
       }
-
 
       await mine();
       await time.increase(rewardDuration / 2);
-      await mine();    
+      await mine();
 
-      // do fucky stuff
-      expect(await time.latest()).to.lessThan(await rewardPool.periodFinish()); 
+      // Do fucky stuff
+      expect(await time.latest()).to.lessThan(await rewardPool.periodFinish());
       await rewardPool.connect(user).getReward();
       await rewardPool.connect(user1).getReward();
 
-      
       await mine();
       await time.increase(rewardDuration * 2);
-      await mine();    
+      await mine();
 
       for (const thisUser of [user, user1]) {
-        // console.log('user',thisUser.address)
+        // Console.log('user',thisUser.address)
 
         // get balances before
-        const balancesBefore = userBalanceBefore[[user, user1].indexOf(thisUser)];
+        const balancesBefore =
+          userBalanceBefore[[user, user1].indexOf(thisUser)];
 
         await rewardPool.connect(thisUser).getReward();
 
-        // get balances after
+        // Get balances after
         const balancesAfter = await Promise.all(
-          rewardTokens.map((token) => token.balanceOf(thisUser.address))
+          rewardTokens.map(async (token) => token.balanceOf(thisUser.address))
         );
 
-        // balances after, map through rewardtokens
+        // Balances after, map through rewardtokens
         for (let i = 0; i < numRewardTokens; i++) {
           const diff = balancesAfter[i].sub(balancesBefore[i]);
-          let expectedAmount = (newRewardAmount.div(2))
+          let expectedAmount = newRewardAmount.div(2);
 
-          // both users did not claim, expect him to get it by the end of next epoch
-          expectedAmount = expectedAmount.add(rewardTokenPoolBalancePrevEpoch[i].div(2))
+          // Both users did not claim, expect him to get it by the end of next epoch
+          expectedAmount = expectedAmount.add(
+            rewardTokenPoolBalancePrevEpoch[i].div(2)
+          );
 
-          // console.log('diff',rewardTokens[i].address,diff,balancesAfter[i],balancesBefore[i],(newRewardAmount.div(2)),(newRewardAmount.div(2)).add(rewardTokenPoolBalancePrevEpoch[i]))
-          expect(diff).to.approximately(expectedAmount,removePrecision);
+          // Console.log('diff',rewardTokens[i].address,diff,balancesAfter[i],balancesBefore[i],(newRewardAmount.div(2)),(newRewardAmount.div(2)).add(rewardTokenPoolBalancePrevEpoch[i]))
+          expect(diff).to.approximately(expectedAmount, removePrecision);
         }
       }
-    })
+    });
 
     it("Recharge: Two users who staked the same amount, one didn't claim at end of first epoch. He gets the token balance he didn't claim at the end of next epoch.", async function () {
       await collectionswap.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
       // The user should still be able to stake and see his stake
       expect(await rewardPool.balanceOf(user.address)).to.not.equal(0);
-  
+
       const poolStartTime = (await rewardPool.lastUpdateTime()).toNumber();
-  
-      // time passes
+
+      // Time passes
       await mine();
       await time.increase(rewardDuration / 2);
       await mine();
-  
-      await collectionswap.connect(user1).approve(rewardPool.address, lpTokenId1);
+
+      await collectionswap
+        .connect(user1)
+        .approve(rewardPool.address, lpTokenId1);
       await rewardPool.connect(user1).stake(lpTokenId1);
       const user1StakeTime = await time.latest();
       expect(await rewardPool.balanceOf(user1.address)).to.not.equal(0);
-  
+
       await mine();
       await time.increase(rewardDuration);
       await mine();
-  
-      // get the reward period
-      const period = rewardDuration;
+
+      // Get the reward period
       const periodFinish = (await rewardPool.periodFinish()).toNumber();
-  
+
       const phase1 = user1StakeTime - poolStartTime;
       const phase2 = periodFinish - user1StakeTime;
-  
-      // make sure the time has passed
-      expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish());
+
+      // Make sure the time has passed
+      expect(await time.latest()).to.greaterThan(
+        await rewardPool.periodFinish()
+      );
+
+      // The only user should get most rewards
+      // there will be some dust in the contract
+      await rewardPool.getReward();
+      //   Await rewardPool.connect(user1).getReward();
 
       for (let i = 0; i < numRewardTokens; i++) {
         const rewardToken = rewardTokens[i];
-        for (const thisUser of [user, user1]) {
-        }
-      }
-  
-      // the only user should get most rewards
-      // there will be some dust in the contract
-      await rewardPool.getReward();
-    //   await rewardPool.connect(user1).getReward();
-  
-      for (let i = 0; i < numRewardTokens; i++) {
-        const rewardToken = rewardTokens[i];
-        const rewardRate = await rewardPool.rewardRates(rewardToken.address);  
+        const rewardRate = await rewardPool.rewardRates(rewardToken.address);
         const userReward = await rewardToken.balanceOf(user.address);
-        const userReward1 = await rewardToken.balanceOf(user1.address);
         const reward1 = rewardRate.mul(phase2).div(2);
         const reward = rewardRate.mul(phase1).add(reward1);
         expect(userReward).to.approximately(reward, removePrecision);
-        // expect(userReward1).to.approximately(reward1, removePrecision);
+        // Expect(userReward1).to.approximately(reward1, removePrecision);
       }
 
-      // get balances
-      const rewardTokenPoolBalancePrevEpoch = await Promise.all(rewardTokens.map((token) => token.balanceOf(rewardPool.address)));
-      // console.log(rewardTokenPoolBalancePrevEpoch)
-
+      // Get balances
+      const rewardTokenPoolBalancePrevEpoch = await Promise.all(
+        rewardTokens.map(async (token) => token.balanceOf(rewardPool.address))
+      );
+      // Console.log(rewardTokenPoolBalancePrevEpoch)
 
       // iterate through reward tokens and mint a bit more
 
-      const newRewardAmount = ethers.utils.parseEther("69")
+      const newRewardAmount = ethers.utils.parseEther("69");
       for (let i = 0; i < numRewardTokens; i++) {
-        const rewardToken = rewardTokens[i];        
+        const rewardToken = rewardTokens[i];
+        // @ts-ignore
         await rewardToken.mint(owner.address, newRewardAmount);
-        const response = await rewardTokens[i].approve(
-          rewardPool.address,
-          newRewardAmount )
+        await rewardTokens[i].approve(rewardPool.address, newRewardAmount);
       }
 
-      
-      // recharge the pool
+      // Recharge the pool
       const newEndTime = (await time.latest()) + 1000 + rewardDuration;
 
-      await expect(rewardPool.connect(user).rechargeRewardPool(
-        rewardTokens.map((token) => token.address),
-        rewardTokens.map((token) => newRewardAmount),
-        newEndTime
-      )).to.be.revertedWith('Not authorized')
+      await expect(
+        rewardPool.connect(user).rechargeRewardPool(
+          rewardTokens.map((token) => token.address),
+          rewardTokens.map((_) => newRewardAmount),
+          newEndTime
+        )
+      ).to.be.revertedWith("Not authorized");
 
-      // balances before, map through rewardtokens
+      // Balances before, map through rewardtokens
       const balancesBefore = await Promise.all(
-        rewardTokens.map((token) => token.balanceOf(rewardPool.address))
+        rewardTokens.map(async (token) => token.balanceOf(rewardPool.address))
       );
-
 
       await rewardPool.connect(owner).rechargeRewardPool(
         rewardTokens.map((token) => token.address),
-        rewardTokens.map((token) => newRewardAmount),
+        rewardTokens.map((_) => newRewardAmount),
         newEndTime
-      )
-
-      const balancesAfter = await Promise.all(
-        rewardTokens.map((token) => token.balanceOf(rewardPool.address))
       );
 
+      const balancesAfter = await Promise.all(
+        rewardTokens.map(async (token) => token.balanceOf(rewardPool.address))
+      );
 
-      // balances after, map through rewardtokens
+      // Balances after, map through rewardtokens
       for (let i = 0; i < numRewardTokens; i++) {
-        expect(balancesAfter[i]).to.equal(balancesBefore[i].add(newRewardAmount));
-        // console.log(rewardTokens[i].address,balancesAfter[i],balancesBefore[i],(newRewardAmount))
+        expect(balancesAfter[i]).to.equal(
+          balancesBefore[i].add(newRewardAmount)
+        );
+        // Console.log(rewardTokens[i].address,balancesAfter[i],balancesBefore[i],(newRewardAmount))
       }
 
-      let userBalanceBefore = []
+      const userBalanceBefore = [];
       for (const thisUser of [user, user1]) {
-        userBalanceBefore.push(await Promise.all(
-          rewardTokens.map((token) => token.balanceOf(thisUser.address))
-        ));
+        userBalanceBefore.push(
+          await Promise.all(
+            rewardTokens.map(async (token) => token.balanceOf(thisUser.address))
+          )
+        );
       }
 
       await mine();
       await time.increase(rewardDuration / 2);
-      await mine();    
+      await mine();
 
-      // do fucky stuff
-      expect(await time.latest()).to.lessThan(await rewardPool.periodFinish()); 
+      // Do fucky stuff
+      expect(await time.latest()).to.lessThan(await rewardPool.periodFinish());
       await rewardPool.connect(user).getReward();
-      // await rewardPool.connect(user1).getReward();
+      // Await rewardPool.connect(user1).getReward();
 
       await mine();
       await time.increase(rewardDuration * 2);
-      await mine();    
-      // make sure the time has passed
-      expect(await time.latest()).to.greaterThan(await rewardPool.periodFinish()); 
+      await mine();
+      // Make sure the time has passed
+      expect(await time.latest()).to.greaterThan(
+        await rewardPool.periodFinish()
+      );
 
-  
-      
       for (const thisUser of [user, user1]) {
-        // console.log('user',thisUser.address)
+        // Console.log('user',thisUser.address)
 
         // get balances before
-        const balancesBefore = userBalanceBefore[[user, user1].indexOf(thisUser)];
+        const balancesBefore =
+          userBalanceBefore[[user, user1].indexOf(thisUser)];
         await rewardPool.connect(thisUser).getReward();
 
-        // get balances after
+        // Get balances after
         const balancesAfter = await Promise.all(
-          rewardTokens.map((token) => token.balanceOf(thisUser.address))
+          rewardTokens.map(async (token) => token.balanceOf(thisUser.address))
         );
 
-        // balances after, map through rewardtokens
+        // Balances after, map through rewardtokens
         for (let i = 0; i < numRewardTokens; i++) {
           const diff = balancesAfter[i].sub(balancesBefore[i]);
-          let expectedAmount = (newRewardAmount.div(2))
+          let expectedAmount = newRewardAmount.div(2);
 
-          // user1 did not claim, expect him to get it by the end of next epoch
+          // User1 did not claim, expect him to get it by the end of next epoch
           if (thisUser.address === user1.address) {
-            expectedAmount = expectedAmount.add(rewardTokenPoolBalancePrevEpoch[i])
+            expectedAmount = expectedAmount.add(
+              rewardTokenPoolBalancePrevEpoch[i]
+            );
           }
 
-          // console.log('diff',rewardTokens[i].address,diff,balancesAfter[i],balancesBefore[i],(newRewardAmount.div(2)),(newRewardAmount.div(2)).add(rewardTokenPoolBalancePrevEpoch[i]))
-          expect(diff).to.approximately(expectedAmount,removePrecision);
+          // Console.log('diff',rewardTokens[i].address,diff,balancesAfter[i],balancesBefore[i],(newRewardAmount.div(2)),(newRewardAmount.div(2)).add(rewardTokenPoolBalancePrevEpoch[i]))
+          expect(diff).to.approximately(expectedAmount, removePrecision);
         }
       }
 
@@ -1137,18 +1182,15 @@ describe("RewardPoolETH", function () {
       //       // const poolBalance = await rewardToken.balanceOf(rewardPool.address);
       //       console.log('token',rewardToken.address,
       //           await rewardToken.balanceOf(rewardPool.address), // pool balance
-      //           await rewardToken.balanceOf(owner.address), 
-      //           await rewardToken.balanceOf(user.address), 
-      //           await rewardToken.balanceOf(user1.address), 
-            
+      //           await rewardToken.balanceOf(owner.address),
+      //           await rewardToken.balanceOf(user.address),
+      //           await rewardToken.balanceOf(user1.address),
+
       //       )
       //       // expect(poolBalance).to.equal(newRewardAmount.div(2));
       //   }
-
-
-
     });
-  })
+  });
 
   describe("Sweep", function () {
     it("should not allow non-deployer to sweep rewards", async function () {
@@ -1161,7 +1203,7 @@ describe("RewardPoolETH", function () {
       await expect(rewardPool.connect(owner).sweepRewards()).to.be.revertedWith(
         "Too early"
       );
-      // set block timestamp to just before rewardSweepTime
+      // Set block timestamp to just before rewardSweepTime
       await time.setNextBlockTimestamp(
         (await rewardPool.rewardSweepTime()).sub(1)
       );

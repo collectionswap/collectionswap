@@ -28,9 +28,9 @@ export async function rewardTokenFixture() {
   const RewardToken = await ethers.getContractFactory(
     "ERC20PresetMinterPauser"
   );
-  return await Promise.all(
-    [...Array(10).keys()].map(async (i) => {
-      return await RewardToken.deploy("Reward Token", "RWT");
+  return Promise.all(
+    [...Array(10).keys()].map(async (_) => {
+      return RewardToken.deploy("Reward Token", "RWT");
     })
   );
 }

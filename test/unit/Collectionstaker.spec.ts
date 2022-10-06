@@ -1,6 +1,6 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
+import { expect } from "chai";
 import { ethers } from "hardhat";
-import { expect } from 'chai'
 
 import {
   collectionstakerFixture as _collectionstakerFixture,
@@ -41,8 +41,10 @@ describe("Collectionstaker", function () {
     });
 
     it("Should have the correct owner", async function () {
-      const {collection,collectionstaker} = await loadFixture(collectionstakerFixture);
-      await expect(await collectionstaker.owner()).to.be.equal(collection.address);
+      const { collection, collectionstaker } = await loadFixture(
+        collectionstakerFixture
+      );
+      expect(await collectionstaker.owner()).to.be.equal(collection.address);
     });
   });
 
@@ -68,7 +70,7 @@ describe("Collectionstaker", function () {
           .approve(collectionstaker.address, reward);
       }
 
-      const startTime = (await time.latest()) + 5; // buffer so that startTime > block.timestamp;
+      const startTime = (await time.latest()) + 5; // Buffer so that startTime > block.timestamp;
       const endTime = startTime + 86400;
       await collectionstaker.createIncentiveETH(
         nft.address,
