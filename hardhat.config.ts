@@ -18,7 +18,10 @@ const config: HardhatUserConfig = {
       viaIR: true //TODO: uncomment on when ready for production. More info at https://docs.soliditylang.org/en/latest/ir-breaking-changes.html
     }
   },
-  gasReporter: {enabled: true},
+  gasReporter: {
+    enabled: true,
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY
+  },
   contractSizer: { runOnCompile: true },
   networks: {
     hardhat: {
