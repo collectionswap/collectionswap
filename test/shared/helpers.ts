@@ -128,7 +128,7 @@ export async function createPairEth(
   const events = receipt.events!;
   return {
     dBalance,
-    pairAddress: events.at(-3)!.args!.poolAddress,
+    pairAddress: events[1].args!.poolAddress,
     lpTokenId: events.at(-2)!.args!.tokenId,
   };
 }

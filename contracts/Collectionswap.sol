@@ -50,7 +50,6 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
     }
 
     function transferOwnershipNFTList(
-        ILSSVMPairFactory factory,
         address oldOwner,
         address newOwner,
         IERC721 _nft,
@@ -63,10 +62,6 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
                 newOwner,
                 nftList[i]
             );
-            // only approve if NFT is transferred into contract for pair creation
-            // approval will fail otherwise
-            if (newOwner == address(this))
-                _nft.approve(address(factory), nftList[i]);
             unchecked {
                 ++i;
             }
@@ -197,13 +192,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint256[] calldata _initialNFTIDs
     ) external payable nonReentrant returns (ILSSVMPairETH newPair) {
         ILSSVMPairFactory factory = _factory;
-        transferOwnershipNFTList(
-            factory,
-            msg.sender,
-            address(this),
-            _nft,
-            _initialNFTIDs
-            );
+        uint256[] memory _emptyInitialNFTIDs;
 
         newPair = factory.createPairETH{value:msg.value}(
             _nft,
@@ -213,6 +202,13 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
             _delta,
             _fee,
             _spotPrice,
+            _emptyInitialNFTIDs
+        );
+
+        transferOwnershipNFTList(
+            msg.sender,
+            address(newPair),
+            _nft,
             _initialNFTIDs
         );
 
@@ -269,7 +265,6 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint256 diffBalance = currBalance - prevBalance;
 
         transferOwnershipNFTList(
-            _factory,
             address(this),
             msg.sender,
             _nft,
