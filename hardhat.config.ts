@@ -13,7 +13,8 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 999999
+        runs: 200
+        // runs: 999999
       },
       viaIR: true //TODO: uncomment on when ready for production. More info at https://docs.soliditylang.org/en/latest/ir-breaking-changes.html
     }
