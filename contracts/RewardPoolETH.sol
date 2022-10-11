@@ -257,6 +257,29 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         }
     }
 
+    function atomicPoolAndVault(
+        IERC721 _nft,
+        ICurve _bondingCurve,
+        uint128 _delta,
+        uint96 _fee,
+        uint128 _spotPrice,
+        uint256[] calldata _initialNFTIDs
+    ) public payable returns (uint256 currTokenId) {
+        ICollectionswap _lpToken = lpToken;
+        (,uint256 currTokenId) = _lpToken.createDirectPairETH{value:msg.value}(_nft,_bondingCurve, _delta, _fee, _spotPrice, _initialNFTIDs);
+
+        stake(currTokenId);
+    }
+
+    function atomicExitAndUnpool(
+        uint256 _tokenId
+    ) external {
+        exit(_tokenId);
+        ICollectionswap _lpToken = lpToken;
+        _lpToken.useLPTokenToDestroyDirectPairETH(_tokenId);
+    }
+
+
     function mint(uint256 tokenId) private returns (uint256 amount) {
         ICollectionswap _lpToken = lpToken;
         require(_lpToken.ownerOf(tokenId) == msg.sender, "Not owner");
@@ -387,7 +410,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         emit Withdrawn(msg.sender, tokenId, amount);
     }
 
-    function exit(uint256 tokenId) external {
+    function exit(uint256 tokenId) public {
         withdraw(tokenId);
         getReward();
     }

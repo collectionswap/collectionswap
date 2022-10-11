@@ -119,9 +119,9 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
     function issueLPToken(
         address receiver,
         LPTokenParams721ETH memory lpTokenParams
-    ) private {
+    ) private returns (uint256 tokenId) {
         // prefix increment returns value after increment
-        uint256 tokenId = ++_nextTokenId;
+        tokenId = ++_nextTokenId;
         _mapNFTIDToPool[tokenId] = lpTokenParams;
         // string memory uri = string(abi.encodePacked('{"pool":"', Strings.toHexString(lpTokenParams.poolAddress), '"}'));
         _mapPoolsToIsLiveForAnyNFT[lpTokenParams.poolAddress] = true;
@@ -190,7 +190,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint96 _fee,
         uint128 _spotPrice,
         uint256[] calldata _initialNFTIDs
-    ) external payable nonReentrant returns (ILSSVMPairETH newPair) {
+    ) external payable nonReentrant returns (ILSSVMPairETH newPair, uint256 newTokenId) {
         ILSSVMPairFactory factory = _factory;
         uint256[] memory _emptyInitialNFTIDs;
 
@@ -206,7 +206,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         );
 
         transferOwnershipNFTList(
-            msg.sender,
+            tx.origin,
             address(newPair),
             _nft,
             _initialNFTIDs
@@ -223,8 +223,8 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
             _initialNFTIDs.length
         );
 
-        issueLPToken(
-            msg.sender,
+        newTokenId = issueLPToken(
+            tx.origin,
             poolParamsStruct
         );
     }
@@ -252,7 +252,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
             errmsg = "pool already destroyed";
         }
 
-        require(isApprovedToOperateOnPool(msg.sender, tokenId), errmsg);
+        require(isApprovedToOperateOnPool(tx.origin, tokenId), errmsg);
 
         uint256[] memory currentIds = this.getAllHeldIds(tokenId);
 
@@ -266,11 +266,11 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
 
         transferOwnershipNFTList(
             address(this),
-            msg.sender,
+            tx.origin,
             _nft,
             currentIds
             );
-        (bool sent,) = payable(msg.sender).call{value: diffBalance}("");
+        (bool sent,) = payable(tx.origin).call{value: diffBalance}("");
         require(sent, "Failed to send Ether");
     }
 
