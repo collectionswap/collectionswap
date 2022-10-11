@@ -81,7 +81,8 @@ describe("RewardPoolETH", function () {
     // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
 
     const RewardPool = await ethers.getContractFactory("RewardPoolETH");
-    let rewardPool = await RewardPool.connect(collectionswap.signer).deploy(
+    let rewardPool = await RewardPool.connect(collectionswap.signer).deploy();
+    await rewardPool.initialize(
       collection.address,
       owner.address,
       collectionswap.address,
@@ -149,6 +150,38 @@ describe("RewardPoolETH", function () {
   describe("Deployment", function () {
     it("Should deploy", async function () {
       await loadFixture(rewardPoolFixture);
+    });
+  });
+
+  describe("Initialize", function () {
+    it("Should throw if initialize twice", async function () {
+      const { nft } = await nftFixture();
+      const { collectionswap, exponentialCurve } =
+        await collectionswapFixture();
+      const rewards = [
+        ethers.utils.parseEther("5"),
+        ethers.utils.parseEther("7"),
+      ];
+      const startTime = (await time.latest()) + 1000;
+      const endTime = startTime + rewardDuration;
+      const rewardRates = rewards.map((reward) =>
+        reward.div(endTime - startTime)
+      );
+      await expect(
+        rewardPool.initialize(
+          collection.address,
+          owner.address,
+          collectionswap.address,
+          nft.address,
+          exponentialCurve.address,
+          ethers.utils.parseEther("1.5"),
+          ethers.BigNumber.from("200000000000000000"),
+          rewardTokens.map((rewardToken) => rewardToken.address),
+          rewardRates,
+          startTime,
+          endTime
+        )
+      ).to.be.revertedWith("Initializable: contract is already initialized");
     });
   });
 

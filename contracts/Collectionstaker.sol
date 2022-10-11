@@ -4,11 +4,13 @@ pragma solidity ^0.8.0;
 import "./ICollectionswap.sol";
 import "./RewardPoolETH.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract Collectionstaker is Ownable {
     using SafeERC20 for IERC20;
 
     ICollectionswap lpToken;
+    RewardPoolETH rewardPoolETHLogic;
     uint256 public constant MAX_REWARD_TOKENS = 5;
 
     /// @notice Event emitted when a liquidity mining incentive has been created
@@ -27,6 +29,7 @@ contract Collectionstaker is Ownable {
 
     constructor(ICollectionswap _lpToken) {
         lpToken = _lpToken;
+        rewardPoolETHLogic = new RewardPoolETH();
     }
 
     function createIncentiveETH(
@@ -41,18 +44,23 @@ contract Collectionstaker is Ownable {
     ) external {
         require(startTime > block.timestamp, "cannot backdate");
         uint256 rewardTokensLength = rewardTokens.length;
-        require(rewardTokensLength <= MAX_REWARD_TOKENS, "too many reward tokens");
+        require(
+            rewardTokensLength <= MAX_REWARD_TOKENS,
+            "too many reward tokens"
+        );
         require(rewardTokensLength == rewards.length, "unequal lengths");
         uint256[] memory rewardRates = new uint256[](rewardTokensLength);
-        for (uint i; i < rewardTokensLength; ) {
+        for (uint256 i; i < rewardTokensLength; ) {
             rewardRates[i] = rewards[i] / (endTime - startTime); // guaranteed endTime > startTime
             require(rewardRates[i] != 0, "0 reward rate");
             unchecked {
                 ++i;
             }
         }
-
-        RewardPoolETH rewardPool = new RewardPoolETH(
+        RewardPoolETH rewardPool = RewardPoolETH(
+            Clones.clone(address(rewardPoolETHLogic))
+        );
+        rewardPool.initialize(
             owner(),
             msg.sender,
             lpToken,
@@ -63,22 +71,28 @@ contract Collectionstaker is Ownable {
             rewardTokens,
             rewardRates,
             startTime,
-            endTime  
+            endTime
         );
 
         // transfer reward tokens to RewardPool
-        for (uint i; i < rewardTokensLength; ) {
+        for (uint256 i; i < rewardTokensLength; ) {
             rewardTokens[i].safeTransferFrom(
                 msg.sender,
                 address(rewardPool),
                 rewards[i]
             );
-            
+
             unchecked {
                 ++i;
             }
         }
 
-        emit IncentiveETHCreated(address(rewardPool), rewardTokens, rewards, startTime, endTime);
+        emit IncentiveETHCreated(
+            address(rewardPool),
+            rewardTokens,
+            rewards,
+            startTime,
+            endTime
+        );
     }
 }
