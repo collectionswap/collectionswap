@@ -31,6 +31,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     uint96 fee;
 
     uint256 public constant MAX_REWARD_TOKENS = 5;
+    uint256 public constant LOCK_TIME = 10 days;
 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
@@ -138,7 +139,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         }
         lastUpdateTime = _startTime;
         periodFinish = _periodFinish;
-        rewardSweepTime = _periodFinish + 180 days;
+        rewardSweepTime = _periodFinish + LOCK_TIME;
     }
 
     function rechargeRewardPool(
@@ -229,7 +230,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
         lastUpdateTime = block.timestamp;
         periodFinish = _newPeriodFinish;
-        rewardSweepTime = _newPeriodFinish + 180 days;
+        rewardSweepTime = _newPeriodFinish + LOCK_TIME;
 
         emit RewardPoolRecharged(
             inputRewardTokens,
