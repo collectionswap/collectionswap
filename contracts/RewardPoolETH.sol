@@ -280,13 +280,11 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         (uint128 _reserve0, uint128 _reserve1) = getReserves(); // gas savings
         uint256 amount0 = _nft.balanceOf(address(_pair));
         uint256 amount1 = address(_pair).balance;
-        uint256 indicatorAtLeastOneBid = 1;
-        (, , , uint256 bidPrice, ) = _pair.getSellNFTQuote(1);
-        if (amount1 < bidPrice) {
-            indicatorAtLeastOneBid = 0;
-        }
 
-        amount = Math.sqrt(amount0 * amount1 * indicatorAtLeastOneBid);
+        ( , , ,uint256 bidPrice, ) = _pair.getSellNFTQuote(1);
+        if (amount1 >= bidPrice) {
+            amount = Math.sqrt(amount0 * amount1);
+        }
 
         uint256 balance0 = _reserve0 + amount0;
         uint256 balance1 = _reserve1 + amount1;
