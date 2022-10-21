@@ -35,11 +35,7 @@ export async function mintTokensAndApprove(
   lssvmPairFactory: Contract
 ) {
   for (const nftId of initialNFTIDs) {
-    await myERC721.safeMint(
-      thisAccount.address,
-      nftId,
-      "https://www.google.com/"
-    );
+    await myERC721.mint(thisAccount.address, nftId);
     await myERC721
       .connect(thisAccount)
       .approve(lssvmPairFactory.address, nftId);

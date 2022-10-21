@@ -1976,11 +1976,7 @@ describe("Collectionswap", function () {
         lssvmPairFactory
       );
       const tokenId = 2000;
-      await nftContractCollection.safeMint(
-        collectionswap.address,
-        tokenId,
-        "https://www.google.com/"
-      );
+      await nftContractCollection.mint(collectionswap.address, tokenId);
       await collectionswap.rescueERC721(
         nftContractCollection.address,
         [tokenId],

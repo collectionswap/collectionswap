@@ -82,7 +82,7 @@ async function main() {
     otherAccount4.address,
   ]);
 
-  const MyERC721 = await ethers.getContractFactory("Alchemy");
+  const MyERC721 = await ethers.getContractFactory("Test721Enumerable");
   const myERC721 = await MyERC721.deploy();
   const nftTokenId = 999;
   const nftTokenId2 = 1000;
@@ -137,11 +137,7 @@ async function main() {
     const thisListOfNFTIDs = listOfListOfNFTIDs[myIdx];
 
     for (const nftId of thisListOfNFTIDs) {
-      await myERC721.safeMint(
-        thisAccount.address,
-        nftId,
-        "https://www.google.com/"
-      );
+      await myERC721.mint(thisAccount.address, nftId);
       await myERC721
         .connect(thisAccount)
         .approve(lssvmPairFactory.address, nftId);

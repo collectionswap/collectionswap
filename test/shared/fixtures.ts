@@ -166,10 +166,10 @@ export async function everythingFixture() {
   ] = await ethers.getSigners();
   // Console.log([otherAccount0.address, otherAccount1.address, otherAccount2.address, otherAccount3.address, otherAccount4.address])
 
-  const MyERC721 = await ethers.getContractFactory("Alchemy");
+  const MyERC721 = await ethers.getContractFactory("Test721Enumerable");
   const myERC721 = await MyERC721.deploy();
 
-  const MyERC1155 = await ethers.getContractFactory("MyERC1155");
+  const MyERC1155 = await ethers.getContractFactory("Test1155");
   const myERC1155 = await MyERC1155.deploy();
 
   // Deploy all curve contracts and assign the desired curve to `curve`
