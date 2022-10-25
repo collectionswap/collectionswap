@@ -96,7 +96,7 @@ describe("RewardPoolETH", function () {
   async function rewardPoolFixture() {
     const { owner, user, user1, collection } = await getSigners();
 
-    let { collectionswap, exponentialCurve } = await collectionswapFixture();
+    let { collectionswap, curve } = await collectionswapFixture();
     const allRewardTokens = await rewardTokenFixture();
     const rewardTokens = allRewardTokens.slice(0, numRewardTokens);
     let { nft } = await nftFixture();
@@ -114,12 +114,13 @@ describe("RewardPoolETH", function () {
     // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
 
     const RewardPool = await ethers.getContractFactory("RewardPoolETH");
-    let rewardPool = await RewardPool.connect(collectionswap.signer).deploy(
+    let rewardPool = await RewardPool.connect(collectionswap.signer).deploy();
+    await rewardPool.initialize(
       collection.address,
       owner.address,
       collectionswap.address,
       nft.address,
-      exponentialCurve.address,
+      curve.address,
       ethers.utils.parseEther("1.5"),
       ethers.BigNumber.from("200000000000000000"),
       rewardTokens.map((rewardToken) => rewardToken.address),
@@ -140,7 +141,7 @@ describe("RewardPoolETH", function () {
     rewardPool = rewardPool.connect(user);
 
     const params = {
-      bondingCurve: exponentialCurve as unknown as ICurve,
+      bondingCurve: curve as unknown as ICurve,
       delta: ethers.utils.parseEther("1.5"),
       fee: ethers.BigNumber.from("200000000000000000"),
       spotPrice: ethers.BigNumber.from("16493775933609955"),
@@ -168,7 +169,7 @@ describe("RewardPoolETH", function () {
       rewardTokens,
       rewards,
       nft,
-      exponentialCurve,
+      curve,
       params,
       lpTokenId,
       lpTokenId1,
