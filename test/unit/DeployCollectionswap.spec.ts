@@ -1,14 +1,15 @@
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { BigNumber } from "ethers";
+import { formatEther } from "ethers/lib/utils";
 import { ethers } from "hardhat";
 
+import { CURVE_TYPE, config, mintTokensAndApprove } from "../shared/constants";
+import { everythingFixture } from "../shared/fixtures";
+
+import type { LSSVMPairETH } from "../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { ContractTransaction } from "ethers";
-import { CURVE_TYPE, config, mintTokensAndApprove } from "../shared/constants";
-import { formatEther } from "ethers/lib/utils";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { everythingFixture } from "../shared/fixtures";
-import { LSSVMPairETH } from "../../typechain-types";
 
 const MAX_QTY_TO_QUOTE = 5;
 const MAX_DELTA_ITEMS = 3;
@@ -1113,7 +1114,6 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
-        rawSpot,
         otherAccount0,
         otherAccount1,
         otherAccount2,

@@ -1,11 +1,13 @@
 import { LedgerSigner } from "@anders-t/ethers-ledger";
+
 import { configs } from "./config";
-import { HardhatRuntimeEnvironment } from "hardhat/types";
-import {
+
+import type {
   Collectionstaker,
   Collectionswap,
   RewardPoolETH,
 } from "../typechain-types";
+import type { HardhatRuntimeEnvironment } from "hardhat/types";
 
 let collectionSwap: Collectionswap;
 let collectionStaker: Collectionstaker;

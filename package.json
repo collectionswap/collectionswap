@@ -2,6 +2,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "lint": "yarn lint:ci --fix",
     "lint:ci": "eslint scripts test --ext .ts"
   },
   "devDependencies": {

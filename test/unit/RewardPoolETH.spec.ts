@@ -6,6 +6,7 @@ import {
 } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+
 import {
   collectionswapFixture,
   rewardTokenFixture,
@@ -13,6 +14,7 @@ import {
 } from "../shared/fixtures";
 import { createPairEth, mintNfts } from "../shared/helpers";
 import { getSigners } from "../shared/signers";
+
 import type {
   Collectionswap,
   ICurve,

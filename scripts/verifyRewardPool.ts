@@ -1,5 +1,6 @@
 import fs from "fs";
-import { HardhatRuntimeEnvironment } from "hardhat/types";
+
+import type { HardhatRuntimeEnvironment } from "hardhat/types";
 
 export async function verifyRewardPool(
   taskArgs: any,

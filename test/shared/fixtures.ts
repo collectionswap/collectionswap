@@ -1,8 +1,10 @@
-import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
-import { config, curveType, CURVE_TYPE } from "./constants";
 
+import { config, CURVE_TYPE } from "./constants";
 import { getSigners } from "./signers";
+
+import type { curveType } from "./constants";
+import type { BigNumber } from "ethers";
 
 export async function collectionswapFixture() {
   const { collection } = await getSigners();

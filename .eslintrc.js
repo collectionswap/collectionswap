@@ -7,6 +7,8 @@ module.exports = {
     "xo",
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
+    'plugin:import/recommended',
+    'plugin:import/typescript',
     "plugin:prettier/recommended",
   ],
   parser: "@typescript-eslint/parser",
@@ -19,7 +21,11 @@ module.exports = {
   rules: {
     "@typescript-eslint/await-thenable": "error",
     "@typescript-eslint/ban-ts-comment": "off",
+    '@typescript-eslint/consistent-type-imports': 'error',
     "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-misused-promises": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
     "@typescript-eslint/no-unused-vars": [
       "error",
       {
@@ -31,6 +37,14 @@ module.exports = {
     "@typescript-eslint/promise-function-async": "error",
     "@typescript-eslint/require-await": "error",
     "@typescript-eslint/return-await": ["error", "in-try-catch"],
+    'import/order': [
+      'error',
+      {
+        alphabetize: { order: 'asc' },
+        groups: ['builtin', 'external', 'parent', 'sibling', 'index', 'type'],
+        'newlines-between': 'always',
+      },
+    ],
     "no-await-in-loop": "off",
     "new-cap": [
       "error",
@@ -46,10 +60,5 @@ module.exports = {
     "no-unused-expressions": "off",
     "max-params": "off",
     "require-await": "off",
-
-    // TODO
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-misused-promises": "off",
-    "@typescript-eslint/no-non-null-assertion": "off",
   },
 };

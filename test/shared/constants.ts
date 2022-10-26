@@ -1,7 +1,8 @@
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { Contract, ContractTransaction } from "ethers";
 import { readFileSync } from "fs";
 import * as path from "path";
+
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import type { Contract, ContractTransaction } from "ethers";
 
 const IMPLEMENTED_CURVES = ["linear", "exponential"] as const;
 export type curveType = typeof IMPLEMENTED_CURVES[number];

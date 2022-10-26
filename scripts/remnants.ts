@@ -2,18 +2,15 @@
 /**
  * This file archives all currently unused functionality
  */
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import {
-  BigNumber,
-  ContractTransaction,
-  ethers,
-  ContractReceipt,
-} from "ethers";
-import {
+import { ethers } from "ethers";
+
+import type {
   LSSVMPairFactory,
   Alchemy,
   ExponentialCurve,
 } from "../typechain-types";
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import type { BigNumber, ContractTransaction, ContractReceipt } from "ethers";
 
 // https://ethereum.stackexchange.com/questions/4086/how-are-enums-converted-to-uint
 async function directSudoswapPoolCreation(
