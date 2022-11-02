@@ -168,12 +168,67 @@ describe("RewardPoolETH", function () {
   }
 
   describe("Atomic transactions", function () {
+    it("Atomic entry", async function () {
+      await nft.connect(user).setApprovalForAll(collectionswap.address, true);
+      await collectionswap
+        .connect(user)
+        .setApprovalForAll(rewardPool.address, true);
+
+      const currentTokenId = await rewardPool
+        .connect(user)
+        .callStatic.atomicPoolAndVault(
+          nft.address,
+          params.bondingCurve.address,
+          params.delta,
+          params.fee,
+          params.spotPrice,
+          nftTokenIds,
+          { value: params.value }
+        );
+
+      const response = await rewardPool
+        .connect(user)
+        .atomicPoolAndVault(
+          nft.address,
+          params.bondingCurve.address,
+          params.delta,
+          params.fee,
+          params.spotPrice,
+          nftTokenIds,
+          { value: params.value }
+        );
+      const receipt = await response.wait();
+      expect(receipt.events).to.exist;
+
+      const description = receipt
+        .events!.map((event) => {
+          try {
+            return collectionswap.interface.parseLog(event);
+          } catch (e) {
+            return null;
+          }
+        })
+        .find(
+          (description) => description && description.name === "NewTokenId"
+        );
+      expect(description).to.exist;
+      const newTokenId = description!.args.tokenId;
+
+      const event = receipt.events!.find((event) => event.event === "Staked");
+      expect(event).to.exist;
+      const stakedTokenId = event!.args!.tokenId;
+
+      expect(currentTokenId).to.equal(newTokenId);
+      expect(newTokenId).to.equal(stakedTokenId);
+    });
+
     it("Atomic entry, piecemeal exit", async function () {
       //   Await nft.connect(user).setApprovalForAll(rewardPool.address, true);
       await nft.connect(user).setApprovalForAll(collectionswap.address, true);
       await collectionswap
         .connect(user)
         .setApprovalForAll(rewardPool.address, true);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const currTokenIdTx = await rewardPool
         .connect(user)
         .atomicPoolAndVault(
@@ -185,21 +240,7 @@ describe("RewardPoolETH", function () {
           nftTokenIds,
           { value: params.value }
         );
-      const currTokenIdResp = await currTokenIdTx.wait();
-      expect(currTokenIdResp.events).to.exist;
-      const currTokenIdEvent = currTokenIdResp
-        .events!.map((event) => {
-          try {
-            return collectionswap.interface.parseLog(event);
-          } catch (e) {
-            return null;
-          }
-        })
-        .find(
-          (description) => description && description.name === "NewTokenId"
-        );
-      expect(currTokenIdEvent).to.exist;
-      const currTokenId = currTokenIdEvent!.args.tokenId;
+      const currTokenId = 1;
 
       await rewardPool.exit(currTokenId);
       await collectionswap.useLPTokenToDestroyDirectPairETH(currTokenId);
