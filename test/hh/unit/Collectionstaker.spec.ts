@@ -24,6 +24,7 @@ describe("Collectionstaker", function () {
       const { owner } = await getSigners();
       const {
         collectionstaker,
+        monotonicIncreasingValidator,
         rewardTokens,
         rewards,
         nft,
@@ -45,9 +46,15 @@ describe("Collectionstaker", function () {
       const startTime = (await time.latest()) + 5; // Buffer so that startTime > block.timestamp;
       const endTime = startTime + 86400;
       await collectionstaker.createIncentiveETH(
+        monotonicIncreasingValidator.address,
         nft.address,
         curve.address,
-        ethers.utils.parseEther("1.5"),
+        {
+          spotPrice: 0,
+          delta: ethers.utils.parseEther("1.5"),
+          props: [],
+          state: [],
+        },
         ethers.BigNumber.from("200000000000000000"),
         rewardTokens.map((rewardToken) => rewardToken.address),
         rewards,

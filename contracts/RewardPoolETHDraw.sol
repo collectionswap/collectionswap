@@ -9,6 +9,7 @@ import "./ILSSVMPair.sol";
 import "./SortitionSumTreeFactory.sol";
 import "./lib/ReentrancyGuard.sol";
 import {RNGInterface} from "./rng/RNGInterface.sol";
+import "./validators/IValidator.sol";
 
 contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     using SafeERC20 for IERC20;
@@ -141,9 +142,10 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         address _factory,
         address _deployer,
         ICollectionswap _lpToken,
+        IValidator _validator,
         IERC721 _nft,
         address _bondingCurve,
-        uint128 _delta,
+        ICurve.Params calldata _curveParams,
         uint96 _fee,
         IERC20[] calldata _rewardTokens,
         uint256[] calldata _rewardRates,
@@ -166,9 +168,10 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             _protocolOwner: _protocolOwner,
             _deployer: _deployer,
             _lpToken: _lpToken,
+            _validator: _validator,
             _nft: _nft,
             _bondingCurve: _bondingCurve,
-            _delta: _delta,
+            _curveParams: _curveParams,
             _fee: _fee,
             _rewardTokens: _rewardTokens,
             _rewardRates: _rewardRates,

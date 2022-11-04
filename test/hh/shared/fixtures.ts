@@ -69,6 +69,7 @@ export async function integrationFixture() {
   const { owner, protocol, user } = await getSigners();
   const { collectionswap, collectionstaker, curve } =
     await collectionstakerFixture();
+  const { monotonicIncreasingValidator } = await validatorFixture();
   const rewardTokens = (await rewardTokenFixture()).slice(0, NUM_REWARD_TOKENS);
   const { nft } = await nftFixture();
 
@@ -87,6 +88,7 @@ export async function integrationFixture() {
   return {
     collectionswap: collectionswap.connect(user),
     collectionstaker: collectionstaker.connect(protocol),
+    monotonicIncreasingValidator,
     curve: curve as unknown as ICurve,
     rewardTokens: rewardTokens.map((rewardToken) =>
       rewardToken.connect(protocol)
@@ -131,11 +133,13 @@ export async function collectionstakerWithRewardsFixture() {
   const { protocol } = await getSigners();
   const { collectionstaker, curve, collection } =
     await collectionstakerFixture();
+  const { monotonicIncreasingValidator } = await validatorFixture();
   const rewardTokens = (await rewardTokenFixture()).slice(0, NUM_REWARD_TOKENS);
   const { nft } = await nftFixture();
 
   return {
     collectionstaker: collectionstaker.connect(protocol),
+    monotonicIncreasingValidator,
     collection,
     curve,
     rewardTokens,
@@ -452,6 +456,7 @@ export async function rewardPoolFixture() {
   const { owner, user, user1, collection } = await getSigners();
 
   let { collectionswap, curve } = await collectionswapFixture();
+  const { monotonicIncreasingValidator } = await validatorFixture();
   const allRewardTokens = await rewardTokenFixture();
   const rewardTokens = allRewardTokens.slice(0, NUM_REWARD_TOKENS);
   let { nft } = await nftFixture();
@@ -476,9 +481,10 @@ export async function rewardPoolFixture() {
     collection.address,
     owner.address,
     collectionswap.address,
+    monotonicIncreasingValidator.address,
     nft.address,
     curve.address,
-    delta,
+    { spotPrice: 0, delta, props: [], state: [] },
     fee,
     rewardTokens.map((rewardToken) => rewardToken.address),
     rewardRates,
@@ -524,6 +530,7 @@ export async function rewardPoolFixture() {
 
   return {
     collectionswap,
+    monotonicIncreasingValidator,
     allRewardTokens,
     rewardTokens,
     rewards: REWARDS,
@@ -538,4 +545,14 @@ export async function rewardPoolFixture() {
     collection,
     params,
   };
+}
+
+export async function validatorFixture() {
+  const MonotonicIncreasingValidator = await ethers.getContractFactory(
+    "MonotonicIncreasingValidator"
+  );
+  const monotonicIncreasingValidator =
+    await MonotonicIncreasingValidator.deploy();
+
+  return { monotonicIncreasingValidator };
 }

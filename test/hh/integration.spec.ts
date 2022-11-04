@@ -16,6 +16,7 @@ describe("integration", function () {
     const {
       collectionswap,
       collectionstaker,
+      monotonicIncreasingValidator,
       curve,
       rewardTokens,
       rewards,
@@ -89,6 +90,7 @@ describe("integration", function () {
     const endTime = startTime + 3600;
     let { rewardPool } = await createIncentiveEth(collectionstaker, {
       ...params,
+      validator: monotonicIncreasingValidator,
       rewardTokens,
       rewards,
       startTime,

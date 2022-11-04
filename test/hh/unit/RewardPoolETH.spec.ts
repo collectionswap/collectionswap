@@ -17,7 +17,9 @@ import { mintNfts } from "../shared/helpers";
 import type {
   Collectionswap,
   ERC721PresetMinterPauserAutoId,
+  ICurve,
   IERC20,
+  MonotonicIncreasingValidator,
   RewardPoolETH,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -65,6 +67,8 @@ async function getPoolAddress(tx: ContractTransaction, showGas = false) {
 
 describe("RewardPoolETH", function () {
   let collectionswap: Collectionswap;
+  let monotonicIncreasingValidator: MonotonicIncreasingValidator;
+  let curve: ICurve;
   let allRewardTokens: IERC20[];
   let rewardTokens: IERC20[];
   let rewards: BigNumberish[];
@@ -90,6 +94,8 @@ describe("RewardPoolETH", function () {
   beforeEach(async function () {
     ({
       collectionswap,
+      monotonicIncreasingValidator,
+      curve,
       allRewardTokens,
       rewardTokens,
       rewards,
@@ -114,8 +120,6 @@ describe("RewardPoolETH", function () {
 
   describe("Initialize", function () {
     it("Should throw if initialize twice", async function () {
-      const { nft } = await nftFixture();
-      const { collectionswap, curve } = await collectionswapFixture();
       const rewards = [
         ethers.utils.parseEther("5"),
         ethers.utils.parseEther("7"),
@@ -130,9 +134,15 @@ describe("RewardPoolETH", function () {
           collection.address,
           owner.address,
           collectionswap.address,
+          monotonicIncreasingValidator.address,
           nft.address,
           curve.address,
-          ethers.utils.parseEther("1.5"),
+          {
+            spotPrice: 0,
+            delta: ethers.utils.parseEther("1.5"),
+            props: [],
+            state: [],
+          },
           ethers.BigNumber.from("200000000000000000"),
           rewardTokens.map((rewardToken) => rewardToken.address),
           rewardRates,

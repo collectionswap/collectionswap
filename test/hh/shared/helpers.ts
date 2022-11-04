@@ -9,6 +9,7 @@ import type {
   IERC721,
   RewardPoolETH,
   ERC721PresetMinterPauserAutoId,
+  IValidator,
 } from "../../../typechain-types";
 import type { BigNumberish } from "ethers";
 
@@ -38,6 +39,7 @@ export async function createIncentiveEth(
   collectionstaker: Collectionstaker,
   {
     user,
+    validator,
     nft,
     bondingCurve,
     delta,
@@ -47,6 +49,7 @@ export async function createIncentiveEth(
     startTime,
     endTime,
   }: Params & {
+    validator: IValidator;
     rewardTokens: IERC20[];
     rewards: BigNumberish[];
     startTime: BigNumberish;
@@ -66,9 +69,10 @@ export async function createIncentiveEth(
   }
 
   const response = await collectionstaker.createIncentiveETH(
+    validator.address,
     nft.address,
     bondingCurve.address,
-    delta,
+    { spotPrice: 0, delta, props: [], state: [] },
     fee,
     rewardTokens.map((rewardToken) => rewardToken.address),
     rewards,

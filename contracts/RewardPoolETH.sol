@@ -8,6 +8,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "./ICollectionswap.sol";
 import "./ILSSVMPair.sol";
+import "./validators/IValidator.sol";
 
 contract RewardPoolETH is IERC721Receiver, Initializable {
     using SafeERC20 for IERC20;
@@ -27,9 +28,10 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     address protocolOwner;
     address deployer;
     ICollectionswap public lpToken;
+    IValidator public validator;
     IERC721 nft;
     address bondingCurve;
-    uint128 delta;
+    ICurve.Params curveParams;
     uint96 fee;
 
     uint256 public constant MAX_REWARD_TOKENS = 5;
@@ -119,9 +121,10 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         address _protocolOwner,
         address _deployer,
         ICollectionswap _lpToken,
+        IValidator _validator,
         IERC721 _nft,
         address _bondingCurve,
-        uint128 _delta,
+        ICurve.Params calldata _curveParams,
         uint96 _fee,
         IERC20[] calldata _rewardTokens,
         uint256[] calldata _rewardRates,
@@ -132,9 +135,10 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         require(_nft.supportsInterface(0x80ac58cd), "NFT not ERC721"); // check if it supports ERC721
         deployer = _deployer;
         lpToken = _lpToken;
+        validator = _validator;
         nft = _nft;
         bondingCurve = _bondingCurve;
-        delta = _delta;
+        curveParams = _curveParams;
         fee = _fee;
         rewardTokens = _rewardTokens;
         unchecked {
@@ -291,19 +295,20 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         ICollectionswap _lpToken = lpToken;
         require(_lpToken.ownerOf(tokenId) == msg.sender, "Not owner");
 
+        ICollectionswap.LPTokenParams721ETH memory params = _lpToken
+            .viewPoolParams(tokenId);
+        ILSSVMPair _pair = ILSSVMPair(params.poolAddress);
         IERC721 _nft = nft;
         require(
-            _lpToken.validatePoolParamsLte(
-                tokenId,
-                address(_nft),
-                bondingCurve,
-                fee,
-                delta
-            ),
+            params.nftAddress == address(_nft) &&
+                params.bondingCurveAddress == bondingCurve &&
+                validator.validate(
+                    _pair,
+                    curveParams,
+                    fee
+                ),
             "Wrong pool"
         );
-
-        ILSSVMPair _pair = ILSSVMPair(_lpToken.viewPoolParams(tokenId).poolAddress);
 
         // Calculate the number of tokens to mint. Equal to
         // sqrt(NFT balance * ETH balance) if there's enough ETH for the pool to

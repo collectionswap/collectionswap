@@ -50,9 +50,10 @@ contract Collectionstaker is Ownable {
     }
 
     function createIncentiveETH(
+        IValidator validator,
         IERC721 nft,
         address bondingCurve,
-        uint128 delta,
+        ICurve.Params calldata curveParams,
         uint96 fee,
         IERC20[] calldata rewardTokens,
         uint256[] calldata rewards,
@@ -84,9 +85,10 @@ contract Collectionstaker is Ownable {
             owner(),
             msg.sender,
             lpToken,
+            validator,
             nft,
             bondingCurve,
-            delta,
+            curveParams,
             fee,
             rewardTokens,
             rewardRates,
@@ -122,9 +124,10 @@ contract Collectionstaker is Ownable {
     }
 
     function createIncentiveETHDraw(
+        IValidator validator,
         IERC721 nft,
         address bondingCurve,
-        uint128 delta,
+        ICurve.Params calldata curveParams,
         uint96 fee,
         IERC20[] calldata rewardTokens,
         uint256[] calldata rewards,
@@ -170,9 +173,10 @@ contract Collectionstaker is Ownable {
             address(this),
             msg.sender,
             lpToken,
+            validator,
             nft,
             bondingCurve,
-            delta,
+            curveParams,
             fee,
             rewardTokens,
             rewardRates,

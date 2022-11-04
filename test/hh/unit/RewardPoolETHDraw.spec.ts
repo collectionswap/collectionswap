@@ -14,6 +14,7 @@ import {
   nftFixture,
   collectionstakerFixture,
   getCurveParameters,
+  validatorFixture,
 } from "../shared/fixtures";
 import { createPairEth, mintNfts } from "../shared/helpers";
 import { getSigners } from "../shared/signers";
@@ -294,7 +295,7 @@ describe("RewardPoolETHDraw", function () {
     // Let { collectionswap, curve } = await collectionswapFixture();
     let { collectionswap, collectionstaker, curve } =
       await collectionstakerFixture();
-
+    const { monotonicIncreasingValidator } = await validatorFixture();
     const allRewardTokens = await rewardTokenFixture();
     const rewardTokens = allRewardTokens.slice(0, numRewardTokens);
     let { nft } = await nftFixture();
@@ -398,9 +399,15 @@ describe("RewardPoolETHDraw", function () {
     }
 
     const tx = await collectionstaker.connect(owner).createIncentiveETHDraw(
+      monotonicIncreasingValidator.address,
       nft.address,
       curve.address,
-      ethers.utils.parseEther("1.5"),
+      {
+        spotPrice: 0,
+        delta: ethers.utils.parseEther("1.5"),
+        props: [],
+        state: [],
+      },
       ethers.BigNumber.from("200000000000000000"),
       rewardTokens.map((rewardToken) => rewardToken.address),
       rewards,
