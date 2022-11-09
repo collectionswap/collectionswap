@@ -19,7 +19,9 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         address owner;
     }
 
+    /// @dev The number of NFTs in the pool
     uint128 private reserve0; // uses single storage slot, accessible via getReserves
+    /// @dev The amount of ETH in the pool
     uint128 private reserve1; // uses single storage slot, accessible via getReserves
 
     address protocolOwner;
@@ -31,10 +33,12 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     uint96 fee;
 
     uint256 public constant MAX_REWARD_TOKENS = 5;
-    uint256 public constant LOCK_TIME = 10 days;
+    uint256 public LOCK_TIME = 30 days;
 
+    /// @dev The total number of tokens minted
     uint256 private _totalSupply;
-    mapping(address => uint256) private _balances;
+    mapping(address => uint256) internal _balances;
+    /// @dev maps from tokenId to pool LPToken information
     mapping(uint256 => LPTokenInfo) public lpTokenInfo;
 
     IERC20[] public rewardTokens;
@@ -42,8 +46,13 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
     uint256 public periodFinish;
     uint256 public rewardSweepTime;
+    /// @dev maps from ERC20 token to the reward amount / duration of period
     mapping(IERC20 => uint256) public rewardRates;
     uint256 public lastUpdateTime;
+    /**
+     * @dev maps from ERC20 token to the reward amount accumulated per unit of
+     * reward token
+     */ 
     mapping(IERC20 => uint256) public rewardPerTokenStored;
     mapping(IERC20 => mapping(address => uint256))
         public userRewardPerTokenPaid;
@@ -102,7 +111,9 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         _;
     }
 
-    constructor() {}
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(
         address _protocolOwner,
@@ -112,13 +123,13 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         address _bondingCurve,
         uint128 _delta,
         uint96 _fee,
-        IERC20[] memory _rewardTokens,
-        uint256[] memory _rewardRates,
+        IERC20[] calldata _rewardTokens,
+        uint256[] calldata _rewardRates,
         uint256 _startTime,
         uint256 _periodFinish
-    ) external initializer {
+    ) public initializer {
         protocolOwner = _protocolOwner;
-        require(_nft.supportsInterface(0x80ac58cd), "NFT should be ERC721"); // check if it supports ERC721
+        require(_nft.supportsInterface(0x80ac58cd), "NFT not ERC721"); // check if it supports ERC721
         deployer = _deployer;
         lpToken = _lpToken;
         nft = _nft;
@@ -126,27 +137,37 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         delta = _delta;
         fee = _fee;
         rewardTokens = _rewardTokens;
-        for (uint256 i; i < rewardTokens.length; ) {
-            require(
-                !rewardTokenValid[_rewardTokens[i]],
-                "Duplicate reward token"
-            );
-            rewardRates[_rewardTokens[i]] = _rewardRates[i];
-            rewardTokenValid[_rewardTokens[i]] = true;
-            unchecked {
-                ++i;
+        unchecked {
+            for (uint256 i; i < rewardTokens.length; ++i) {
+                require(
+                    !rewardTokenValid[_rewardTokens[i]],
+                    "Repeated token"
+                );
+                rewardRates[_rewardTokens[i]] = _rewardRates[i];
+                rewardTokenValid[_rewardTokens[i]] = true;
             }
         }
-        lastUpdateTime = _startTime;
+        lastUpdateTime = _startTime == 0 ? block.timestamp : _startTime;
         periodFinish = _periodFinish;
         rewardSweepTime = _periodFinish + LOCK_TIME;
     }
 
+    /**
+     * @notice Add ERC20 tokens to the pool and set the `newPeriodFinish` value of
+     * the pool
+     * 
+     * @dev new reward tokens are to be appended to inputRewardTokens
+     * 
+     * @param inputRewardTokens An array of ERC20 tokens to recharge the pool with
+     * @param inputRewardAmounts An array of the amounts of each ERC20 token to 
+     * recharge the pool with
+     * @param _newPeriodFinish The value to update this pool's `periodFinish` variable to
+     */
     function rechargeRewardPool(
-        IERC20[] memory inputRewardTokens,
-        uint256[] memory inputRewardAmounts,
+        IERC20[] calldata inputRewardTokens,
+        uint256[] calldata inputRewardAmounts,
         uint256 _newPeriodFinish
-    ) external updateReward(address(0)) {
+    ) public virtual updateReward(address(0)) {
         require(
             msg.sender == deployer || msg.sender == protocolOwner,
             "Not authorized"
@@ -154,80 +175,56 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         require(_newPeriodFinish > block.timestamp, "Invalid period finish");
         require(
             block.timestamp > periodFinish,
-            "Cannot recharge before period finish"
+            "Ongoing rewards"
         );
+        uint256 oldRewardTokensLength = rewardTokens.length;
+        uint256 newRewardTokensLength = inputRewardTokens.length;
+        require(oldRewardTokensLength <= newRewardTokensLength, "Bad token config");
+        require(newRewardTokensLength <= MAX_REWARD_TOKENS, "Exceed max tokens");
         require(
-            inputRewardTokens.length == inputRewardAmounts.length,
+            newRewardTokensLength == inputRewardAmounts.length,
             "Inconsistent length"
         );
 
-        uint256 newTokens = 0;
-        for (uint256 i; i < inputRewardTokens.length; ) {
+        // Mark each ERC20 in the input as used by this pool, and ensure no
+        // duplicates within the input
+        uint256 newReward;
+        for (uint256 i; i < newRewardTokensLength; ) {
             IERC20 inputRewardToken = inputRewardTokens[i];
-            if (!rewardTokenValid[inputRewardToken]) {
-                newTokens = newTokens + 1;
-            }
-            for (uint256 j; j < i; ) {
+            // ensure same ordering for existing tokens
+            if (i < oldRewardTokensLength) {
+                require(inputRewardToken == rewardTokens[i], "Reward token mismatch");
+            } else {
+                // adding new token
                 require(
-                    address(inputRewardToken) != address(inputRewardTokens[j]),
-                    "Duplicate reward token"
+                    !rewardTokenValid[inputRewardToken],
+                    "Repeated token"
                 );
-                unchecked {
-                    ++j;
-                }
+                rewardTokenValid[inputRewardToken] = true;
             }
-            unchecked {
-                ++i;
-            }
-        }
-        uint256 rewardTokensLength = rewardTokens.length;
-        require(
-            newTokens + rewardTokensLength <= MAX_REWARD_TOKENS,
-            "Too many reward tokens"
-        );
 
-        IERC20[MAX_REWARD_TOKENS] memory newRewardTokens;
-        for (uint256 j; j < rewardTokens.length; ) {
-            IERC20 rewardToken = rewardTokens[j];
-            newRewardTokens[j] = rewardToken;
-            rewardRates[rewardToken] = 0; // zero out memo-rates
-            unchecked {
-                ++j;
-            }
-        }
-
-        for (uint256 i; i < inputRewardTokens.length; ) {
-            IERC20 inputRewardToken = inputRewardTokens[i];
-            if (inputRewardAmounts[i] > 0) {
+            // note that reward amounts can be zero
+            newReward = inputRewardAmounts[i];
+            // pull tokens
+            if (newReward > 0) {
                 inputRewardToken.safeTransferFrom(
                     msg.sender,
                     address(this),
-                    inputRewardAmounts[i]
+                    newReward
                 );
-                if (!rewardTokenValid[inputRewardToken]) {
-                    newRewardTokens[rewardTokensLength] = inputRewardToken;
-                    rewardTokensLength = rewardTokensLength + 1;
-                    rewardTokenValid[inputRewardToken] = true;
-                }
-                rewardRates[inputRewardToken] =
-                    inputRewardAmounts[i] /
-                    (_newPeriodFinish - block.timestamp);
-                require(rewardRates[inputRewardToken] != 0, "0 reward rate");
+
+                // newReward = new reward rate
+                newReward /= (_newPeriodFinish - block.timestamp);
+                require(newReward != 0, "0 reward rate");
             }
+            rewardRates[inputRewardToken] = newReward;
+
             unchecked {
                 ++i;
             }
         }
-        // make final array
-        IERC20[] memory finalRewardTokens = new IERC20[](rewardTokensLength);
-        for (uint256 k; k < rewardTokensLength; ) {
-            finalRewardTokens[k] = (newRewardTokens[k]);
-            unchecked {
-                ++k;
-            }
-        }
-        rewardTokens = finalRewardTokens;
 
+        rewardTokens = inputRewardTokens;
         lastUpdateTime = block.timestamp;
         periodFinish = _newPeriodFinish;
         rewardSweepTime = _newPeriodFinish + LOCK_TIME;
@@ -240,19 +237,21 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         );
     }
 
+    /**
+     * @notice Sends all ERC20 token balances of this pool to the deployer.
+     */
     function sweepRewards() external {
         require(msg.sender == deployer, "Not authorized");
         require(block.timestamp >= rewardSweepTime, "Too early");
         emit RewardSwept();
         uint256 rewardTokensLength = rewardTokens.length;
-        for (uint256 i; i < rewardTokensLength; ) {
-            IERC20 rewardToken = rewardTokens[i];
-            rewardToken.safeTransfer(
-                msg.sender,
-                rewardToken.balanceOf(address(this))
-            );
-            unchecked {
-                ++i;
+        unchecked {
+            for (uint256 i; i < rewardTokensLength; ++i) {
+                IERC20 rewardToken = rewardTokens[i];
+                rewardToken.safeTransfer(
+                    msg.sender,
+                    rewardToken.balanceOf(address(this))
+                );
             }
         }
     }
@@ -266,8 +265,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint256[] calldata _initialNFTIDs
     ) public payable returns (uint256 currTokenId) {
         ICollectionswap _lpToken = lpToken;
-        (, currTokenId) = _lpToken.createDirectPairETH{value:msg.value}(_nft,_bondingCurve, _delta, _fee, _spotPrice, _initialNFTIDs);
-
+        (,currTokenId) = _lpToken.createDirectPairETH{value:msg.value}(_nft,_bondingCurve, _delta, _fee, _spotPrice, _initialNFTIDs);
         stake(currTokenId);
     }
 
@@ -280,6 +278,13 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     }
 
 
+    /**
+     * @notice Add the balances of an LP token to the reward pool and mint 
+     * reward tokens
+     * @param tokenId The tokenId of the LP token to be added to this reward 
+     * pool
+     * @return amount The number of tokens minted
+     */
     function mint(uint256 tokenId) private returns (uint256 amount) {
         ICollectionswap _lpToken = lpToken;
         require(_lpToken.ownerOf(tokenId) == msg.sender, "Not owner");
@@ -296,10 +301,11 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
             "Wrong pool"
         );
 
-        ICollectionswap.LPTokenParams721ETH memory params = _lpToken
-            .viewPoolParams(tokenId);
-        ILSSVMPair _pair = ILSSVMPair(params.poolAddress);
+        ILSSVMPair _pair = ILSSVMPair(_lpToken.viewPoolParams(tokenId).poolAddress);
 
+        // Calculate the number of tokens to mint. Equal to 
+        // sqrt(NFT balance * ETH balance) if there's enough ETH for the pool to
+        // buy at least 1 NFT. Else 0.
         (uint128 _reserve0, uint128 _reserve1) = getReserves(); // gas savings
         uint256 amount0 = _nft.balanceOf(address(_pair));
         uint256 amount1 = address(_pair).balance;
@@ -326,7 +332,14 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         });
     }
 
-    function burn(uint256 tokenId) private returns (uint256 amount) {
+    /**
+     * @notice Remove the balances of an LP token from the reward pool and burn 
+     * reward tokens
+     * @param tokenId The tokenId of the LP token to be added to this reward 
+     * pool
+     * @return amount The number of lp tokens burned
+     */
+    function burn(uint256 tokenId) internal virtual returns (uint256 amount) {
         LPTokenInfo memory lpTokenIdInfo = lpTokenInfo[tokenId];
         require(lpTokenIdInfo.owner == msg.sender, "Not owner");
         amount = lpTokenIdInfo.amount;
@@ -359,10 +372,20 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         return _balances[account];
     }
 
+    /**
+     * @return The end of the period, or now if earlier
+     */
     function lastTimeRewardApplicable() public view returns (uint256) {
         return Math.min(block.timestamp, periodFinish);
     }
 
+    /**
+     * @notice Calculate the amount of `_rewardToken` rewards accrued per reward
+     * token.
+     * @param _rewardToken The ERC20 token to be rewarded
+     * @return The amount of `_rewardToken` awardable per reward token
+     * 
+     */
     function rewardPerToken(IERC20 _rewardToken) public view returns (uint256) {
         uint256 lastRewardTime = lastTimeRewardApplicable();
         // latter condition required because calculations will revert when called externally
@@ -377,22 +400,29 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
                 1e18) / totalSupply());
     }
 
-    function earned(address account, IERC20 _rewardToken)
-        public
-        view
-        returns (uint256)
-    {
-        return
-            (balanceOf(account) *
-                (rewardPerToken(_rewardToken) -
-                    userRewardPerTokenPaid[_rewardToken][account])) /
-            (1e18) +
-            rewards[_rewardToken][account];
+    /**
+     * @notice Calculate the amount of `_rewardToken` earned by `account`
+     * @dev 
+     * 
+     * @param account The account to calculate earnings for
+     * @param _rewardToken The ERC20 token to calculate earnings of
+     * @return The amount of ERC20 token earned
+     */
+    function earned(address account, IERC20 _rewardToken) public view virtual returns (uint256) {
+        return balanceOf(account)
+                * (rewardPerToken(_rewardToken) - userRewardPerTokenPaid[_rewardToken][account])
+                / (1e18)
+                + rewards[_rewardToken][account];
     }
 
-    function stake(uint256 tokenId) public updateReward(msg.sender) {
+    /**
+     * @notice Stake an LP token into the reward pool
+     * @param tokenId The tokenId of the LP token to stake
+     * @return amount The amount of reward token minted as a result
+     */
+    function stake(uint256 tokenId) public virtual updateReward(msg.sender) returns (uint256 amount) {
         require(tx.origin == msg.sender, "Caller must be EOA");
-        uint256 amount = mint(tokenId);
+        amount = mint(tokenId);
         require(amount > 0, "Cannot stake one-sided LPs");
 
         _totalSupply += amount;

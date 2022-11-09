@@ -8,13 +8,16 @@ import { configs } from "./config";
 import type {
   Collectionstaker__factory,
   Collectionswap__factory,
+  RNGChainlinkV2__factory,
   Collectionstaker,
   Collectionswap,
+  RNGChainlinkV2
 } from "../typechain-types";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
 
 let collectionSwap: Collectionswap;
 let collectionStaker: Collectionstaker;
+let rng: RNGChainlinkV2;
 
 export async function deployCollectionSwapAndStaker(
   hre: HardhatRuntimeEnvironment
@@ -50,11 +53,30 @@ export async function deployCollectionSwapAndStaker(
   await collectionStaker.deployed();
   console.log(`Collectionstaker address: ${collectionStaker.address}`);
 
+  console.log(`Deploying ChainlinkRNGv2...`);
+  const rngFactory = (await hre.ethers.getContractFactory(
+    "RNGChainlinkV2",
+    deployer
+  )) as RNGChainlinkV2__factory;
+  rng = await rngFactory.deploy(
+    deployerAddress,
+    config.VRF_COORDINATOR,
+    config.SUBSCRIPTION_ID,
+    config.KEY_HASH
+  );
+  await rng.deployed();
+  console.log(`Chainlink RNG address: ${collectionStaker.address}`);
+
+  console.log(`Setting RNG in staker...`);
+  // set RNG in staker
+  await collectionStaker.setRNG(rng.address);
+
   console.log("exporting addresses...");
   const addressesToExport = {
     deployer: deployerAddress,
     collectionSwap: collectionSwap.address,
     collectionStaker: collectionStaker.address,
+    rng: rng.address
   };
   const exportJson = JSON.stringify(addressesToExport, null, 2);
   fs.writeFileSync(config.EXPORT_FILENAME, exportJson);
@@ -79,5 +101,11 @@ export async function deployCollectionSwapAndStaker(
   await hre.run("verify:verify", {
     address: collectionStaker.address,
     constructorArguments: [collectionSwap.address],
+  });
+
+  console.log("verifying RNG...");
+  await hre.run("verify:verify", {
+    address: rng.address,
+    constructorArguments: [deployerAddress, config.VRF_COORDINATOR, config.SUBSCRIPTION_ID, config.KEY_HASH],
   });
 }

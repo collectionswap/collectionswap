@@ -32,7 +32,7 @@ export async function rewardTokenFixture() {
     "ERC20PresetMinterPauser"
   );
   return Promise.all(
-    [...Array(10).keys()].map(async (_) => {
+    [...Array(5).keys()].map(async (_) => {
       return RewardToken.deploy("Reward Token", "RWT");
     })
   );

@@ -18,6 +18,21 @@ interface ICollectionswap is IERC721, IERC721Enumerable {
         uint256 initialNFTIDsLength;
     }
 
+    /**
+     * @notice Create a sudoswap pair and issue an LP token for this pair to 
+     * `tx.origin`.
+     * 
+     * @param _nft The NFT collection which the pair will interact with
+     * @param _bondingCurve The bonding curve which the pair will use to 
+     * calculate prices
+     * @param _delta The delta of the curve
+     * @param _fee  The fee of the curve
+     * @param _spotPrice The spot price of the curve
+     * @param _initialNFTIDs The tokenIds of the NFTs to add to the pair
+     * 
+     * @return newPair The sudoswap pair created
+     * @return newTokenId The tokenId of the newly issued LP token
+     */
     function createDirectPairETH(
         IERC721 _nft,
         ICurve _bondingCurve,
@@ -29,11 +44,27 @@ interface ICollectionswap is IERC721, IERC721Enumerable {
 
     function useLPTokenToDestroyDirectPairETH(uint256 _lpTokenId) external;
 
+    /**
+     * @return poolParams the parameters of the pool matching `tokenId`.
+     */
     function viewPoolParams(uint256 tokenId)
         external
         view
         returns (LPTokenParams721ETH memory poolParams);
 
+    /**
+     * @param tokenId The tokenId of the pool to validate
+     * @param nftAddress The address of the NFT collection which the pool 
+     * should accept
+     * @param bondingCurveAddress The address of the bonding curve the pool
+     * should be using
+     * @param fee The maximum fee the pool should have
+     * @param delta The maximum delta the pool should have
+     * 
+     * @return true iff the pool specified by `tokenId` has the correct
+     * NFT address, bonding curve address, and has fee and delta == `fee` and
+     * `delta`, respectively
+     */
     function validatePoolParamsLte(
         uint256 tokenId,
         address nftAddress,
@@ -45,6 +76,19 @@ interface ICollectionswap is IERC721, IERC721Enumerable {
         view
         returns (bool);
 
+    /**
+     * @param tokenId The tokenId of the pool to validate
+     * @param nftAddress The address of the NFT collection which the pool 
+     * should accept
+     * @param bondingCurveAddress The address of the bonding curve the pool
+     * should be using
+     * @param fee The fee the pool should have
+     * @param delta The delta the pool should have
+     * 
+     * @return true iff the pool specified by `tokenId` has the correct
+     * NFT address, bonding curve address, and has fee and delta <= `fee` and
+     * `delta`, respectively
+     */
     function validatePoolParamsEq(
         uint256 tokenId,
         address nftAddress,

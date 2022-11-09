@@ -116,6 +116,13 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         return IERC721Receiver.onERC721Received.selector;
     }
 
+    /**
+     * @dev Increment tokenId counter, save the parameters of the new token and
+     * mark as live in contract storage
+     * @param receiver The address to receive the issued LP token
+     * @param lpTokenParams The parameters defining the LP token to be issued
+     * @return tokenId The tokenId of the newly issued LP token
+     */
     function issueLPToken(
         address receiver,
         LPTokenParams721ETH memory lpTokenParams
@@ -143,6 +150,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         burn(tokenId);
     }
 
+    /// @inheritdoc ICollectionswap
     function validatePoolParamsLte(
         uint256 tokenId,
         address nftAddress,
@@ -159,6 +167,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         );
     }
 
+    /// @inheritdoc ICollectionswap
     function validatePoolParamsEq(
         uint256 tokenId,
         address nftAddress,
@@ -175,6 +184,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         );
     }
 
+    /// @inheritdoc ICollectionswap
     function viewPoolParams(
         uint256 tokenId
     ) public view returns (LPTokenParams721ETH memory poolParams) {
@@ -183,6 +193,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         return poolParams;
     }
 
+    // @inheritdoc ICollectionswap
     function createDirectPairETH(
         IERC721 _nft,
         ICurve _bondingCurve,
@@ -191,6 +202,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint128 _spotPrice,
         uint256[] calldata _initialNFTIDs
     ) external payable nonReentrant returns (ILSSVMPairETH newPair, uint256 newTokenId) {
+        // Create sudoswap pool
         ILSSVMPairFactory factory = _factory;
         uint256[] memory _emptyInitialNFTIDs;
 
@@ -205,6 +217,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
             _emptyInitialNFTIDs
         );
 
+        // Transfer all nfts specified to the pool
         transferOwnershipNFTList(
             tx.origin,
             address(newPair),

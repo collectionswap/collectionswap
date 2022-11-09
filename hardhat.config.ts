@@ -1,4 +1,5 @@
 import { HardhatUserConfig } from "hardhat/config";
+import '@nomiclabs/hardhat-truffle5';
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-contract-sizer";
 import * as dotenv from 'dotenv';
@@ -13,7 +14,7 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200
+        runs: 150
         // runs: 999999
       },
       viaIR: true //TODO: uncomment on when ready for production. More info at https://docs.soliditylang.org/en/latest/ir-breaking-changes.html
