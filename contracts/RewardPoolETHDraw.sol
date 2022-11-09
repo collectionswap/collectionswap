@@ -9,7 +9,6 @@ import "./ILSSVMPair.sol";
 import "./SortitionSumTreeFactory.sol";
 import "./lib/ReentrancyGuard.sol";
 import {RNGInterface} from "./rng/RNGInterface.sol";
-// import "hardhat/console.sol";
 
 contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     using SafeERC20 for IERC20;
