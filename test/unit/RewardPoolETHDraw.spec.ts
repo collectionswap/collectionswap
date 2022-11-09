@@ -964,7 +964,7 @@ describe("RewardPoolETHDraw", function () {
     });
   });
 
-  describe("Multiple rounds of running a lottery", function () {
+  describe("Multiple rounds of running a draw", function () {
     it("It should be able to go through multiple rounds of draw, without rewards programme (same)", async function () {
       const {
         owner,
@@ -996,7 +996,7 @@ describe("RewardPoolETHDraw", function () {
           expectedEpoch
         );
 
-        // Close the lottery
+        // Close the draw
         await time.increase(rewardDuration);
         await rewardPool.connect(user1).closeDraw();
         expect(await rewardPool.drawStatus()).to.equal(drawStatusClosed);
@@ -1005,7 +1005,7 @@ describe("RewardPoolETHDraw", function () {
         await rewardPool.connect(user1).exit(lpTokenId1);
         await rng.setRandomNumber(999 + i);
 
-        // Resolve the lottery
+        // Resolve the draw
         const tx = await rewardPool.connect(user1).resolveDrawResults();
         const { winners, epoch } = await getDrawWinnersFromResolve(tx);
         expect(await rewardPool.drawStatus()).to.equal(drawStatusResolved);
@@ -1083,7 +1083,7 @@ describe("RewardPoolETHDraw", function () {
           expectedEpoch
         );
 
-        // Close the lottery
+        // Close the draw
         await time.increase(rewardDuration);
         await rewardPool.connect(user1).closeDraw();
         expect(await rewardPool.drawStatus()).to.equal(drawStatusClosed);
@@ -1092,7 +1092,7 @@ describe("RewardPoolETHDraw", function () {
         await rewardPool.connect(user1).exit(lpTokenId1);
         await rng.setRandomNumber(999 + i);
 
-        // Resolve the lottery
+        // Resolve the draw
         const tx = await rewardPool.connect(user1).resolveDrawResults();
         const { winners, epoch } = await getDrawWinnersFromResolve(tx);
         expect(await rewardPool.drawStatus()).to.equal(drawStatusResolved);
@@ -1278,7 +1278,7 @@ describe("RewardPoolETHDraw", function () {
       ).to.be.revertedWith("Only deployer");
     });
 
-    it("Should not be able to add prizes if the lottery is closed+resolved (but okay if just closed and not resolved)", async function () {
+    it("Should not be able to add prizes if the draw is closed+resolved (but okay if just closed and not resolved)", async function () {
       const { rewardPool, lpTokenId, user, user1, rng } = await loadFixture(
         rewardPoolDrawFixture
       );

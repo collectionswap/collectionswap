@@ -439,7 +439,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     /**
-        @dev - if lottery is open, directly calculate the expected TWAB balance for the user.
+        @dev - if draw is open, directly calculate the expected TWAB balance for the user.
     **/    
     function burn(uint256 tokenId) internal override returns (uint256 amount) {
         amount = super.burn(tokenId);
@@ -455,7 +455,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 _drawStart = epochToStartTime[_epoch];
         uint256 _drawFinish = epochToFinishTime[_epoch];
         if (eventTimestamp < _drawStart) {
-            // lottery program has not commenced
+            // draw program has not commenced
             return _drawFinish - _drawStart;
         }
         return eventTimestamp > _drawFinish ? 0 : _drawFinish - eventTimestamp;
@@ -465,7 +465,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 _epoch = thisEpoch;
         uint256 _drawStart = epochToStartTime[_epoch];
         uint256 _drawFinish = epochToFinishTime[_epoch];
-        // return 0 if lottery program has not commenced
+        // return 0 if draw program has not commenced
         if (eventTimestamp < _drawStart) return 0;
 
         // min(drawFinish, eventTimestamp) - max(drawStart, lastObservationTimestamp)
@@ -475,7 +475,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     /**
-        @dev - updateSortitionStake (updates Sortition stake and TWAB). This is called either when a user stakes/burns, but sortition tree is modified only when lottery is open
+        @dev - updateSortitionStake (updates Sortition stake and TWAB). This is called either when a user stakes/burns, but sortition tree is modified only when draw is open
     **/ 
     function updateSortitionStake(address _staker, uint256 _amount, bool isIncrement, bool modifySortition) internal {
         uint256 amountTimeRemainingToVaultEnd = getFunctionalTimeRemainingInVault(block.timestamp);
@@ -587,13 +587,13 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
 
         // iterate through the Number of Winners
         uint256 denominator = sortitionSumTrees.total(TREE_KEY);
-        bool noLotteryParticipants = (denominator == 1);
+        bool noDrawParticipants = (denominator == 1);
         // winner list may contain duplicate addresses
         // emitted in the WinnersDrawn event but not stored
         address[] memory winnerList = new address[](numberOfDrawWinners);
         for (uint256 i; i < numberOfDrawWinners; ++i) {
             // get the winner
-            address winner = noLotteryParticipants ? deployer : getWinner(randomNum, i);
+            address winner = noDrawParticipants ? deployer : getWinner(randomNum, i);
 
             //////////////////////////////////////
             // NFT amount
@@ -617,7 +617,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     /**
-        @dev - Ensure that there is always a non-zero initial stake. This is to prevent the sortition tree from being empty. Can be anyone, have set to DUMMY_ADDRESS, soft guarantee of not zeroing out lottery stake midway (stake then unstake)
+        @dev - Ensure that there is always a non-zero initial stake. This is to prevent the sortition tree from being empty. Can be anyone, have set to DUMMY_ADDRESS, soft guarantee of not zeroing out draw stake midway (stake then unstake)
     **/     
     function ensureNonZeroInitialStake() internal {
         bytes32 _ID = addressToBytes32(DUMMY_ADDRESS);
