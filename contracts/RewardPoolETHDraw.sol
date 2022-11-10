@@ -177,7 +177,14 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         rng = _rng;
         TREE_KEY = keccak256(abi.encodePacked(uint256(1)));
         sortitionSumTrees.createTree(TREE_KEY, MAX_TREE_LEAVES);
-        ensureNonZeroInitialStake();
+        
+        // Ensure that there is always a non-zero initial stake.
+        // This is to prevent the sortition tree from being empty.
+        // Can be anyone, have set to DUMMY_ADDRESS, soft guarantee of not zeroing out
+        // draw stake midway (stake then unstake)
+        bytes32 _ID = addressToBytes32(DUMMY_ADDRESS);
+        sortitionSumTrees.set(TREE_KEY, 1, _ID);
+
         // thisEpoch is incremented in function below
         _addNewPrizeEpoch({
             _nftCollectionsPrize: _nftCollectionsPrize,
@@ -220,12 +227,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         });
 
         // Add after epoch
-        if (_drawStartTime != 0) {
-            // fast forward sortition tree
-            // applyBufferedEvents();
-            recalcSortitionTreesEpochStart();
-            ensureNonZeroInitialStake();
-        }
+        // fast forward sortition tree
+        if (_drawStartTime != 0) recalcSortitionTreesEpochStart();
     }
 
     /**
@@ -614,14 +617,6 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         } 
 
         emit DrawResolved(_epoch, winnerList);
-    }
-
-    /**
-        @dev - Ensure that there is always a non-zero initial stake. This is to prevent the sortition tree from being empty. Can be anyone, have set to DUMMY_ADDRESS, soft guarantee of not zeroing out draw stake midway (stake then unstake)
-    **/     
-    function ensureNonZeroInitialStake() internal {
-        bytes32 _ID = addressToBytes32(DUMMY_ADDRESS);
-        sortitionSumTrees.set(TREE_KEY, 1, _ID);
     }
 
     /**
