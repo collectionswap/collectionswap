@@ -825,8 +825,7 @@ describe("RewardPoolETHDraw", function () {
       expect(totalNFTs).to.equal(distinctNFTs.length * numPerERC721Token);
     });
 
-    it("Buffered events can be resolved", async function () {
-      // The hallfmark of a buffered event would be a certain amount of contribution
+    it("Balance changes (staking/burning) that occur while the draw is closed are reflected in the next epoch (e.g. epoch 1 > balance change > epoch 2", async function () {
       let balance;
       let balance1;
 
