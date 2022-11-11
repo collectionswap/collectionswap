@@ -405,16 +405,13 @@ abstract contract LSSVMPair is
         @notice Returns the pair's type (TOKEN/NFT/TRADE)
      */
     function poolType() public pure returns (PoolType _poolType) {
-        // uint256 paramsLength = _immutableParamsLength();
-        // assembly {
-        //     _poolType := shr(
-        //         0xf8,
-        //         calldataload(add(sub(calldatasize(), paramsLength), 60))
-        //     )
-        // }
-        
-        // return default value
-        return PoolType.TRADE;
+        uint256 paramsLength = _immutableParamsLength();
+        assembly {
+            _poolType := shr(
+                0xf8,
+                calldataload(add(sub(calldatasize(), paramsLength), 60))
+            )
+        }
     }
 
     /**

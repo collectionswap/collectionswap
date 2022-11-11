@@ -1,0 +1,24 @@
+[profile.default]
+test = 'test/foundry'
+libs = [
+    'lib',
+    'node_modules',
+]
+remappings = [
+    '@chainlink/=node_modules/@chainlink/',
+    '@ensdomains/=node_modules/@ensdomains/',
+    '@eth-optimism/=node_modules/@eth-optimism/',
+    '@manifoldxyz/=node_modules/@manifoldxyz/',
+    '@openzeppelin/=node_modules/@openzeppelin/',
+    '@pooltogether/=node_modules/@pooltogether/',
+    '@uniswap/=node_modules/@uniswap/',
+    'base64-sol/=node_modules/base64-sol/',
+    'eth-gas-reporter/=node_modules/eth-gas-reporter/',
+    'hardhat/=node_modules/hardhat/',
+    'solmate/=node_modules/solmate/',
+]
+solc = '0.8.16'
+via_ir = false
+sparse_mode = true
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config

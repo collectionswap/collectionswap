@@ -1,7 +1,8 @@
 {
   "scripts": {
     "compile": "hardhat compile",
-    "test": "hardhat test",
+    "test:foundry": "forge test",
+    "test:hh": "hardhat test",
     "lint": "yarn lint:ci --fix",
     "lint:ci": "eslint scripts test --ext .ts"
   },
@@ -30,7 +31,7 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-n": "^15.2.5",
     "eslint-plugin-promise": "^6.0.1",
-    "hardhat": "^2.11.1",
+    "hardhat": "^2.12.1-ir.0",
     "hardhat-contract-sizer": "^2.6.1",
     "hardhat-gas-reporter": "^1.0.9",
     "prettier": "^2.7.1",
@@ -42,6 +43,7 @@
   },
   "dependencies": {
     "@anders-t/ethers-ledger": "^1.0.4",
+    "@manifoldxyz/royalty-registry-solidity": "^1.0.9",
     "@openzeppelin/contracts": "^4.7.3",
     "@openzeppelin/contracts-upgradeable": "^4.7.3",
     "@uniswap/v3-core": "^1.0.1",
