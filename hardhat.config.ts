@@ -34,6 +34,11 @@ const config: HardhatUserConfig = {
       url: process.env.RINKEBY_URL || '',
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    goerli: {
+      chainId: 5,
+      url: process.env.GOERLI_URL || '',
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
     mainnet: {
       chainId: 1,
       url: process.env.MAINNET_URL || '',

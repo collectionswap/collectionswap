@@ -1,8 +1,9 @@
+import { BigNumberish } from 'ethers'
 type Config = {
   USE_LEDGER: boolean;
   FACTORY: string;
   VRF_COORDINATOR: string;
-  SUBSCRIPTION_ID: string; // Create subscription account at vrf.chain.link
+  SUBSCRIPTION_ID: BigNumberish; // Create subscription account at vrf.chain.link
   KEY_HASH: string, // see Gwei KeyHashes at https://docs.chain.link/docs/vrf/v2/subscription/supported-networks/#configurations
   EXPORT_FILENAME: string;
 };
@@ -14,7 +15,7 @@ export const configs: { [key: number]: Config } = {
     FACTORY: "0xb16c1342E617A5B6E4b631EB114483FDB289c0A4",
     VRF_COORDINATOR: "0x271682DEB8C4E0901D1a1550aD2e64D568E69909",
     KEY_HASH: "0x8af398995b04c28e9951adb9721ef74c74f93e6a478f39e7e0777be13527e7ef",
-    SUBSCRIPTION_ID: "",
+    SUBSCRIPTION_ID: 0,
     EXPORT_FILENAME: "mainnetAddresses.json",
   },
   // Goerli
@@ -23,7 +24,7 @@ export const configs: { [key: number]: Config } = {
     FACTORY: "0xF0202E9267930aE942F0667dC6d805057328F6dC",
     VRF_COORDINATOR: "0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D",
     KEY_HASH: "0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15",
-    SUBSCRIPTION_ID: "",
+    SUBSCRIPTION_ID: 6344,
     EXPORT_FILENAME: "goerliAddresses.json",
   },
   // Rinkeby (Deprecated)
@@ -38,7 +39,7 @@ export const configs: { [key: number]: Config } = {
     FACTORY: "",
     VRF_COORDINATOR: "",
     KEY_HASH: "",
-    SUBSCRIPTION_ID: "",
+    SUBSCRIPTION_ID: 0,
     EXPORT_FILENAME: "hardhatAddresses.json",
   },
 };
