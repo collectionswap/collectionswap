@@ -70,6 +70,8 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
                 delta,
                 fee,
                 spotPrice,
+                "",
+                "",
                 _idList,
                 initialTokenBalance
             )

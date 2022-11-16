@@ -217,6 +217,8 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint128 _delta,
         uint96 _fee,
         uint128 _spotPrice,
+        bytes calldata _props,
+        bytes calldata _state,
         uint256[] calldata _initialNFTIDs
     ) external payable nonReentrant returns (ILSSVMPairETH newPair, uint256 newTokenId) {
         if (_user != msg.sender)
@@ -226,14 +228,18 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint256[] memory _emptyInitialNFTIDs;
 
         newPair = factory.createPairETH{value:msg.value}(
-            _nft,
-            _bondingCurve,
-            payable(0), // assetRecipient
-            _poolType,
-            _delta,
-            _fee,
-            _spotPrice,
-            _emptyInitialNFTIDs
+            ILSSVMPairFactory.CreateETHPairParams(
+                _nft,
+                _bondingCurve,
+                payable(0), // assetRecipient
+                _poolType,
+                _delta,
+                _fee,
+                _spotPrice,
+                _props,
+                _state,
+                _emptyInitialNFTIDs
+            )
         );
 
         // Transfer all nfts specified to the pool

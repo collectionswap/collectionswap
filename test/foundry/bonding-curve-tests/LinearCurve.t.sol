@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {DSTest} from "../lib/ds-test/test.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
+import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {LinearCurve} from "../../../contracts/bonding-curves/LinearCurve.sol";
 import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
 
@@ -26,11 +27,16 @@ contract LinearCurveTest is DSTest {
             CurveErrorCodes.Error error,
             uint256 newSpotPrice,
             uint256 newDelta,
+            ,
             uint256 inputValue,
             uint256 protocolFee
         ) = curve.getBuyInfo(
-                spotPrice,
-                delta,
+                ICurve.Params(
+                    spotPrice,
+                    delta,
+                    "",
+                    ""
+                ),
                 numItems,
                 feeMultiplier,
                 protocolFeeMultiplier
@@ -59,9 +65,10 @@ contract LinearCurveTest is DSTest {
             CurveErrorCodes.Error error,
             uint128 newSpotPrice,
             ,
+            ,
             uint256 inputValue,
 
-        ) = curve.getBuyInfo(spotPrice, delta, numItems, 0, 0);
+        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, 0, 0);
         if (
             uint256(spotPrice) + uint256(delta) * uint256(numItems) >
             type(uint128).max
@@ -102,11 +109,16 @@ contract LinearCurveTest is DSTest {
             CurveErrorCodes.Error error,
             uint256 newSpotPrice,
             uint256 newDelta,
+            ,
             uint256 outputValue,
             uint256 protocolFee
         ) = curve.getSellInfo(
-                spotPrice,
-                delta,
+                ICurve.Params(
+                    spotPrice,
+                    delta,
+                    "",
+                    ""
+                ),
                 numItems,
                 feeMultiplier,
                 protocolFeeMultiplier
@@ -135,9 +147,10 @@ contract LinearCurveTest is DSTest {
             CurveErrorCodes.Error error,
             uint128 newSpotPrice,
             ,
+            ,
             uint256 outputValue,
 
-        ) = curve.getSellInfo(spotPrice, delta, numItems, 0, 0);
+        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, 0, 0);
         assertEq(
             uint256(error),
             uint256(CurveErrorCodes.Error.OK),

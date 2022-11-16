@@ -6,14 +6,20 @@ import {ICurve} from "./bonding-curves/ICurve.sol";
 import {ILSSVMPair, ILSSVMPairETH} from "./ILSSVMPair.sol";
 
 interface ILSSVMPairFactory {
+    struct CreateETHPairParams {
+        IERC721 nft;
+        ICurve bondingCurve;
+        address payable assetRecipient;
+        ILSSVMPair.PoolType poolType;
+        uint128 delta;
+        uint96 fee;
+        uint128 spotPrice;
+        bytes props;
+        bytes state;
+        uint256[] initialNFTIDs;
+    }
+
     function createPairETH(
-        IERC721 _nft,
-        ICurve _bondingCurve,
-        address payable _assetRecipient,
-        ILSSVMPair.PoolType _poolType,
-        uint128 _delta,
-        uint96 _fee,
-        uint128 _spotPrice,
-        uint256[] calldata _initialNFTIDs
+        CreateETHPairParams calldata params
     ) external payable returns (ILSSVMPairETH pair);
 }

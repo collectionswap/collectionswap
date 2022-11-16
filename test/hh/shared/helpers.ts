@@ -122,6 +122,8 @@ export async function createPairEth(
     delta,
     fee,
     spotPrice,
+    [],
+    [],
     nftTokenIds,
     { value }
   );

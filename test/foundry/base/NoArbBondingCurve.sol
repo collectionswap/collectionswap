@@ -101,11 +101,16 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                 ,
                 uint256 newSpotPrice,
                 ,
+                ,
                 uint256 outputAmount,
                 uint256 protocolFee
             ) = bondingCurve.getSellInfo(
-                    spotPrice,
-                    delta,
+                    ICurve.Params(
+                        spotPrice,
+                        delta,
+                        "",
+                        ""
+                    ),
                     numItems,
                     0,
                     protocolFeeMultiplier
@@ -129,9 +134,13 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
 
         // buy back the NFTs just sold to the pair
         {
-            (, , , uint256 inputAmount, ) = bondingCurve.getBuyInfo(
-                spotPrice,
-                delta,
+            (, , , , uint256 inputAmount, ) = bondingCurve.getBuyInfo(
+                ICurve.Params(
+                    spotPrice,
+                    delta,
+                    "",
+                    ""
+                ),
                 numItems,
                 0,
                 protocolFeeMultiplier
@@ -202,10 +211,14 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
 
         // buy all NFTs
         {
-            (, uint256 newSpotPrice, , uint256 inputAmount, ) = bondingCurve
+            (, uint256 newSpotPrice, , , uint256 inputAmount, ) = bondingCurve
                 .getBuyInfo(
-                    spotPrice,
-                    delta,
+                    ICurve.Params(
+                        spotPrice,
+                        delta,
+                        "",
+                        ""
+                    ),
                     numItems,
                     0,
                     protocolFeeMultiplier
@@ -226,8 +239,12 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
         // sell back the NFTs
         {
             bondingCurve.getSellInfo(
-                spotPrice,
-                delta,
+                ICurve.Params(
+                    spotPrice,
+                    delta,
+                    "",
+                    ""
+                ),
                 numItems,
                 0,
                 protocolFeeMultiplier

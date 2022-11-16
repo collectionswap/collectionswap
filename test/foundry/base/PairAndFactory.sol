@@ -271,14 +271,18 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_reInitPool() public {
-        pair.initialize(address(0), payable(address(0)), 0, 0, 0);
+        pair.initialize(address(0), payable(address(0)), 0, 0, 0, "", "");
     }
 
     function testFail_swapForNFTNotInPool() public {
-        (, uint128 newSpotPrice, , uint256 inputAmount, ) = bondingCurve
+        (, uint128 newSpotPrice, , , uint256 inputAmount, ) = bondingCurve
             .getBuyInfo(
-                spotPrice,
-                delta,
+                ICurve.Params(
+                    spotPrice,
+                    delta,
+                    "",
+                    ""
+                ),
                 numItems + 1,
                 0,
                 protocolFeeMultiplier
@@ -298,10 +302,14 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_swapForAnyNFTsPastBalance() public {
-        (, uint128 newSpotPrice, , uint256 inputAmount, ) = bondingCurve
+        (, uint128 newSpotPrice, , , uint256 inputAmount, ) = bondingCurve
             .getBuyInfo(
-                spotPrice,
-                delta,
+                ICurve.Params(
+                    spotPrice,
+                    delta,
+                    "",
+                    ""
+                ),
                 numItems + 1,
                 0,
                 protocolFeeMultiplier
@@ -340,11 +348,16 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
                 ,
                 uint128 newSpotPrice,
                 ,
+                ,
                 uint256 inputAmount,
                 uint256 protocolFee
             ) = bondingCurve.getBuyInfo(
-                    spotPrice,
-                    delta,
+                    ICurve.Params(
+                        spotPrice,
+                        delta,
+                        "",
+                        ""
+                    ),
                     numItems,
                     0,
                     protocolFeeMultiplier

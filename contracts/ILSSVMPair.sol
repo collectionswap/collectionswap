@@ -37,6 +37,7 @@ interface ILSSVMPair {
             CurveErrorCodes.Error error,
             uint256 newSpotPrice,
             uint256 newDelta,
+            bytes calldata newState,
             uint256 outputAmount,
             uint256 protocolFee
         );

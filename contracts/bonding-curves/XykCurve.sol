@@ -49,11 +49,30 @@ contract XykCurve is ICurve, CurveErrorCodes {
     }
 
     /**
+        @dev See {ICurve-validateProps}
+     */
+    function validateProps(
+        bytes calldata /*props*/
+    ) external pure override returns (bool valid) {
+        // all values are valid
+        return true;
+    }
+
+    /**
+        @dev See {ICurve-validateState}
+     */
+    function validateState(
+        bytes calldata /*state*/
+    ) external pure override returns (bool valid) {
+        // all values are valid
+        return true;
+    }
+
+    /**
         @dev See {ICurve-getBuyInfo}
      */
     function getBuyInfo(
-        uint128 spotPrice,
-        uint128 delta,
+        ICurve.Params calldata params,
         uint256 numItems,
         uint256 feeMultiplier,
         uint256 protocolFeeMultiplier
@@ -65,21 +84,22 @@ contract XykCurve is ICurve, CurveErrorCodes {
             Error error,
             uint128 newSpotPrice,
             uint128 newDelta,
+            bytes memory newState,
             uint256 inputValue,
             uint256 protocolFee
         )
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
         }
 
         // get the pair's virtual nft and eth/erc20 reserves
-        uint256 tokenBalance = spotPrice;
-        uint256 nftBalance = delta;
+        uint256 tokenBalance = params.spotPrice;
+        uint256 nftBalance = params.delta;
 
         // If numItems is too large, we will get divide by zero error
         if (numItems >= nftBalance) {
-            return (Error.INVALID_NUMITEMS, 0, 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
         }
 
         // calculate the amount to send in
@@ -98,8 +118,11 @@ contract XykCurve is ICurve, CurveErrorCodes {
         inputValue = inputValueWithoutFee + fee + protocolFee;
 
         // set the new virtual reserves
-        newSpotPrice = uint128(spotPrice + inputValueWithoutFee); // token reserve
+        newSpotPrice = uint128(params.spotPrice + inputValueWithoutFee); // token reserve
         newDelta = uint128(nftBalance - numItems); // nft reserve
+
+        // Keep state the same
+        newState = params.state;
 
         // If we got all the way here, no math error happened
         error = Error.OK;
@@ -109,8 +132,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
         @dev See {ICurve-getSellInfo}
      */
     function getSellInfo(
-        uint128 spotPrice,
-        uint128 delta,
+        ICurve.Params calldata params,
         uint256 numItems,
         uint256 feeMultiplier,
         uint256 protocolFeeMultiplier
@@ -122,17 +144,18 @@ contract XykCurve is ICurve, CurveErrorCodes {
             Error error,
             uint128 newSpotPrice,
             uint128 newDelta,
+            bytes memory newState,
             uint256 outputValue,
             uint256 protocolFee
         )
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
         }
 
         // get the pair's virtual nft and eth/erc20 balance
-        uint256 tokenBalance = spotPrice;
-        uint256 nftBalance = delta;
+        uint256 tokenBalance = params.spotPrice;
+        uint256 nftBalance = params.delta;
 
         // calculate the amount to send out
         uint256 outputValueWithoutFee = (numItems * tokenBalance) /
@@ -150,8 +173,11 @@ contract XykCurve is ICurve, CurveErrorCodes {
         outputValue = outputValueWithoutFee - fee - protocolFee;
 
         // set the new virtual reserves
-        newSpotPrice = uint128(spotPrice - outputValueWithoutFee); // token reserve
+        newSpotPrice = uint128(params.spotPrice - outputValueWithoutFee); // token reserve
         newDelta = uint128(nftBalance + numItems); // nft reserve
+
+        // Keep state the same
+        newState = params.state;
 
         // If we got all the way here, no math error happened
         error = Error.OK;

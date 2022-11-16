@@ -1279,6 +1279,8 @@ describe("RewardPoolETH", function () {
           params.delta,
           params.fee,
           params.spotPrice,
+          [],
+          [],
           newNftTokenIds,
           { value: params.value }
         );
@@ -1318,6 +1320,8 @@ describe("RewardPoolETH", function () {
           params.delta,
           params.fee,
           params.spotPrice,
+          [],
+          [],
           newNftTokenIds,
           { value: params.value }
         );

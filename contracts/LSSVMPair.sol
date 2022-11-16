@@ -48,6 +48,12 @@ abstract contract LSSVMPair is
     // Otherwise, assets will be sent to the set address. Not available for TRADE pools.
     address payable public assetRecipient;
 
+    // The properties used by the pair's bonding curve.
+    bytes public props;
+
+    // The state used by the pair's bonding curve.
+    bytes public state;
+
     // Events
     event SwapNFTInPair();
     event SwapNFTOutPair();
@@ -58,6 +64,8 @@ abstract contract LSSVMPair is
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
     event AssetRecipientChange(address a);
+    event PropsUpdate(bytes newProps);
+    event StateUpdate(bytes newState);
 
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
@@ -79,7 +87,9 @@ abstract contract LSSVMPair is
         address payable _assetRecipient,
         uint128 _delta,
         uint96 _fee,
-        uint128 _spotPrice
+        uint128 _spotPrice,
+        bytes calldata _props,
+        bytes calldata _state
     ) external payable {
         require(owner() == address(0), "Initialized");
         __Ownable_init(_owner);
@@ -104,8 +114,12 @@ abstract contract LSSVMPair is
             _bondingCurve.validateSpotPrice(_spotPrice),
             "Invalid new spot price for curve"
         );
+        require(_bondingCurve.validateProps(_props), "Invalid props for curve");
+        require(_bondingCurve.validateState(_state), "Invalid state for curve");
         delta = _delta;
         spotPrice = _spotPrice;
+        props = _props;
+        state = _state;
     }
 
     /**
@@ -302,6 +316,7 @@ abstract contract LSSVMPair is
             CurveErrorCodes.Error error,
             uint256 newSpotPrice,
             uint256 newDelta,
+            bytes memory newState,
             uint256 inputAmount,
             uint256 protocolFee
         )
@@ -310,11 +325,11 @@ abstract contract LSSVMPair is
             error,
             newSpotPrice,
             newDelta,
+            newState,
             inputAmount,
             protocolFee
         ) = bondingCurve().getBuyInfo(
-            spotPrice,
-            delta,
+            curveParams(),
             numNFTs,
             fee,
             factory().protocolFeeMultiplier()
@@ -332,6 +347,7 @@ abstract contract LSSVMPair is
             CurveErrorCodes.Error error,
             uint256 newSpotPrice,
             uint256 newDelta,
+            bytes memory newState,
             uint256 outputAmount,
             uint256 protocolFee
         )
@@ -340,11 +356,11 @@ abstract contract LSSVMPair is
             error,
             newSpotPrice,
             newDelta,
+            newState,
             outputAmount,
             protocolFee
         ) = bondingCurve().getSellInfo(
-            spotPrice,
-            delta,
+            curveParams(),
             numNFTs,
             fee,
             factory().protocolFeeMultiplier()
@@ -438,6 +454,15 @@ abstract contract LSSVMPair is
         }
     }
 
+    function curveParams() public view returns (ICurve.Params memory params) {
+        return ICurve.Params(
+            spotPrice,
+            delta,
+            props,
+            state
+        );
+    }
+
     /**
      * Internal functions
      */
@@ -458,20 +483,17 @@ abstract contract LSSVMPair is
         ILSSVMPairFactoryLike _factory
     ) internal returns (uint256 protocolFee, uint256 inputAmount) {
         CurveErrorCodes.Error error;
-        // Save on 2 SLOADs by caching
-        uint128 currentSpotPrice = spotPrice;
-        uint128 newSpotPrice;
-        uint128 currentDelta = delta;
-        uint128 newDelta;
+        ICurve.Params memory params = curveParams();
+        ICurve.Params memory newParams;
         (
             error,
-            newSpotPrice,
-            newDelta,
+            newParams.spotPrice,
+            newParams.delta,
+            newParams.state,
             inputAmount,
             protocolFee
         ) = _bondingCurve.getBuyInfo(
-            currentSpotPrice,
-            currentDelta,
+            params,
             numNFTs,
             fee,
             _factory.protocolFeeMultiplier()
@@ -486,19 +508,25 @@ abstract contract LSSVMPair is
         require(inputAmount <= maxExpectedTokenInput, "In too many tokens");
 
         // Consolidate writes to save gas
-        if (currentSpotPrice != newSpotPrice || currentDelta != newDelta) {
-            spotPrice = newSpotPrice;
-            delta = newDelta;
+        if (params.spotPrice != newParams.spotPrice || params.delta != newParams.delta) {
+            spotPrice = newParams.spotPrice;
+            delta = newParams.delta;
+        }
+
+        if (keccak256(params.state) != keccak256(newParams.state)) {
+            state = newParams.state;
+
+            emit StateUpdate(newParams.state);
         }
 
         // Emit spot price update if it has been updated
-        if (currentSpotPrice != newSpotPrice) {
-            emit SpotPriceUpdate(newSpotPrice);
+        if (params.spotPrice != newParams.spotPrice) {
+            emit SpotPriceUpdate(newParams.spotPrice);
         }
 
         // Emit delta update if it has been updated
-        if (currentDelta != newDelta) {
-            emit DeltaUpdate(newDelta);
+        if (params.delta != newParams.delta) {
+            emit DeltaUpdate(newParams.delta);
         }
     }
 
@@ -518,20 +546,17 @@ abstract contract LSSVMPair is
         ILSSVMPairFactoryLike _factory
     ) internal returns (uint256 protocolFee, uint256 outputAmount) {
         CurveErrorCodes.Error error;
-        // Save on 2 SLOADs by caching
-        uint128 currentSpotPrice = spotPrice;
-        uint128 newSpotPrice;
-        uint128 currentDelta = delta;
-        uint128 newDelta;
+        ICurve.Params memory params = curveParams();
+        ICurve.Params memory newParams;
         (
             error,
-            newSpotPrice,
-            newDelta,
+            newParams.spotPrice,
+            newParams.delta,
+            newParams.state,
             outputAmount,
             protocolFee
         ) = _bondingCurve.getSellInfo(
-            currentSpotPrice,
-            currentDelta,
+            params,
             numNFTs,
             fee,
             _factory.protocolFeeMultiplier()
@@ -549,19 +574,25 @@ abstract contract LSSVMPair is
         );
 
         // Consolidate writes to save gas
-        if (currentSpotPrice != newSpotPrice || currentDelta != newDelta) {
-            spotPrice = newSpotPrice;
-            delta = newDelta;
+        if (params.spotPrice != newParams.spotPrice || params.delta != newParams.delta) {
+            spotPrice = newParams.spotPrice;
+            delta = newParams.delta;
+        }
+
+        if (keccak256(params.state) != keccak256(newParams.state)) {
+            state = newParams.state;
+
+            emit StateUpdate(newParams.state);
         }
 
         // Emit spot price update if it has been updated
-        if (currentSpotPrice != newSpotPrice) {
-            emit SpotPriceUpdate(newSpotPrice);
+        if (params.spotPrice != newParams.spotPrice) {
+            emit SpotPriceUpdate(newParams.spotPrice);
         }
 
         // Emit delta update if it has been updated
-        if (currentDelta != newDelta) {
-            emit DeltaUpdate(newDelta);
+        if (params.delta != newParams.delta) {
+            emit DeltaUpdate(newParams.delta);
         }
     }
 
@@ -782,6 +813,38 @@ abstract contract LSSVMPair is
         if (delta != newDelta) {
             delta = newDelta;
             emit DeltaUpdate(newDelta);
+        }
+    }
+
+    /**
+        @notice Updates the props parameter. Only callable by the owner.
+        @param newProps The new props parameter
+     */
+    function changeProps(bytes calldata newProps) external onlyOwner {
+        ICurve _bondingCurve = bondingCurve();
+        require(
+            _bondingCurve.validateProps(newProps),
+            "Invalid props for curve"
+        );
+        if (keccak256(props) != keccak256(newProps)) {
+            props = newProps;
+            emit PropsUpdate(newProps);
+        }
+    }
+
+    /**
+        @notice Updates the state parameter. Only callable by the owner.
+        @param newState The new state parameter
+     */
+    function changeState(bytes calldata newState) external onlyOwner {
+        ICurve _bondingCurve = bondingCurve();
+        require(
+            _bondingCurve.validateState(newState),
+            "Invalid state for curve"
+        );
+        if (keccak256(state) != keccak256(newState)) {
+            state = newState;
+            emit StateUpdate(newState);
         }
     }
 

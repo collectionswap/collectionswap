@@ -52,7 +52,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     /**
      * @dev maps from ERC20 token to the reward amount accumulated per unit of
      * reward token
-     */ 
+     */
     mapping(IERC20 => uint256) public rewardPerTokenStored;
     mapping(IERC20 => mapping(address => uint256))
         public userRewardPerTokenPaid;
@@ -155,11 +155,11 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     /**
      * @notice Add ERC20 tokens to the pool and set the `newPeriodFinish` value of
      * the pool
-     * 
+     *
      * @dev new reward tokens are to be appended to inputRewardTokens
-     * 
+     *
      * @param inputRewardTokens An array of ERC20 tokens to recharge the pool with
-     * @param inputRewardAmounts An array of the amounts of each ERC20 token to 
+     * @param inputRewardAmounts An array of the amounts of each ERC20 token to
      * recharge the pool with
      * @param _newPeriodFinish The value to update this pool's `periodFinish` variable to
      */
@@ -262,10 +262,12 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint128 _delta,
         uint96 _fee,
         uint128 _spotPrice,
+        bytes calldata _props,
+        bytes calldata _state,
         uint256[] calldata _initialNFTIDs
     ) public payable returns (uint256 currTokenId) {
         ICollectionswap _lpToken = lpToken;
-        (,currTokenId) = _lpToken.createDirectPairETH{value:msg.value}(msg.sender, _nft,_bondingCurve, _delta, _fee, _spotPrice, _initialNFTIDs);
+        (,currTokenId) = _lpToken.createDirectPairETH{value:msg.value}(msg.sender,_nft,_bondingCurve, _delta, _fee, _spotPrice, _props, _state, _initialNFTIDs);
         stake(currTokenId);
     }
 
@@ -279,9 +281,9 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
 
     /**
-     * @notice Add the balances of an LP token to the reward pool and mint 
+     * @notice Add the balances of an LP token to the reward pool and mint
      * reward tokens
-     * @param tokenId The tokenId of the LP token to be added to this reward 
+     * @param tokenId The tokenId of the LP token to be added to this reward
      * pool
      * @return amount The number of tokens minted
      */
@@ -303,14 +305,14 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
         ILSSVMPair _pair = ILSSVMPair(_lpToken.viewPoolParams(tokenId).poolAddress);
 
-        // Calculate the number of tokens to mint. Equal to 
+        // Calculate the number of tokens to mint. Equal to
         // sqrt(NFT balance * ETH balance) if there's enough ETH for the pool to
         // buy at least 1 NFT. Else 0.
         (uint128 _reserve0, uint128 _reserve1) = getReserves(); // gas savings
         uint256 amount0 = _nft.balanceOf(address(_pair));
         uint256 amount1 = address(_pair).balance;
 
-        ( , , ,uint256 bidPrice, ) = _pair.getSellNFTQuote(1);
+        ( , , , ,uint256 bidPrice, ) = _pair.getSellNFTQuote(1);
         if (amount1 >= bidPrice) {
             amount = Math.sqrt(amount0 * amount1);
         }
@@ -333,9 +335,9 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     }
 
     /**
-     * @notice Remove the balances of an LP token from the reward pool and burn 
+     * @notice Remove the balances of an LP token from the reward pool and burn
      * reward tokens
-     * @param tokenId The tokenId of the LP token to be added to this reward 
+     * @param tokenId The tokenId of the LP token to be added to this reward
      * pool
      * @return amount The number of lp tokens burned
      */
@@ -384,7 +386,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
      * token.
      * @param _rewardToken The ERC20 token to be rewarded
      * @return The amount of `_rewardToken` awardable per reward token
-     * 
+     *
      */
     function rewardPerToken(IERC20 _rewardToken) public view returns (uint256) {
         uint256 lastRewardTime = lastTimeRewardApplicable();
@@ -402,8 +404,8 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
     /**
      * @notice Calculate the amount of `_rewardToken` earned by `account`
-     * @dev 
-     * 
+     * @dev
+     *
      * @param account The account to calculate earnings for
      * @param _rewardToken The ERC20 token to calculate earnings of
      * @return The amount of ERC20 token earned

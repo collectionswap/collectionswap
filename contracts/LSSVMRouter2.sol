@@ -6,6 +6,7 @@ import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
 import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
+import {ICurve} from "./bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 
 contract LSSVMRouter2 {
@@ -84,17 +85,17 @@ contract LSSVMRouter2 {
     {
         require(numNFTs > 0, "Nonzero");
         uint256[] memory prices = new uint256[](numNFTs);
-        uint128 spotPrice = pair.spotPrice();
-        uint128 delta = pair.delta();
+        ICurve _bondingCurve = pair.bondingCurve();
+        ICurve.Params memory params = pair.curveParams();
         uint256 fee = pair.fee();
+        uint256 protocolFeeMultiplier = pair.factory().protocolFeeMultiplier();
         for (uint256 i; i < numNFTs; i++) {
             uint256 price;
-            (, spotPrice, delta, price, ) = pair.bondingCurve().getBuyInfo(
-                spotPrice,
-                delta,
+            (, params.spotPrice, params.delta, params.state, price, ) = _bondingCurve.getBuyInfo(
+                params,
                 1,
                 fee,
-                pair.factory().protocolFeeMultiplier()
+                protocolFeeMultiplier
             );
             prices[i] = price;
         }
@@ -185,7 +186,7 @@ contract LSSVMRouter2 {
                                 continue;
                             }
                             // Otherwise, adjust the max amt sent to be down
-                            (,,,priceToFillAt,) = pair.getBuyNFTQuote(numItemsToFill); 
+                            (,,,,priceToFillAt,) = pair.getBuyNFTQuote(numItemsToFill);
                         }
 
                         // Now, do the partial fill swap with the updated price and ids
@@ -258,7 +259,7 @@ contract LSSVMRouter2 {
     }
 
     /**
-      @dev Performs a log(n) search to find the largest value where maxPricesPerNumNFTs is still greater than 
+      @dev Performs a log(n) search to find the largest value where maxPricesPerNumNFTs is still greater than
       the pair's getBuyNFTQuote() value. Not a true binary search, as it's biased to underfill to reduce gas / complexity.
       @param maxNumNFTs The maximum number of NFTs to fill / get a quote for
       @param maxPricesPerNumNFTs The user's specified maximum price to pay for filling a number of NFTs
@@ -277,7 +278,7 @@ contract LSSVMRouter2 {
             uint256 mid = start + (end - start) / 2;
 
             // mid is the index of the max price to buy mid+1 NFTs
-            (, , , uint256 currentPrice, ) = pair.getBuyNFTQuote(mid + 1);
+            (, , , , uint256 currentPrice, ) = pair.getBuyNFTQuote(mid + 1);
 
             // If we pay at least the currentPrice with our maxPrice, record the value, and recurse on the right half
             if (currentPrice <= maxPricesPerNumNFTs[mid]) {
@@ -309,7 +310,7 @@ contract LSSVMRouter2 {
         // while (start <= end) {
         //     // Get price of mid number of items
         //     uint256 mid = start + (end - start + 1) / 2;
-        //     (, , , uint256 currentPrice, ) = pair.getSellNFTQuote(mid + 1);
+        //     (, , , , uint256 currentPrice, ) = pair.getSellNFTQuote(mid + 1);
         //     // If it costs more than there is ETH balance for, then recurse on the left half
         //     if (currentPrice > pairBalance) {
         //         if (mid == 1) {
@@ -548,7 +549,7 @@ contract LSSVMRouter2 {
         @dev Calling with multiple tokens is permitted, BUT minOutput will be 
         far from enough of a safety check because different tokens almost certainly have different unit prices.
         @dev Does no price checking, this is assumed to be done off-chain
-        @param swapList The list of pairs and swap calldata 
+        @param swapList The list of pairs and swap calldata
         @return outputAmount The number of tokens to be received
      */
     function swapNFTsForToken(

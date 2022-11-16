@@ -5,6 +5,19 @@ import {CurveErrorCodes} from "./CurveErrorCodes.sol";
 
 interface ICurve {
     /**
+        @param spotPrice The current selling spot price of the pair, in tokens
+        @param delta The delta parameter of the pair, what it means depends on the curve
+        @param props The properties of the pair, what it means depends on the curve
+        @param state The state of the pair, what it means depends on the curve
+    */
+    struct Params {
+        uint128 spotPrice;
+        uint128 delta;
+        bytes props;
+        bytes state;
+    }
+
+    /**
         @notice Validates if a delta value is valid for the curve. The criteria for
         validity can be different for each type of curve, for instance ExponentialCurve
         requires delta to be greater than 1.
@@ -24,22 +37,41 @@ interface ICurve {
         returns (bool valid);
 
     /**
+        @notice Validates if a props value is valid for the curve. The criteria for validity can be different for each type of curve.
+        @param props The props value to be validated
+        @return valid True if props is valid, false otherwise
+     */
+    function validateProps(bytes calldata props)
+        external
+        view
+        returns (bool valid);
+
+    /**
+        @notice Validates if a state value is valid for the curve. The criteria for validity can be different for each type of curve.
+        @param state The state value to be validated
+        @return valid True if state is valid, false otherwise
+     */
+    function validateState(bytes calldata state)
+        external
+        view
+        returns (bool valid);
+
+    /**
         @notice Given the current state of the pair and the trade, computes how much the user
         should pay to purchase an NFT from the pair, the new spot price, and other values.
-        @param spotPrice The current selling spot price of the pair, in tokens
-        @param delta The delta parameter of the pair, what it means depends on the curve
+        @param params Parameters of the pair that affect the bonding curve.
         @param numItems The number of NFTs the user is buying from the pair
         @param feeMultiplier Determines how much fee the LP takes from this trade, 18 decimals
         @param protocolFeeMultiplier Determines how much fee the protocol takes from this trade, 18 decimals
         @return error Any math calculation errors, only Error.OK means the returned values are valid
         @return newSpotPrice The updated selling spot price, in tokens
         @return newDelta The updated delta, used to parameterize the bonding curve
+        @return newState The updated state, used to parameterize the bonding curve
         @return inputValue The amount that the user should pay, in tokens
         @return protocolFee The amount of fee to send to the protocol, in tokens
      */
     function getBuyInfo(
-        uint128 spotPrice,
-        uint128 delta,
+        ICurve.Params calldata params,
         uint256 numItems,
         uint256 feeMultiplier,
         uint256 protocolFeeMultiplier
@@ -50,6 +82,7 @@ interface ICurve {
             CurveErrorCodes.Error error,
             uint128 newSpotPrice,
             uint128 newDelta,
+            bytes calldata newState,
             uint256 inputValue,
             uint256 protocolFee
         );
@@ -57,20 +90,19 @@ interface ICurve {
     /**
         @notice Given the current state of the pair and the trade, computes how much the user
         should receive when selling NFTs to the pair, the new spot price, and other values.
-        @param spotPrice The current selling spot price of the pair, in tokens
-        @param delta The delta parameter of the pair, what it means depends on the curve
+        @param params Parameters of the pair that affect the bonding curve.
         @param numItems The number of NFTs the user is selling to the pair
         @param feeMultiplier Determines how much fee the LP takes from this trade, 18 decimals
         @param protocolFeeMultiplier Determines how much fee the protocol takes from this trade, 18 decimals
         @return error Any math calculation errors, only Error.OK means the returned values are valid
         @return newSpotPrice The updated selling spot price, in tokens
         @return newDelta The updated delta, used to parameterize the bonding curve
+        @return newState The updated state, used to parameterize the bonding curve
         @return outputValue The amount that the user should receive, in tokens
         @return protocolFee The amount of fee to send to the protocol, in tokens
      */
     function getSellInfo(
-        uint128 spotPrice,
-        uint128 delta,
+        ICurve.Params calldata params,
         uint256 numItems,
         uint256 feeMultiplier,
         uint256 protocolFeeMultiplier
@@ -81,6 +113,7 @@ interface ICurve {
             CurveErrorCodes.Error error,
             uint128 newSpotPrice,
             uint128 newDelta,
+            bytes calldata newState,
             uint256 outputValue,
             uint256 protocolFee
         );

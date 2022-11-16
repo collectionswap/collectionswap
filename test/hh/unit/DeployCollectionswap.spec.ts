@@ -72,6 +72,7 @@ async function sellToPool(
     _bidError,
     _bidNewSpotPrice,
     _bidNewDelta,
+    _bidNewState,
     bidInputAmount,
     _bidProtocolFee,
     _bidnObj,
@@ -97,6 +98,7 @@ async function buyFromPool(
     _askError,
     _askNewSpotPrice,
     _askNewDelta,
+    _askNewState,
     askOutputAmount,
     _askProtocolFee,
     _asknObj,
@@ -228,6 +230,8 @@ function createDirectPairETHHelper(
       delta,
       fee,
       spotPrice,
+      [],
+      [],
       newTokenList,
       {
         value: valueToSend,
@@ -277,14 +281,18 @@ describe("Collectionswap", function () {
       );
       const lssvmPairETHContractTx: ContractTransaction =
         await lssvmPairFactory.createPairETH(
-          nftContractCollection.address,
-          curve.address,
-          assetRecipient,
-          poolType,
-          delta,
-          fee,
-          spotPrice,
-          initialNFTIDs,
+          {
+            nft: nftContractCollection.address,
+            bondingCurve: curve.address,
+            assetRecipient,
+            poolType,
+            delta,
+            fee,
+            spotPrice,
+            props: [],
+            state: [],
+            initialNFTIDs,
+          },
           {
             value: ethers.BigNumber.from(`${1.2e18}`),
             gasLimit: 1000000,
@@ -327,14 +335,18 @@ describe("Collectionswap", function () {
             );
             const lssvmPairETHContractTx: ContractTransaction =
               await lssvmPairFactory.createPairETH(
-                nftContractCollection.address,
-                curve.address,
-                assetRecipient,
-                poolType,
-                config.bigDelta,
-                config.bigPctFee,
-                config.bigSpot,
-                nftList,
+                {
+                  nft: nftContractCollection.address,
+                  bondingCurve: curve.address,
+                  assetRecipient,
+                  poolType,
+                  delta: config.bigDelta,
+                  fee: config.bigPctFee,
+                  spotPrice: config.bigSpot,
+                  props: config.props,
+                  state: config.state,
+                  initialNFTIDs: nftList,
+                },
                 {
                   // Value: ethers.BigNumber.from(`${1.2e16}`),
                   value: ethers.BigNumber.from(`${5e18}`),
@@ -376,7 +388,7 @@ describe("Collectionswap", function () {
               }
             }
 
-            const buyPriceQuote = (await lssvmPairETH.getBuyNFTQuote(j))[3];
+            const buyPriceQuote = (await lssvmPairETH.getBuyNFTQuote(j))[4];
             const buyPriceQuoteSelfCalc = convertToBigNumber(
               cumulativeSum(
                 calculateAsk,
@@ -416,14 +428,18 @@ describe("Collectionswap", function () {
             );
             const lssvmPairETHContractTx: ContractTransaction =
               await lssvmPairFactory.createPairETH(
-                nftContractCollection.address,
-                curve.address,
-                assetRecipient,
-                poolType,
-                config.bigDelta,
-                config.bigPctFee,
-                config.bigSpot,
-                nftList,
+                {
+                  nft: nftContractCollection.address,
+                  bondingCurve: curve.address,
+                  assetRecipient,
+                  poolType,
+                  delta: config.bigDelta,
+                  fee: config.bigPctFee,
+                  spotPrice: config.bigSpot,
+                  props: config.props,
+                  state: config.state,
+                  initialNFTIDs: nftList,
+                },
                 {
                   // Value: ethers.BigNumber.from(`${1.2e16}`),
                   value: ethers.BigNumber.from(`${5e18}`),
@@ -465,7 +481,7 @@ describe("Collectionswap", function () {
               }
             }
 
-            const sellPriceQuote = (await lssvmPairETH.getSellNFTQuote(j))[3];
+            const sellPriceQuote = (await lssvmPairETH.getSellNFTQuote(j))[4];
             const sellPriceQuoteSelfCalc = convertToBigNumber(
               cumulativeSum(
                 calculateBid,
@@ -507,14 +523,18 @@ describe("Collectionswap", function () {
       );
       const lssvmPairETHContractTx: ContractTransaction =
         await lssvmPairFactory.createPairETH(
-          nftContractCollection.address,
-          curve.address,
-          assetRecipient,
-          poolType,
-          delta,
-          fee,
-          spotPrice.mul(ethers.BigNumber.from(`${1e10}`)),
-          initialNFTIDs,
+          {
+            nft: nftContractCollection.address,
+            bondingCurve: curve.address,
+            assetRecipient,
+            poolType,
+            delta,
+            fee,
+            spotPrice: spotPrice.mul(ethers.BigNumber.from(`${1e10}`)),
+            props: [],
+            state: [],
+            initialNFTIDs,
+          },
           {
             // Value: ethers.BigNumber.from(`${1.2e16}`),
             value: ethers.BigNumber.from(`${1.2e16}`).mul(
@@ -535,6 +555,7 @@ describe("Collectionswap", function () {
         _bidError,
         _bidNewSpotPrice,
         _bidNewDelta,
+        _bidNewState,
         bidInputAmount,
         _bidProtocolFee,
         _bidnObj,
@@ -587,14 +608,18 @@ describe("Collectionswap", function () {
       );
       const lssvmPairETHContractTx: ContractTransaction =
         await lssvmPairFactory.createPairETH(
-          nftContractCollection.address,
-          curve.address,
-          assetRecipient,
-          poolType,
-          config.bigDelta,
-          config.bigPctFee,
-          config.bigSpot,
-          nftList,
+          {
+            nft: nftContractCollection.address,
+            bondingCurve: curve.address,
+            assetRecipient,
+            poolType,
+            delta: config.bigDelta,
+            fee: config.bigPctFee,
+            spotPrice: config.bigSpot,
+            props: config.props,
+            state: config.state,
+            initialNFTIDs: nftList,
+          },
           {
             // Value: ethers.BigNumber.from(`${1.2e16}`),
             value: ethers.BigNumber.from(`${5e18}`),
@@ -627,6 +652,7 @@ describe("Collectionswap", function () {
           _bidError,
           _bidNewSpotPrice,
           _bidNewDelta,
+          _bidNewState,
           bidInputAmount,
           _bidProtocolFee,
           _bidnObj,
@@ -646,6 +672,7 @@ describe("Collectionswap", function () {
           _askError,
           _askNewSpotPrice,
           _askNewDelta,
+          _askNewState,
           askOutputAmount,
           _askProtocolFee,
           _asknObj,
@@ -1288,7 +1315,7 @@ describe("Collectionswap", function () {
       // Send enough for n+1 NFTs
       const maxExpectedTokenInput = (
         await lssvmPairETH.getBuyNFTQuote(nftsIWant.length)
-      )[3];
+      )[4];
 
       // Console.log(await lssvmPairETH.spotPrice())
       // console.log(await lssvmPairETH.getAllHeldIds())
@@ -1323,6 +1350,7 @@ describe("Collectionswap", function () {
         _askError,
         _askNewSpotPrice,
         _askNewDelta,
+        _askNewState,
         askInputAmount,
         askProtocolFee,
         _asknObj,
@@ -1366,6 +1394,7 @@ describe("Collectionswap", function () {
         _bidError,
         _bidNewSpotPrice,
         _bidNewDelta,
+        _bidNewState,
         bidInputAmount,
         bidProtocolFee,
         _bidnObj,
@@ -1901,6 +1930,7 @@ describe("Collectionswap", function () {
         _askError,
         _askNewSpotPrice,
         _askNewDelta,
+        _askNewState,
         askInputAmount,
         _askProtocolFee,
         _asknObj,
