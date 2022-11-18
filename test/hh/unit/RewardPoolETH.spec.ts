@@ -9,19 +9,15 @@ import { ethers } from "hardhat";
 
 import {
   collectionswapFixture,
-  rewardTokenFixture,
   nftFixture,
-  collectionstakerFixture,
+  rewardPoolFixture,
 } from "../shared/fixtures";
-import { createPairEth, mintNfts } from "../shared/helpers";
-import { getSigners } from "../shared/signers";
+import { mintNfts } from "../shared/helpers";
 
 import type {
   Collectionswap,
   ERC721PresetMinterPauserAutoId,
-  ICurve,
   IERC20,
-  IERC721,
   RewardPoolETH,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -109,130 +105,6 @@ describe("RewardPoolETH", function () {
       params,
     } = await loadFixture(rewardPoolFixture));
   });
-
-  async function rewardPoolFixture() {
-    const { owner, user, user1, collection } = await getSigners();
-
-    // Let { collectionswap, curve } = await collectionswapFixture();
-    let { collectionswap, curve, collectionstaker } =
-      await collectionstakerFixture();
-    const allRewardTokens = await rewardTokenFixture();
-    const rewardTokens = allRewardTokens.slice(0, numRewardTokens);
-    let { nft } = await nftFixture();
-
-    const rewards = [
-      ethers.utils.parseEther("5"),
-      ethers.utils.parseEther("7"),
-    ];
-    const startTime = (await time.latest()) + 1000;
-    const endTime = startTime + rewardDuration;
-    const rewardRates = rewards.map((reward) =>
-      reward.div(endTime - startTime)
-    );
-    // EndTime = startTime - 1000
-    // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
-
-    const RewardPool = await ethers.getContractFactory("RewardPoolETH");
-    const rewardPoolAlone = await RewardPool.connect(
-      collectionswap.signer
-    ).deploy();
-    // Console.log('xxx',collectionswap.address)
-    // console.log(0);
-    await expect(
-      rewardPoolAlone.initialize(
-        collection.address,
-        owner.address,
-        collectionswap.address,
-        nft.address,
-        curve.address,
-        ethers.utils.parseEther("1.5"),
-        ethers.BigNumber.from("200000000000000000"),
-        rewardTokens.map((rewardToken) => rewardToken.address),
-        rewardRates,
-        startTime,
-        endTime
-      )
-    ).to.be.revertedWith("Initializable: contract is already initialized");
-
-    // Console.log(1);
-    for (let i = 0; i < numRewardTokens; i++) {
-      await rewardTokens[i].mint(owner.address, rewards[i]);
-      await rewardTokens[i]
-        .connect(owner)
-        .approve(collectionstaker.address, rewards[i]);
-    }
-
-    // Console.log(2);
-
-    const tx = await collectionstaker.connect(owner).createIncentiveETH(
-      nft.address,
-      curve.address,
-      ethers.utils.parseEther("1.5"),
-      ethers.BigNumber.from("200000000000000000"),
-      rewardTokens.map((rewardToken) => rewardToken.address),
-      rewards,
-      startTime,
-      endTime
-    );
-    const receipt = await tx.wait();
-    const event = receipt.events?.find(
-      (event) => event.event === "IncentiveETHCreated"
-    );
-    const rewardPoolAddress = event?.args?.poolAddress;
-    console.log(rewardPoolAddress);
-    let rewardPool = RewardPool.attach(rewardPoolAddress) as RewardPoolETH;
-
-    const nftTokenIds = await mintNfts(nft, user.address);
-    const nftTokenIds1 = await mintNfts(nft, user1.address);
-
-    collectionswap = collectionswap.connect(user);
-    nft = nft.connect(user);
-    rewardPool = rewardPool.connect(user);
-
-    let params = {
-      user: user.address,
-      bondingCurve: curve as unknown as ICurve,
-      delta: ethers.utils.parseEther("1.5"),
-      fee: ethers.BigNumber.from("200000000000000000"),
-      spotPrice: ethers.BigNumber.from("16493775933609955"),
-      value: ethers.utils.parseEther("2"),
-    };
-
-    const { lpTokenId } = await createPairEth(collectionswap, {
-      ...params,
-      nft: nft as unknown as IERC721,
-      nftTokenIds,
-    });
-
-    params.user = user1.address;
-
-    const { lpTokenId: lpTokenId1 } = await createPairEth(
-      collectionswap.connect(user1),
-      {
-        ...params,
-        nft: nft.connect(user1) as unknown as IERC721,
-        nftTokenIds: nftTokenIds1,
-      }
-    );
-
-    return {
-      collectionswap,
-      allRewardTokens,
-      rewardTokens,
-      rewards,
-      nft,
-      nftTokenIds,
-      curve,
-      lpTokenId,
-      lpTokenId1,
-      rewardPool,
-      owner,
-      user,
-      user1,
-      collection,
-      params,
-    };
-  }
 
   describe("Deployment", function () {
     it("Should deploy", async function () {
@@ -1279,8 +1151,8 @@ describe("RewardPoolETH", function () {
           params.delta,
           params.fee,
           params.spotPrice,
-          [],
-          [],
+          params.props,
+          params.state,
           newNftTokenIds,
           { value: params.value }
         );
@@ -1320,8 +1192,8 @@ describe("RewardPoolETH", function () {
           params.delta,
           params.fee,
           params.spotPrice,
-          [],
-          [],
+          params.props,
+          params.state,
           newNftTokenIds,
           { value: params.value }
         );

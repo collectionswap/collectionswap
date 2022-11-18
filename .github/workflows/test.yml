@@ -33,3 +33,4 @@ jobs:
         run: |
           CURVE_TYPE=linear npx hardhat test
           CURVE_TYPE=exponential npx hardhat test
+          CURVE_TYPE=sigmoid npx hardhat test

@@ -99,12 +99,16 @@ export async function createPairEth(
     delta,
     fee,
     spotPrice,
+    props,
+    state,
     nftTokenIds,
     value,
   }: Params & {
     spotPrice: BigNumberish;
     nftTokenIds: BigNumberish[];
     value: BigNumberish;
+    props: any;
+    state: any;
   }
 ): Promise<{
   dBalance: BigNumberish;
@@ -122,8 +126,8 @@ export async function createPairEth(
     delta,
     fee,
     spotPrice,
-    [],
-    [],
+    props,
+    state,
     nftTokenIds,
     { value }
   );

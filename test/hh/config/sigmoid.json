@@ -1,0 +1,25 @@
+{
+  "bigPctProtocolFee": "5000000000000000",
+  "bigPctFee": "10000000000000000",
+  "bigDelta": "640",
+  "rawSpot": 0,
+  "bigSpot": "0",
+  "rawPropsTypes": [
+    "uint256",
+    "uint256"
+  ],
+  "rawProps": [
+    "1000000000000000000",
+    "1000000000000000000"
+  ],
+  "rawStateTypes": [
+    "uint64"
+  ],
+  "rawState": [
+    "0"
+  ],
+  "spotComments": "Spot price is unused",
+  "deltaComments": "This delta encodes k = 640 (before dividing by 1024)",
+  "propsComments": "This props encodes a min price of 1 ETH and a price range of 1 ETH",
+  "stateComments": "This state encodes an initial change in # of nfts in the pool of 0 (should always be the case for new pool)"
+}

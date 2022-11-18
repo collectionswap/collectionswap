@@ -4,7 +4,7 @@ import * as path from "path";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { Contract, ContractTransaction } from "ethers";
 
-const IMPLEMENTED_CURVES = ["linear", "exponential"] as const;
+const IMPLEMENTED_CURVES = ["linear", "exponential", "sigmoid"] as const;
 export type curveType = typeof IMPLEMENTED_CURVES[number];
 export const CURVE_TYPE: curveType = process.env.CURVE_TYPE as curveType;
 export let config = {} as any;

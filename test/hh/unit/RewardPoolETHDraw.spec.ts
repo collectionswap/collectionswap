@@ -13,6 +13,7 @@ import {
   rewardTokenFixture,
   nftFixture,
   collectionstakerFixture,
+  getCurveParameters,
 } from "../shared/fixtures";
 import { createPairEth, mintNfts } from "../shared/helpers";
 import { getSigners } from "../shared/signers";
@@ -426,12 +427,15 @@ describe("RewardPoolETHDraw", function () {
     nft = nft.connect(user);
     rewardPool = rewardPool.connect(user);
 
+    const { delta, fee, spotPrice, props, state } = getCurveParameters();
     let params = {
       user: user.address,
       bondingCurve: curve as unknown as ICurve,
-      delta: ethers.utils.parseEther("1.5"),
-      fee: ethers.BigNumber.from("200000000000000000"),
-      spotPrice: ethers.BigNumber.from("16493775933609955"),
+      delta,
+      fee,
+      spotPrice,
+      props,
+      state,
       value: ethers.utils.parseEther("2"),
     };
 

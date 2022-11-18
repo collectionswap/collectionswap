@@ -4,6 +4,8 @@
   "bigDelta": "1050000000000000000",
   "rawSpot": 1,
   "bigSpot": "1000000000000000000",
-  "props": [],
-  "state": []
+  "rawPropsTypes": [],
+  "rawProps": [],
+  "rawStateTypes": [],
+  "rawState": []
 }

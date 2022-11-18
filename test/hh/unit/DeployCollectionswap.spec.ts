@@ -14,6 +14,8 @@ import type { ContractTransaction } from "ethers";
 const MAX_QTY_TO_QUOTE = 5;
 const MAX_DELTA_ITEMS = 3;
 
+const SIGMOID_NORMALIZATION_CONSTANT = 1024;
+
 console.log(
   `gas: 1m gas at 10 gwei gasPrice at $2000 ETH is ${
     1e6 * 1e1 * 2000 * 1e-9
@@ -42,26 +44,23 @@ function sqrtBigNumber(value: BigNumber): BigNumber {
   );
 }
 
-// TODO: Uncomment when sigmoid implemented
-// /**
-//  * K is already normalized by dividing by 16
-//  */
-// function parseSigmoidDelta(_delta: BigNumber): {
-//   k: number;
-//   deltaN: number;
-//   deltaP: number;
-// } {
-//   const k = _delta.shr(120).toNumber() / 16;
-//   const deltaP = Number(
-//     formatEther(
-//       _delta.and(ethers.BigNumber.from("0x000000000000003fffffffffffffffff"))
-//     )
-//   );
-//   const deltaN = Number(
-//     _delta.and(ethers.BigNumber.from("0x00ffffffffffffc00000000000000000"))
-//   );
-//   return { k, deltaN, deltaP };
-// }
+/**
+ * K is already normalized by dividing by 16
+ */
+function parseSigmoidParams(
+  _delta: BigNumber,
+  props: any
+): {
+  k: number;
+  pMin: number;
+  deltaP: number;
+} {
+  const k = _delta.toNumber() / SIGMOID_NORMALIZATION_CONSTANT;
+  const [pMin, deltaP] = ethers.utils.defaultAbiCoder
+    .decode(["uint256", "uint256"], props)
+    .map((bn: BigNumber) => Number(ethers.utils.formatEther(bn)));
+  return { k, pMin, deltaP };
+}
 
 async function sellToPool(
   lssvmPairETH: LSSVMPairETH,
@@ -120,6 +119,7 @@ function calculateAsk(
   changeInItemsInPool: number,
   _spot: BigNumber,
   _delta: BigNumber,
+  _props: any,
   _fee: BigNumber,
   _protocolFee: BigNumber
 ): number {
@@ -131,22 +131,25 @@ function calculateAsk(
   ].map((bigNumber) => {
     return Number(formatEther(bigNumber));
   });
+
+  const finalMultiplier = 1 + fee + protocolFee;
+
   // Use quantity as -changeInItemsInPool since asks decrease the number in the pool
   if (CURVE_TYPE === "exponential") {
-    return (1 + fee + protocolFee) * delta ** (-changeInItemsInPool + 1) * spot;
+    return finalMultiplier * delta ** (-changeInItemsInPool + 1) * spot;
   }
 
   if (CURVE_TYPE === "linear") {
-    return (
-      (spot + delta * (-changeInItemsInPool + 1)) * (1 + fee + protocolFee)
-    );
+    return finalMultiplier * (spot + delta * (-changeInItemsInPool + 1));
   }
 
-  // TODO: Uncomment when sigmoid implemented
-  // if (CURVE_TYPE === "sigmoid") {
-  //   const { k, deltaP } = parseSigmoidDelta(_delta);
-  //   return spot + deltaP / (1 + 2 ** -(k * (-changeInItemsInPool + 1)));
-  // }
+  if (CURVE_TYPE === "sigmoid") {
+    const { k, pMin, deltaP } = parseSigmoidParams(_delta, _props);
+    return (
+      finalMultiplier *
+      (pMin + deltaP / (1 + 2 ** -(k * (-changeInItemsInPool + 1))))
+    );
+  }
 
   throw new Error(`Unrecognized curve type: ${CURVE_TYPE}`);
 }
@@ -155,6 +158,7 @@ function calculateBid(
   changeInItemsInPool: number,
   _spot: BigNumber,
   _delta: BigNumber,
+  _props: any,
   _fee: BigNumber,
   _protocolFee: BigNumber
 ): number {
@@ -166,19 +170,24 @@ function calculateBid(
   ].map((bigNumber) => {
     return Number(formatEther(bigNumber));
   });
+
+  const finalMultiplier = 1 - fee - protocolFee;
+
   if (CURVE_TYPE === "exponential") {
-    return ((1 - fee - protocolFee) * spot) / delta ** changeInItemsInPool;
+    return finalMultiplier * (spot / delta ** changeInItemsInPool);
   }
 
   if (CURVE_TYPE === "linear") {
-    return (spot - delta * changeInItemsInPool) * (1 - fee - protocolFee);
+    return finalMultiplier * (spot - delta * changeInItemsInPool);
   }
 
-  // TODO: Uncomment when sigmoid implemented
-  // if (CURVE_TYPE === "sigmoid") {
-  //   const { k, deltaP } = parseSigmoidDelta(_delta);
-  //   return spot + deltaP / (1 + 2 ** -(k * -(changeInItemsInPool + 1)));
-  // }
+  if (CURVE_TYPE === "sigmoid") {
+    const { k, pMin, deltaP } = parseSigmoidParams(_delta, _props);
+    return (
+      finalMultiplier *
+      (pMin + deltaP / (1 + 2 ** -(k * -(changeInItemsInPool + 1))))
+    );
+  }
 
   throw new Error(`Unrecognized curve type: ${CURVE_TYPE}`);
 }
@@ -217,6 +226,8 @@ function createDirectPairETHHelper(
   delta: any,
   fee: any,
   spotPrice: any,
+  props: any,
+  state: any,
   newTokenList: any,
   valueToSend: any,
   gasLimit = 1500000
@@ -230,8 +241,8 @@ function createDirectPairETHHelper(
       delta,
       fee,
       spotPrice,
-      [],
-      [],
+      props,
+      state,
       newTokenList,
       {
         value: valueToSend,
@@ -269,6 +280,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         initialNFTIDs,
         rawSpot,
         otherAccount0,
@@ -289,8 +302,8 @@ describe("Collectionswap", function () {
             delta,
             fee,
             spotPrice,
-            props: [],
-            state: [],
+            props,
+            state,
             initialNFTIDs,
           },
           {
@@ -322,6 +335,8 @@ describe("Collectionswap", function () {
               delta,
               fee,
               spotPrice,
+              props,
+              state,
               bigPctProtocolFee,
               otherAccount0,
               otherAccount5: externalTrader,
@@ -340,11 +355,11 @@ describe("Collectionswap", function () {
                   bondingCurve: curve.address,
                   assetRecipient,
                   poolType,
-                  delta: config.bigDelta,
-                  fee: config.bigPctFee,
-                  spotPrice: config.bigSpot,
-                  props: config.props,
-                  state: config.state,
+                  delta,
+                  fee,
+                  spotPrice,
+                  props,
+                  state,
                   initialNFTIDs: nftList,
                 },
                 {
@@ -397,6 +412,7 @@ describe("Collectionswap", function () {
                 -1, // Number of items in the pool decreases more for each additional qty in an ask
                 spotPrice,
                 delta,
+                props,
                 fee,
                 bigPctProtocolFee
               )
@@ -415,6 +431,8 @@ describe("Collectionswap", function () {
               delta,
               fee,
               spotPrice,
+              props,
+              state,
               bigPctProtocolFee,
               otherAccount0,
               otherAccount5: externalTrader,
@@ -433,11 +451,11 @@ describe("Collectionswap", function () {
                   bondingCurve: curve.address,
                   assetRecipient,
                   poolType,
-                  delta: config.bigDelta,
-                  fee: config.bigPctFee,
-                  spotPrice: config.bigSpot,
-                  props: config.props,
-                  state: config.state,
+                  delta,
+                  fee,
+                  spotPrice,
+                  props,
+                  state,
                   initialNFTIDs: nftList,
                 },
                 {
@@ -490,6 +508,7 @@ describe("Collectionswap", function () {
                 1, // Number of items in the pool increases more for each additional qty in a bid
                 spotPrice,
                 delta,
+                props,
                 fee,
                 bigPctProtocolFee
               )
@@ -511,6 +530,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         initialNFTIDs,
         otherAccount0,
         otherAccount4,
@@ -530,16 +551,14 @@ describe("Collectionswap", function () {
             poolType,
             delta,
             fee,
-            spotPrice: spotPrice.mul(ethers.BigNumber.from(`${1e10}`)),
-            props: [],
-            state: [],
+            spotPrice,
+            props,
+            state,
             initialNFTIDs,
           },
           {
             // Value: ethers.BigNumber.from(`${1.2e16}`),
-            value: ethers.BigNumber.from(`${1.2e16}`).mul(
-              ethers.BigNumber.from(`${1e3}`)
-            ),
+            value: ethers.BigNumber.from(`${1.2e5}`),
             gasLimit: 1000000,
           }
         );
@@ -567,7 +586,7 @@ describe("Collectionswap", function () {
         externalTraderNftsIHave,
         nftContractCollection,
         otherAccount4,
-        lssvmPairFactory
+        lssvmPairETH
       );
       await expect(
         lssvmPairETH
@@ -596,6 +615,11 @@ describe("Collectionswap", function () {
         curve,
         assetRecipient,
         poolType,
+        delta,
+        fee,
+        spotPrice,
+        props,
+        state,
         otherAccount0,
         otherAccount4,
       } = await loadFixture(everythingFixture);
@@ -613,11 +637,11 @@ describe("Collectionswap", function () {
             bondingCurve: curve.address,
             assetRecipient,
             poolType,
-            delta: config.bigDelta,
-            fee: config.bigPctFee,
-            spotPrice: config.bigSpot,
-            props: config.props,
-            state: config.state,
+            delta,
+            fee,
+            spotPrice,
+            props,
+            state,
             initialNFTIDs: nftList,
           },
           {
@@ -924,6 +948,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         initialNFTIDs,
         otherAccount0,
         otherAccount1,
@@ -956,6 +982,8 @@ describe("Collectionswap", function () {
           delta,
           fee,
           spotPrice,
+          props,
+          state,
           initialNFTIDs,
           valueToSend
         )
@@ -978,6 +1006,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         initialNFTIDs,
         valueToSend
       );
@@ -1126,6 +1156,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         otherAccount1,
         otherAccount2,
@@ -1161,6 +1193,8 @@ describe("Collectionswap", function () {
           delta,
           fee,
           spotPrice,
+          props,
+          state,
           tokenIdList,
           ethers.BigNumber.from(`${1.2e18}`)
         );
@@ -1190,6 +1224,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         collectionswap,
       } = await loadFixture(everythingFixture);
@@ -1223,6 +1259,8 @@ describe("Collectionswap", function () {
           delta,
           fee,
           spotPrice,
+          props,
+          state,
           tokenIdList,
           ethers.BigNumber.from(`${1.2e18}`)
         );
@@ -1249,6 +1287,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         otherAccount1,
         otherAccount2,
@@ -1288,6 +1328,8 @@ describe("Collectionswap", function () {
             delta,
             fee,
             spotPrice,
+            props,
+            state,
             tokenIdList,
             ethers.BigNumber.from(`${1.2e18}`)
           );
@@ -1462,6 +1504,8 @@ describe("Collectionswap", function () {
         fee,
         delta,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         otherAccount1,
         otherAccount4,
@@ -1528,6 +1572,8 @@ describe("Collectionswap", function () {
           delta,
           fee,
           spotPrice,
+          props,
+          state,
           tokenIdList,
           valueToSend
         );
@@ -1602,6 +1648,8 @@ describe("Collectionswap", function () {
           delta,
           fee.add(1),
           spotPrice,
+          props,
+          state,
           tokenIdList,
           valueToSend
         );
@@ -1625,6 +1673,8 @@ describe("Collectionswap", function () {
         fee,
         delta,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         otherAccount4,
         lssvmPairFactory,
@@ -1690,6 +1740,8 @@ describe("Collectionswap", function () {
           delta,
           fee,
           spotPrice,
+          props,
+          state,
           tokenIdList,
           valueToSend
         );
@@ -1762,6 +1814,8 @@ describe("Collectionswap", function () {
         fee,
         delta,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         otherAccount1,
         otherAccount2,
@@ -1770,7 +1824,6 @@ describe("Collectionswap", function () {
         lssvmPairFactory,
         assetRecipient,
         poolType,
-        rawSpot,
       } = await loadFixture(everythingFixture);
       const RewardPoolFactory = await ethers.getContractFactory(
         "RewardPoolFactory"
@@ -1853,6 +1906,8 @@ describe("Collectionswap", function () {
           delta,
           fee,
           spotPrice,
+          props,
+          state,
           baseTokenIdList,
           valueToSend,
           1000000 + 100000 * baseTokenIdList.length
@@ -1935,7 +1990,6 @@ describe("Collectionswap", function () {
         _askProtocolFee,
         _asknObj,
       ] = await lssvmPairETH.getBuyNFTQuote(numNfts);
-      const maxExpectedTokenInput = convertToBigNumber(rawSpot * (numNfts + 1));
       await lssvmPairETH
         .connect(externalTrader)
         .swapTokenForAnyNFTs(
@@ -1945,7 +1999,7 @@ describe("Collectionswap", function () {
           false,
           ethers.constants.AddressZero,
           {
-            value: maxExpectedTokenInput,
+            value: askInputAmount,
             gasLimit: 1500000,
           }
         );
@@ -2060,6 +2114,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         collectionswap,
       } = await loadFixture(everythingFixture);
@@ -2084,6 +2140,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         tokenIdList,
         ethers.BigNumber.from(`${1.2e18}`)
       );
@@ -2145,6 +2203,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         collectionswap,
       } = await loadFixture(everythingFixture);
@@ -2169,6 +2229,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         tokenIdList,
         ethers.BigNumber.from(`${1.2e18}`)
       );
@@ -2192,6 +2254,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         otherAccount2,
         collectionswap,
@@ -2217,6 +2281,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         tokenIdList,
         ethers.BigNumber.from(`${1.2e18}`)
       );
@@ -2238,6 +2304,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         collectionswap,
       } = await loadFixture(everythingFixture);
@@ -2262,6 +2330,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         tokenIdList,
         ethers.BigNumber.from(`${1.2e18}`)
       );
@@ -2324,6 +2394,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         otherAccount0,
         collectionswap,
       } = await loadFixture(everythingFixture);
@@ -2348,6 +2420,8 @@ describe("Collectionswap", function () {
         delta,
         fee,
         spotPrice,
+        props,
+        state,
         tokenIdList,
         ethers.BigNumber.from(`${1.2e18}`)
       );

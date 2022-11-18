@@ -5,6 +5,7 @@ contract CurveErrorCodes {
     enum Error {
         OK, // No error
         INVALID_NUMITEMS, // The numItem value is 0
-        SPOT_PRICE_OVERFLOW // The updated spot price doesn't fit into 128 bits
+        SPOT_PRICE_OVERFLOW, // The updated spot price doesn't fit into 128 bits
+        TOO_MANY_ITEMS // The value of numItems passes was too great
     }
 }

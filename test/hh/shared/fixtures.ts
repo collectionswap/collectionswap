@@ -1,10 +1,109 @@
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers } from "hardhat";
 
 import { config, CURVE_TYPE } from "./constants";
+import { createPairEth, mintNfts } from "./helpers";
 import { getSigners } from "./signers";
 
+import type { ICurve, IERC721 } from "../../../typechain-types";
 import type { curveType } from "./constants";
 import type { BigNumber } from "ethers";
+
+const NUM_REWARD_TOKENS = 2;
+const DAY_DURATION = 86400;
+const REWARD_DURATION = DAY_DURATION;
+const REWARDS = [ethers.utils.parseEther("5"), ethers.utils.parseEther("7")];
+
+function parsePropsAndState(
+  rawPropsTypes: string[],
+  rawProps: any[],
+  rawStateTypes: string[],
+  rawState: any[]
+): { props: any; state: any } {
+  return {
+    props: ethers.utils.defaultAbiCoder.encode(rawPropsTypes, rawProps),
+    state: ethers.utils.defaultAbiCoder.encode(rawStateTypes, rawState),
+  };
+}
+
+export function getCurveParameters(): {
+  rawSpot: number;
+  spotPrice: string;
+  delta: string;
+  props: any;
+  state: any;
+  fee: string;
+  protocolFee: string;
+} {
+  const {
+    bigPctProtocolFee,
+    bigPctFee,
+    bigDelta,
+    bigSpot,
+    rawSpot,
+    rawPropsTypes,
+    rawProps,
+    rawStateTypes,
+    rawState,
+  } = config;
+
+  const { props, state } = parsePropsAndState(
+    rawPropsTypes,
+    rawProps,
+    rawStateTypes,
+    rawState
+  );
+
+  return {
+    rawSpot,
+    spotPrice: bigSpot,
+    delta: bigDelta,
+    props,
+    state,
+    fee: bigPctFee,
+    protocolFee: bigPctProtocolFee,
+  };
+}
+
+export async function integrationFixture() {
+  const { owner, protocol, user } = await getSigners();
+  const { collectionswap, collectionstaker, curve } =
+    await collectionstakerFixture();
+  const rewardTokens = (await rewardTokenFixture()).slice(0, NUM_REWARD_TOKENS);
+  const { nft } = await nftFixture();
+
+  for (let i = 0; i < NUM_REWARD_TOKENS; i++) {
+    await rewardTokens[i].mint(protocol.address, REWARDS[i]);
+  }
+
+  const {
+    fee: bigPctFee,
+    delta: bigDelta,
+    spotPrice: bigSpot,
+    props,
+    state,
+  } = getCurveParameters();
+
+  return {
+    collectionswap: collectionswap.connect(user),
+    collectionstaker: collectionstaker.connect(protocol),
+    curve: curve as unknown as ICurve,
+    rewardTokens: rewardTokens.map((rewardToken) =>
+      rewardToken.connect(protocol)
+    ),
+    rewards: REWARDS,
+    nft,
+    owner,
+    protocol,
+    user,
+    numRewardTokens: NUM_REWARD_TOKENS,
+    bigDelta,
+    bigSpot,
+    bigPctFee,
+    props,
+    state,
+  };
+}
 
 export async function collectionswapFixture() {
   const { collection } = await getSigners();
@@ -26,6 +125,25 @@ export async function collectionstakerFixture() {
   );
   await collectionswap.connect(collection).setSenderSpecifierOperator(collectionstaker.address, true);
   return { collectionswap, collectionstaker, curve, collection };
+}
+
+export async function collectionstakerWithRewardsFixture() {
+  const { protocol } = await getSigners();
+  const { collectionstaker, curve, collection } =
+    await collectionstakerFixture();
+  const rewardTokens = (await rewardTokenFixture()).slice(0, NUM_REWARD_TOKENS);
+  const { nft } = await nftFixture();
+
+  return {
+    collectionstaker: collectionstaker.connect(protocol),
+    collection,
+    curve,
+    rewardTokens,
+    rewards: REWARDS,
+    numRewardTokens: NUM_REWARD_TOKENS,
+    nft,
+    protocol,
+  };
 }
 
 export async function rewardTokenFixture() {
@@ -97,16 +215,14 @@ export async function lsSVMFixture() {
   const linearCurve = await LinearCurve.connect(sudoswap).deploy();
   await lsSVMPairFactory.setBondingCurveAllowed(linearCurve.address, true);
 
-  // TODO: Uncomment when sigmoid implemented
-  // const SigmoidCurve = await ethers.getContractFactory("SigmoidCurve");
-  // const sigmoidCurve = await SigmoidCurve.connect(sudoswap).deploy();
-  // await lsSVMPairFactory.setBondingCurveAllowed(sigmoidCurve.address, true);
+  const SigmoidCurve = await ethers.getContractFactory("SigmoidCurve");
+  const sigmoidCurve = await SigmoidCurve.connect(sudoswap).deploy();
+  await lsSVMPairFactory.setBondingCurveAllowed(sigmoidCurve.address, true);
 
   const map: { [key in curveType]: any } = {
     linear: linearCurve,
     exponential: exponentialCurve,
-    // TODO: Uncomment when sigmoid implemented
-    // sigmoid: sigmoidCurve,
+    sigmoid: sigmoidCurve,
   };
 
   return {
@@ -120,7 +236,8 @@ function stringToBigNumber(value: string): BigNumber {
 }
 
 /**
- * Has everything. Trim down when we have time, but convenient for deploy suite
+ * Has everything needed for DeployCollectionSwap suite. Trim down when we have
+ * time, but convenient for now.
  */
 export async function everythingFixture() {
   const LSSVMPairEnumerableETH = await ethers.getContractFactory(
@@ -146,7 +263,15 @@ export async function everythingFixture() {
     await LSSVMPairMissingEnumerableERC20.deploy();
   const payoutAddress = ethers.constants.AddressZero;
 
-  const { bigPctProtocolFee, bigPctFee, bigDelta, bigSpot, rawSpot } = config;
+  const {
+    protocolFee: bigPctProtocolFee,
+    fee: bigPctFee,
+    delta: bigDelta,
+    spotPrice: bigSpot,
+    rawSpot,
+    props,
+    state,
+  } = getCurveParameters();
 
   const LSSVMPairFactory = await ethers.getContractFactory("LSSVMPairFactory");
   const lssvmPairFactory = await LSSVMPairFactory.deploy(
@@ -182,15 +307,13 @@ export async function everythingFixture() {
   const ExponentialCurve = await ethers.getContractFactory("ExponentialCurve");
   const exponentialCurve = await ExponentialCurve.deploy();
 
-  // TODO: Uncomment when sigmoid implemented
-  // const SigmoidCurve = await ethers.getContractFactory("SigmoidCurve");
-  // const sigmoidCurve = await SigmoidCurve.deploy();
+  const SigmoidCurve = await ethers.getContractFactory("SigmoidCurve");
+  const sigmoidCurve = await SigmoidCurve.deploy();
 
   const map: { [key in curveType]: any } = {
     linear: linearCurve,
     exponential: exponentialCurve,
-    // TODO: Uncomment when sigmoid implemented
-    // sigmoid: sigmoidCurve,
+    sigmoid: sigmoidCurve,
   };
   const curve = map[CURVE_TYPE!];
 
@@ -206,7 +329,7 @@ export async function everythingFixture() {
   const collectionswap = await Collectionswap.deploy(lssvmPairFactory.address);
   // Console.log(`Collectionswap deployed to ${collectionswap.address}`)
 
-  return {
+  const ret = {
     collectionswap,
     lssvmPairFactory,
     lssvmPairEnumerableETH,
@@ -223,6 +346,8 @@ export async function everythingFixture() {
     spotPrice: stringToBigNumber(bigSpot),
     initialNFTIDs,
     rawSpot,
+    props,
+    state,
     otherAccount0,
     otherAccount1,
     otherAccount2,
@@ -230,5 +355,187 @@ export async function everythingFixture() {
     otherAccount4,
     otherAccount5,
     nftContractCollection1155,
+  };
+
+  return ret;
+}
+
+export async function rewardPoolETHAtomicFixture() {
+  // Let lpTokenId: BigNumberish;
+  // let lpTokenId1: BigNumberish;
+  const { owner, user, user1, collection } = await getSigners();
+
+  let { collectionswap, curve } = await collectionswapFixture();
+  const allRewardTokens = await rewardTokenFixture();
+  const rewardTokens = allRewardTokens.slice(0, NUM_REWARD_TOKENS);
+  let { nft } = await nftFixture();
+
+  const startTime = (await time.latest()) + 1000;
+  const endTime = startTime + REWARD_DURATION;
+  const rewardRates = REWARDS.map((reward) => reward.div(endTime - startTime));
+  // EndTime = startTime - 1000
+  // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
+
+  const RewardPool = await ethers.getContractFactory("RewardPoolETH");
+  let rewardPool = await RewardPool.connect(collectionswap.signer).deploy();
+
+  const { delta, fee, spotPrice, props, state } = getCurveParameters();
+  await rewardPool.initialize(
+    collection.address,
+    owner.address,
+    collectionswap.address,
+    nft.address,
+    curve.address,
+    delta,
+    fee,
+    rewardTokens.map((rewardToken) => rewardToken.address),
+    rewardRates,
+    startTime,
+    endTime
+  );
+
+  for (let i = 0; i < NUM_REWARD_TOKENS; i++) {
+    await rewardTokens[i].mint(rewardPool.address, REWARDS[i]);
+  }
+
+  const nftTokenIds = await mintNfts(nft, user.address);
+
+  collectionswap = collectionswap.connect(user);
+  nft = nft.connect(user);
+  rewardPool = rewardPool.connect(user);
+
+  const params = {
+    bondingCurve: curve as unknown as ICurve,
+    delta,
+    fee,
+    spotPrice,
+    props,
+    state,
+    value: ethers.utils.parseEther("2"),
+  };
+
+  // Const { lpTokenId } = await createPairEth(collectionswap, {
+  //   ...params,
+  //   nft: nft as unknown as IERC721,
+  //   nftTokenIds,
+  // });
+
+  // Const { lpTokenId: lpTokenId1 } = await createPairEth(
+  //   collectionswap.connect(user1),
+  //   {
+  //     ...params,
+  //     nft: nft.connect(user1) as unknown as IERC721,
+  //     nftTokenIds: nftTokenIds1,
+  //   }
+  // );
+
+  return {
+    collectionswap,
+    allRewardTokens,
+    rewardTokens,
+    rewards: REWARDS,
+    nft,
+    curve,
+    params,
+    // LpTokenId,
+    // lpTokenId1,
+    rewardPool,
+    owner,
+    user,
+    user1,
+    collection,
+    nftTokenIds,
+  };
+}
+
+export async function rewardPoolFixture() {
+  const { owner, user, user1, collection } = await getSigners();
+
+  let { collectionswap, curve } = await collectionswapFixture();
+  const allRewardTokens = await rewardTokenFixture();
+  const rewardTokens = allRewardTokens.slice(0, NUM_REWARD_TOKENS);
+  let { nft } = await nftFixture();
+
+  const startTime = (await time.latest()) + 1000;
+  const endTime = startTime + REWARD_DURATION;
+  const rewardRates = REWARDS.map((reward) => reward.div(endTime - startTime));
+  // EndTime = startTime - 1000
+  // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
+  const { delta, fee, spotPrice, props, state } = getCurveParameters();
+
+  const RewardPool = await ethers.getContractFactory("RewardPoolETH");
+  let rewardPool = await RewardPool.connect(collectionswap.signer).deploy();
+
+  const Clones = await ethers.getContractFactory("TestClones");
+  const clones = await Clones.deploy();
+  const rewardPoolAddress = await clones.callStatic.clone(rewardPool.address);
+  await clones.clone(rewardPool.address);
+  rewardPool = RewardPool.attach(rewardPoolAddress);
+
+  await rewardPool.initialize(
+    collection.address,
+    owner.address,
+    collectionswap.address,
+    nft.address,
+    curve.address,
+    delta,
+    fee,
+    rewardTokens.map((rewardToken) => rewardToken.address),
+    rewardRates,
+    startTime,
+    endTime
+  );
+
+  for (let i = 0; i < NUM_REWARD_TOKENS; i++) {
+    await rewardTokens[i].mint(rewardPool.address, REWARDS[i]);
+  }
+
+  const nftTokenIds = await mintNfts(nft, user.address);
+  const nftTokenIds1 = await mintNfts(nft, user1.address);
+
+  collectionswap = collectionswap.connect(user);
+  nft = nft.connect(user);
+  rewardPool = rewardPool.connect(user);
+
+  const params = {
+    bondingCurve: curve as unknown as ICurve,
+    delta,
+    fee,
+    spotPrice,
+    props,
+    state,
+    value: ethers.utils.parseEther("2"),
+  };
+
+  const { lpTokenId } = await createPairEth(collectionswap, {
+    ...params,
+    nft: nft as unknown as IERC721,
+    nftTokenIds,
+  });
+
+  const { lpTokenId: lpTokenId1 } = await createPairEth(
+    collectionswap.connect(user1),
+    {
+      ...params,
+      nft: nft.connect(user1) as unknown as IERC721,
+      nftTokenIds: nftTokenIds1,
+    }
+  );
+
+  return {
+    collectionswap,
+    allRewardTokens,
+    rewardTokens,
+    rewards: REWARDS,
+    nft,
+    curve,
+    lpTokenId,
+    lpTokenId1,
+    rewardPool,
+    owner,
+    user,
+    user1,
+    collection,
+    params,
   };
 }
