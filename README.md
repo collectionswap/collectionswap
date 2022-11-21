@@ -13,10 +13,10 @@ yarn compile
 3. Run the deploy script
 ```bash
 # Rinkeby deployment
-npx hardhat deployCollectionSwapAndStaker --network rinkeby
+npx hardhat deployCollectionSet --network goerli
 
 # Mainnet deployment
-npx hardhat deployCollectionSwapAndStaker --network mainnet
+npx hardhat deployCollectionSet --network mainnet
 ```
 
 4. Verify RewardPool
