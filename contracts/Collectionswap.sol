@@ -70,47 +70,6 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         }
     }
 
-    function getMeasurableContribution(
-        uint256 tokenId
-        ) external view 
-        returns (uint256 contribution) {
-            LPTokenParams721ETH memory lpTokenParams = _mapNFTIDToPool[tokenId];
-            uint256 initialPoolBalance = lpTokenParams.initialPoolBalance;
-            uint256 initialNFTIDsLength = lpTokenParams.initialNFTIDsLength;
-            contribution = uint256(initialPoolBalance * initialNFTIDsLength).sqrt();
-    }
-
-    function setSenderSpecifierOperator(address _operator, bool _canSet) onlyOwner external {
-        isSenderSpecifierOperator[_operator] = _canSet;
-    }
-
-    // only owner or canUpdateSenderSpecifiers are allowed to call this function
-    function setCanSpecifySender(address _user, bool _canSpecify) external {
-        require(msg.sender == owner() || isSenderSpecifierOperator[msg.sender], "not authorized");
-        canSpecifySender[_user] = _canSpecify;
-    }
-
-    function refreshPoolParameters(
-        uint256 tokenId
-    ) external {
-        LPTokenParams721ETH memory lpTokenParams = _mapNFTIDToPool[tokenId];
-        address payable poolAddress = lpTokenParams.poolAddress;
-        require(isApprovedToOperateOnPool(msg.sender, tokenId),"unapproved caller");
-        ILSSVMPairETH mypair = ILSSVMPairETH(poolAddress);
-        uint256[] memory currentIds = mypair.getAllHeldIds();
-        LPTokenParams721ETH memory lpTokenParams2 = LPTokenParams721ETH(
-            lpTokenParams.nftAddress,
-            lpTokenParams.bondingCurveAddress,
-            lpTokenParams.poolAddress,
-            mypair.fee(),
-            mypair.delta(),
-            mypair.spotPrice(),
-            address(mypair).balance,
-            currentIds.length
-        );
-        _mapNFTIDToPool[tokenId] = lpTokenParams2;
-    }
-
     function getAllHeldIds(
         uint256 tokenId
     ) external view returns (uint256[] memory currentIds) {
