@@ -27,6 +27,7 @@ export async function mintNfts(
 }
 
 interface Params {
+  user: string;
   nft: IERC721;
   bondingCurve: ICurve;
   delta: BigNumberish;
@@ -36,6 +37,7 @@ interface Params {
 export async function createIncentiveEth(
   collectionstaker: Collectionstaker,
   {
+    user,
     nft,
     bondingCurve,
     delta,
@@ -91,6 +93,7 @@ export async function createIncentiveEth(
 export async function createPairEth(
   collectionswap: Collectionswap,
   {
+    user,
     nft,
     bondingCurve,
     delta,
@@ -113,6 +116,7 @@ export async function createPairEth(
   let dBalance = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
   response = await collectionswap.createDirectPairETH(
+    user,
     nft.address,
     bondingCurve.address,
     delta,

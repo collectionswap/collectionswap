@@ -24,6 +24,7 @@ export async function collectionstakerFixture() {
   const collectionstaker = await Collectionstaker.connect(collection).deploy(
     collectionswap.address
   );
+  await collectionswap.connect(collection).setSenderSpecifierOperator(collectionstaker.address, true);
   return { collectionswap, collectionstaker, curve, collection };
 }
 

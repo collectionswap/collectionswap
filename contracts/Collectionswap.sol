@@ -26,7 +26,9 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
     ILSSVMPairFactory public immutable _factory;
     ILSSVMPair.PoolType immutable _poolType;
 
-    mapping(address =>bool) private _mapPoolsToIsLiveForAnyNFT;
+    mapping(address => bool) public isPoolAlive;
+    mapping(address => bool) public isSenderSpecifierOperator;
+    mapping(address => bool) public canSpecifySender;
 
     /// @dev mapping of token IDs to pools
     mapping(uint256 => LPTokenParams721ETH) private _mapNFTIDToPool;
@@ -76,6 +78,16 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
             uint256 initialPoolBalance = lpTokenParams.initialPoolBalance;
             uint256 initialNFTIDsLength = lpTokenParams.initialNFTIDsLength;
             contribution = uint256(initialPoolBalance * initialNFTIDsLength).sqrt();
+    }
+
+    function setSenderSpecifierOperator(address _operator, bool _canSet) onlyOwner external {
+        isSenderSpecifierOperator[_operator] = _canSet;
+    }
+
+    // only owner or canUpdateSenderSpecifiers are allowed to call this function
+    function setCanSpecifySender(address _user, bool _canSpecify) external {
+        require(msg.sender == owner() || isSenderSpecifierOperator[msg.sender], "not authorized");
+        canSpecifySender[_user] = _canSpecify;
     }
 
     function refreshPoolParameters(
@@ -131,22 +143,26 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         tokenId = ++_nextTokenId;
         _mapNFTIDToPool[tokenId] = lpTokenParams;
         // string memory uri = string(abi.encodePacked('{"pool":"', Strings.toHexString(lpTokenParams.poolAddress), '"}'));
-        _mapPoolsToIsLiveForAnyNFT[lpTokenParams.poolAddress] = true;
+        isPoolAlive[lpTokenParams.poolAddress] = true;
         emit NewTokenId(tokenId);
         safeMint(receiver, tokenId);
     }
 
     function useLPTokenToDestroyDirectPairETH(
+        address user,
         uint256 tokenId
     ) external nonReentrant {
+        if (user != msg.sender)
+            require(canSpecifySender[msg.sender], "can't specify sender");
         LPTokenParams721ETH memory lpTokenParams = _mapNFTIDToPool[tokenId];
         ERC721 _nft = ERC721(lpTokenParams.nftAddress);
         destroyDirectPairETH(
+            user,
             tokenId,
             _nft
         );
         // breaks CEI pattern, but has to be done after destruction to return correct msg
-        _mapPoolsToIsLiveForAnyNFT[lpTokenParams.poolAddress] = false;
+        isPoolAlive[lpTokenParams.poolAddress] = false;
         burn(tokenId);
     }
 
@@ -189,12 +205,13 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint256 tokenId
     ) public view returns (LPTokenParams721ETH memory poolParams) {
         poolParams = _mapNFTIDToPool[tokenId];
-        require(isPoolAlive(poolParams.poolAddress), 'pool must be alive');
+        require(isPoolAlive[poolParams.poolAddress], 'pool must be alive');
         return poolParams;
     }
 
     // @inheritdoc ICollectionswap
     function createDirectPairETH(
+        address _user,
         IERC721 _nft,
         ICurve _bondingCurve,
         uint128 _delta,
@@ -202,6 +219,8 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint128 _spotPrice,
         uint256[] calldata _initialNFTIDs
     ) external payable nonReentrant returns (ILSSVMPairETH newPair, uint256 newTokenId) {
+        if (_user != msg.sender)
+            require(canSpecifySender[msg.sender], "can't specify sender");
         // Create sudoswap pool
         ILSSVMPairFactory factory = _factory;
         uint256[] memory _emptyInitialNFTIDs;
@@ -219,7 +238,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
 
         // Transfer all nfts specified to the pool
         transferOwnershipNFTList(
-            tx.origin,
+            _user,
             address(newPair),
             _nft,
             _initialNFTIDs
@@ -237,7 +256,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         );
 
         newTokenId = issueLPToken(
-            tx.origin,
+            _user,
             poolParamsStruct
         );
     }
@@ -248,24 +267,20 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         } else {
             return false;
         }   
-    }    
-
-
-    function isPoolAlive(address _pool) public view returns (bool) {
-        return _mapPoolsToIsLiveForAnyNFT[_pool];
     }
 
     function destroyDirectPairETH(
+        address user,
         uint256 tokenId,
         IERC721 _nft
     ) private {
         string memory errmsg = "only token owner can destroy pool";
         address payable _pool = _mapNFTIDToPool[tokenId].poolAddress;
-        if (!_mapPoolsToIsLiveForAnyNFT[_pool]) {
+        if (!isPoolAlive[_pool]) {
             errmsg = "pool already destroyed";
         }
 
-        require(isApprovedToOperateOnPool(tx.origin, tokenId), errmsg);
+        require(isApprovedToOperateOnPool(user, tokenId), errmsg);
 
         uint256[] memory currentIds = this.getAllHeldIds(tokenId);
 
@@ -279,11 +294,11 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
 
         transferOwnershipNFTList(
             address(this),
-            tx.origin,
+            user,
             _nft,
             currentIds
             );
-        (bool sent,) = payable(tx.origin).call{value: diffBalance}("");
+        (bool sent,) = payable(user).call{value: diffBalance}("");
         require(sent, "Failed to send Ether");
     }
 

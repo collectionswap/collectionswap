@@ -426,7 +426,8 @@ describe("RewardPoolETHDraw", function () {
     nft = nft.connect(user);
     rewardPool = rewardPool.connect(user);
 
-    const params = {
+    let params = {
+      user: user.address,
       bondingCurve: curve as unknown as ICurve,
       delta: ethers.utils.parseEther("1.5"),
       fee: ethers.BigNumber.from("200000000000000000"),
@@ -439,6 +440,8 @@ describe("RewardPoolETHDraw", function () {
       nft: nft as unknown as IERC721,
       nftTokenIds,
     });
+
+    params.user = user1.address;
 
     const { lpTokenId: lpTokenId1 } = await createPairEth(
       collectionswap.connect(user1),

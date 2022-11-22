@@ -34,15 +34,18 @@ interface ICollectionswap is IERC721, IERC721Enumerable {
      * @return newTokenId The tokenId of the newly issued LP token
      */
     function createDirectPairETH(
+        address _user,
         IERC721 _nft,
         ICurve _bondingCurve,
         uint128 _delta,
         uint96 _fee,
         uint128 _spotPrice,
         uint256[] calldata _initialNFTIDs        
-    ) external payable returns (ILSSVMPairETH newPair, uint256 newTokenId) ;
+    ) external payable returns (ILSSVMPairETH newPair, uint256 newTokenId);
 
-    function useLPTokenToDestroyDirectPairETH(uint256 _lpTokenId) external;
+    function setCanSpecifySender(address user, bool canSet) external;
+
+    function useLPTokenToDestroyDirectPairETH(address user, uint256 _lpTokenId) external;
 
     /**
      * @return poolParams the parameters of the pool matching `tokenId`.

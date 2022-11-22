@@ -77,6 +77,9 @@ contract Collectionstaker is Ownable {
         RewardPoolETH rewardPool = RewardPoolETH(
             Clones.clone(address(rewardPoolETHLogic))
         );
+
+        lpToken.setCanSpecifySender(address(rewardPool), true);
+        
         rewardPool.initialize(
             owner(),
             msg.sender,
@@ -160,6 +163,7 @@ contract Collectionstaker is Ownable {
             Clones.clone(address(rewardPoolETHDrawLogic))
         );
 
+        lpToken.setCanSpecifySender(address(rewardPool), true);
 
         rewardPool.initialize(
             owner(),

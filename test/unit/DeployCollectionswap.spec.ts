@@ -222,6 +222,7 @@ function createDirectPairETHHelper(
   return collectionswap
     .connect(thisAccount)
     .createDirectPairETH(
+      thisAccount.address,
       nftContractCollection.address,
       curve.address,
       delta,
@@ -677,6 +678,113 @@ describe("Collectionswap", function () {
   });
 
   describe("Direct interactions with collectionswap", function () {
+    it("Should have setSenderSpecifierOperator only callable by only owner", async function () {
+      const {
+        otherAccount1,
+        otherAccount2,
+        collectionswap,
+      } = await loadFixture(everythingFixture);
+
+      await expect(
+        collectionswap.connect(otherAccount1).setSenderSpecifierOperator(otherAccount1.address, true)
+      ).to.be.revertedWithCustomError(collectionswap, "Ownable_NotOwner");
+
+      await expect(
+        collectionswap.connect(otherAccount2).setSenderSpecifierOperator(otherAccount1.address, true)
+      ).to.be.revertedWithCustomError(collectionswap, "Ownable_NotOwner");
+    });
+
+    it("Should have owner be able to set and unset sender specifier operators", async function () {
+      const {
+        otherAccount2,
+        collectionswap,
+      } = await loadFixture(everythingFixture);
+
+      // owner should be able to toggle on and off
+      expect(await collectionswap.isSenderSpecifierOperator(otherAccount2.address)).to.be.false;
+      await collectionswap.setSenderSpecifierOperator(otherAccount2.address, true);
+      expect(await collectionswap.isSenderSpecifierOperator(otherAccount2.address)).to.be.true;
+      await collectionswap.setSenderSpecifierOperator(otherAccount2.address, false);
+      expect(await collectionswap.isSenderSpecifierOperator(otherAccount2.address)).to.be.false;
+    });
+
+    it("Should have setCanSpecifySender callable by owner", async function () {
+      const {
+        otherAccount1,
+        otherAccount2,
+        collectionswap,
+      } = await loadFixture(everythingFixture);
+
+      await expect(
+        collectionswap.connect(otherAccount1).setCanSpecifySender(otherAccount1.address, true)
+      ).to.be.revertedWith("not authorized");
+
+      await expect(
+        collectionswap.connect(otherAccount2).setCanSpecifySender(otherAccount1.address, true)
+      ).to.be.revertedWith("not authorized");
+    });
+
+    it("Should have owner or operator be able to set and unset sender specifiers", async function () {
+      const {
+        otherAccount2,
+        otherAccount3,
+        collectionswap,
+      } = await loadFixture(everythingFixture);
+
+      // owner should be able to toggle on and off
+      expect(await collectionswap.canSpecifySender(otherAccount2.address)).to.be.false;
+      await collectionswap.setCanSpecifySender(otherAccount2.address, true);
+      expect(await collectionswap.canSpecifySender(otherAccount2.address)).to.be.true;
+      await collectionswap.setCanSpecifySender(otherAccount2.address, false);
+      expect(await collectionswap.canSpecifySender(otherAccount2.address)).to.be.false;
+
+      // give permission to an operator, should be able to toggle on and off as well
+      await collectionswap.setSenderSpecifierOperator(otherAccount3.address, true);
+      await collectionswap.connect(otherAccount3).setCanSpecifySender(otherAccount2.address, true);
+      await collectionswap.setCanSpecifySender(otherAccount2.address, true);
+    });
+
+    it("Should be unable to create and destroy LP tokens if non-authorized user tries to specify senders", async function () {
+      const {
+        nftContractCollection,
+        curve,
+        delta,
+        fee,
+        spotPrice,
+        initialNFTIDs,
+        otherAccount2,
+        otherAccount3,
+        collectionswap,
+      } = await loadFixture(everythingFixture);
+
+      // check that otherAccount2 cannot specify sender
+      expect(await collectionswap.canSpecifySender(otherAccount2.address)).to.be.false;
+
+      // should revert if trying to create / destroy with a different user
+      await expect(
+        collectionswap
+        .connect(otherAccount2)
+        .createDirectPairETH(
+          otherAccount3.address,
+          nftContractCollection.address,
+          curve.address,
+          delta,
+          fee,
+          spotPrice,
+          initialNFTIDs
+        )
+      ).to.be.revertedWith("can't specify sender");
+
+      await expect(
+        collectionswap
+        .connect(otherAccount2)
+        .useLPTokenToDestroyDirectPairETH(
+          otherAccount3.address,
+          1
+        )
+      ).to.be.revertedWith("can't specify sender");
+    });
+    
     it("should be gas efficient to create a sudoswap pair through collectionswap", async function () {
       const {
         lssvmPairFactory,
@@ -935,7 +1043,7 @@ describe("Collectionswap", function () {
         await expect(
           collectionswap
             .connect(notAuthorizedAccount)
-            .useLPTokenToDestroyDirectPairETH(newTokenId, {
+            .useLPTokenToDestroyDirectPairETH(notAuthorizedAccount.address, newTokenId, {
               gasLimit: 2000000,
             })
         ).to.be.revertedWith("only token owner can destroy pool");
@@ -950,7 +1058,7 @@ describe("Collectionswap", function () {
       await expect(
         collectionswap
           .connect(otherAccount1)
-          .useLPTokenToDestroyDirectPairETH(newTokenId, {
+          .useLPTokenToDestroyDirectPairETH(otherAccount1.address, newTokenId, {
             gasLimit: 2000000,
           })
       ).to.changeEtherBalances(
@@ -975,7 +1083,7 @@ describe("Collectionswap", function () {
       await expect(
         collectionswap
           .connect(otherAccount1)
-          .useLPTokenToDestroyDirectPairETH(newTokenId, {
+          .useLPTokenToDestroyDirectPairETH(otherAccount1.address, newTokenId, {
             gasLimit: 2000000,
           })
       ).to.be.revertedWith("pool already destroyed");
@@ -1301,7 +1409,7 @@ describe("Collectionswap", function () {
       await expect(
         collectionswap
           .connect(originalPoolCreator)
-          .useLPTokenToDestroyDirectPairETH(1, {
+          .useLPTokenToDestroyDirectPairETH(originalPoolCreator.address, 1, {
             gasLimit: 2000000,
           })
       ).to.changeEtherBalances(

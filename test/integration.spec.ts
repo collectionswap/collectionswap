@@ -76,6 +76,7 @@ describe("integration", function () {
     const delta = ethers.utils.parseEther("1.05");
     const fee = ethers.utils.parseEther("0.01");
     const params = {
+      user: user.address,
       nft: nft.connect(user) as unknown as IERC721,
       bondingCurve: curve,
       delta,
@@ -176,6 +177,7 @@ describe("integration", function () {
 
     prevBalance = await user.getBalance();
     const response = await collectionswap.useLPTokenToDestroyDirectPairETH(
+      user.address,
       lpTokenId
     );
     const receipt = await response.wait();
