@@ -88,14 +88,13 @@ contract LSSVMRouter2 {
         ICurve _bondingCurve = pair.bondingCurve();
         ICurve.Params memory params = pair.curveParams();
         uint256 fee = pair.fee();
-        uint256 protocolFeeMultiplier = pair.factory().protocolFeeMultiplier();
+        ICurve.FeeMultipliers memory feeMultipliers = pair.feeMultipliers();
         for (uint256 i; i < numNFTs; i++) {
             uint256 price;
-            (, params.spotPrice, params.delta, params.state, price, ) = _bondingCurve.getBuyInfo(
+            (, params.spotPrice, params.delta, params.state, price, , ) = _bondingCurve.getBuyInfo(
                 params,
                 1,
-                fee,
-                protocolFeeMultiplier
+                feeMultipliers
             );
             prices[i] = price;
         }
@@ -186,7 +185,7 @@ contract LSSVMRouter2 {
                                 continue;
                             }
                             // Otherwise, adjust the max amt sent to be down
-                            (,,,,priceToFillAt,) = pair.getBuyNFTQuote(numItemsToFill);
+                            (,,,,priceToFillAt,,) = pair.getBuyNFTQuote(numItemsToFill);
                         }
 
                         // Now, do the partial fill swap with the updated price and ids
@@ -278,7 +277,7 @@ contract LSSVMRouter2 {
             uint256 mid = start + (end - start) / 2;
 
             // mid is the index of the max price to buy mid+1 NFTs
-            (, , , , uint256 currentPrice, ) = pair.getBuyNFTQuote(mid + 1);
+            (, , , , uint256 currentPrice, , ) = pair.getBuyNFTQuote(mid + 1);
 
             // If we pay at least the currentPrice with our maxPrice, record the value, and recurse on the right half
             if (currentPrice <= maxPricesPerNumNFTs[mid]) {
@@ -310,7 +309,7 @@ contract LSSVMRouter2 {
         // while (start <= end) {
         //     // Get price of mid number of items
         //     uint256 mid = start + (end - start + 1) / 2;
-        //     (, , , , uint256 currentPrice, ) = pair.getSellNFTQuote(mid + 1);
+        //     (, , , , uint256 currentPrice, , ) = pair.getSellNFTQuote(mid + 1);
         //     // If it costs more than there is ETH balance for, then recurse on the left half
         //     if (currentPrice > pairBalance) {
         //         if (mid == 1) {

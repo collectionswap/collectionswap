@@ -99,7 +99,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
             {
                 CurveErrorCodes.Error error;
                 // Calculate actual cost per swap
-                (error, , , , pairCost, ) = swap.swapInfo.pair.getBuyNFTQuote(
+                (error, , , , pairCost, , ) = swap.swapInfo.pair.getBuyNFTQuote(
                     swap.swapInfo.numItems
                 );
                 if (error != CurveErrorCodes.Error.OK) {
@@ -186,7 +186,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
             {
                 CurveErrorCodes.Error error;
                 // Calculate actual cost per swap
-                (error, , , , pairCost, ) = swap.swapInfo.pair.getBuyNFTQuote(
+                (error, , , , pairCost, , ) = swap.swapInfo.pair.getBuyNFTQuote(
                     swap.swapInfo.nftIds.length
                 );
                 if (error != CurveErrorCodes.Error.OK) {
@@ -274,7 +274,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
             {
                 CurveErrorCodes.Error error;
                 // Calculate actual cost per swap
-                (error, , , , pairCost, ) = swap.swapInfo.pair.getBuyNFTQuote(
+                (error, , , , pairCost, , ) = swap.swapInfo.pair.getBuyNFTQuote(
                     swap.swapInfo.numItems
                 );
                 if (error != CurveErrorCodes.Error.OK) {
@@ -360,7 +360,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
             {
                 CurveErrorCodes.Error error;
                 // Calculate actual cost per swap
-                (error, , , , pairCost, ) = swap.swapInfo.pair.getBuyNFTQuote(
+                (error, , , , pairCost, , ) = swap.swapInfo.pair.getBuyNFTQuote(
                     swap.swapInfo.nftIds.length
                 );
                 if (error != CurveErrorCodes.Error.OK) {
@@ -442,7 +442,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
             // Locally scoped to avoid stack too deep error
             {
                 CurveErrorCodes.Error error;
-                (error, , , , pairOutput, ) = swap.swapInfo.pair.getSellNFTQuote(
+                (error, , , , pairOutput, , ) = swap.swapInfo.pair.getSellNFTQuote(
                     swap.swapInfo.nftIds.length
                 );
                 if (error != CurveErrorCodes.Error.OK) {
@@ -557,7 +557,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                 swapIn = params.tokenToNFTTrades[i];
 
                 // Calculate actual cost per swap
-                (error, , , , pairCost, ) = swapIn.swapInfo.pair.getBuyNFTQuote(
+                (error, , , , pairCost, , ) = swapIn.swapInfo.pair.getBuyNFTQuote(
                     swapIn.swapInfo.nftIds.length
                 );
 
@@ -621,7 +621,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                 // Locally scoped to avoid stack too deep error
                 {
                     CurveErrorCodes.Error error;
-                    (error, , , , pairOutput, ) = swapOut
+                    (error, , , , pairOutput, , ) = swapOut
                         .swapInfo
                         .pair
                         .getSellNFTQuote(swapOut.swapInfo.nftIds.length);
@@ -743,7 +743,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                 swapIn = params.tokenToNFTTrades[i];
 
                 // Calculate actual cost per swap
-                (error, , , , pairCost, ) = swapIn.swapInfo.pair.getBuyNFTQuote(
+                (error, , , , pairCost, , ) = swapIn.swapInfo.pair.getBuyNFTQuote(
                     swapIn.swapInfo.nftIds.length
                 );
 
@@ -804,7 +804,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                 // Locally scoped to avoid stack too deep error
                 {
                     CurveErrorCodes.Error error;
-                    (error, , , , pairOutput, ) = swapOut
+                    (error, , , , pairOutput, , ) = swapOut
                         .swapInfo
                         .pair
                         .getSellNFTQuote(swapOut.swapInfo.nftIds.length);
@@ -921,7 +921,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
             swap = swapList[i];
 
             // Calculate the cost per swap first to send exact amount of ETH over, saves gas by avoiding the need to send back excess ETH
-            (error, , , , pairCost, ) = swap.pair.getBuyNFTQuote(swap.numItems);
+            (error, , , , pairCost, , ) = swap.pair.getBuyNFTQuote(swap.numItems);
 
             // Require no error
             require(error == CurveErrorCodes.Error.OK, "Bonding curve error");
@@ -977,7 +977,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
             swap = swapList[i];
 
             // Calculate the cost per swap first to send exact amount of ETH over, saves gas by avoiding the need to send back excess ETH
-            (error, , , , pairCost, ) = swap.pair.getBuyNFTQuote(
+            (error, , , , pairCost, , ) = swap.pair.getBuyNFTQuote(
                 swap.nftIds.length
             );
 

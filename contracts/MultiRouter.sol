@@ -62,7 +62,7 @@ contract MultiRouter {
             uint256 numSwaps = params.tokenToNFTTradesSpecific.length;
             for (uint256 i; i < numSwaps; ) {
                 // Calculate actual cost per swap
-                (error, , , , pairCost, ) = params
+                (error, , , , pairCost, , ) = params
                     .tokenToNFTTradesSpecific[i]
                     .swapInfo
                     .pair
@@ -131,7 +131,7 @@ contract MultiRouter {
                 // Locally scoped to avoid stack too deep error
                 {
                     CurveErrorCodes.Error error;
-                    (error, , , , pairOutput, ) = params
+                    (error, , , , pairOutput, , ) = params
                         .nftToTokenTrades[i]
                         .swapInfo
                         .pair

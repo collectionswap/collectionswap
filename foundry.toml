@@ -1,5 +1,6 @@
 [profile.default]
 test = 'test/foundry'
+out = 'out'
 libs = [
     'lib',
     'node_modules',

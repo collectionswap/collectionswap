@@ -41,6 +41,7 @@ abstract contract RouterRobustSwap is
 
     // Set protocol fee to be 10%
     uint256 constant protocolFeeMultiplier = 1e17;
+    uint256 constant carryFeeMultiplier = 1e17;
 
     function setUp() public {
         // Create contracts
@@ -56,7 +57,8 @@ abstract contract RouterRobustSwap is
             enumerableERC20Template,
             missingEnumerableERC20Template,
             feeRecipient,
-            protocolFeeMultiplier
+            protocolFeeMultiplier,
+            carryFeeMultiplier
         );
         router = new LSSVMRouter(factory);
 
@@ -142,8 +144,8 @@ abstract contract RouterRobustSwap is
         LSSVMRouter.RobustPairSwapAny[]
             memory swapList = new LSSVMRouter.RobustPairSwapAny[](3);
 
-        (, , , , uint256 pair1InputAmount, ) = pair1.getBuyNFTQuote(2);
-        (, , , , uint256 pair2InputAmount, ) = pair2.getBuyNFTQuote(2);
+        (, , , , uint256 pair1InputAmount, , ) = pair1.getBuyNFTQuote(2);
+        (, , , , uint256 pair2InputAmount, , ) = pair2.getBuyNFTQuote(2);
 
         swapList[0] = LSSVMRouter.RobustPairSwapAny({
             swapInfo: LSSVMRouter.PairSwapAny({pair: pair1, numItems: 2}),
@@ -199,8 +201,8 @@ abstract contract RouterRobustSwap is
         nftIds3[0] = 20;
         nftIds3[1] = 21;
 
-        (, , , , uint256 pair1InputAmount, ) = pair1.getBuyNFTQuote(2);
-        (, , , , uint256 pair2InputAmount, ) = pair2.getBuyNFTQuote(2);
+        (, , , , uint256 pair1InputAmount, , ) = pair1.getBuyNFTQuote(2);
+        (, , , , uint256 pair2InputAmount, , ) = pair2.getBuyNFTQuote(2);
 
         LSSVMRouter.RobustPairSwapSpecific[]
             memory swapList = new LSSVMRouter.RobustPairSwapSpecific[](3);
@@ -266,8 +268,8 @@ abstract contract RouterRobustSwap is
         nftIds3[0] = 34;
         nftIds3[1] = 35;
 
-        (, , , , uint256 pair2OutputAmount, ) = pair2.getSellNFTQuote(2);
-        (, , , , uint256 pair3OutputAmount, ) = pair3.getSellNFTQuote(2);
+        (, , , , uint256 pair2OutputAmount, , ) = pair2.getSellNFTQuote(2);
+        (, , , , uint256 pair3OutputAmount, , ) = pair3.getSellNFTQuote(2);
 
         LSSVMRouter.RobustPairSwapSpecificForToken[]
             memory swapList = new LSSVMRouter.RobustPairSwapSpecificForToken[](
@@ -329,7 +331,7 @@ abstract contract RouterRobustSwap is
 
         uint256[] memory nftIds3 = new uint256[](0);
 
-        (, , , , uint256 pair2OutputAmount, ) = pair2.getSellNFTQuote(2);
+        (, , , , uint256 pair2OutputAmount, , ) = pair2.getSellNFTQuote(2);
 
         LSSVMRouter.RobustPairSwapSpecificForToken[]
             memory swapList = new LSSVMRouter.RobustPairSwapSpecificForToken[](
@@ -381,8 +383,8 @@ abstract contract RouterRobustSwap is
         assertEq(test721.ownerOf(32), address(this));
         assertEq(test721.ownerOf(33), address(this));
 
-        (, , , , uint256 pair1InputAmount, ) = pair1.getBuyNFTQuote(2);
-        (, , , , uint256 pair2OutputAmount, ) = pair2.getSellNFTQuote(2);
+        (, , , , uint256 pair1InputAmount, , ) = pair1.getBuyNFTQuote(2);
+        (, , , , uint256 pair2OutputAmount, , ) = pair2.getSellNFTQuote(2);
 
         uint256[] memory nftIds1 = new uint256[](2);
         nftIds1[0] = 0;

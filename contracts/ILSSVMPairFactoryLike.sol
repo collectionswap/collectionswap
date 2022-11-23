@@ -15,6 +15,8 @@ interface ILSSVMPairFactoryLike {
 
     function protocolFeeRecipient() external view returns (address payable);
 
+    function carryFeeMultiplier() external view returns (uint256);
+
     function callAllowed(address target) external view returns (bool);
 
     function routerStatus(LSSVMRouter router)

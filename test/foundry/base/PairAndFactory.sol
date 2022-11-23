@@ -37,6 +37,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     LSSVMPairFactory factory;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 3e15;
+    uint256 constant carryFeeMultiplier = 3e15;
     LSSVMPair pair;
     TestPairManager pairManager;
 
@@ -53,7 +54,8 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
             enumerableERC20Template,
             missingEnumerableERC20Template,
             feeRecipient,
-            protocolFeeMultiplier
+            protocolFeeMultiplier,
+            carryFeeMultiplier
         );
         factory.setBondingCurveAllowed(bondingCurve, true);
         test721.setApprovalForAll(address(factory), true);
@@ -275,7 +277,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_swapForNFTNotInPool() public {
-        (, uint128 newSpotPrice, , , uint256 inputAmount, ) = bondingCurve
+        (, uint128 newSpotPrice, , , uint256 inputAmount, , ) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -284,8 +286,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
                     ""
                 ),
                 numItems + 1,
-                0,
-                protocolFeeMultiplier
+                pair.feeMultipliers()
             );
 
         // buy specific NFT not in pool
@@ -302,7 +303,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_swapForAnyNFTsPastBalance() public {
-        (, uint128 newSpotPrice, , , uint256 inputAmount, ) = bondingCurve
+        (, uint128 newSpotPrice, , , uint256 inputAmount, , ) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -311,8 +312,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
                     ""
                 ),
                 numItems + 1,
-                0,
-                protocolFeeMultiplier
+                pair.feeMultipliers()
             );
 
         // buy any NFTs past pool inventory
@@ -350,6 +350,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
                 ,
                 ,
                 uint256 inputAmount,
+                ,
                 uint256 protocolFee
             ) = bondingCurve.getBuyInfo(
                     ICurve.Params(
@@ -359,8 +360,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
                         ""
                     ),
                     numItems,
-                    0,
-                    protocolFeeMultiplier
+                    pair.feeMultipliers()
                 );
             totalProtocolFee += protocolFee;
 

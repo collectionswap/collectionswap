@@ -134,7 +134,12 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
     ) internal override {
         // Send tokens to caller
         if (outputAmount > 0) {
-            token().safeTransfer(tokenRecipient, outputAmount);
+            ERC20 _token = token();
+            require(
+                _token.balanceOf(address(this)) >= outputAmount + tradeFee,
+                "Too little ERC20"
+            );
+            _token.safeTransfer(tokenRecipient, outputAmount);
         }
     }
 
@@ -144,17 +149,50 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         return IMMUTABLE_PARAMS_LENGTH;
     }
 
+    /**
+        @notice Withdraws all pair token owned by the pair to the owner address.
+        @dev Only callable by the owner.
+     */
+    function withdrawAllERC20() external onlyOwner {
+        tradeFee = 0;
+
+        ERC20 _token = token();
+        uint256 amount = _token.balanceOf(address(this));
+        _token.safeTransfer(msg.sender, amount);
+
+        // emit event since it is the pair token
+        emit TokenWithdrawal(amount);
+    }
+
     /// @inheritdoc LSSVMPair
     function withdrawERC20(ERC20 a, uint256 amount)
         external
         override
         onlyOwner
     {
-        a.safeTransfer(msg.sender, amount);
-
         if (a == token()) {
+            require(
+                a.balanceOf(address(this)) >= amount + tradeFee,
+                "Too little ERC20"
+            );
+
             // emit event since it is the pair token
             emit TokenWithdrawal(amount);
+        }
+
+        a.safeTransfer(msg.sender, amount);
+    }
+
+    /// @inheritdoc LSSVMPair
+    function withdrawTradeFee() external override onlyOwner {
+        uint256 _tradeFee = tradeFee;
+        if (_tradeFee > 0) {
+            tradeFee = 0;
+
+            token().safeTransfer(msg.sender, _tradeFee);
+
+            // emit event since it is the pair token
+            emit TokenWithdrawal(_tradeFee);
         }
     }
 }

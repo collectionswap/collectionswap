@@ -73,6 +73,7 @@ async function sellToPool(
     _bidNewDelta,
     _bidNewState,
     bidInputAmount,
+    _bidTradeFee,
     _bidProtocolFee,
     _bidnObj,
   ] = await lssvmPairETH.getSellNFTQuote(1);
@@ -99,6 +100,7 @@ async function buyFromPool(
     _askNewDelta,
     _askNewState,
     askOutputAmount,
+    _askTradeFee,
     _askProtocolFee,
     _asknObj,
   ] = await lssvmPairETH.getBuyNFTQuote(1);
@@ -132,7 +134,7 @@ function calculateAsk(
     return Number(formatEther(bigNumber));
   });
 
-  const finalMultiplier = 1 + fee + protocolFee;
+  const finalMultiplier = 1 + fee;
 
   // Use quantity as -changeInItemsInPool since asks decrease the number in the pool
   if (CURVE_TYPE === "exponential") {
@@ -171,7 +173,7 @@ function calculateBid(
     return Number(formatEther(bigNumber));
   });
 
-  const finalMultiplier = 1 - fee - protocolFee;
+  const finalMultiplier = 1 - fee;
 
   if (CURVE_TYPE === "exponential") {
     return finalMultiplier * (spot / delta ** changeInItemsInPool);
@@ -576,6 +578,7 @@ describe("Collectionswap", function () {
         _bidNewDelta,
         _bidNewState,
         bidInputAmount,
+        _bidTradeFee,
         _bidProtocolFee,
         _bidnObj,
       ] = await lssvmPairETH.getSellNFTQuote(externalTraderNftsIHave.length);
@@ -598,7 +601,7 @@ describe("Collectionswap", function () {
             false,
             ethers.constants.AddressZero
           )
-      ).to.be.revertedWith("ETH_TRANSFER_FAILED");
+      ).to.be.revertedWith("Too little ETH");
 
       // Can withdraw
       await lssvmPairETH.withdrawAllETH();
@@ -678,6 +681,7 @@ describe("Collectionswap", function () {
           _bidNewDelta,
           _bidNewState,
           bidInputAmount,
+          _bidTradeFee,
           _bidProtocolFee,
           _bidnObj,
         ] = await lssvmPairETH.getSellNFTQuote(1);
@@ -698,6 +702,7 @@ describe("Collectionswap", function () {
           _askNewDelta,
           _askNewState,
           askOutputAmount,
+          _askTradeFee,
           _askProtocolFee,
           _asknObj,
         ] = await lssvmPairETH.getBuyNFTQuote(1);
@@ -1331,6 +1336,7 @@ describe("Collectionswap", function () {
         _askNewDelta,
         _askNewState,
         askInputAmount,
+        _askTradeFee,
         askProtocolFee,
         _asknObj,
       ] = await lssvmPairETH.getBuyNFTQuote(nftsIWant.length);
@@ -1375,6 +1381,7 @@ describe("Collectionswap", function () {
         _bidNewDelta,
         _bidNewState,
         bidInputAmount,
+        _bidTradeFee,
         bidProtocolFee,
         _bidnObj,
       ] = await lssvmPairETH.getSellNFTQuote(externalTraderNftsIHave.length);

@@ -74,8 +74,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
     function getBuyInfo(
         ICurve.Params calldata params,
         uint256 numItems,
-        uint256 feeMultiplier,
-        uint256 protocolFeeMultiplier
+        ICurve.FeeMultipliers calldata feeMultipliers
     )
         external
         pure
@@ -86,11 +85,12 @@ contract XykCurve is ICurve, CurveErrorCodes {
             uint128 newDelta,
             bytes memory newState,
             uint256 inputValue,
+            uint256 tradeFee,
             uint256 protocolFee
         )
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
         }
 
         // get the pair's virtual nft and eth/erc20 reserves
@@ -99,7 +99,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
 
         // If numItems is too large, we will get divide by zero error
         if (numItems >= nftBalance) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
         }
 
         // calculate the amount to send in
@@ -108,14 +108,18 @@ contract XykCurve is ICurve, CurveErrorCodes {
 
         // add the fees to the amount to send in
         protocolFee = inputValueWithoutFee.fmul(
-            protocolFeeMultiplier,
+            feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
-        uint256 fee = inputValueWithoutFee.fmul(
-            feeMultiplier,
+        tradeFee = inputValueWithoutFee.fmul(
+            feeMultipliers.trade,
             FixedPointMathLib.WAD
         );
-        inputValue = inputValueWithoutFee + fee + protocolFee;
+        // Account for the carry fee, only for Trade pools
+        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        tradeFee -= carryFee;
+        protocolFee += carryFee;
+        inputValue = inputValueWithoutFee + tradeFee + protocolFee;
 
         // set the new virtual reserves
         newSpotPrice = uint128(params.spotPrice + inputValueWithoutFee); // token reserve
@@ -134,8 +138,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
     function getSellInfo(
         ICurve.Params calldata params,
         uint256 numItems,
-        uint256 feeMultiplier,
-        uint256 protocolFeeMultiplier
+        ICurve.FeeMultipliers calldata feeMultipliers
     )
         external
         pure
@@ -146,11 +149,12 @@ contract XykCurve is ICurve, CurveErrorCodes {
             uint128 newDelta,
             bytes memory newState,
             uint256 outputValue,
+            uint256 tradeFee,
             uint256 protocolFee
         )
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
         }
 
         // get the pair's virtual nft and eth/erc20 balance
@@ -163,14 +167,18 @@ contract XykCurve is ICurve, CurveErrorCodes {
 
         // subtract fees from amount to send out
         protocolFee = outputValueWithoutFee.fmul(
-            protocolFeeMultiplier,
+            feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
-        uint256 fee = outputValueWithoutFee.fmul(
-            feeMultiplier,
+        tradeFee = outputValueWithoutFee.fmul(
+            feeMultipliers.trade,
             FixedPointMathLib.WAD
         );
-        outputValue = outputValueWithoutFee - fee - protocolFee;
+        // Account for the carry fee, only for Trade pools
+        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        tradeFee -= carryFee;
+        protocolFee += carryFee;
+        outputValue = outputValueWithoutFee - tradeFee - protocolFee;
 
         // set the new virtual reserves
         newSpotPrice = uint128(params.spotPrice - outputValueWithoutFee); // token reserve

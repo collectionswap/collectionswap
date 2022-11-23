@@ -33,6 +33,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         type(IERC721Enumerable).interfaceId;
 
     uint256 internal constant MAX_PROTOCOL_FEE = 0.10e18; // 10%, must <= 1 - MAX_FEE
+    uint256 internal constant MAX_CARRY_FEE = 0.50e18; // 50%
 
     LSSVMPairEnumerableETH public immutable enumerableETHTemplate;
     LSSVMPairMissingEnumerableETH public immutable missingEnumerableETHTemplate;
@@ -43,6 +44,9 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
 
     // Units are in base 1e18
     uint256 public override protocolFeeMultiplier;
+
+    // Units are in base 1e18
+    uint256 public override carryFeeMultiplier;
 
     mapping(ICurve => bool) public bondingCurveAllowed;
     mapping(address => bool) public override callAllowed;
@@ -57,6 +61,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
     event NFTDeposit(address poolAddress);
     event ProtocolFeeRecipientUpdate(address recipientAddress);
     event ProtocolFeeMultiplierUpdate(uint256 newMultiplier);
+    event CarryFeeMultiplierUpdate(uint256 newMultiplier);
     event BondingCurveStatusUpdate(ICurve bondingCurve, bool isAllowed);
     event CallTargetStatusUpdate(address target, bool isAllowed);
     event RouterStatusUpdate(LSSVMRouter router, bool isAllowed);
@@ -67,7 +72,8 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         LSSVMPairEnumerableERC20 _enumerableERC20Template,
         LSSVMPairMissingEnumerableERC20 _missingEnumerableERC20Template,
         address payable _protocolFeeRecipient,
-        uint256 _protocolFeeMultiplier
+        uint256 _protocolFeeMultiplier,
+        uint256 _carryFeeMultiplier
     ) {
         enumerableETHTemplate = _enumerableETHTemplate;
         missingEnumerableETHTemplate = _missingEnumerableETHTemplate;
@@ -75,8 +81,11 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         missingEnumerableERC20Template = _missingEnumerableERC20Template;
         protocolFeeRecipient = _protocolFeeRecipient;
 
-        require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Fee too large");
+        require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Protocol fee too large");
         protocolFeeMultiplier = _protocolFeeMultiplier;
+
+        require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Carry fee too large");
+        carryFeeMultiplier = _carryFeeMultiplier;
     }
 
     /**
@@ -118,7 +127,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
             bondingCurveAllowed[params.bondingCurve],
             "Bonding curve not whitelisted"
         );
-        
+
         // Check to see if the NFT supports Enumerable to determine which template to use
         address template;
         try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
@@ -316,6 +325,19 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
     }
 
     /**
+        @notice Changes the carry fee multiplier. Only callable by the owner.
+        @param _carryFeeMultiplier The new fee multiplier, 18 decimals
+     */
+    function changeCarryFeeMultiplier(uint256 _carryFeeMultiplier)
+        external
+        onlyOwner
+    {
+        require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Fee too large");
+        carryFeeMultiplier = _carryFeeMultiplier;
+        emit CarryFeeMultiplierUpdate(_carryFeeMultiplier);
+    }
+
+    /**
         @notice Sets the whitelist status of a bonding curve contract. Only callable by the owner.
         @param bondingCurve The bonding curve contract
         @param isAllowed True to whitelist, false to remove from whitelist
@@ -429,7 +451,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         }
     }
 
-    /** 
+    /**
       @dev Used to deposit NFTs into a pair after creation and emit an event for indexing (if recipient is indeed a pair)
     */
     function depositNFTs(

@@ -26,6 +26,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
     LSSVMPairFactory factory;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 3e15;
+    uint256 constant carryFeeMultiplier = 3e15;
 
     function setUp() public {
         bondingCurve = setupCurve();
@@ -40,7 +41,8 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
             enumerableERC20Template,
             missingEnumerableERC20Template,
             feeRecipient,
-            protocolFeeMultiplier
+            protocolFeeMultiplier,
+            carryFeeMultiplier
         );
         test721.setApprovalForAll(address(factory), true);
         factory.setBondingCurveAllowed(bondingCurve, true);
@@ -103,6 +105,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                 ,
                 ,
                 uint256 outputAmount,
+                ,
                 uint256 protocolFee
             ) = bondingCurve.getSellInfo(
                     ICurve.Params(
@@ -112,8 +115,11 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                         ""
                     ),
                     numItems,
-                    0,
-                    protocolFeeMultiplier
+                    ICurve.FeeMultipliers(
+                        0,
+                        protocolFeeMultiplier,
+                        0
+                    )
                 );
 
             // give the pair contract enough tokens to pay for the NFTs
@@ -134,7 +140,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
 
         // buy back the NFTs just sold to the pair
         {
-            (, , , , uint256 inputAmount, ) = bondingCurve.getBuyInfo(
+            (, , , , uint256 inputAmount, , ) = bondingCurve.getBuyInfo(
                 ICurve.Params(
                     spotPrice,
                     delta,
@@ -142,8 +148,11 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                     ""
                 ),
                 numItems,
-                0,
-                protocolFeeMultiplier
+                ICurve.FeeMultipliers(
+                    0,
+                    protocolFeeMultiplier,
+                    0
+                )
             );
             pair.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
                 idList.length,
@@ -211,7 +220,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
 
         // buy all NFTs
         {
-            (, uint256 newSpotPrice, , , uint256 inputAmount, ) = bondingCurve
+            (, uint256 newSpotPrice, , , uint256 inputAmount, , ) = bondingCurve
                 .getBuyInfo(
                     ICurve.Params(
                         spotPrice,
@@ -220,8 +229,11 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                         ""
                     ),
                     numItems,
-                    0,
-                    protocolFeeMultiplier
+                    ICurve.FeeMultipliers(
+                        0,
+                        protocolFeeMultiplier,
+                        0
+                    )
                 );
 
             // buy NFTs
@@ -246,8 +258,11 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                     ""
                 ),
                 numItems,
-                0,
-                protocolFeeMultiplier
+                ICurve.FeeMultipliers(
+                    0,
+                    protocolFeeMultiplier,
+                    0
+                )
             );
             pair.swapNFTsForToken(
                 idList,

@@ -29,6 +29,7 @@ contract LinearCurveTest is DSTest {
             uint256 newDelta,
             ,
             uint256 inputValue,
+            ,
             uint256 protocolFee
         ) = curve.getBuyInfo(
                 ICurve.Params(
@@ -38,8 +39,11 @@ contract LinearCurveTest is DSTest {
                     ""
                 ),
                 numItems,
-                feeMultiplier,
-                protocolFeeMultiplier
+                ICurve.FeeMultipliers(
+                    feeMultiplier,
+                    protocolFeeMultiplier,
+                    0
+                )
             );
         assertEq(
             uint256(error),
@@ -67,8 +71,8 @@ contract LinearCurveTest is DSTest {
             ,
             ,
             uint256 inputValue,
-
-        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, 0, 0);
+            ,
+        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0));
         if (
             uint256(spotPrice) + uint256(delta) * uint256(numItems) >
             type(uint128).max
@@ -111,6 +115,7 @@ contract LinearCurveTest is DSTest {
             uint256 newDelta,
             ,
             uint256 outputValue,
+            ,
             uint256 protocolFee
         ) = curve.getSellInfo(
                 ICurve.Params(
@@ -120,8 +125,11 @@ contract LinearCurveTest is DSTest {
                     ""
                 ),
                 numItems,
-                feeMultiplier,
-                protocolFeeMultiplier
+                ICurve.FeeMultipliers(
+                    feeMultiplier,
+                    protocolFeeMultiplier,
+                    0
+                )
             );
         assertEq(
             uint256(error),
@@ -149,8 +157,8 @@ contract LinearCurveTest is DSTest {
             ,
             ,
             uint256 outputValue,
-
-        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, 0, 0);
+            ,
+        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0));
         assertEq(
             uint256(error),
             uint256(CurveErrorCodes.Error.OK),

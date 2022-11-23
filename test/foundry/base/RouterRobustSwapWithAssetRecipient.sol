@@ -44,6 +44,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     address payable constant sellPairRecipient = payable(address(1));
     address payable constant buyPairRecipient = payable(address(2));
     uint256 constant protocolFeeMultiplier = 0;
+    uint256 constant carryFeeMultiplier = 0;
     uint256 constant numInitialNFTs = 10;
 
     function setUp() public {
@@ -59,7 +60,8 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             enumerableERC20Template,
             missingEnumerableERC20Template,
             feeRecipient,
-            protocolFeeMultiplier
+            protocolFeeMultiplier,
+            carryFeeMultiplier
         );
         router = new LSSVMRouter(factory);
 
@@ -142,7 +144,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     // Swapping tokens for any NFT on sellPair1 works, but fails silently on sellPair2 if slippage is too tight
     function test_robustSwapTokenForAnyNFTs() public {
         uint256 sellPair1Price;
-        (, , , , sellPair1Price, ) = sellPair1.getBuyNFTQuote(1);
+        (, , , , sellPair1Price, , ) = sellPair1.getBuyNFTQuote(1);
         LSSVMRouter.RobustPairSwapAny[]
             memory swapList = new LSSVMRouter.RobustPairSwapAny[](2);
         swapList[0] = LSSVMRouter.RobustPairSwapAny({
@@ -170,7 +172,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     // Swapping tokens to a specific NFT with sellPair2 works, but fails silently on sellPair1 if slippage is too tight
     function test_robustSwapTokenForSpecificNFTs() public {
         uint256 sellPair1Price;
-        (, , , , sellPair1Price, ) = sellPair2.getBuyNFTQuote(1);
+        (, , , , sellPair1Price, , ) = sellPair2.getBuyNFTQuote(1);
         LSSVMRouter.RobustPairSwapSpecific[]
             memory swapList = new LSSVMRouter.RobustPairSwapSpecific[](2);
         uint256[] memory nftIds1 = new uint256[](1);
@@ -208,7 +210,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     // Swapping NFTs to tokens with buyPair1 works, but buyPair2 silently fails due to slippage
     function test_robustSwapNFTsForToken() public {
         uint256 buyPair1Price;
-        (, , , , buyPair1Price, ) = buyPair1.getSellNFTQuote(1);
+        (, , , , buyPair1Price, , ) = buyPair1.getSellNFTQuote(1);
         uint256[] memory nftIds1 = new uint256[](1);
         nftIds1[0] = 5;
         uint256[] memory nftIds2 = new uint256[](1);

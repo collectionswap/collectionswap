@@ -1,3 +1,4 @@
+import { expect } from "chai";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 
@@ -9,6 +10,7 @@ import type {
   IERC721,
   RewardPoolETH,
   ERC721PresetMinterPauserAutoId,
+  ERC721,
   IValidator,
 } from "../../../typechain-types";
 import type { BigNumberish } from "ethers";
@@ -145,4 +147,14 @@ export async function createPairEth(
     pairAddress: events[1].args!.poolAddress,
     lpTokenId: events.at(-2)!.args!.tokenId,
   };
+}
+
+export async function expectAddressToOwnNFTs(
+  address: string,
+  nft: ERC721,
+  tokenIds: string[]
+): Promise<void> {
+  for (const tokenId of tokenIds) {
+    expect(await nft.ownerOf(tokenId)).to.equal(address);
+  }
 }

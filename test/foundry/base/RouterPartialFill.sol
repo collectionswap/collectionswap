@@ -36,6 +36,7 @@ abstract contract RouterPartialFill is
     LSSVMPair pair;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 0;
+    uint256 constant carryFeeMultiplier = 0;
     uint256 numInitialNFTs = 10;
     uint128 SPOT_PRICE;
 
@@ -52,7 +53,8 @@ abstract contract RouterPartialFill is
             enumerableERC20Template,
             missingEnumerableERC20Template,
             feeRecipient,
-            protocolFeeMultiplier
+            protocolFeeMultiplier,
+            carryFeeMultiplier
         );
         router = new LSSVMRouter2(factory);
         factory.setBondingCurveAllowed(bondingCurve, true);
@@ -167,7 +169,7 @@ abstract contract RouterPartialFill is
             string memory UNIMPLEMENTED = "Unimplemented";
 
             // See if last value of maxCost is the same as getBuyNFTQuote(NUM_NFTS) (they should be equal)
-            (, , , , uint256 correctQuote, ) = pair.getBuyNFTQuote(NUM_NFTS);
+            (, , , , uint256 correctQuote, , ) = pair.getBuyNFTQuote(NUM_NFTS);
             require(
                 correctQuote == partialFillPrices[NUM_NFTS - 1],
                 "Incorrect quote"
@@ -251,7 +253,7 @@ abstract contract RouterPartialFill is
             for (uint256 i = 1; i <= numNFTsToBuyFirst; i++) {
                 nftIdsToBuyFirst[i - 1] = 10 + i;
             }
-            (, , , , uint256 initialQuote, ) = pair.getBuyNFTQuote(
+            (, , , , uint256 initialQuote, , ) = pair.getBuyNFTQuote(
                 numNFTsToBuyFirst
             );
             LSSVMRouter2.RobustPairSwapSpecific[]

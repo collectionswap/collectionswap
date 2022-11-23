@@ -73,7 +73,8 @@ export async function deployCollectionSet(
     templateAddresses[2],
     templateAddresses[3],
     hre.ethers.constants.AddressZero, // payout address
-    hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER)
+    hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
+    hre.ethers.utils.parseEther(config.CARRY_FEE_MULTIPLIER)
   )
   await factory.deployed();
   console.log(`Factory address: ${factory.address}`);

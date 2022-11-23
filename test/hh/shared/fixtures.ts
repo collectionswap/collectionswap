@@ -34,9 +34,11 @@ export function getCurveParameters(): {
   state: any;
   fee: string;
   protocolFee: string;
+  carryFee: string;
 } {
   const {
     bigPctProtocolFee,
+    bigPctCarryFee,
     bigPctFee,
     bigDelta,
     bigSpot,
@@ -62,6 +64,7 @@ export function getCurveParameters(): {
     state,
     fee: bigPctFee,
     protocolFee: bigPctProtocolFee,
+    carryFee: bigPctCarryFee,
   };
 }
 
@@ -198,6 +201,7 @@ export async function lsSVMFixture() {
 
   const protocolFeeRecipient = ethers.constants.AddressZero;
   const protocolFeeMultiplier = ethers.utils.parseEther("0.05");
+  const carryFeeMultiplier = ethers.utils.parseEther("0.05");
 
   const LSSVMPairFactory = await ethers.getContractFactory("LSSVMPairFactory");
   const lsSVMPairFactory = await LSSVMPairFactory.connect(sudoswap).deploy(
@@ -206,7 +210,8 @@ export async function lsSVMFixture() {
     lsSVMPairEnumerableERC20.address,
     lsSVMPairMissingEnumerableERC20.address,
     protocolFeeRecipient,
-    protocolFeeMultiplier
+    protocolFeeMultiplier,
+    carryFeeMultiplier
   );
 
   // Deploy all contract types and set them allowed. Return only the desired
@@ -269,6 +274,7 @@ export async function everythingFixture() {
 
   const {
     protocolFee: bigPctProtocolFee,
+    carryFee: bigPctCarryFee,
     fee: bigPctFee,
     delta: bigDelta,
     spotPrice: bigSpot,
@@ -284,7 +290,8 @@ export async function everythingFixture() {
     lssvmPairEnumerableERC20.address,
     lssvmPairMissingEnumerableERC20.address,
     payoutAddress,
-    stringToBigNumber(bigPctProtocolFee)
+    stringToBigNumber(bigPctProtocolFee),
+    stringToBigNumber(bigPctCarryFee)
   );
   // Console.log(`LSSVMPairFactory deployed to ${lssvmPairFactory.address}`)
 

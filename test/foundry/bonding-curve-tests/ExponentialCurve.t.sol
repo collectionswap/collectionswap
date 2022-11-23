@@ -36,6 +36,7 @@ contract ExponentialCurveTest is DSTest {
             uint256 newDelta,
             ,
             uint256 inputValue,
+            ,
             uint256 protocolFee
         ) = curve.getBuyInfo(
                 ICurve.Params(
@@ -45,8 +46,11 @@ contract ExponentialCurveTest is DSTest {
                     ""
                 ),
                 numItems,
-                feeMultiplier,
-                protocolFeeMultiplier
+                ICurve.FeeMultipliers(
+                    feeMultiplier,
+                    protocolFeeMultiplier,
+                    0
+                )
             );
         assertEq(
             uint256(error),
@@ -79,8 +83,8 @@ contract ExponentialCurveTest is DSTest {
             uint256 newDelta,
             ,
             uint256 inputValue,
-
-        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, 0, 0);
+            ,
+        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0));
         uint256 deltaPowN = uint256(delta).fpow(
             numItems,
             FixedPointMathLib.WAD
@@ -132,6 +136,7 @@ contract ExponentialCurveTest is DSTest {
             uint256 newDelta,
             ,
             uint256 outputValue,
+            ,
             uint256 protocolFee
         ) = curve.getSellInfo(
                 ICurve.Params(
@@ -141,8 +146,11 @@ contract ExponentialCurveTest is DSTest {
                     ""
                 ),
                 numItems,
-                feeMultiplier,
-                protocolFeeMultiplier
+                ICurve.FeeMultipliers(
+                    feeMultiplier,
+                    protocolFeeMultiplier,
+                    0
+                )
             );
         assertEq(
             uint256(error),
@@ -174,8 +182,8 @@ contract ExponentialCurveTest is DSTest {
             ,
             ,
             uint256 outputValue,
-
-        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, 0, 0);
+            ,
+        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0));
         assertEq(
             uint256(error),
             uint256(CurveErrorCodes.Error.OK),

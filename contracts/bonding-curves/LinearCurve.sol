@@ -62,8 +62,7 @@ contract LinearCurve is ICurve, CurveErrorCodes {
     function getBuyInfo(
         ICurve.Params calldata params,
         uint256 numItems,
-        uint256 feeMultiplier,
-        uint256 protocolFeeMultiplier
+        ICurve.FeeMultipliers calldata feeMultipliers
     )
         external
         pure
@@ -74,18 +73,19 @@ contract LinearCurve is ICurve, CurveErrorCodes {
             uint128 newDelta,
             bytes memory newState,
             uint256 inputValue,
+            uint256 tradeFee,
             uint256 protocolFee
         )
     {
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
         }
 
         // For a linear curve, the spot price increases by delta for each item bought
         uint256 newSpotPrice_ = params.spotPrice + params.delta * numItems;
         if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0);
+            return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0, 0);
         }
         newSpotPrice = uint128(newSpotPrice_);
 
@@ -107,17 +107,22 @@ contract LinearCurve is ICurve, CurveErrorCodes {
             (numItems * (numItems - 1) * params.delta) /
             2;
 
-        // Account for the protocol fee, a flat percentage of the buy amount
+        // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
         protocolFee = inputValue.fmul(
-            protocolFeeMultiplier,
+            feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
 
         // Account for the trade fee, only for Trade pools
-        inputValue += inputValue.fmul(feeMultiplier, FixedPointMathLib.WAD);
+        tradeFee = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
 
-        // Add the protocol fee to the required input amount
-        inputValue += protocolFee;
+        // Account for the carry fee, only for Trade pools
+        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        tradeFee -= carryFee;
+        protocolFee += carryFee;
+
+        // Add the fees to the required input amount
+        inputValue += tradeFee + protocolFee;
 
         // Keep delta the same
         newDelta = params.delta;
@@ -135,8 +140,7 @@ contract LinearCurve is ICurve, CurveErrorCodes {
     function getSellInfo(
         ICurve.Params calldata params,
         uint256 numItems,
-        uint256 feeMultiplier,
-        uint256 protocolFeeMultiplier
+        ICurve.FeeMultipliers calldata feeMultipliers
     )
         external
         pure
@@ -147,12 +151,13 @@ contract LinearCurve is ICurve, CurveErrorCodes {
             uint128 newDelta,
             bytes memory newState,
             uint256 outputValue,
+            uint256 tradeFee,
             uint256 protocolFee
         )
     {
         // We only calculate changes for selling 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
         }
 
         // We first calculate the change in spot price after selling all of the items
@@ -183,17 +188,22 @@ contract LinearCurve is ICurve, CurveErrorCodes {
             (numItems * (numItems - 1) * params.delta) /
             2;
 
-        // Account for the protocol fee, a flat percentage of the sell amount
+        // Account for the protocol fee, a flat percentage of the sell amount, only for Non-Trade pools
         protocolFee = outputValue.fmul(
-            protocolFeeMultiplier,
+            feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
 
         // Account for the trade fee, only for Trade pools
-        outputValue -= outputValue.fmul(feeMultiplier, FixedPointMathLib.WAD);
+        tradeFee = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
 
-        // Subtract the protocol fee from the output amount to the seller
-        outputValue -= protocolFee;
+        // Account for the carry fee, only for Trade pools
+        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        tradeFee -= carryFee;
+        protocolFee += carryFee;
+
+        // Subtract the fees from the output amount to the seller
+        outputValue -= tradeFee + protocolFee;
 
         // Keep delta the same
         newDelta = params.delta;

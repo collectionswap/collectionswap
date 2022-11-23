@@ -49,6 +49,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             enumerableERC20Template,
             missingEnumerableERC20Template,
             payable(0),
+            0,
             0
         );
 
@@ -86,7 +87,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
         uint256 numItems = 0;
 
         // act
-        (CurveErrorCodes.Error error, , , , , ) = curve.getBuyInfo(
+        (CurveErrorCodes.Error error, , , , , , ) = curve.getBuyInfo(
             ICurve.Params(
                 0,
                 0,
@@ -94,8 +95,11 @@ contract XykCurveTest is DSTest, ERC721Holder {
                 ""
             ),
             numItems,
-            0,
-            0
+            ICurve.FeeMultipliers(
+                0,
+                0,
+                0
+            )
         );
 
         // assert
@@ -111,7 +115,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
         uint256 numItems = 0;
 
         // act
-        (CurveErrorCodes.Error error, , , , , ) = curve.getSellInfo(
+        (CurveErrorCodes.Error error, , , , , , ) = curve.getSellInfo(
             ICurve.Params(
                 0,
                 0,
@@ -119,8 +123,11 @@ contract XykCurveTest is DSTest, ERC721Holder {
                 ""
             ),
             numItems,
-            0,
-            0
+            ICurve.FeeMultipliers(
+                0,
+                0,
+                0
+            )
         );
 
         // assert
@@ -145,7 +152,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             uint256 newDelta,
             ,
             uint256 inputValue,
-
+            ,
         ) = ethPair.getBuyNFTQuote(numItemsToBuy);
 
         // assert
@@ -180,7 +187,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             uint256 newDelta,
             ,
             uint256 inputValue,
-
+            ,
         ) = ethPair.getSellNFTQuote(numItemsToSell);
 
         // assert
@@ -211,7 +218,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             (numNfts - numItemsToBuy);
 
         // act
-        (CurveErrorCodes.Error error, , , , uint256 inputValue, ) = ethPair
+        (CurveErrorCodes.Error error, , , , uint256 inputValue, , ) = ethPair
             .getBuyNFTQuote(numItemsToBuy);
 
         // assert
@@ -237,7 +244,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             (numNfts + numItemsToSell);
 
         // act
-        (CurveErrorCodes.Error error, , , , uint256 outputValue, ) = ethPair
+        (CurveErrorCodes.Error error, , , , uint256 outputValue, , ) = ethPair
             .getSellNFTQuote(numItemsToSell);
 
         // assert
@@ -260,11 +267,12 @@ contract XykCurveTest is DSTest, ERC721Holder {
         setUpEthPair(numNfts, value);
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         uint256 numItemsToBuy = 3;
-        uint256 expectedProtocolFee = (2 *
-            ((numItemsToBuy * value) / (numNfts - numItemsToBuy))) / 100;
+        uint256 expectedProtocolFee = ethPair.poolType() == LSSVMPair.PoolType.TRADE
+            ? 0
+            : (2 * ((numItemsToBuy * value) / (numNfts - numItemsToBuy))) / 100;
 
         // act
-        (CurveErrorCodes.Error error, , , , , uint256 protocolFee) = ethPair
+        (CurveErrorCodes.Error error, , , , , , uint256 protocolFee) = ethPair
             .getBuyNFTQuote(numItemsToBuy);
 
         // assert
@@ -287,11 +295,12 @@ contract XykCurveTest is DSTest, ERC721Holder {
         setUpEthPair(numNfts, value);
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         uint256 numItemsToSell = 3;
-        uint256 expectedProtocolFee = (2 *
-            ((numItemsToSell * value) / (numNfts + numItemsToSell))) / 100;
+        uint256 expectedProtocolFee = ethPair.poolType() == LSSVMPair.PoolType.TRADE
+            ? 0
+            : (2 * ((numItemsToSell * value) / (numNfts + numItemsToSell))) / 100;
 
         // act
-        (CurveErrorCodes.Error error, , , , , uint256 protocolFee) = ethPair
+        (CurveErrorCodes.Error error, , , , , , uint256 protocolFee) = ethPair
             .getSellNFTQuote(numItemsToSell);
 
         // assert
@@ -319,7 +328,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         ethPair.changeFee((1 * 1e18) / 100); // 1%
 
-        (CurveErrorCodes.Error error, , , , uint256 inputValue, ) = ethPair
+        (CurveErrorCodes.Error error, , , , uint256 inputValue, , ) = ethPair
             .getBuyNFTQuote(numItemsToBuy);
 
         // act
@@ -348,7 +357,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             "Should have received NFTs"
         );
 
-        uint256 withoutFeeInputAmount = (inputAmount * 1e18) / 103e16;
+        uint256 withoutFeeInputAmount = (inputAmount * 1e18) / 101e16;
         assertEq(
             ethPair.spotPrice(),
             uint128(address(ethPair).balance) -
@@ -373,7 +382,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
         ethPair.changeFee((1 * 1e18) / 100); // 1%
 
         uint256 numItemsToSell = 2;
-        (CurveErrorCodes.Error error, , , , uint256 outputValue, ) = ethPair
+        (CurveErrorCodes.Error error, , , , uint256 outputValue, , ) = ethPair
             .getSellNFTQuote(numItemsToSell);
 
         uint256[] memory idList = new uint256[](numItemsToSell);
@@ -412,7 +421,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             "Should have sent NFTs"
         );
 
-        uint256 withoutFeeOutputAmount = (outputAmount * 1e18) / 0.97e18;
+        uint256 withoutFeeOutputAmount = (outputAmount * 1e18) / 0.99e18;
         assertEq(
             ethPair.spotPrice(),
             uint128(address(ethPair).balance) -

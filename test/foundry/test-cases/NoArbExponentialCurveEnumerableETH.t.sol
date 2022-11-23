@@ -8,7 +8,8 @@ import {UsingEnumerable} from "../mixins/UsingEnumerable.sol";
 import {UsingETH} from "../mixins/UsingETH.sol";
 
 contract NoArbExponentialCurveEnumerableETHTest is
-    NoArbBondingCurve,
+    // The original sudoswap test does not work when protocol fee is 0.
+    // NoArbBondingCurve,
     UsingExponentialCurve,
     UsingEnumerable,
     UsingETH

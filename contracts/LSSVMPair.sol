@@ -48,6 +48,9 @@ abstract contract LSSVMPair is
     // Otherwise, assets will be sent to the set address. Not available for TRADE pools.
     address payable public assetRecipient;
 
+    // The trade fee accrued from trades.
+    uint256 public tradeFee;
+
     // The properties used by the pair's bonding curve.
     bytes public props;
 
@@ -73,13 +76,13 @@ abstract contract LSSVMPair is
     /**
       @notice Called during pair creation to set initial parameters
       @dev Only called once by factory to initialize.
-      We verify this by making sure that the current owner is address(0). 
+      We verify this by making sure that the current owner is address(0).
       The Ownable library we use disallows setting the owner to be address(0), so this condition
-      should only be valid before the first initialize call. 
+      should only be valid before the first initialize call.
       @param _owner The owner of the pair
       @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pair during swaps. NOTE: If set to address(0), they will go to the pair itself.
       @param _delta The initial delta of the bonding curve
-      @param _fee The initial % fee taken, if this is a trade pair 
+      @param _fee The initial % fee taken, if this is a trade pair
       @param _spotPrice The initial price to sell an asset into the pair
      */
     function initialize(
@@ -166,13 +169,16 @@ abstract contract LSSVMPair is
         }
 
         // Call bonding curve for pricing information
+        uint256 _tradeFee;
         uint256 protocolFee;
-        (protocolFee, inputAmount) = _calculateBuyInfoAndUpdatePoolParams(
+        (_tradeFee, protocolFee, inputAmount) = _calculateBuyInfoAndUpdatePoolParams(
             numNFTs,
             maxExpectedTokenInput,
             _bondingCurve,
             _factory
         );
+
+        tradeFee += _tradeFee;
 
         _pullTokenInputAndPayProtocolFee(
             inputAmount,
@@ -226,13 +232,16 @@ abstract contract LSSVMPair is
         }
 
         // Call bonding curve for pricing information
+        uint256 _tradeFee;
         uint256 protocolFee;
-        (protocolFee, inputAmount) = _calculateBuyInfoAndUpdatePoolParams(
+        (_tradeFee, protocolFee, inputAmount) = _calculateBuyInfoAndUpdatePoolParams(
             nftIds.length,
             maxExpectedTokenInput,
             _bondingCurve,
             _factory
         );
+
+        tradeFee += _tradeFee;
 
         _pullTokenInputAndPayProtocolFee(
             inputAmount,
@@ -284,13 +293,17 @@ abstract contract LSSVMPair is
         }
 
         // Call bonding curve for pricing information
+        uint256 _tradeFee;
         uint256 protocolFee;
-        (protocolFee, outputAmount) = _calculateSellInfoAndUpdatePoolParams(
+        (_tradeFee, protocolFee, outputAmount) = _calculateSellInfoAndUpdatePoolParams(
             nftIds.length,
             minExpectedTokenOutput,
             _bondingCurve,
             _factory
         );
+
+        // Accrue trade fees before sending token output. This ensures that the balance is always sufficient for trade fee withdrawal.
+        tradeFee += _tradeFee;
 
         _sendTokenOutput(tokenRecipient, outputAmount);
 
@@ -318,6 +331,7 @@ abstract contract LSSVMPair is
             uint256 newDelta,
             bytes memory newState,
             uint256 inputAmount,
+            uint256 _tradeFee,
             uint256 protocolFee
         )
     {
@@ -327,12 +341,12 @@ abstract contract LSSVMPair is
             newDelta,
             newState,
             inputAmount,
+            _tradeFee,
             protocolFee
         ) = bondingCurve().getBuyInfo(
             curveParams(),
             numNFTs,
-            fee,
-            factory().protocolFeeMultiplier()
+            feeMultipliers()
         );
     }
 
@@ -349,6 +363,7 @@ abstract contract LSSVMPair is
             uint256 newDelta,
             bytes memory newState,
             uint256 outputAmount,
+            uint256 _tradeFee,
             uint256 protocolFee
         )
     {
@@ -358,12 +373,12 @@ abstract contract LSSVMPair is
             newDelta,
             newState,
             outputAmount,
+            _tradeFee,
             protocolFee
         ) = bondingCurve().getSellInfo(
             curveParams(),
             numNFTs,
-            fee,
-            factory().protocolFeeMultiplier()
+            feeMultipliers()
         );
     }
 
@@ -463,6 +478,24 @@ abstract contract LSSVMPair is
         );
     }
 
+    function feeMultipliers() public view returns (ICurve.FeeMultipliers memory feeMultipliers) {
+        uint256 protocolFeeMultiplier;
+        uint256 carryFeeMultiplier;
+
+        PoolType _poolType = poolType();
+        if ((_poolType == PoolType.TOKEN) || (_poolType == PoolType.NFT)) {
+            protocolFeeMultiplier = factory().protocolFeeMultiplier();
+        } else if (_poolType == PoolType.TRADE) {
+            carryFeeMultiplier = factory().carryFeeMultiplier();
+        }
+
+        return ICurve.FeeMultipliers(
+            fee,
+            protocolFeeMultiplier,
+            carryFeeMultiplier
+        );
+    }
+
     /**
      * Internal functions
      */
@@ -473,6 +506,7 @@ abstract contract LSSVMPair is
         @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
         amount is greater than this value, the transaction will be reverted.
         @param protocolFee The percentage of protocol fee to be taken, as a percentage
+        @return _tradeFee The amount of tokens to send as trade fee
         @return protocolFee The amount of tokens to send as protocol fee
         @return inputAmount The amount of tokens total tokens receive
      */
@@ -481,7 +515,7 @@ abstract contract LSSVMPair is
         uint256 maxExpectedTokenInput,
         ICurve _bondingCurve,
         ILSSVMPairFactoryLike _factory
-    ) internal returns (uint256 protocolFee, uint256 inputAmount) {
+    ) internal returns (uint256 _tradeFee, uint256 protocolFee, uint256 inputAmount) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
@@ -491,12 +525,12 @@ abstract contract LSSVMPair is
             newParams.delta,
             newParams.state,
             inputAmount,
+            _tradeFee,
             protocolFee
         ) = _bondingCurve.getBuyInfo(
             params,
             numNFTs,
-            fee,
-            _factory.protocolFeeMultiplier()
+            feeMultipliers()
         );
 
         // Revert if bonding curve had an error
@@ -536,6 +570,7 @@ abstract contract LSSVMPair is
         @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
         amount is less than this value, the transaction will be reverted.
         @param protocolFee The percentage of protocol fee to be taken, as a percentage
+        @return _tradeFee The amount of tokens to send as trade fee
         @return protocolFee The amount of tokens to send as protocol fee
         @return outputAmount The amount of tokens total tokens receive
      */
@@ -544,7 +579,7 @@ abstract contract LSSVMPair is
         uint256 minExpectedTokenOutput,
         ICurve _bondingCurve,
         ILSSVMPairFactoryLike _factory
-    ) internal returns (uint256 protocolFee, uint256 outputAmount) {
+    ) internal returns (uint256 _tradeFee, uint256 protocolFee, uint256 outputAmount) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
@@ -554,12 +589,12 @@ abstract contract LSSVMPair is
             newParams.delta,
             newParams.state,
             outputAmount,
+            _tradeFee,
             protocolFee
         ) = _bondingCurve.getSellInfo(
             params,
             numNFTs,
-            fee,
-            _factory.protocolFeeMultiplier()
+            feeMultipliers()
         );
 
         // Revert if bonding curve had an error
@@ -614,7 +649,7 @@ abstract contract LSSVMPair is
 
     /**
         @notice Sends excess tokens back to the caller (if applicable)
-        @dev We send ETH back to the caller even when called from LSSVMRouter because we do an aggregate slippage check for certain bulk swaps. (Instead of sending directly back to the router caller) 
+        @dev We send ETH back to the caller even when called from LSSVMRouter because we do an aggregate slippage check for certain bulk swaps. (Instead of sending directly back to the router caller)
         Excess ETH sent for one swap can then be used to help pay for the next swap.
      */
     function _refundTokenToSender(uint256 inputAmount) internal virtual;
@@ -639,11 +674,11 @@ abstract contract LSSVMPair is
 
     /**
         @notice Sends some number of NFTs to a recipient address, ID agnostic
-        @dev Even though we specify the NFT address here, this internal function is only 
+        @dev Even though we specify the NFT address here, this internal function is only
         used to send NFTs associated with this specific pool.
         @param _nft The address of the NFT to send
         @param nftRecipient The receiving address for the NFTs
-        @param numNFTs The number of NFTs to send  
+        @param numNFTs The number of NFTs to send
      */
     function _sendAnyNFTsToRecipient(
         IERC721 _nft,
@@ -653,11 +688,11 @@ abstract contract LSSVMPair is
 
     /**
         @notice Sends specific NFTs to a recipient address
-        @dev Even though we specify the NFT address here, this internal function is only 
+        @dev Even though we specify the NFT address here, this internal function is only
         used to send NFTs associated with this specific pool.
         @param _nft The address of the NFT to send
         @param nftRecipient The receiving address for the NFTs
-        @param nftIds The specific IDs of NFTs to send  
+        @param nftIds The specific IDs of NFTs to send
      */
     function _sendSpecificNFTsToRecipient(
         IERC721 _nft,
@@ -667,7 +702,7 @@ abstract contract LSSVMPair is
 
     /**
         @notice Takes NFTs from the caller and sends them into the pair's asset recipient
-        @dev This is used by the LSSVMPair's swapNFTForToken function. 
+        @dev This is used by the LSSVMPair's swapNFTForToken function.
         @param _nft The NFT collection to take from
         @param nftIds The specific NFT IDs to take
         @param isRouter True if calling from LSSVMRouter, false otherwise. Not used for
@@ -785,6 +820,12 @@ abstract contract LSSVMPair is
     }
 
     /**
+        @notice Withdraws trade fee owned by the pair to the owner address.
+        @dev Only callable by the owner.
+     */
+    function withdrawTradeFee() external virtual;
+
+    /**
         @notice Updates the selling spot price. Only callable by the owner.
         @param newSpotPrice The new selling spot price value, in Token
      */
@@ -898,7 +939,7 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Allows owner to batch multiple calls, forked from: https://github.com/boringcrypto/BoringSolidity/blob/master/contracts/BoringBatchable.sol 
+        @notice Allows owner to batch multiple calls, forked from: https://github.com/boringcrypto/BoringSolidity/blob/master/contracts/BoringBatchable.sol
         @dev Intended for withdrawing/altering pool pricing in one tx, only callable by owner, cannot change owner
         @param calls The calldata for each call to make
         @param revertOnFail Whether or not to revert the entire tx if any of the calls fail

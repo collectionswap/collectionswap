@@ -80,6 +80,10 @@ abstract contract LSSVMPairETH is LSSVMPair {
     ) internal override {
         // Send ETH to caller
         if (outputAmount > 0) {
+            require(
+                address(this).balance >= outputAmount + tradeFee,
+                "Too little ETH"
+            );
             tokenRecipient.safeTransferETH(outputAmount);
         }
     }
@@ -95,7 +99,9 @@ abstract contract LSSVMPairETH is LSSVMPair {
         @dev Only callable by the owner.
      */
     function withdrawAllETH() external onlyOwner {
-        withdrawETH(address(this).balance);
+        tradeFee = 0;
+
+        _withdrawETH(address(this).balance);
     }
 
     /**
@@ -104,11 +110,13 @@ abstract contract LSSVMPairETH is LSSVMPair {
         @param amount The amount of token to send to the owner. If the pair's balance is less than
         this value, the transaction will be reverted.
      */
-    function withdrawETH(uint256 amount) public onlyOwner {
-        payable(owner()).safeTransferETH(amount);
+    function withdrawETH(uint256 amount) external onlyOwner {
+        require(
+            address(this).balance >= amount + tradeFee,
+            "Too little ETH"
+        );
 
-        // emit event since ETH is the pair token
-        emit TokenWithdrawal(amount);
+        _withdrawETH(amount);
     }
 
     /// @inheritdoc LSSVMPair
@@ -118,6 +126,16 @@ abstract contract LSSVMPairETH is LSSVMPair {
         onlyOwner
     {
         a.safeTransfer(msg.sender, amount);
+    }
+
+    /// @inheritdoc LSSVMPair
+    function withdrawTradeFee() external override onlyOwner {
+        uint256 _tradeFee = tradeFee;
+        if (_tradeFee > 0) {
+            tradeFee = 0;
+
+            _withdrawETH(_tradeFee);
+        }
     }
 
     /**
@@ -134,7 +152,14 @@ abstract contract LSSVMPairETH is LSSVMPair {
      */
     fallback() external payable {
         // Only allow calls without function selector
-        require (msg.data.length == _immutableParamsLength()); 
+        require(msg.data.length == _immutableParamsLength());
         emit TokenDeposit(msg.value);
+    }
+
+    function _withdrawETH(uint256 amount) internal {
+        payable(owner()).safeTransferETH(amount);
+
+        // emit event since ETH is the pair token
+        emit TokenWithdrawal(amount);
     }
 }

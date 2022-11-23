@@ -1,5 +1,6 @@
 {
   "bigPctProtocolFee": "5000000000000000",
+  "bigPctCarryFee": "5000000000000000",
   "bigPctFee": "10000000000000000",
   "bigDelta": "1050000000000000000",
   "rawSpot": 1,

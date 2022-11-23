@@ -18,6 +18,17 @@ interface ICurve {
     }
 
     /**
+        @param feeMultiplier Determines how much fee the LP takes from this trade, 18 decimals
+        @param protocolFeeMultiplier Determines how much fee the protocol takes from this trade, 18 decimals
+        @param carryFeeMultiplier Determines how much carry fee the protocol takes from this trade, 18 decimals
+    */
+    struct FeeMultipliers {
+        uint256 trade;
+        uint256 protocol;
+        uint256 carry;
+    }
+
+    /**
         @notice Validates if a delta value is valid for the curve. The criteria for
         validity can be different for each type of curve, for instance ExponentialCurve
         requires delta to be greater than 1.
@@ -61,20 +72,19 @@ interface ICurve {
         should pay to purchase an NFT from the pair, the new spot price, and other values.
         @param params Parameters of the pair that affect the bonding curve.
         @param numItems The number of NFTs the user is buying from the pair
-        @param feeMultiplier Determines how much fee the LP takes from this trade, 18 decimals
-        @param protocolFeeMultiplier Determines how much fee the protocol takes from this trade, 18 decimals
+        @param feeMultipliers Determines how much fee is taken from this trade.
         @return error Any math calculation errors, only Error.OK means the returned values are valid
         @return newSpotPrice The updated selling spot price, in tokens
         @return newDelta The updated delta, used to parameterize the bonding curve
         @return newState The updated state, used to parameterize the bonding curve
         @return inputValue The amount that the user should pay, in tokens
+        @return tradeFee The amount of fee to send to the pair, in tokens
         @return protocolFee The amount of fee to send to the protocol, in tokens
      */
     function getBuyInfo(
         ICurve.Params calldata params,
         uint256 numItems,
-        uint256 feeMultiplier,
-        uint256 protocolFeeMultiplier
+        ICurve.FeeMultipliers calldata feeMultipliers
     )
         external
         view
@@ -84,6 +94,7 @@ interface ICurve {
             uint128 newDelta,
             bytes calldata newState,
             uint256 inputValue,
+            uint256 tradeFee,
             uint256 protocolFee
         );
 
@@ -92,20 +103,19 @@ interface ICurve {
         should receive when selling NFTs to the pair, the new spot price, and other values.
         @param params Parameters of the pair that affect the bonding curve.
         @param numItems The number of NFTs the user is selling to the pair
-        @param feeMultiplier Determines how much fee the LP takes from this trade, 18 decimals
-        @param protocolFeeMultiplier Determines how much fee the protocol takes from this trade, 18 decimals
+        @param feeMultipliers Determines how much fee is taken from this trade.
         @return error Any math calculation errors, only Error.OK means the returned values are valid
         @return newSpotPrice The updated selling spot price, in tokens
         @return newDelta The updated delta, used to parameterize the bonding curve
         @return newState The updated state, used to parameterize the bonding curve
         @return outputValue The amount that the user should receive, in tokens
+        @return tradeFee The amount of fee to send to the pair, in tokens
         @return protocolFee The amount of fee to send to the protocol, in tokens
      */
     function getSellInfo(
         ICurve.Params calldata params,
         uint256 numItems,
-        uint256 feeMultiplier,
-        uint256 protocolFeeMultiplier
+        ICurve.FeeMultipliers calldata feeMultipliers
     )
         external
         view
@@ -115,6 +125,7 @@ interface ICurve {
             uint128 newDelta,
             bytes calldata newState,
             uint256 outputValue,
+            uint256 tradeFee,
             uint256 protocolFee
         );
 }

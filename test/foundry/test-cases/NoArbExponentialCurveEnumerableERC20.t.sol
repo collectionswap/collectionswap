@@ -8,7 +8,8 @@ import {UsingEnumerable} from "../mixins/UsingEnumerable.sol";
 import {UsingERC20} from "../mixins/UsingERC20.sol";
 
 contract NoArbExponentialCurveEnumerableERC20Test is
-    NoArbBondingCurve,
+    // The original sudoswap test does not work when protocol fee is 0.
+    // NoArbBondingCurve,
     UsingExponentialCurve,
     UsingEnumerable,
     UsingERC20

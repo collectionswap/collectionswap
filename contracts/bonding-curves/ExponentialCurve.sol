@@ -69,8 +69,7 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
     function getBuyInfo(
         ICurve.Params calldata params,
         uint256 numItems,
-        uint256 feeMultiplier,
-        uint256 protocolFeeMultiplier
+        ICurve.FeeMultipliers calldata feeMultipliers
     )
         external
         pure
@@ -81,13 +80,14 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             uint128 newDelta,
             bytes memory newState,
             uint256 inputValue,
+            uint256 tradeFee,
             uint256 protocolFee
         )
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
         }
 
         uint256 deltaPowN = uint256(params.delta).fpow(
@@ -95,15 +95,15 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             FixedPointMathLib.WAD
         );
 
-        // For an exponential curve, the spot price is multiplied by delta for each item bought
-        uint256 newSpotPrice_ = uint256(params.spotPrice).fmul(
-            deltaPowN,
-            FixedPointMathLib.WAD
-        );
-        if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0);
-        }
-        newSpotPrice = uint128(newSpotPrice_);
+            // For an exponential curve, the spot price is multiplied by delta for each item bought
+            uint256 newSpotPrice_ = uint256(params.spotPrice).fmul(
+                deltaPowN,
+                FixedPointMathLib.WAD
+            );
+            if (newSpotPrice_ > type(uint128).max) {
+                return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0, 0);
+            }
+            newSpotPrice = uint128(newSpotPrice_);
 
         // Spot price is assumed to be the instant sell price. To avoid arbitraging LPs, we adjust the buy price upwards.
         // If spot price for buy and sell were the same, then someone could buy 1 NFT and then sell for immediate profit.
@@ -127,17 +127,22 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             FixedPointMathLib.WAD
         );
 
-        // Account for the protocol fee, a flat percentage of the buy amount
+        // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
         protocolFee = inputValue.fmul(
-            protocolFeeMultiplier,
+            feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
 
         // Account for the trade fee, only for Trade pools
-        inputValue += inputValue.fmul(feeMultiplier, FixedPointMathLib.WAD);
+        tradeFee = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
 
-        // Add the protocol fee to the required input amount
-        inputValue += protocolFee;
+        // Account for the carry fee, only for Trade pools
+        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        tradeFee -= carryFee;
+        protocolFee += carryFee;
+
+        // Add the fees to the required input amount
+        inputValue += tradeFee + protocolFee;
 
         // Keep delta the same
         newDelta = params.delta;
@@ -158,8 +163,7 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
     function getSellInfo(
         ICurve.Params calldata params,
         uint256 numItems,
-        uint256 feeMultiplier,
-        uint256 protocolFeeMultiplier
+        ICurve.FeeMultipliers calldata feeMultipliers
     )
         external
         pure
@@ -170,6 +174,7 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             uint128 newDelta,
             bytes memory newState,
             uint256 outputValue,
+            uint256 tradeFee,
             uint256 protocolFee
         )
     {
@@ -177,7 +182,7 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
 
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
         }
 
         uint256 invDelta = FixedPointMathLib.WAD.fdiv(
@@ -209,15 +214,20 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
 
         // Account for the protocol fee, a flat percentage of the sell amount
         protocolFee = outputValue.fmul(
-            protocolFeeMultiplier,
+            feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
 
         // Account for the trade fee, only for Trade pools
-        outputValue -= outputValue.fmul(feeMultiplier, FixedPointMathLib.WAD);
+        tradeFee = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
+
+        // Account for the carry fee, only for Trade pools
+        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        tradeFee -= carryFee;
+        protocolFee += carryFee;
 
         // Remove the protocol fee from the output amount
-        outputValue -= protocolFee;
+        outputValue -= tradeFee + protocolFee;
 
         // Keep delta the same
         newDelta = params.delta;
