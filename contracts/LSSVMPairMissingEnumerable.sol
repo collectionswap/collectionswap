@@ -18,18 +18,17 @@ abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
     EnumerableSet.UintSet private idSet;
 
     /// @inheritdoc LSSVMPair
-    function _sendAnyNFTsToRecipient(
-        IERC721 _nft,
-        address nftRecipient,
+    function _selectArbitraryNFTs(
+        IERC721 ,
         uint256 numNFTs
-    ) internal override {
-        // Send NFTs to recipient
+    ) internal override returns (uint256[] memory tokenIds) {
+        tokenIds = new uint256[](numNFTs);
         // We're missing enumerable, so we also update the pair's own ID set
         // NOTE: We start from last index to first index to save on gas
         uint256 lastIndex = idSet.length() - 1;
         for (uint256 i; i < numNFTs; ) {
             uint256 nftId = idSet.at(lastIndex);
-            _nft.safeTransferFrom(address(this), nftRecipient, nftId);
+            tokenIds[i] = nftId;
             idSet.remove(nftId);
 
             unchecked {
@@ -43,7 +42,7 @@ abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
     function _sendSpecificNFTsToRecipient(
         IERC721 _nft,
         address nftRecipient,
-        uint256[] calldata nftIds
+        uint256[] memory nftIds
     ) internal override {
         // Send NFTs to caller
         // If missing enumerable, update pool's own ID set

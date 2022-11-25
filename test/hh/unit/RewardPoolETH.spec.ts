@@ -16,11 +16,11 @@ import { mintNfts } from "../shared/helpers";
 
 import type {
   Collectionswap,
-  ERC721PresetMinterPauserAutoId,
   ICurve,
   IERC20,
   MonotonicIncreasingValidator,
   RewardPoolETH,
+  Test721Enumerable,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumberish, ContractTransaction } from "ethers";
@@ -45,7 +45,7 @@ async function getPoolAddress(tx: ContractTransaction, showGas = false) {
   );
   let newPairAddress = newPoolEvent?.args?.poolAddress;
 
-  const newTokenId = receipt.events[8].args?.tokenId;
+  const newTokenId = receipt.events![8].args?.tokenId;
 
   expect(stakedTokenId).to.equal(newTokenId);
 
@@ -79,7 +79,7 @@ describe("RewardPoolETH", function () {
   let user: SignerWithAddress;
   let user1: SignerWithAddress;
   let collection: SignerWithAddress;
-  let nft: ERC721PresetMinterPauserAutoId;
+  let nft: Test721Enumerable;
   // Let nftTokenIds: BigNumberish[];
   let params: any;
 
@@ -1163,6 +1163,7 @@ describe("RewardPoolETH", function () {
           params.spotPrice,
           params.props,
           params.state,
+          params.royaltyNumerator,
           newNftTokenIds,
           { value: params.value }
         );
@@ -1204,6 +1205,7 @@ describe("RewardPoolETH", function () {
           params.spotPrice,
           params.props,
           params.state,
+          params.royaltyNumerator,
           newNftTokenIds,
           { value: params.value }
         );

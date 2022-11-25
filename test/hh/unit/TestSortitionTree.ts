@@ -1,9 +1,4 @@
-import { expect } from "chai";
-import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
-
-import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { Contract, ContractTransaction } from "ethers";
 
 describe("TestSortitionTree", function () {
   it("should work", async function () {
@@ -13,7 +8,7 @@ describe("TestSortitionTree", function () {
     const testSortitionTree = await TestSortitionTree.deploy();
     await testSortitionTree.deployed();
 
-    const [user0, user1, user2] = await ethers.getSigners();
+    const [user0, user1] = await ethers.getSigners();
     const stake = ethers.utils.parseEther("123");
 
     console.log("user0", user0.address);

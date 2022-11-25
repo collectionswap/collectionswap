@@ -133,12 +133,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
             bytes memory newState,
             uint256 inputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         )
     {
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         // Extract information about the state of the pool
@@ -156,13 +157,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // `numItems` fits in a 64 bit unsigned int. Then we can subtract
         // unchecked and manually check if bounds are exceeded
         if (numItems > 0x7FFFFFFFFFFFFFFF) {
-            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
         
         int256 _numItems = int256(numItems);
         // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
         if (!valid64x64Int(deltaN - _numItems)) {
-            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         newState = encodeState(deltaN - _numItems);
@@ -170,11 +171,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // To avoid arbitrage, buy prices are calculated with deltaN incremented by 1
         // Iterate to calculate values. No closed form expression for discrete
         // sigmoid steps
-        int128 sum;
-        int128 fixedPointN;
         int128 kDeltaN;
-        int128 denominator;
-        uint256 scaledSum;
+        int128 fraction;
+        uint256 itemCost; // The cost of the n-th item
+        uint256 itemRoyalty; // The royalty for the n-th item
+
+        royaltyAmounts = new uint256[](numItems);
+        uint256 totalRoyalty;
 
         // Buying NFTs means no. of NFTs held by the pool is decreasing
         // Hence we decrease by n iteratively to the new price at fixedPointN for each NFT bought
@@ -182,18 +185,23 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // = P_min + deltaP / (1 + 2 ** k * (deltaN - n))
         // = P_min + deltaP (1 / (1 + 2 ** k * (deltaN - n)))
         // the loop calculates the sum of (1 / (1 + 2 ** k * (deltaN - n))) before we apply scaling by deltaP
-        for (int256 n = 1; n <= _numItems; ++n) {
-          fixedPointN = ABDKMath64x64.fromInt(deltaN - n); 
-          kDeltaN = fixedPointN.mul(k);
-          // denominator = 1 + 2 ** (k * (deltaN - n))
-          denominator = ONE_64_64.add(kDeltaN.exp_2());
-          sum = sum.add(ONE_64_64.div(denominator));
-        }
+        for (int256 n = 1; n <= _numItems; ) {
+            kDeltaN = ABDKMath64x64.fromInt(deltaN - n).mul(k);
+            // fraction = 1 / (1 + 2 ** (k * (deltaN - n)))
+            fraction = ONE_64_64.div(ONE_64_64.add(kDeltaN.exp_2()));
+            itemCost = pMin + fraction.mulu(deltaP);
+            inputValue += itemCost;
+            itemRoyalty = itemCost.fmul(
+                feeMultipliers.royaltyNumerator,
+                FixedPointMathLib.WAD
+            );
+            royaltyAmounts[uint256(n) - 1] = itemRoyalty;
+            totalRoyalty += itemRoyalty;
 
-        // Scale the sum of sigmoid fractions by deltaP, then add `numItems`
-        // times P_min
-        scaledSum = sum.mulu(deltaP);
-        inputValue = pMin * numItems + scaledSum;
+            unchecked {
+                ++n;
+            }
+        }
 
         // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
         protocolFee = inputValue.fmul(
@@ -209,8 +217,9 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         tradeFee -= carryFee;
         protocolFee += carryFee;
 
-        // Add the protocol fee to the required input amount
-        inputValue += tradeFee + protocolFee;
+        // Account for the trade fee (only for Trade pools), protocol fee, and
+        // royalties
+        inputValue += tradeFee + protocolFee + totalRoyalty;
 
         // If we got all the way here, no math error happened
         // Error defaults to Error.OK, no need assignment
@@ -233,12 +242,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
             bytes memory newState,
             uint256 outputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         )
     {
         // We only calculate changes for selling 1 or more NFTs.
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         // Extract information about the state of the pool
@@ -256,42 +266,50 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // `numItems` fits in a 64 bit unsigned int. Then we can subtract
         // unchecked and manually check if bounds are exceeded
         if (numItems > 0x7FFFFFFFFFFFFFFF) {
-            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
         
         int256 _numItems = int256(numItems);
         // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
         if (!valid64x64Int(deltaN + _numItems)) {
-            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         newState = encodeState(deltaN + _numItems);
 
         // Iterate to calculate values. No closed form expression for discrete
         // sigmoid steps
-        int128 sum;
-        int128 fixedPointN;
         int128 kDeltaN;
-        int128 denominator;
-        uint256 scaledSum;
+        int128 fraction;
+        uint256 itemCost; // The cost of the n-th item
+        uint256 itemRoyalty; // The royalty for the n-th item
+
+        royaltyAmounts = new uint256[](numItems);
+        uint256 totalRoyalty;
+
         // Selling NFTs means no. of NFTs is increasing
         // Hence we increase by n iteratively to the new price at fixedPointN for each NFT bought
         // ie. P(newDeltaN) = P_min + (P_max - P_min) / (1 + 2 ** (k * newDeltaN))
         // = P_min + deltaP / (1 + 2 ** (k * (deltaN + n)))
         // = P_min + deltaP * (1 / (1 + 2 ** (k * (deltaN + n))))
         // the loop calculates the sum of 1 / (1 + 2 ** (k * (deltaN + n))) before we apply scaling by deltaP
-        for (int256 n = 1; n <= _numItems; ++n) {
-          fixedPointN = ABDKMath64x64.fromInt(n + deltaN);
-          kDeltaN = fixedPointN.mul(k);
-          // denominator = 1 + 2 ** (k * (deltaN + n))
-          denominator = ONE_64_64.add(kDeltaN.exp_2());
-          sum = sum.add(ONE_64_64.div(denominator));
-        }
+        for (int256 n = 1; n <= _numItems; ) {
+            kDeltaN = ABDKMath64x64.fromInt(n + deltaN).mul(k);
+            // fraction = 1 / (1 + 2 ** (k * (deltaN + n)))
+            fraction = ONE_64_64.div(ONE_64_64.add(kDeltaN.exp_2()));
+            itemCost = pMin + fraction.mulu(deltaP);
+            outputValue += itemCost;
+            itemRoyalty = itemCost.fmul(
+                feeMultipliers.royaltyNumerator,
+                FixedPointMathLib.WAD
+            );
+            royaltyAmounts[uint256(n) - 1] = itemRoyalty;
+            totalRoyalty += itemRoyalty;
 
-        // Scale the sum of sigmoid fractions by deltaP, then add `numItems`
-        // times P_min
-        scaledSum = sum.mulu(deltaP);
-        outputValue = pMin * numItems + scaledSum;
+            unchecked {
+                ++n;
+            }
+        }
 
         // Account for the protocol fee, a flat percentage of the sell amount, only for Non-Trade pools
         protocolFee = outputValue.fmul(
@@ -306,9 +324,10 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
         tradeFee -= carryFee;
         protocolFee += carryFee;
-
-        // Subtract the fees from the output amount to the seller
-        outputValue -= tradeFee + protocolFee;
+        
+        // Account for the trade fee (only for Trade pools), protocol fee, and
+        // royalties
+        outputValue -= tradeFee + protocolFee + totalRoyalty;
 
         // If we reached here, no math errors
         // Error defaults to Error.OK, no need assignment

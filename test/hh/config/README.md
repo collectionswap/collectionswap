@@ -14,3 +14,4 @@ curve specific encodings
 1. `rawProps`: The values to encode into the `props` byte array. Pass strings for Bignumbers.
 1. `rawStateType`: The types of the values to encode into the `state` byte array. `[]` if nothing to be passed
 1. `rawState`: The values to encode into the `state` byte array. Pass strings for Bignumbers.
+1. `royaltyNumerator`: An int, which when divided by 100, is the percentage of the trade value to be awarded as royalties. E.g. `500` for 5%.

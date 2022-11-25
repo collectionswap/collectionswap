@@ -42,6 +42,7 @@ interface ICollectionswap is IERC721, IERC721Enumerable {
         uint128 _spotPrice,
         bytes calldata _props,
         bytes calldata _state,
+        uint256 _royaltyNumerator,
         uint256[] calldata _initialNFTIDs        
     ) external payable returns (ILSSVMPairETH newPair, uint256 newTokenId);
 

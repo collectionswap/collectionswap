@@ -16,6 +16,7 @@ interface ILSSVMPairFactory {
         uint128 spotPrice;
         bytes props;
         bytes state;
+        uint256 royaltyNumerator;
         uint256[] initialNFTIDs;
     }
 

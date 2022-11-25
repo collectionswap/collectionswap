@@ -52,6 +52,7 @@ abstract contract UsingETH is Configurable, RouterCaller {
             spotPrice,
             "",
             "",
+            0,
             _idList
         );
         LSSVMPairETH pair = factory.createPairETH{value: msg.value}(

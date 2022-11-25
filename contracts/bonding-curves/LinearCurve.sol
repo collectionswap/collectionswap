@@ -74,18 +74,19 @@ contract LinearCurve is ICurve, CurveErrorCodes {
             bytes memory newState,
             uint256 inputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         )
     {
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         // For a linear curve, the spot price increases by delta for each item bought
         uint256 newSpotPrice_ = params.spotPrice + params.delta * numItems;
         if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0, 0);
+            return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
         newSpotPrice = uint128(newSpotPrice_);
 
@@ -120,9 +121,24 @@ contract LinearCurve is ICurve, CurveErrorCodes {
         uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
         tradeFee -= carryFee;
         protocolFee += carryFee;
+        
+        royaltyAmounts = new uint256[](numItems);
+        uint256 totalRoyalty;
+        for (uint256 i = 0; i < numItems; ) {
+            uint256 royaltyAmount = (buySpotPrice + (params.delta * i)).fmul(
+                feeMultipliers.royaltyNumerator,
+                FixedPointMathLib.WAD
+            );
+            royaltyAmounts[i] = royaltyAmount;
+            totalRoyalty += royaltyAmount;
 
-        // Add the fees to the required input amount
-        inputValue += tradeFee + protocolFee;
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Account for the trade fee (only for Trade pools) and protocol fee
+        inputValue += tradeFee + protocolFee + totalRoyalty;
 
         // Keep delta the same
         newDelta = params.delta;
@@ -152,12 +168,13 @@ contract LinearCurve is ICurve, CurveErrorCodes {
             bytes memory newState,
             uint256 outputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         )
     {
         // We only calculate changes for selling 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         // We first calculate the change in spot price after selling all of the items
@@ -202,8 +219,24 @@ contract LinearCurve is ICurve, CurveErrorCodes {
         tradeFee -= carryFee;
         protocolFee += carryFee;
 
-        // Subtract the fees from the output amount to the seller
-        outputValue -= tradeFee + protocolFee;
+        royaltyAmounts = new uint256[](numItems);
+        uint256 totalRoyalty;
+        for (uint256 i = 0; i < numItems; ) {
+            uint256 royaltyAmount = (params.spotPrice - (params.delta * i)).fmul(
+                feeMultipliers.royaltyNumerator,
+                FixedPointMathLib.WAD
+            );
+            royaltyAmounts[i] = royaltyAmount;
+            totalRoyalty += royaltyAmount;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Account for the trade fee (only for Trade pools), protocol fee, and
+        // royalties
+        outputValue -= tradeFee + protocolFee + totalRoyalty;
 
         // Keep delta the same
         newDelta = params.delta;

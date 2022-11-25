@@ -20,11 +20,13 @@ interface ICurve {
     /**
         @param feeMultiplier Determines how much fee the LP takes from this trade, 18 decimals
         @param protocolFeeMultiplier Determines how much fee the protocol takes from this trade, 18 decimals
+        @param royaltyNumerator Determines how much of the trade value is awarded as royalties. 5 decimals
         @param carryFeeMultiplier Determines how much carry fee the protocol takes from this trade, 18 decimals
     */
     struct FeeMultipliers {
         uint256 trade;
         uint256 protocol;
+        uint256 royaltyNumerator;
         uint256 carry;
     }
 
@@ -70,6 +72,9 @@ interface ICurve {
     /**
         @notice Given the current state of the pair and the trade, computes how much the user
         should pay to purchase an NFT from the pair, the new spot price, and other values.
+        @dev Do not try to optimize the length of royaltyAmounts; compiler 
+        ^0.8.0 throws a YulException if you try to use an if-guard in the sigmoid
+        calculation loop due to stack depth
         @param params Parameters of the pair that affect the bonding curve.
         @param numItems The number of NFTs the user is buying from the pair
         @param feeMultipliers Determines how much fee is taken from this trade.
@@ -80,6 +85,8 @@ interface ICurve {
         @return inputValue The amount that the user should pay, in tokens
         @return tradeFee The amount of fee to send to the pair, in tokens
         @return protocolFee The amount of fee to send to the protocol, in tokens
+        @return royaltyAmounts The amount to pay for each item in the order they
+        are purchased. Always has length `numItems`.
      */
     function getBuyInfo(
         ICurve.Params calldata params,
@@ -95,12 +102,16 @@ interface ICurve {
             bytes calldata newState,
             uint256 inputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         );
 
     /**
         @notice Given the current state of the pair and the trade, computes how much the user
         should receive when selling NFTs to the pair, the new spot price, and other values.
+        @dev Do not try to optimize the length of royaltyAmounts; compiler 
+        ^0.8.0 throws a YulException if you try to use an if-guard in the sigmoid
+        calculation loop due to stack depth
         @param params Parameters of the pair that affect the bonding curve.
         @param numItems The number of NFTs the user is selling to the pair
         @param feeMultipliers Determines how much fee is taken from this trade.
@@ -111,6 +122,8 @@ interface ICurve {
         @return outputValue The amount that the user should receive, in tokens
         @return tradeFee The amount of fee to send to the pair, in tokens
         @return protocolFee The amount of fee to send to the protocol, in tokens
+        @return royaltyAmounts The amount to pay for each item in the order they
+        are purchased. Always has length `numItems`.
      */
     function getSellInfo(
         ICurve.Params calldata params,
@@ -126,6 +139,7 @@ interface ICurve {
             bytes calldata newState,
             uint256 outputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         );
 }

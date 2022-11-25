@@ -26,7 +26,8 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
     LSSVMPairFactory factory;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 3e15;
-    uint256 constant carryFeeMultiplier = 3e15;
+    uint256 constant royaltyNumerator = 0;
+    uint256 constant carryFeeMultiplier = 5e15;
 
     function setUp() public {
         bondingCurve = setupCurve();
@@ -106,7 +107,8 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                 ,
                 uint256 outputAmount,
                 ,
-                uint256 protocolFee
+                uint256 protocolFee,
+                
             ) = bondingCurve.getSellInfo(
                     ICurve.Params(
                         spotPrice,
@@ -118,6 +120,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                     ICurve.FeeMultipliers(
                         0,
                         protocolFeeMultiplier,
+                        royaltyNumerator,
                         0
                     )
                 );
@@ -140,7 +143,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
 
         // buy back the NFTs just sold to the pair
         {
-            (, , , , uint256 inputAmount, , ) = bondingCurve.getBuyInfo(
+            (, , , , uint256 inputAmount, , , ) = bondingCurve.getBuyInfo(
                 ICurve.Params(
                     spotPrice,
                     delta,
@@ -151,6 +154,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                 ICurve.FeeMultipliers(
                     0,
                     protocolFeeMultiplier,
+                    royaltyNumerator,
                     0
                 )
             );
@@ -220,7 +224,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
 
         // buy all NFTs
         {
-            (, uint256 newSpotPrice, , , uint256 inputAmount, , ) = bondingCurve
+            (, uint256 newSpotPrice, , , uint256 inputAmount, , , ) = bondingCurve
                 .getBuyInfo(
                     ICurve.Params(
                         spotPrice,
@@ -232,6 +236,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                     ICurve.FeeMultipliers(
                         0,
                         protocolFeeMultiplier,
+                        royaltyNumerator,
                         0
                     )
                 );
@@ -261,6 +266,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
                 ICurve.FeeMultipliers(
                     0,
                     protocolFeeMultiplier,
+                    royaltyNumerator,
                     0
                 )
             );

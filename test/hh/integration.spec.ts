@@ -29,6 +29,7 @@ describe("integration", function () {
       bigPctFee,
       props,
       state,
+      royaltyNumerator,
     } = await loadFixture(integrationFixture);
 
     const initialNftTokenIds = await mintNfts(nft, user.address);
@@ -61,6 +62,7 @@ describe("integration", function () {
       value: initialETH,
       props,
       state,
+      royaltyNumerator,
     });
     const { lpTokenId, pairAddress } = result;
     let { dBalance } = result;

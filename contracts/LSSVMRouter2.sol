@@ -91,7 +91,7 @@ contract LSSVMRouter2 {
         ICurve.FeeMultipliers memory feeMultipliers = pair.feeMultipliers();
         for (uint256 i; i < numNFTs; i++) {
             uint256 price;
-            (, params.spotPrice, params.delta, params.state, price, , ) = _bondingCurve.getBuyInfo(
+            (, params.spotPrice, params.delta, params.state, price, , , ) = _bondingCurve.getBuyInfo(
                 params,
                 1,
                 feeMultipliers

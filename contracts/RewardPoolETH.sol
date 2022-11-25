@@ -268,10 +268,11 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint128 _spotPrice,
         bytes calldata _props,
         bytes calldata _state,
+        uint256 _royaltyNumerator,
         uint256[] calldata _initialNFTIDs
     ) public payable returns (uint256 currTokenId) {
         ICollectionswap _lpToken = lpToken;
-        (,currTokenId) = _lpToken.createDirectPairETH{value:msg.value}(msg.sender,_nft,_bondingCurve, _delta, _fee, _spotPrice, _props, _state, _initialNFTIDs);
+        (,currTokenId) = _lpToken.createDirectPairETH{value:msg.value}(msg.sender,_nft,_bondingCurve, _delta, _fee, _spotPrice, _props, _state, _royaltyNumerator, _initialNFTIDs);
         stake(currTokenId);
     }
 

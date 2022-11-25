@@ -39,7 +39,8 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         bool isRouter,
         address routerCaller,
         ILSSVMPairFactoryLike _factory,
-        uint256 protocolFee
+        uint256 protocolFee,
+        RoyaltyDue[] memory royaltiesDue
     ) internal override {
         require(msg.value == 0, "ERC20 pair");
 
@@ -56,20 +57,54 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
                 require(routerAllowed, "Not router");
             }
 
+            // Pay royalties first to obtain total amount of royalties paid
+            uint256 length = royaltiesDue.length;
+            uint256 totalRoyaltiesPaid;
+            for (uint256 i = 0; i  < length; ) {
+                // Cache state and then call router to transfer tokens from user
+                RoyaltyDue memory due = royaltiesDue[i];
+                uint256 royaltyAmount = due.amount;
+                address royaltyRecipient = due.recipient;
+                uint256 royaltyInitBalance = _token.balanceOf(royaltyRecipient);
+                if (royaltyAmount > 0) {
+                    totalRoyaltiesPaid += royaltyAmount;
+
+                    router.pairTransferERC20From(
+                        _token,
+                        routerCaller,
+                        royaltyRecipient,
+                        royaltyAmount,
+                        pairVariant()
+                    );
+
+                    // Verify token transfer (protect pair against malicious router)
+                    require(
+                        _token.balanceOf(royaltyRecipient) - royaltyInitBalance ==
+                            royaltyAmount,
+                        "ERC20 royalty not transferred in"
+                    );
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
+
             // Cache state and then call router to transfer tokens from user
             uint256 beforeBalance = _token.balanceOf(_assetRecipient);
+            uint256 amountToAssetRecipient = inputAmount - protocolFee - totalRoyaltiesPaid;
             router.pairTransferERC20From(
                 _token,
                 routerCaller,
                 _assetRecipient,
-                inputAmount - protocolFee,
+                amountToAssetRecipient,
                 pairVariant()
             );
 
             // Verify token transfer (protect pair against malicious router)
             require(
                 _token.balanceOf(_assetRecipient) - beforeBalance ==
-                    inputAmount - protocolFee,
+                    amountToAssetRecipient,
                 "ERC20 not transferred in"
             );
 
@@ -84,11 +119,31 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             // Note: no check for factory balance's because router is assumed to be set by factory owner
             // so there is no incentive to *not* pay protocol fee
         } else {
+            // Pay royalties first to obtain total amount of royalties paid
+            uint256 length = royaltiesDue.length;
+            uint256 totalRoyaltiesPaid;
+            for (uint256 i = 0; i < length;) {
+                RoyaltyDue memory due = royaltiesDue[i];
+                uint256 royaltyAmount = due.amount;
+                totalRoyaltiesPaid += royaltyAmount;
+                if (royaltyAmount > 0) {
+                    _token.safeTransferFrom(
+                        msg.sender,
+                        due.recipient,
+                        royaltyAmount
+                    );
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
+
             // Transfer tokens directly
             _token.safeTransferFrom(
                 msg.sender,
                 _assetRecipient,
-                inputAmount - protocolFee
+                inputAmount - protocolFee - totalRoyaltiesPaid
             );
 
             // Take protocol fee (if it exists)
@@ -130,7 +185,8 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
     /// @inheritdoc LSSVMPair
     function _sendTokenOutput(
         address payable tokenRecipient,
-        uint256 outputAmount
+        uint256 outputAmount,
+        RoyaltyDue[] memory royaltiesDue
     ) internal override {
         // Send tokens to caller
         if (outputAmount > 0) {
@@ -140,6 +196,19 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
                 "Too little ERC20"
             );
             _token.safeTransfer(tokenRecipient, outputAmount);
+        }
+
+        uint256 length = royaltiesDue.length;
+        for (uint256 i = 0; i < length; ) {
+            RoyaltyDue memory due = royaltiesDue[i];
+            uint256 royaltyAmount = due.amount;
+            if (royaltyAmount > 0) {
+                token().safeTransfer(due.recipient, royaltyAmount);
+            }
+
+            unchecked {
+                ++i;
+            }
         }
     }
 

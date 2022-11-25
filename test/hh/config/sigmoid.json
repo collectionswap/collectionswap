@@ -19,6 +19,7 @@
   "rawState": [
     "0"
   ],
+  "royaltyNumerator": "10000000000000000",
   "spotComments": "Spot price is unused",
   "deltaComments": "This delta encodes k = 640 (before dividing by 1024)",
   "propsComments": "This props encodes a min price of 1 ETH and a price range of 1 ETH",

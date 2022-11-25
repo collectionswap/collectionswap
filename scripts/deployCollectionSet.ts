@@ -13,27 +13,30 @@ import type {
   Collectionswap,
   RNGChainlinkV2,
   LSSVMPairFactory,
-  LSSVMPairFactory__factory
+  LSSVMPairFactory__factory,
 } from "../typechain-types";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
 
 let deployFactory: any;
 // Templates
-let templateNames = ["LSSVMPairEnumerableETH", "LSSVMPairMissingEnumerableETH", "LSSVMPairEnumerableERC20", "LSSVMPairMissingEnumerableERC20"];
-let templateAddresses: string[] = [];
+const templateNames = [
+  "LSSVMPairEnumerableETH",
+  "LSSVMPairMissingEnumerableETH",
+  "LSSVMPairEnumerableERC20",
+  "LSSVMPairMissingEnumerableERC20",
+];
+const templateAddresses: string[] = [];
 
 // Curves
-let curveNames = ["LinearCurve", "ExponentialCurve", "XykCurve"] // "SigmoidCurve"]
-let curveAddresses: string[] = [];
+const curveNames = ["LinearCurve", "ExponentialCurve", "XykCurve"]; // "SigmoidCurve"]
+const curveAddresses: string[] = [];
 
 let factory: LSSVMPairFactory;
 let collectionSwap: Collectionswap;
 let collectionStaker: Collectionstaker;
 let rng: RNGChainlinkV2;
 
-export async function deployCollectionSet(
-  hre: HardhatRuntimeEnvironment
-) {
+export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   const networkId = hre.network.config.chainId as number;
   console.log(`NetworkId: ${networkId}`);
   const config = configs[networkId];
@@ -48,18 +51,15 @@ export async function deployCollectionSet(
   console.log(`------ Deploying Templates ------`);
   console.log(`---------------------------------`);
 
-  for (let templateName of templateNames) {
+  for (const templateName of templateNames) {
     console.log(`Deploying ${templateName}`);
-    deployFactory = await hre.ethers.getContractFactory(
-      templateName,
-      deployer
-    );
-    let deployedTemplate = await deployFactory.deploy();
+    deployFactory = await hre.ethers.getContractFactory(templateName, deployer);
+    const deployedTemplate = await deployFactory.deploy();
     await deployedTemplate.deployed();
     console.log(`${templateName} address: ${deployedTemplate.address}`);
     templateAddresses.push(deployedTemplate.address);
   }
-  
+
   console.log(`------------------------------`);
 
   console.log(`Deploying factory...`);
@@ -83,13 +83,10 @@ export async function deployCollectionSet(
   console.log(`------- Deploying Curves -------`);
   console.log(`--------------------------------`);
 
-  for (let curveName of curveNames) {
+  for (const curveName of curveNames) {
     console.log(`Deploying ${curveName}`);
-    deployFactory = await hre.ethers.getContractFactory(
-      curveName,
-      deployer
-    );
-    let deployedCurve = await deployFactory.deploy();
+    deployFactory = await hre.ethers.getContractFactory(curveName, deployer);
+    const deployedCurve = await deployFactory.deploy();
     await deployedCurve.deployed();
     console.log(`${curveName} address: ${deployedCurve.address}`);
     curveAddresses.push(deployedCurve.address);
@@ -135,7 +132,7 @@ export async function deployCollectionSet(
   console.log(`Chainlink RNG address: ${collectionStaker.address}`);
 
   console.log(`Setting RNG in staker...`);
-  // set RNG in staker
+  // Set RNG in staker
   await collectionStaker.setRNG(rng.address);
 
   console.log("exporting addresses...");
@@ -148,10 +145,10 @@ export async function deployCollectionSet(
     linearCurve: curveAddresses[0],
     exponentialCurve: curveAddresses[1],
     xykCurve: curveAddresses[2],
-    // sigmoidCurve: curveAddresses[3],
+    // SigmoidCurve: curveAddresses[3],
     collectionSwap: collectionSwap.address,
     collectionStaker: collectionStaker.address,
-    rng: rng.address
+    rng: rng.address,
   };
   const exportJson = JSON.stringify(addressesToExport, null, 2);
   fs.writeFileSync(config.EXPORT_FILENAME, exportJson);
@@ -174,7 +171,7 @@ export async function deployCollectionSet(
       constructorArguments: [],
     });
   }
-  
+
   console.log("verifying factory...");
   await hre.run("verify:verify", {
     address: factory.address,
@@ -183,8 +180,8 @@ export async function deployCollectionSet(
       templateAddresses[1],
       templateAddresses[2],
       templateAddresses[3],
-      hre.ethers.constants.AddressZero, // payout address
-      hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER)
+      hre.ethers.constants.AddressZero, // Payout address
+      hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
     ],
   });
 
@@ -211,6 +208,11 @@ export async function deployCollectionSet(
   console.log("verifying RNG...");
   await hre.run("verify:verify", {
     address: rng.address,
-    constructorArguments: [deployerAddress, config.VRF_COORDINATOR, config.SUBSCRIPTION_ID, config.KEY_HASH],
+    constructorArguments: [
+      deployerAddress,
+      config.VRF_COORDINATOR,
+      config.SUBSCRIPTION_ID,
+      config.KEY_HASH,
+    ],
   });
 }

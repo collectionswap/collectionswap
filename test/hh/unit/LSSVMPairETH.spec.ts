@@ -7,27 +7,43 @@ import {
   lsSVMFixture,
   nftFixture,
 } from "../shared/fixtures";
-import { expectAddressToOwnNFTs, mintNfts } from "../shared/helpers";
+import {
+  calculateAsk,
+  calculateBid,
+  changesEtherBalancesFuzzy,
+  cumulativeSumWithRoyalties,
+  expectAddressToOwnNFTs,
+  mintNfts,
+} from "../shared/helpers";
 import { getSigners } from "../shared/signers";
 
 import type {
-  ERC721PresetMinterPauserAutoId,
   LSSVMPairETH,
   LSSVMPairFactory,
+  Test721Enumerable,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { BigNumber } from "ethers";
 
 describe("LSSVMPairETH", function () {
   let lsSVMPairFactory: LSSVMPairFactory;
   let lssvmPairETH: LSSVMPairETH;
-  let nft: ERC721PresetMinterPauserAutoId;
+  let nft: Test721Enumerable;
   let user: SignerWithAddress;
   let user1: SignerWithAddress;
+  let fee: BigNumber;
+  let royaltyNumerator: string;
 
   beforeEach(async function () {
-    ({ lsSVMPairFactory, lssvmPairETH, nft, user, user1 } = await loadFixture(
-      lsSVMETHFixture
-    ));
+    ({
+      lsSVMPairFactory,
+      lssvmPairETH,
+      nft,
+      user,
+      user1,
+      fee,
+      royaltyNumerator,
+    } = await loadFixture(lsSVMETHFixture));
   });
 
   async function lsSVMETHFixture() {
@@ -39,7 +55,8 @@ describe("LSSVMPairETH", function () {
 
     const poolType = 2;
     const fee = ethers.utils.parseEther("0.89");
-    const { delta, spotPrice, props, state } = getCurveParameters();
+    const { delta, spotPrice, props, state, royaltyNumerator, protocolFee } =
+      getCurveParameters();
 
     const resp = await lsSVMPairFactory.connect(user).createPairETH({
       nft: nft.address,
@@ -51,6 +68,7 @@ describe("LSSVMPairETH", function () {
       spotPrice,
       props,
       state,
+      royaltyNumerator,
       initialNFTIDs: nftTokenIds,
     });
     const receipt = await resp.wait();
@@ -67,10 +85,14 @@ describe("LSSVMPairETH", function () {
       protocol,
       user,
       user1,
+      fee,
+      protocolFee,
+      royaltyNumerator,
     };
   }
 
   it("Should have trade fee when buying", async function () {
+    const nftsToBuy = 1;
     const [
       _error,
       _newSpotPrice,
@@ -79,26 +101,55 @@ describe("LSSVMPairETH", function () {
       inputAmount,
       tradeFee,
       protocolFee,
-    ] = await lssvmPairETH.getBuyNFTQuote(1);
+    ] = await lssvmPairETH.getBuyNFTQuote(nftsToBuy);
     const numNFTs = await nft.balanceOf(user1.address);
 
+    let curveParams = await lssvmPairETH.curveParams();
+
+    // First calculate the expected sale value + royalty amounts
+    const buyAmounts = await cumulativeSumWithRoyalties(
+      calculateAsk,
+      0,
+      nftsToBuy,
+      -1,
+      lssvmPairETH,
+      curveParams.spotPrice,
+      curveParams.delta,
+      curveParams.props,
+      fee,
+      protocolFee,
+      royaltyNumerator
+    );
+    let totalBuyRoyalties = 0;
+    buyAmounts.slice(1, undefined).forEach((royalty) => {
+      totalBuyRoyalties += royalty;
+    });
+
     // The buyer should transfer ETH to the pair, and now own the nft
-    await expect(
-      lssvmPairETH
-        .connect(user1)
-        .swapTokenForAnyNFTs(
-          1,
-          inputAmount,
-          user1.address,
-          false,
-          ethers.constants.AddressZero,
-          {
-            value: inputAmount,
-          }
-        )
-    ).to.changeEtherBalances(
-      [lsSVMPairFactory, lssvmPairETH, user1],
-      [protocolFee, inputAmount.sub(protocolFee), inputAmount.mul(-1)]
+    const buyTx = await lssvmPairETH
+      .connect(user1)
+      .swapTokenForAnyNFTs(
+        nftsToBuy,
+        inputAmount,
+        user1.address,
+        false,
+        ethers.constants.AddressZero,
+        {
+          value: inputAmount,
+        }
+      );
+    expect(
+      await changesEtherBalancesFuzzy(
+        buyTx,
+        [lsSVMPairFactory, lssvmPairETH, user1],
+        [
+          protocolFee,
+          inputAmount
+            .sub(protocolFee)
+            .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
+          inputAmount.mul(-1),
+        ]
+      )
     );
     expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
@@ -126,24 +177,55 @@ describe("LSSVMPairETH", function () {
       value: outputAmount.add(tradeFee),
     });
 
+    let curveParams = await lssvmPairETH.curveParams();
+
+    // First calculate the expected sale value + royalty amounts
+    const sellAmounts = await cumulativeSumWithRoyalties(
+      calculateBid,
+      0,
+      nftTokenIds.length,
+      1,
+      lssvmPairETH,
+      curveParams.spotPrice,
+      curveParams.delta,
+      curveParams.props,
+      fee,
+      protocolFee,
+      royaltyNumerator
+    );
+    let totalSellRoyalties = 0;
+    sellAmounts.slice(1, undefined).forEach((royalty) => {
+      totalSellRoyalties += royalty;
+    });
+
     // The seller should own the nfts
     await expectAddressToOwnNFTs(user1.address, nft, nftTokenIds);
 
     // The pair should now own the nft, and transfers ETH to the seller
-    await expect(
-      lssvmPairETH
-        .connect(user1)
-        .swapNFTsForToken(
-          nftTokenIds,
+    const sellTx = lssvmPairETH
+      .connect(user1)
+      .swapNFTsForToken(
+        nftTokenIds,
+        outputAmount,
+        user1.address,
+        false,
+        ethers.constants.AddressZero
+      );
+    expect(
+      await changesEtherBalancesFuzzy(
+        sellTx,
+        [lsSVMPairFactory, lssvmPairETH, user1],
+        [
+          protocolFee,
+          outputAmount
+            .mul(-1)
+            .sub(protocolFee)
+            .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
           outputAmount,
-          user1.address,
-          false,
-          ethers.constants.AddressZero
-        )
-    ).to.changeEtherBalances(
-      [lsSVMPairFactory, lssvmPairETH, user1],
-      [protocolFee, outputAmount.mul(-1).sub(protocolFee), outputAmount]
+        ]
+      )
     );
+
     await expectAddressToOwnNFTs(lssvmPairETH.address, nft, nftTokenIds);
 
     // The pair should accrue trade fees
@@ -151,6 +233,7 @@ describe("LSSVMPairETH", function () {
   });
 
   it("Should accrue trade fees", async function () {
+    const nftsToBuy = 1;
     let [
       _error,
       _newSpotPrice,
@@ -159,27 +242,57 @@ describe("LSSVMPairETH", function () {
       inputAmount,
       tradeFee1,
       protocolFee,
-    ] = await lssvmPairETH.getBuyNFTQuote(1);
+    ] = await lssvmPairETH.getBuyNFTQuote(nftsToBuy);
     const numNFTs = await nft.balanceOf(user1.address);
 
-    // The buyer should transfer ETH to the pair, and now own the nft
-    await expect(
-      lssvmPairETH
-        .connect(user1)
-        .swapTokenForAnyNFTs(
-          1,
-          inputAmount,
-          user1.address,
-          false,
-          ethers.constants.AddressZero,
-          {
-            value: inputAmount,
-          }
-        )
-    ).to.changeEtherBalances(
-      [lsSVMPairFactory, lssvmPairETH, user1],
-      [protocolFee, inputAmount.sub(protocolFee), inputAmount.mul(-1)]
+    let curveParams = await lssvmPairETH.curveParams();
+
+    // First calculate the expected sale value + royalty amounts
+    const buyAmounts = await cumulativeSumWithRoyalties(
+      calculateAsk,
+      0,
+      nftsToBuy,
+      -1,
+      lssvmPairETH,
+      curveParams.spotPrice,
+      curveParams.delta,
+      curveParams.props,
+      fee,
+      protocolFee,
+      royaltyNumerator
     );
+    let totalBuyRoyalties = 0;
+    buyAmounts.slice(1, undefined).forEach((royalty) => {
+      totalBuyRoyalties += royalty;
+    });
+
+    // The buyer should transfer ETH to the pair, and now own the nft
+    const buyTx = await lssvmPairETH
+      .connect(user1)
+      .swapTokenForAnyNFTs(
+        nftsToBuy,
+        inputAmount,
+        user1.address,
+        false,
+        ethers.constants.AddressZero,
+        {
+          value: inputAmount,
+        }
+      );
+    expect(
+      await changesEtherBalancesFuzzy(
+        buyTx,
+        [lsSVMPairFactory, lssvmPairETH, user1],
+        [
+          protocolFee,
+          inputAmount
+            .sub(protocolFee)
+            .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
+          inputAmount.mul(-1),
+        ]
+      )
+    );
+
     expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
     // The pair should accrue trade fees
@@ -202,21 +315,50 @@ describe("LSSVMPairETH", function () {
     // The seller should own the nfts
     await expectAddressToOwnNFTs(user1.address, nft, nftTokenIds);
 
-    // The pair should now own the nft, and transfers ETH to the seller
-    await expect(
-      lssvmPairETH
-        .connect(user1)
-        .swapNFTsForToken(
-          nftTokenIds,
-          outputAmount,
-          user1.address,
-          false,
-          ethers.constants.AddressZero
-        )
-    ).to.changeEtherBalances(
-      [lsSVMPairFactory, lssvmPairETH, user1],
-      [protocolFee, outputAmount.mul(-1).sub(protocolFee), outputAmount]
+    // First calculate the expected sale value + royalty amounts
+    const sellAmounts = await cumulativeSumWithRoyalties(
+      calculateBid,
+      0,
+      nftTokenIds.length,
+      1,
+      lssvmPairETH,
+      curveParams.spotPrice,
+      curveParams.delta,
+      curveParams.props,
+      fee,
+      protocolFee,
+      royaltyNumerator
     );
+    let totalSellRoyalties = 0;
+    sellAmounts.slice(1, undefined).forEach((royalty) => {
+      totalSellRoyalties += royalty;
+    });
+
+    // The pair should now own the nft, and transfers ETH to the seller
+    const sellTx = await lssvmPairETH
+      .connect(user1)
+      .swapNFTsForToken(
+        nftTokenIds,
+        outputAmount,
+        user1.address,
+        false,
+        ethers.constants.AddressZero
+      );
+    expect(
+      await changesEtherBalancesFuzzy(
+        sellTx,
+        [lsSVMPairFactory, lssvmPairETH, user1],
+        [
+          protocolFee,
+          outputAmount
+            .mul(-1)
+            .sub(protocolFee)
+            .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
+          outputAmount,
+        ]
+      )
+    );
+
     await expectAddressToOwnNFTs(lssvmPairETH.address, nft, nftTokenIds);
 
     // The pair should accrue trade fees
@@ -237,6 +379,26 @@ describe("LSSVMPairETH", function () {
       protocolFee,
     ] = await lssvmPairETH.getSellNFTQuote(1);
 
+    // First calculate the expected sale value + royalty amounts
+    let curveParams = await lssvmPairETH.curveParams();
+    const sellAmounts = await cumulativeSumWithRoyalties(
+      calculateBid,
+      0,
+      1,
+      1,
+      lssvmPairETH,
+      curveParams.spotPrice,
+      curveParams.delta,
+      curveParams.props,
+      fee,
+      protocolFee,
+      royaltyNumerator
+    );
+    let totalSellRoyalties = 0;
+    sellAmounts.slice(1, undefined).forEach((royalty) => {
+      totalSellRoyalties += royalty;
+    });
+
     // Send enough ETH to the pair for it to buy the nfts
     await user.sendTransaction({
       to: lssvmPairETH.address,
@@ -247,20 +409,30 @@ describe("LSSVMPairETH", function () {
     expect(await nft.ownerOf(nftTokenIds[0])).to.equal(user1.address);
 
     // The pair should now own the nft, and transfers ETH to the seller
-    await expect(
-      lssvmPairETH
-        .connect(user1)
-        .swapNFTsForToken(
-          [nftTokenIds[0]],
+    const sellTx = await lssvmPairETH
+      .connect(user1)
+      .swapNFTsForToken(
+        [nftTokenIds[0]],
+        outputAmount,
+        user1.address,
+        false,
+        ethers.constants.AddressZero
+      );
+    expect(
+      await changesEtherBalancesFuzzy(
+        sellTx,
+        [lsSVMPairFactory, lssvmPairETH, user1],
+        [
+          protocolFee,
+          outputAmount
+            .mul(-1)
+            .sub(protocolFee)
+            .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
           outputAmount,
-          user1.address,
-          false,
-          ethers.constants.AddressZero
-        )
-    ).to.changeEtherBalances(
-      [lsSVMPairFactory, lssvmPairETH, user1],
-      [protocolFee, outputAmount.mul(-1).sub(protocolFee), outputAmount]
+        ]
+      )
     );
+
     expect(await nft.ownerOf(nftTokenIds[0])).to.equal(lssvmPairETH.address);
 
     // The pair should accrue the trade fees
@@ -289,6 +461,7 @@ describe("LSSVMPairETH", function () {
   });
 
   describe("Withdraw", function () {
+    const nftsToBuy = 1;
     beforeEach(async function () {
       let [
         _error,
@@ -298,27 +471,57 @@ describe("LSSVMPairETH", function () {
         inputAmount,
         tradeFee1,
         protocolFee,
-      ] = await lssvmPairETH.getBuyNFTQuote(1);
+      ] = await lssvmPairETH.getBuyNFTQuote(nftsToBuy);
       const numNFTs = await nft.balanceOf(user1.address);
 
-      // The buyer should transfer ETH to the pair, and now own the nft
-      await expect(
-        lssvmPairETH
-          .connect(user1)
-          .swapTokenForAnyNFTs(
-            1,
-            inputAmount,
-            user1.address,
-            false,
-            ethers.constants.AddressZero,
-            {
-              value: inputAmount,
-            }
-          )
-      ).to.changeEtherBalances(
-        [lsSVMPairFactory, lssvmPairETH, user1],
-        [protocolFee, inputAmount.sub(protocolFee), inputAmount.mul(-1)]
+      let curveParams = await lssvmPairETH.curveParams();
+
+      // First calculate the expected sale value + royalty amounts
+      const buyAmounts = await cumulativeSumWithRoyalties(
+        calculateAsk,
+        0,
+        nftsToBuy,
+        -1,
+        lssvmPairETH,
+        curveParams.spotPrice,
+        curveParams.delta,
+        curveParams.props,
+        fee,
+        protocolFee,
+        royaltyNumerator
       );
+      let totalBuyRoyalties = 0;
+      buyAmounts.slice(1, undefined).forEach((royalty) => {
+        totalBuyRoyalties += royalty;
+      });
+
+      // The buyer should transfer ETH to the pair, and now own the nft
+      const buyTx = await lssvmPairETH
+        .connect(user1)
+        .swapTokenForAnyNFTs(
+          nftsToBuy,
+          inputAmount,
+          user1.address,
+          false,
+          ethers.constants.AddressZero,
+          {
+            value: inputAmount,
+          }
+        );
+      expect(
+        await changesEtherBalancesFuzzy(
+          buyTx,
+          [lsSVMPairFactory, lssvmPairETH, user1],
+          [
+            protocolFee,
+            inputAmount
+              .sub(protocolFee)
+              .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
+            inputAmount.mul(-1),
+          ]
+        )
+      );
+
       expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
       // The pair should accrue trade fees
@@ -335,27 +538,59 @@ describe("LSSVMPairETH", function () {
         tradeFee2,
         protocolFee,
       ] = await lssvmPairETH.getSellNFTQuote(1);
+
       const nftTokenIds = await mintNfts(nft, user1.address);
+
+      // First calculate the expected sale value + royalty amounts
+      curveParams = await lssvmPairETH.curveParams();
+      const sellAmounts = await cumulativeSumWithRoyalties(
+        calculateBid,
+        0,
+        nftTokenIds.length,
+        1,
+        lssvmPairETH,
+        curveParams.spotPrice,
+        curveParams.delta,
+        curveParams.props,
+        fee,
+        protocolFee,
+        royaltyNumerator
+      );
+      let totalSellRoyalties = 0;
+      sellAmounts.slice(1, undefined).forEach((royalty) => {
+        totalSellRoyalties += royalty;
+      });
+
       await nft.connect(user1).setApprovalForAll(lssvmPairETH.address, true);
 
       // The seller should own the nfts
       await expectAddressToOwnNFTs(user1.address, nft, nftTokenIds);
 
       // The pair should now own the nft, and transfers ETH to the seller
-      await expect(
-        lssvmPairETH
-          .connect(user1)
-          .swapNFTsForToken(
-            nftTokenIds,
+      const sellTx = await lssvmPairETH
+        .connect(user1)
+        .swapNFTsForToken(
+          nftTokenIds,
+          outputAmount,
+          user1.address,
+          false,
+          ethers.constants.AddressZero
+        );
+      expect(
+        await changesEtherBalancesFuzzy(
+          sellTx,
+          [lsSVMPairFactory, lssvmPairETH, user1],
+          [
+            protocolFee,
+            outputAmount
+              .mul(-1)
+              .sub(protocolFee)
+              .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
             outputAmount,
-            user1.address,
-            false,
-            ethers.constants.AddressZero
-          )
-      ).to.changeEtherBalances(
-        [lsSVMPairFactory, lssvmPairETH, user1],
-        [protocolFee, outputAmount.mul(-1).sub(protocolFee), outputAmount]
+          ]
+        )
       );
+
       await expectAddressToOwnNFTs(lssvmPairETH.address, nft, nftTokenIds);
 
       // The pair should accrue the trade fees

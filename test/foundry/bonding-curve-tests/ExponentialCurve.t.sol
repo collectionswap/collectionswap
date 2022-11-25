@@ -30,6 +30,7 @@ contract ExponentialCurveTest is DSTest {
         uint256 numItems = 5;
         uint256 feeMultiplier = (FixedPointMathLib.WAD * 5) / 1000; // 0.5%
         uint256 protocolFeeMultiplier = (FixedPointMathLib.WAD * 3) / 1000; // 0.3%
+        uint256 royaltyNumerator = 0;
         (
             CurveErrorCodes.Error error,
             uint256 newSpotPrice,
@@ -37,7 +38,7 @@ contract ExponentialCurveTest is DSTest {
             ,
             uint256 inputValue,
             ,
-            uint256 protocolFee
+            uint256 protocolFee,
         ) = curve.getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -49,6 +50,7 @@ contract ExponentialCurveTest is DSTest {
                 ICurve.FeeMultipliers(
                     feeMultiplier,
                     protocolFeeMultiplier,
+                    royaltyNumerator,
                     0
                 )
             );
@@ -84,7 +86,8 @@ contract ExponentialCurveTest is DSTest {
             ,
             uint256 inputValue,
             ,
-        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0));
+            ,
+        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         uint256 deltaPowN = uint256(delta).fpow(
             numItems,
             FixedPointMathLib.WAD
@@ -130,6 +133,7 @@ contract ExponentialCurveTest is DSTest {
         uint256 numItems = 5;
         uint256 feeMultiplier = (FixedPointMathLib.WAD * 5) / 1000; // 0.5%
         uint256 protocolFeeMultiplier = (FixedPointMathLib.WAD * 3) / 1000; // 0.3%
+        uint256 royaltyNumerator = 0;
         (
             CurveErrorCodes.Error error,
             uint256 newSpotPrice,
@@ -137,7 +141,7 @@ contract ExponentialCurveTest is DSTest {
             ,
             uint256 outputValue,
             ,
-            uint256 protocolFee
+            uint256 protocolFee,
         ) = curve.getSellInfo(
                 ICurve.Params(
                     spotPrice,
@@ -149,6 +153,7 @@ contract ExponentialCurveTest is DSTest {
                 ICurve.FeeMultipliers(
                     feeMultiplier,
                     protocolFeeMultiplier,
+                    royaltyNumerator,
                     0
                 )
             );
@@ -183,7 +188,8 @@ contract ExponentialCurveTest is DSTest {
             ,
             uint256 outputValue,
             ,
-        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0));
+            ,
+        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         assertEq(
             uint256(error),
             uint256(CurveErrorCodes.Error.OK),

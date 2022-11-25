@@ -24,14 +24,35 @@ abstract contract LSSVMPairETH is LSSVMPair {
         bool, /*isRouter*/
         address, /*routerCaller*/
         ILSSVMPairFactoryLike _factory,
-        uint256 protocolFee
+        uint256 protocolFee,
+        RoyaltyDue[] memory royaltiesDue
     ) internal override {
         require(msg.value >= inputAmount, "Sent too little ETH");
+
+        // Pay royalties first to obtain total amount of royalties paid
+        uint256 length = royaltiesDue.length;
+        uint256 totalRoyaltiesPaid;
+        for (uint256 i = 0; i < length;) {
+            RoyaltyDue memory due = royaltiesDue[i];
+            uint256 royaltyAmount = due.amount;
+            totalRoyaltiesPaid += royaltyAmount;
+            if (royaltyAmount > 0) {
+                payable(due.recipient).safeTransferETH(
+                    royaltyAmount
+                );
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
 
         // Transfer inputAmount ETH to assetRecipient if it's been set
         address payable _assetRecipient = getAssetRecipient();
         if (_assetRecipient != address(this)) {
-            _assetRecipient.safeTransferETH(inputAmount - protocolFee);
+            _assetRecipient.safeTransferETH(
+                inputAmount - protocolFee - totalRoyaltiesPaid
+            );
         }
 
         // Take protocol fee
@@ -76,7 +97,8 @@ abstract contract LSSVMPairETH is LSSVMPair {
     /// @inheritdoc LSSVMPair
     function _sendTokenOutput(
         address payable tokenRecipient,
-        uint256 outputAmount
+        uint256 outputAmount,
+        RoyaltyDue[] memory royaltiesDue
     ) internal override {
         // Send ETH to caller
         if (outputAmount > 0) {
@@ -85,6 +107,19 @@ abstract contract LSSVMPairETH is LSSVMPair {
                 "Too little ETH"
             );
             tokenRecipient.safeTransferETH(outputAmount);
+        }
+
+        uint256 length = royaltiesDue.length;
+        for (uint256 i = 0; i < length; ) {
+            RoyaltyDue memory due = royaltiesDue[i];
+            uint256 royaltyAmount = due.amount;
+            if (royaltyAmount > 0) {
+                payable(due.recipient).safeTransferETH(royaltyAmount);
+            }
+
+            unchecked {
+                ++i;
+            }
         }
     }
 

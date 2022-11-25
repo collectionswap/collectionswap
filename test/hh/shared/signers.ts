@@ -11,6 +11,9 @@ export async function getSigners() {
     user2,
     hypotheticalProtocolOwner,
     hypotheticalProtocolFactory,
+    royaltyRecipient0,
+    royaltyRecipient1,
+    royaltyRecipient2,
   ] = await ethers.getSigners();
   return {
     owner,
@@ -22,5 +25,8 @@ export async function getSigners() {
     user2,
     hypotheticalProtocolOwner,
     hypotheticalProtocolFactory,
+    royaltyRecipient0,
+    royaltyRecipient1,
+    royaltyRecipient2,
   };
 }

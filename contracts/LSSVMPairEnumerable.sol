@@ -13,18 +13,17 @@ import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
  */
 abstract contract LSSVMPairEnumerable is LSSVMPair {
     /// @inheritdoc LSSVMPair
-    function _sendAnyNFTsToRecipient(
+    function _selectArbitraryNFTs(
         IERC721 _nft,
-        address nftRecipient,
         uint256 numNFTs
-    ) internal override {
-        // Send NFTs to recipient
+    ) internal view override returns (uint256[] memory tokenIds) {
+        tokenIds = new uint256[](numNFTs);
         // (we know NFT implements IERC721Enumerable so we just iterate)
         uint256 lastIndex = _nft.balanceOf(address(this)) - 1;
         for (uint256 i = 0; i < numNFTs; ) {
             uint256 nftId = IERC721Enumerable(address(_nft))
                 .tokenOfOwnerByIndex(address(this), lastIndex);
-            _nft.safeTransferFrom(address(this), nftRecipient, nftId);
+            tokenIds[i] = nftId;
 
             unchecked {
                 --lastIndex;
@@ -37,7 +36,7 @@ abstract contract LSSVMPairEnumerable is LSSVMPair {
     function _sendSpecificNFTsToRecipient(
         IERC721 _nft,
         address nftRecipient,
-        uint256[] calldata nftIds
+        uint256[] memory nftIds
     ) internal override {
         // Send NFTs to recipient
         uint256 numNFTs = nftIds.length;

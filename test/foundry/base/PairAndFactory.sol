@@ -38,6 +38,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 3e15;
     uint256 constant carryFeeMultiplier = 3e15;
+    uint256 constant royaltyNumerator = 500;
     LSSVMPair pair;
     TestPairManager pairManager;
 
@@ -273,11 +274,11 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_reInitPool() public {
-        pair.initialize(address(0), payable(address(0)), 0, 0, 0, "", "");
+        pair.initialize(address(0), payable(address(0)), 0, 0, 0, "", "", 0);
     }
 
     function testFail_swapForNFTNotInPool() public {
-        (, uint128 newSpotPrice, , , uint256 inputAmount, , ) = bondingCurve
+        (, uint128 newSpotPrice, , , uint256 inputAmount, , , ) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -303,7 +304,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_swapForAnyNFTsPastBalance() public {
-        (, uint128 newSpotPrice, , , uint256 inputAmount, , ) = bondingCurve
+        (, uint128 newSpotPrice, , , uint256 inputAmount, , , ) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -351,7 +352,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
                 ,
                 uint256 inputAmount,
                 ,
-                uint256 protocolFee
+                uint256 protocolFee,
             ) = bondingCurve.getBuyInfo(
                     ICurve.Params(
                         spotPrice,

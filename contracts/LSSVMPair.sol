@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {OwnableWithTransferCallback} from "./lib/OwnableWithTransferCallback.sol";
 import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
@@ -25,6 +27,13 @@ abstract contract LSSVMPair is
         NFT,
         TRADE
     }
+
+    struct RoyaltyDue {
+        uint256 amount;
+        address recipient;
+    }
+
+    bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
     // 90%, must <= 1 - MAX_PROTOCOL_FEE (set in LSSVMPairFactory)
     uint256 internal constant MAX_FEE = 0.90e18;
@@ -57,6 +66,11 @@ abstract contract LSSVMPair is
     // The state used by the pair's bonding curve.
     bytes public state;
 
+    // For every NFT swapped, a fraction of the cost will be sent to the
+    // ERC2981 payable address for the NFT swapped. The fraction is equal to
+    // `royaltyNumerator / 1e18`
+    uint256 public royaltyNumerator;
+
     // Events
     event SwapNFTInPair();
     event SwapNFTOutPair();
@@ -69,21 +83,33 @@ abstract contract LSSVMPair is
     event AssetRecipientChange(address a);
     event PropsUpdate(bytes newProps);
     event StateUpdate(bytes newState);
+    event RoyaltyNumeratorUpdate(uint256 newRoyaltyNumerator);
 
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
 
+    modifier validRoyaltyNumerator(
+        uint256 _royaltyNumerator
+    ) {
+        require(_royaltyNumerator < 1e18, "royaltyNumerator must be < 1e18");
+        _;
+    }
+
     /**
-      @notice Called during pair creation to set initial parameters
-      @dev Only called once by factory to initialize.
-      We verify this by making sure that the current owner is address(0).
-      The Ownable library we use disallows setting the owner to be address(0), so this condition
-      should only be valid before the first initialize call.
-      @param _owner The owner of the pair
-      @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pair during swaps. NOTE: If set to address(0), they will go to the pair itself.
-      @param _delta The initial delta of the bonding curve
-      @param _fee The initial % fee taken, if this is a trade pair
-      @param _spotPrice The initial price to sell an asset into the pair
+        @notice Called during pair creation to set initial parameters
+        @dev Only called once by factory to initialize.
+        We verify this by making sure that the current owner is address(0). 
+        The Ownable library we use disallows setting the owner to be address(0), so this condition
+        should only be valid before the first initialize call. 
+        @param _owner The owner of the pair
+        @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pair during swaps. NOTE: If set to address(0), they will go to the pair itself.
+        @param _delta The initial delta of the bonding curve
+        @param _fee The initial % fee taken, if this is a trade pair 
+        @param _spotPrice The initial price to sell an asset into the pair
+        @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
+        being sent to the account to which the traded NFT's royalties are awardable.
+        Must be 0 if `_nft` is not IERC2981. Should be enforced by factory so not
+        checked here
      */
     function initialize(
         address _owner,
@@ -92,8 +118,9 @@ abstract contract LSSVMPair is
         uint96 _fee,
         uint128 _spotPrice,
         bytes calldata _props,
-        bytes calldata _state
-    ) external payable {
+        bytes calldata _state,
+        uint256 _royaltyNumerator
+    ) external payable validRoyaltyNumerator(_royaltyNumerator) {
         require(owner() == address(0), "Initialized");
         __Ownable_init(_owner);
         __ReentrancyGuard_init();
@@ -123,6 +150,7 @@ abstract contract LSSVMPair is
         spotPrice = _spotPrice;
         props = _props;
         state = _state;
+        royaltyNumerator = _royaltyNumerator;
     }
 
     /**
@@ -171,7 +199,8 @@ abstract contract LSSVMPair is
         // Call bonding curve for pricing information
         uint256 _tradeFee;
         uint256 protocolFee;
-        (_tradeFee, protocolFee, inputAmount) = _calculateBuyInfoAndUpdatePoolParams(
+        uint256[] memory royaltyAmounts;
+        (_tradeFee, protocolFee, inputAmount, royaltyAmounts) = _calculateBuyInfoAndUpdatePoolParams(
             numNFTs,
             maxExpectedTokenInput,
             _bondingCurve,
@@ -179,16 +208,19 @@ abstract contract LSSVMPair is
         );
 
         tradeFee += _tradeFee;
-
+        uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
+        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(_nft, tokenIds, royaltyAmounts);
+        
         _pullTokenInputAndPayProtocolFee(
             inputAmount,
             isRouter,
             routerCaller,
             _factory,
-            protocolFee
+            protocolFee,
+            royaltiesDue
         );
 
-        _sendAnyNFTsToRecipient(_nft, nftRecipient, numNFTs);
+        _sendSpecificNFTsToRecipient(_nft, nftRecipient, tokenIds);
 
         _refundTokenToSender(inputAmount);
 
@@ -234,7 +266,8 @@ abstract contract LSSVMPair is
         // Call bonding curve for pricing information
         uint256 _tradeFee;
         uint256 protocolFee;
-        (_tradeFee, protocolFee, inputAmount) = _calculateBuyInfoAndUpdatePoolParams(
+        uint256[] memory royaltyAmounts;
+        (_tradeFee, protocolFee, inputAmount, royaltyAmounts) = _calculateBuyInfoAndUpdatePoolParams(
             nftIds.length,
             maxExpectedTokenInput,
             _bondingCurve,
@@ -242,13 +275,15 @@ abstract contract LSSVMPair is
         );
 
         tradeFee += _tradeFee;
+        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nftIds, royaltyAmounts);
 
         _pullTokenInputAndPayProtocolFee(
             inputAmount,
             isRouter,
             routerCaller,
             _factory,
-            protocolFee
+            protocolFee,
+            royaltiesDue
         );
 
         _sendSpecificNFTsToRecipient(nft(), nftRecipient, nftIds);
@@ -295,7 +330,8 @@ abstract contract LSSVMPair is
         // Call bonding curve for pricing information
         uint256 _tradeFee;
         uint256 protocolFee;
-        (_tradeFee, protocolFee, outputAmount) = _calculateSellInfoAndUpdatePoolParams(
+        uint256[] memory royaltyAmounts;
+        (_tradeFee, protocolFee, outputAmount, royaltyAmounts) = _calculateSellInfoAndUpdatePoolParams(
             nftIds.length,
             minExpectedTokenOutput,
             _bondingCurve,
@@ -305,7 +341,9 @@ abstract contract LSSVMPair is
         // Accrue trade fees before sending token output. This ensures that the balance is always sufficient for trade fee withdrawal.
         tradeFee += _tradeFee;
 
-        _sendTokenOutput(tokenRecipient, outputAmount);
+        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nftIds, royaltyAmounts);
+
+        _sendTokenOutput(tokenRecipient, outputAmount, royaltiesDue);
 
         _payProtocolFeeFromPair(_factory, protocolFee);
 
@@ -342,7 +380,8 @@ abstract contract LSSVMPair is
             newState,
             inputAmount,
             _tradeFee,
-            protocolFee
+            protocolFee,
+            
         ) = bondingCurve().getBuyInfo(
             curveParams(),
             numNFTs,
@@ -374,7 +413,8 @@ abstract contract LSSVMPair is
             newState,
             outputAmount,
             _tradeFee,
-            protocolFee
+            protocolFee,
+
         ) = bondingCurve().getSellInfo(
             curveParams(),
             numNFTs,
@@ -492,6 +532,7 @@ abstract contract LSSVMPair is
         return ICurve.FeeMultipliers(
             fee,
             protocolFeeMultiplier,
+            royaltyNumerator,
             carryFeeMultiplier
         );
     }
@@ -514,8 +555,13 @@ abstract contract LSSVMPair is
         uint256 numNFTs,
         uint256 maxExpectedTokenInput,
         ICurve _bondingCurve,
-        ILSSVMPairFactoryLike _factory
-    ) internal returns (uint256 _tradeFee, uint256 protocolFee, uint256 inputAmount) {
+        ILSSVMPairFactoryLike
+    ) internal returns (
+        uint256 _tradeFee,
+        uint256 protocolFee, 
+        uint256 inputAmount,
+        uint256[] memory royaltyAmounts
+    ) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
@@ -526,7 +572,8 @@ abstract contract LSSVMPair is
             newParams.state,
             inputAmount,
             _tradeFee,
-            protocolFee
+            protocolFee,
+            royaltyAmounts
         ) = _bondingCurve.getBuyInfo(
             params,
             numNFTs,
@@ -579,7 +626,12 @@ abstract contract LSSVMPair is
         uint256 minExpectedTokenOutput,
         ICurve _bondingCurve,
         ILSSVMPairFactoryLike _factory
-    ) internal returns (uint256 _tradeFee, uint256 protocolFee, uint256 outputAmount) {
+    ) internal returns (
+        uint256 _tradeFee,
+        uint256 protocolFee, 
+        uint256 outputAmount, 
+        uint256[] memory royaltyAmounts
+    ) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
@@ -590,7 +642,8 @@ abstract contract LSSVMPair is
             newParams.state,
             outputAmount,
             _tradeFee,
-            protocolFee
+            protocolFee,
+            royaltyAmounts
         ) = _bondingCurve.getSellInfo(
             params,
             numNFTs,
@@ -638,13 +691,15 @@ abstract contract LSSVMPair is
         @param routerCaller If called from LSSVMRouter, store the original caller
         @param _factory The LSSVMPairFactory which stores LSSVMRouter allowlist info
         @param protocolFee The protocol fee to be paid
+        @param royaltyAmounts An array of royalties to pay
      */
     function _pullTokenInputAndPayProtocolFee(
         uint256 inputAmount,
         bool isRouter,
         address routerCaller,
         ILSSVMPairFactoryLike _factory,
-        uint256 protocolFee
+        uint256 protocolFee,
+        RoyaltyDue[] memory royaltyAmounts
     ) internal virtual;
 
     /**
@@ -663,28 +718,26 @@ abstract contract LSSVMPair is
     ) internal virtual;
 
     /**
-        @notice Sends tokens to a recipient
+        @notice Sends tokens to a recipient and pays royalties owed
         @param tokenRecipient The address receiving the tokens
         @param outputAmount The amount of tokens to send
+        @param royaltiesDue An array of royalties to pay
      */
     function _sendTokenOutput(
         address payable tokenRecipient,
-        uint256 outputAmount
+        uint256 outputAmount,
+        RoyaltyDue[] memory royaltiesDue
     ) internal virtual;
 
     /**
-        @notice Sends some number of NFTs to a recipient address, ID agnostic
-        @dev Even though we specify the NFT address here, this internal function is only
-        used to send NFTs associated with this specific pool.
-        @param _nft The address of the NFT to send
-        @param nftRecipient The receiving address for the NFTs
-        @param numNFTs The number of NFTs to send
+     * @notice Select arbitrary NFTs from pool
+     * @param _nft The address of the NFT to send
+     * @param numNFTs The number of NFTs to send  
      */
-    function _sendAnyNFTsToRecipient(
+    function _selectArbitraryNFTs(
         IERC721 _nft,
-        address nftRecipient,
         uint256 numNFTs
-    ) internal virtual;
+    ) internal virtual returns (uint256[] memory tokenIds);
 
     /**
         @notice Sends specific NFTs to a recipient address
@@ -697,7 +750,7 @@ abstract contract LSSVMPair is
     function _sendSpecificNFTsToRecipient(
         IERC721 _nft,
         address nftRecipient,
-        uint256[] calldata nftIds
+        uint256[] memory nftIds
     ) internal virtual;
 
     /**
@@ -922,6 +975,13 @@ abstract contract LSSVMPair is
         }
     }
 
+    function changeRoyaltyNumerator(uint256 newRoyaltyNumerator) external onlyOwner validRoyaltyNumerator(newRoyaltyNumerator) {
+        require(IERC165(nft()).supportsInterface(_INTERFACE_ID_ERC2981), "NFT not ERC2981");
+        royaltyNumerator = feeMultipliers().royaltyNumerator;
+        royaltyNumerator = newRoyaltyNumerator;
+        emit RoyaltyNumeratorUpdate(newRoyaltyNumerator);
+    }
+
     /**
         @notice Allows the pair to make arbitrary external calls to contracts
         whitelisted by the protocol. Only callable by the owner.
@@ -985,5 +1045,28 @@ abstract contract LSSVMPair is
             _returnData := add(_returnData, 0x04)
         }
         return abi.decode(_returnData, (string)); // All that remains is the revert string
+    }
+
+    function _getRoyaltiesDue(
+        IERC721 _nft, 
+        uint256[] memory nftIds, 
+        uint256[] memory royaltyAmounts
+    ) private view returns (RoyaltyDue[] memory royaltiesDue) {
+        uint256 length = royaltyAmounts.length;
+        royaltiesDue = new RoyaltyDue[](length);
+        if (royaltyNumerator != 0) {
+            /// Implies that the token supports IERC2981
+            for (uint256 i = 0; i < length; ) {
+                address recipient;
+                (recipient, ) = IERC2981(address(_nft)).royaltyInfo(nftIds[i], 0);
+                royaltiesDue[i] = RoyaltyDue({
+                    amount: royaltyAmounts[i], recipient: recipient
+                });
+
+                unchecked {
+                    ++i;
+                }
+            }
+        }
     }
 }

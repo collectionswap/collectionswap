@@ -77,6 +77,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
                 uint128(value),
                 "",
                 "",
+                0,
                 idList
             )
         );
@@ -87,7 +88,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
         uint256 numItems = 0;
 
         // act
-        (CurveErrorCodes.Error error, , , , , , ) = curve.getBuyInfo(
+        (CurveErrorCodes.Error error, , , , , , , ) = curve.getBuyInfo(
             ICurve.Params(
                 0,
                 0,
@@ -96,6 +97,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             ),
             numItems,
             ICurve.FeeMultipliers(
+                0,
                 0,
                 0,
                 0
@@ -115,7 +117,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
         uint256 numItems = 0;
 
         // act
-        (CurveErrorCodes.Error error, , , , , , ) = curve.getSellInfo(
+        (CurveErrorCodes.Error error, , , , , , , ) = curve.getSellInfo(
             ICurve.Params(
                 0,
                 0,
@@ -124,6 +126,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
             ),
             numItems,
             ICurve.FeeMultipliers(
+                0,
                 0,
                 0,
                 0

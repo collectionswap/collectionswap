@@ -81,13 +81,14 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             bytes memory newState,
             uint256 inputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         )
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         uint256 deltaPowN = uint256(params.delta).fpow(
@@ -95,15 +96,15 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             FixedPointMathLib.WAD
         );
 
-            // For an exponential curve, the spot price is multiplied by delta for each item bought
-            uint256 newSpotPrice_ = uint256(params.spotPrice).fmul(
-                deltaPowN,
-                FixedPointMathLib.WAD
-            );
-            if (newSpotPrice_ > type(uint128).max) {
-                return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0, 0);
-            }
-            newSpotPrice = uint128(newSpotPrice_);
+        // For an exponential curve, the spot price is multiplied by delta for each item bought
+        uint256 newSpotPrice_ = uint256(params.spotPrice).fmul(
+            deltaPowN,
+            FixedPointMathLib.WAD
+        );
+        if (newSpotPrice_ > type(uint128).max) {
+            return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0, 0, new uint256[](0));
+        }
+        newSpotPrice = uint128(newSpotPrice_);
 
         // Spot price is assumed to be the instant sell price. To avoid arbitraging LPs, we adjust the buy price upwards.
         // If spot price for buy and sell were the same, then someone could buy 1 NFT and then sell for immediate profit.
@@ -141,8 +142,35 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
         tradeFee -= carryFee;
         protocolFee += carryFee;
 
+        // Royalties are fixed per pool so we can just take a fraction of the
+        // total transacted value
+        uint256 totalRoyalties;
+        totalRoyalties = inputValue.fmul(
+            feeMultipliers.royaltyNumerator,
+            FixedPointMathLib.WAD
+        );
+        royaltyAmounts = new uint256[](numItems);
+        uint256 totalRoyalty;
+        uint256 royaltyAmount;
+        for (uint256 i = 0; i < numItems; ) {
+            uint256 deltaPowI = uint256(params.delta).fpow(
+                i,
+                FixedPointMathLib.WAD
+            );
+            royaltyAmount = (buySpotPrice * deltaPowI).fmul(
+                feeMultipliers.royaltyNumerator,
+                FixedPointMathLib.WAD * FixedPointMathLib.WAD // (delta ^ i) is still in units of ether 
+            );
+            royaltyAmounts[i] = royaltyAmount;
+            totalRoyalty += royaltyAmount;
+
+            unchecked {
+                ++i;
+            }
+        }
+
         // Add the fees to the required input amount
-        inputValue += tradeFee + protocolFee;
+        inputValue += tradeFee + protocolFee + totalRoyalty;
 
         // Keep delta the same
         newDelta = params.delta;
@@ -175,14 +203,15 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             bytes memory newState,
             uint256 outputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         )
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
 
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         uint256 invDelta = FixedPointMathLib.WAD.fdiv(
@@ -225,9 +254,30 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
         uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
         tradeFee -= carryFee;
         protocolFee += carryFee;
+        
+        royaltyAmounts = new uint256[](numItems);
+        uint256 totalRoyalty;
+        uint256 royaltyAmount;
+        for (uint256 i = 0; i < numItems; ) {
+            uint256 invDeltaPowI = invDelta.fpow(
+                i,
+                FixedPointMathLib.WAD
+            );
+            royaltyAmount = (params.spotPrice * invDeltaPowI).fmul(
+                feeMultipliers.royaltyNumerator,
+                FixedPointMathLib.WAD * FixedPointMathLib.WAD // (delta ^ i) is still in units of ether
+            );
+            royaltyAmounts[i] = royaltyAmount;
+            totalRoyalty += royaltyAmount;
 
-        // Remove the protocol fee from the output amount
-        outputValue -= tradeFee + protocolFee;
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Account for the trade fee (only for Trade pools), protocol fee, and
+        // royalties
+        outputValue -= tradeFee + protocolFee + totalRoyalty;
 
         // Keep delta the same
         newDelta = params.delta;

@@ -35,6 +35,7 @@ export function getCurveParameters(): {
   fee: string;
   protocolFee: string;
   carryFee: string;
+  royaltyNumerator: string;
 } {
   const {
     bigPctProtocolFee,
@@ -47,6 +48,7 @@ export function getCurveParameters(): {
     rawProps,
     rawStateTypes,
     rawState,
+    royaltyNumerator,
   } = config;
 
   const { props, state } = parsePropsAndState(
@@ -65,6 +67,7 @@ export function getCurveParameters(): {
     fee: bigPctFee,
     protocolFee: bigPctProtocolFee,
     carryFee: bigPctCarryFee,
+    royaltyNumerator,
   };
 }
 
@@ -86,6 +89,7 @@ export async function integrationFixture() {
     spotPrice: bigSpot,
     props,
     state,
+    royaltyNumerator,
   } = getCurveParameters();
 
   return {
@@ -107,6 +111,7 @@ export async function integrationFixture() {
     bigPctFee,
     props,
     state,
+    royaltyNumerator,
   };
 }
 
@@ -165,9 +170,9 @@ export async function rewardTokenFixture() {
 }
 
 export async function nftFixture() {
-  const NFT = await ethers.getContractFactory("ERC721PresetMinterPauserAutoId");
-  const nft = await NFT.deploy("NFT", "NFT", "");
-  return { nft };
+  const MyERC721 = await ethers.getContractFactory("Test721Enumerable");
+  const myERC721 = await MyERC721.deploy();
+  return { nft: myERC721 };
 }
 
 export async function lsSVMFixture() {
@@ -281,6 +286,7 @@ export async function everythingFixture() {
     rawSpot,
     props,
     state,
+    royaltyNumerator,
   } = getCurveParameters();
 
   const LSSVMPairFactory = await ethers.getContractFactory("LSSVMPairFactory");
@@ -340,6 +346,10 @@ export async function everythingFixture() {
   const collectionswap = await Collectionswap.deploy(lssvmPairFactory.address);
   // Console.log(`Collectionswap deployed to ${collectionswap.address}`)
 
+  const delta = stringToBigNumber(bigDelta);
+  const fee = stringToBigNumber(bigPctFee);
+  const spotPrice = stringToBigNumber(bigSpot);
+
   const ret = {
     collectionswap,
     lssvmPairFactory,
@@ -359,6 +369,7 @@ export async function everythingFixture() {
     rawSpot,
     props,
     state,
+    royaltyNumerator,
     otherAccount0,
     otherAccount1,
     otherAccount2,
@@ -366,97 +377,24 @@ export async function everythingFixture() {
     otherAccount4,
     otherAccount5,
     nftContractCollection1155,
+    // Intentionally left out initialNFTIDs. Set NFT IDs explicitly to prevent
+    // screwups
+    ethPoolParams: {
+      nft: nftContractCollection.address,
+      bondingCurve: curve.address,
+      assetRecipient,
+      poolType,
+      delta,
+      fee,
+      spotPrice,
+      props,
+      state,
+      royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
+    },
+    ...(await royaltyFixture()),
   };
 
   return ret;
-}
-
-export async function rewardPoolETHAtomicFixture() {
-  // Let lpTokenId: BigNumberish;
-  // let lpTokenId1: BigNumberish;
-  const { owner, user, user1, collection } = await getSigners();
-
-  let { collectionswap, curve } = await collectionswapFixture();
-  const allRewardTokens = await rewardTokenFixture();
-  const rewardTokens = allRewardTokens.slice(0, NUM_REWARD_TOKENS);
-  let { nft } = await nftFixture();
-
-  const startTime = (await time.latest()) + 1000;
-  const endTime = startTime + REWARD_DURATION;
-  const rewardRates = REWARDS.map((reward) => reward.div(endTime - startTime));
-  // EndTime = startTime - 1000
-  // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
-
-  const RewardPool = await ethers.getContractFactory("RewardPoolETH");
-  let rewardPool = await RewardPool.connect(collectionswap.signer).deploy();
-
-  const { delta, fee, spotPrice, props, state } = getCurveParameters();
-  await rewardPool.initialize(
-    collection.address,
-    owner.address,
-    collectionswap.address,
-    nft.address,
-    curve.address,
-    delta,
-    fee,
-    rewardTokens.map((rewardToken) => rewardToken.address),
-    rewardRates,
-    startTime,
-    endTime
-  );
-
-  for (let i = 0; i < NUM_REWARD_TOKENS; i++) {
-    await rewardTokens[i].mint(rewardPool.address, REWARDS[i]);
-  }
-
-  const nftTokenIds = await mintNfts(nft, user.address);
-
-  collectionswap = collectionswap.connect(user);
-  nft = nft.connect(user);
-  rewardPool = rewardPool.connect(user);
-
-  const params = {
-    bondingCurve: curve as unknown as ICurve,
-    delta,
-    fee,
-    spotPrice,
-    props,
-    state,
-    value: ethers.utils.parseEther("2"),
-  };
-
-  // Const { lpTokenId } = await createPairEth(collectionswap, {
-  //   ...params,
-  //   nft: nft as unknown as IERC721,
-  //   nftTokenIds,
-  // });
-
-  // Const { lpTokenId: lpTokenId1 } = await createPairEth(
-  //   collectionswap.connect(user1),
-  //   {
-  //     ...params,
-  //     nft: nft.connect(user1) as unknown as IERC721,
-  //     nftTokenIds: nftTokenIds1,
-  //   }
-  // );
-
-  return {
-    collectionswap,
-    allRewardTokens,
-    rewardTokens,
-    rewards: REWARDS,
-    nft,
-    curve,
-    params,
-    // LpTokenId,
-    // lpTokenId1,
-    rewardPool,
-    owner,
-    user,
-    user1,
-    collection,
-    nftTokenIds,
-  };
 }
 
 export async function rewardPoolFixture() {
@@ -473,7 +411,8 @@ export async function rewardPoolFixture() {
   const rewardRates = REWARDS.map((reward) => reward.div(endTime - startTime));
   // EndTime = startTime - 1000
   // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
-  const { delta, fee, spotPrice, props, state } = getCurveParameters();
+  const { delta, fee, spotPrice, props, state, royaltyNumerator } =
+    getCurveParameters();
 
   const RewardPool = await ethers.getContractFactory("RewardPoolETH");
   let rewardPool = await RewardPool.connect(collectionswap.signer).deploy();
@@ -517,6 +456,7 @@ export async function rewardPoolFixture() {
     spotPrice,
     props,
     state,
+    royaltyNumerator,
     value: ethers.utils.parseEther("2"),
   };
 
@@ -562,4 +502,32 @@ export async function validatorFixture() {
     await MonotonicIncreasingValidator.deploy();
 
   return { monotonicIncreasingValidator };
+}
+
+/**
+ * A fixture providing an array of n NFTs and n royaltyRecipients. Note that
+ * the ERC2981 royaltyInfo for this collection always returns 0 for amount as
+ * it is not used.
+ */
+export async function royaltyFixture() {
+  // Generic NFT collection implementing 2981 and allowing recipient setting
+  const { nft } = await nftFixture();
+  // Tokens will be minted to `owner` and royalties awardable to royaltyRecipients
+  const { owner, royaltyRecipient0, royaltyRecipient1, royaltyRecipient2 } =
+    await getSigners();
+
+  const nftsWithRoyalty = await mintNfts(nft, owner.address, 3);
+  const recipients = [royaltyRecipient0, royaltyRecipient1, royaltyRecipient2];
+  await Promise.all(
+    nftsWithRoyalty.map((tokenId, index) =>
+      nft.setRoyaltyRecipient(tokenId, recipients[index].address)
+    )
+  );
+
+  return {
+    nftCollectionWithRoyalties: nft,
+    initialOwner: owner,
+    recipients,
+    tokenIds: nftsWithRoyalty,
+  };
 }

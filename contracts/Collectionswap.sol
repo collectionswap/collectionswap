@@ -178,6 +178,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
         uint128 _spotPrice,
         bytes calldata _props,
         bytes calldata _state,
+        uint256 _royaltyNumerator,
         uint256[] calldata _initialNFTIDs
     ) external payable nonReentrant returns (ILSSVMPairETH newPair, uint256 newTokenId) {
         if (_user != msg.sender)
@@ -197,6 +198,7 @@ contract Collectionswap is OwnableWithTransferCallback, ERC1155Holder, ERC721, E
                 _spotPrice,
                 _props,
                 _state,
+                _royaltyNumerator,
                 _emptyInitialNFTIDs
             )
         );

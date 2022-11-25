@@ -25,7 +25,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
     /**
         @dev See {ICurve-validateDelta}
      */
-    function validateDelta(uint128 delta)
+    function validateDelta(uint128)
         external
         pure
         override
@@ -38,7 +38,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
     /**
         @dev See {ICurve-validateSpotPrice}
      */
-    function validateSpotPrice(uint128 newSpotPrice)
+    function validateSpotPrice(uint128)
         external
         pure
         override
@@ -86,11 +86,12 @@ contract XykCurve is ICurve, CurveErrorCodes {
             bytes memory newState,
             uint256 inputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         )
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         // get the pair's virtual nft and eth/erc20 reserves
@@ -99,7 +100,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
 
         // If numItems is too large, we will get divide by zero error
         if (numItems >= nftBalance) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         // calculate the amount to send in
@@ -111,15 +112,36 @@ contract XykCurve is ICurve, CurveErrorCodes {
             feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
+
         tradeFee = inputValueWithoutFee.fmul(
             feeMultipliers.trade,
             FixedPointMathLib.WAD
         );
+
         // Account for the carry fee, only for Trade pools
         uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
         tradeFee -= carryFee;
         protocolFee += carryFee;
-        inputValue = inputValueWithoutFee + tradeFee + protocolFee;
+
+        royaltyAmounts = new uint256[](numItems);
+        // For XYK, every item has the same price so royalties have the same value
+        uint256 royaltyAmount = (inputValueWithoutFee / numItems).fmul(
+            feeMultipliers.royaltyNumerator,
+            FixedPointMathLib.WAD
+        );
+        for (uint256 i = 0; i < numItems; ) {
+            royaltyAmounts[i] = royaltyAmount;
+
+            unchecked {
+                ++i;
+            }
+        }
+        // Get the total royalties after accounting for integer division
+        uint256 totalRoyalties = royaltyAmount * numItems;
+
+        // Account for the trade fee (only for Trade pools), protocol fee, and
+        // royalties
+        inputValue = inputValueWithoutFee + tradeFee + protocolFee + totalRoyalties;
 
         // set the new virtual reserves
         newSpotPrice = uint128(params.spotPrice + inputValueWithoutFee); // token reserve
@@ -150,11 +172,12 @@ contract XykCurve is ICurve, CurveErrorCodes {
             bytes memory newState,
             uint256 outputValue,
             uint256 tradeFee,
-            uint256 protocolFee
+            uint256 protocolFee,
+            uint256[] memory royaltyAmounts
         )
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0);
+            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
         }
 
         // get the pair's virtual nft and eth/erc20 balance
@@ -170,15 +193,36 @@ contract XykCurve is ICurve, CurveErrorCodes {
             feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
+
         tradeFee = outputValueWithoutFee.fmul(
             feeMultipliers.trade,
             FixedPointMathLib.WAD
         );
+
         // Account for the carry fee, only for Trade pools
         uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
         tradeFee -= carryFee;
         protocolFee += carryFee;
-        outputValue = outputValueWithoutFee - tradeFee - protocolFee;
+        
+        royaltyAmounts = new uint256[](numItems);
+        // For XYK, every item has the same price so royalties have the same value
+        uint256 royaltyAmount = (outputValueWithoutFee / numItems).fmul(
+            feeMultipliers.royaltyNumerator,
+            FixedPointMathLib.WAD
+        );
+        for (uint256 i = 0; i < numItems; ) {
+            royaltyAmounts[i] = royaltyAmount;
+
+            unchecked {
+                ++i;
+            }
+        }
+        // Get the total royalties after accounting for integer division
+        uint256 totalRoyalties = royaltyAmount * numItems;
+
+        // Account for the trade fee (only for Trade pools), protocol fee, and
+        // royalties
+        outputValue = outputValueWithoutFee - tradeFee - protocolFee - totalRoyalties;
 
         // set the new virtual reserves
         newSpotPrice = uint128(params.spotPrice - outputValueWithoutFee); // token reserve

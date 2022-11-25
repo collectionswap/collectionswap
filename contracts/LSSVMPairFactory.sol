@@ -23,12 +23,14 @@ import {LSSVMPairEnumerableETH} from "./LSSVMPairEnumerableETH.sol";
 import {LSSVMPairEnumerableERC20} from "./LSSVMPairEnumerableERC20.sol";
 import {LSSVMPairMissingEnumerableETH} from "./LSSVMPairMissingEnumerableETH.sol";
 import {LSSVMPairMissingEnumerableERC20} from "./LSSVMPairMissingEnumerableERC20.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
 contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
     using LSSVMPairCloner for address;
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
 
+    bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
     bytes4 private constant INTERFACE_ID_ERC721_ENUMERABLE =
         type(IERC721Enumerable).interfaceId;
 
@@ -104,6 +106,9 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         on the specific curve.
         @param _fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
         @param _spotPrice The initial selling spot price
+        @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
+        being sent to the account to which the traded NFT's royalties are awardable.
+        Must be 0 if `_nft` is not IERC2981.
         @param _initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pair
         @return pair The new pair
      */
@@ -117,6 +122,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         uint128 spotPrice;
         bytes props;
         bytes state;
+        uint256 royaltyNumerator;
         uint256[] initialNFTIDs;
     }
 
@@ -128,6 +134,11 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
             "Bonding curve not whitelisted"
         );
 
+        require(
+            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981),
+            "Nonzero royalty for non ERC2981"
+        );
+        
         // Check to see if the NFT supports Enumerable to determine which template to use
         address template;
         try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
@@ -167,6 +178,9 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         on the specific curve.
         @param _fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
         @param _spotPrice The initial selling spot price, in ETH
+        @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
+        being sent to the account to which the traded NFT's royalties are awardable.
+        Must be 0 if `_nft` is not IERC2981.
         @param _initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pair
         @param _initialTokenBalance The initial token balance sent from the sender to the new pair
         @return pair The new pair
@@ -182,6 +196,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         uint128 spotPrice;
         bytes props;
         bytes state;
+        uint256 royaltyNumerator;
         uint256[] initialNFTIDs;
         uint256 initialTokenBalance;
     }
@@ -193,6 +208,11 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         require(
             bondingCurveAllowed[params.bondingCurve],
             "Bonding curve not whitelisted"
+        );
+
+        require(
+            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981),
+            "Nonzero royalty for non ERC2981"
         );
 
         // Check to see if the NFT supports Enumerable to determine which template to use
@@ -402,7 +422,16 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         CreateETHPairParams calldata _params
     ) internal {
         // initialize pair
-        _pair.initialize(msg.sender, _params.assetRecipient, _params.delta, _params.fee, _params.spotPrice, _params.props, _params.state);
+        _pair.initialize(
+            msg.sender, 
+            _params.assetRecipient, 
+            _params.delta, 
+            _params.fee, 
+            _params.spotPrice, 
+            _params.props, 
+            _params.state, 
+            _params.royaltyNumerator
+        );
 
         // transfer initial ETH to pair
         payable(address(_pair)).safeTransferETH(msg.value);
@@ -427,7 +456,16 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         CreateERC20PairParams calldata _params
     ) internal {
         // initialize pair
-        _pair.initialize(msg.sender, _params.assetRecipient, _params.delta, _params.fee, _params.spotPrice, _params.props, _params.state);
+        _pair.initialize(
+            msg.sender, 
+            _params.assetRecipient, 
+            _params.delta, 
+            _params.fee, 
+            _params.spotPrice, 
+            _params.props, 
+            _params.state, 
+            _params.royaltyNumerator
+        );
 
         // transfer initial tokens to pair
         _params.token.safeTransferFrom(
