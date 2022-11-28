@@ -81,6 +81,8 @@ async function sellToPool(
     .connect(externalTrader)
     .swapNFTsForToken(
       [nftToSell],
+      [],
+      [],
       bidInputAmount,
       externalTrader.address,
       false,
@@ -553,6 +555,8 @@ describe("Collectionswap", function () {
           .connect(externalTrader)
           .swapNFTsForToken(
             externalTraderNftsIHave,
+            [],
+            [],
             bidInputAmount,
             externalTrader.address,
             false,
@@ -617,7 +621,6 @@ describe("Collectionswap", function () {
       );
 
       let poolBalance = await ethers.provider.getBalance(lssvmPairETH.address);
-      console.log("balance of pair", poolBalance);
       await nftContractCollection
         .connect(externalTrader)
         .setApprovalForAll(lssvmPairETH.address, true);
@@ -636,6 +639,8 @@ describe("Collectionswap", function () {
           .connect(externalTrader)
           .swapNFTsForToken(
             [222],
+            [],
+            [],
             bidInputAmount,
             externalTrader.address,
             false,
@@ -666,11 +671,6 @@ describe("Collectionswap", function () {
           lssvmPairETH.address
         );
         expect(newBalance.gt(poolBalance)).to.be.true;
-        console.log(
-          "balance of pair",
-          i,
-          await ethers.provider.getBalance(lssvmPairETH.address)
-        );
 
         poolBalance = newBalance;
       }
@@ -1377,6 +1377,8 @@ describe("Collectionswap", function () {
           .connect(externalTrader)
           .swapNFTsForToken(
             externalTraderNftsIHave,
+            [],
+            [],
             bidInputAmount,
             externalTrader.address,
             false,
@@ -1393,6 +1395,8 @@ describe("Collectionswap", function () {
           .connect(externalTrader)
           .swapNFTsForToken(
             externalTraderNftsIHave,
+            [],
+            [],
             bidInputAmount,
             externalTrader.address,
             false,

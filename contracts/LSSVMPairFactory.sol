@@ -146,6 +146,81 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
     }
 
     /**
+        @notice Creates a filtered pair contract using EIP-1167.
+        @param _nft The NFT contract of the collection the pair trades
+        @param _bondingCurve The bonding curve for the pair to price NFTs, must be whitelisted
+        @param _assetRecipient The address that will receive the assets traders give during trades.
+        If set to address(0), assets will be sent to the pool address.
+        Not available to TRADE pools.
+        @param _poolType TOKEN, NFT, or TRADE
+        @param _delta The delta value used by the bonding curve. The meaning of delta depends
+        on the specific curve.
+        @param _fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
+        @param _spotPrice The initial selling spot price
+        @param _merkleRoot Merkle root for NFT ID filter
+        @param _encodedTokenIDs Encoded list of acceptable NFT IDs
+        @param _spotPrice The initial selling spot price
+        @param _initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pair
+        @param _initialProof Merkle multiproof for initial NFT IDs
+        @param _initialProofFlags Merkle multiproof flags for initial NFT IDs
+        @return pair The new pair
+     */
+    function createPairETHFiltered(
+        IERC721 _nft,
+        ICurve _bondingCurve,
+        address payable _assetRecipient,
+        LSSVMPair.PoolType _poolType,
+        uint128 _delta,
+        uint96 _fee,
+        uint128 _spotPrice,
+        bytes32 _merkleRoot,
+        bytes calldata _encodedTokenIDs,
+        uint256[] calldata _initialNFTIDs,
+        bytes32[] calldata _initialProof,
+        bool[] calldata _initialProofFlags
+    ) external payable returns (LSSVMPairETH pair) {
+        require(
+            bondingCurveAllowed[_bondingCurve],
+            "Bonding curve not whitelisted"
+        );
+
+        // Check to see if the NFT supports Enumerable to determine which template to use
+        address template;
+        try IERC165(address(_nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
+          template = isEnumerable ? address(enumerableETHTemplate)
+            : address(missingEnumerableETHTemplate);
+        } catch {
+          template = address(missingEnumerableETHTemplate);
+        }
+
+        pair = LSSVMPairETH(
+            payable(
+                template.cloneETHPair(
+                    this,
+                    _bondingCurve,
+                    _nft,
+                    uint8(_poolType)
+                )
+            )
+        );
+
+        _initializePairETHFiltered(
+            pair,
+            _nft,
+            _assetRecipient,
+            _delta,
+            _fee,
+            _spotPrice,
+            _merkleRoot,
+            _encodedTokenIDs,
+            _initialNFTIDs,
+            _initialProof,
+            _initialProofFlags
+        );
+        emit NewPair(address(pair));
+    }
+
+    /**
         @notice Creates a pair contract using EIP-1167.
         @param _nft The NFT contract of the collection the pair trades
         @param _bondingCurve The bonding curve for the pair to price NFTs, must be whitelisted
@@ -215,6 +290,92 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
             params.initialNFTIDs,
             params.initialTokenBalance
         );
+        emit NewPair(address(pair));
+    }
+
+    struct InitialNFTs {
+        uint256[] ids;
+        bytes32[] proof;
+        bool[] proofFlags;
+    }
+
+    /**
+        @notice Creates a filtered pair contract using EIP-1167.
+        @param _nft The NFT contract of the collection the pair trades
+        @param _bondingCurve The bonding curve for the pair to price NFTs, must be whitelisted
+        @param _assetRecipient The address that will receive the assets traders give during trades.
+        If set to address(0), assets will be sent to the pool address.
+        Not available to TRADE pools.
+        @param _poolType TOKEN, NFT, or TRADE
+        @param _delta The delta value used by the bonding curve. The meaning of delta depends
+        on the specific curve.
+        @param _fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
+        @param _spotPrice The initial selling spot price, in ETH
+        @param _merkleRoot Merkle root for NFT ID filter
+        @param _encodedTokenIDs Encoded list of acceptable NFT IDs
+        @param _initialNFs The list of IDs of NFTs to transfer from the sender to the pair including multiproof and flags
+        @param _initialTokenBalance The initial token balance sent from the sender to the new pair
+        @return pair The new pair
+     */
+    struct CreateERC20PairFilteredParams {
+        ERC20 token;
+        IERC721 nft;
+        ICurve bondingCurve;
+        address payable assetRecipient;
+        LSSVMPair.PoolType poolType;
+        uint128 delta;
+        uint96 fee;
+        uint128 spotPrice;
+        bytes32 merkleRoot;
+        bytes encodedTokenIDs;
+        InitialNFTs initialNFTs;
+        uint256 initialTokenBalance;
+    }
+
+    function createPairERC20Filtered(CreateERC20PairFilteredParams calldata params)
+        external
+        returns (LSSVMPairERC20 pair)
+    {
+        require(
+            bondingCurveAllowed[params.bondingCurve],
+            "Bonding curve not whitelisted"
+        );
+
+        // Check to see if the NFT supports Enumerable to determine which template to use
+        address template;
+        try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
+          template = isEnumerable ? address(enumerableERC20Template)
+            : address(missingEnumerableERC20Template);
+        } catch {
+          template = address(missingEnumerableERC20Template);
+        }
+
+        pair = LSSVMPairERC20(
+            payable(
+                template.cloneERC20Pair(
+                    this,
+                    params.bondingCurve,
+                    params.nft,
+                    uint8(params.poolType),
+                    params.token
+                )
+            )
+        );
+
+        _initializePairERC20Filtered(
+            pair,
+            params.token,
+            params.nft,
+            params.assetRecipient,
+            params.delta,
+            params.fee,
+            params.spotPrice,
+            params.merkleRoot,
+            params.encodedTokenIDs,
+            params.initialNFTs,
+            params.initialTokenBalance
+        );
+
         emit NewPair(address(pair));
     }
 
@@ -409,6 +570,43 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         }
     }
 
+    function _initializePairETHFiltered(
+        LSSVMPairETH _pair,
+        IERC721 _nft,
+        address payable _assetRecipient,
+        uint128 _delta,
+        uint96 _fee,
+        uint128 _spotPrice,
+        bytes32 _merkleRoot,
+        bytes calldata _encodedTokenIDs,
+        uint256[] calldata _initialNFTIDs,
+        bytes32[] calldata _proof,
+        bool[] calldata _proofFlags
+    ) internal {
+        // initialize pair
+        _pair.initialize(msg.sender, _assetRecipient, _delta, _fee, _spotPrice);
+        _pair.setTokenIDFilter(_merkleRoot, _encodedTokenIDs);
+
+        require(_pair.acceptsTokenIDs(_initialNFTIDs, _proof, _proofFlags), "NFT not allowed");
+
+        // transfer initial ETH to pair
+        payable(address(_pair)).safeTransferETH(msg.value);
+
+        // transfer initial NFTs from sender to pair
+        uint256 numNFTs = _initialNFTIDs.length;
+        for (uint256 i; i < numNFTs; ) {
+            _nft.safeTransferFrom(
+                msg.sender,
+                address(_pair),
+                _initialNFTIDs[i]
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     function _initializePairERC20(
         LSSVMPairERC20 _pair,
         ERC20 _token,
@@ -445,29 +643,76 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         }
     }
 
+    function _initializePairERC20Filtered(
+        LSSVMPairERC20 _pair,
+        ERC20 _token,
+        IERC721 _nft,
+        address payable _assetRecipient,
+        uint128 _delta,
+        uint96 _fee,
+        uint128 _spotPrice,
+        bytes32 _merkleRoot,
+        bytes calldata _encodedTokenIDs,
+        InitialNFTs calldata _initialNFTs,
+        uint256 _initialTokenBalance
+    ) internal {
+        // initialize pair
+        _pair.initialize(msg.sender, _assetRecipient, _delta, _fee, _spotPrice);
+        _pair.setTokenIDFilter(_merkleRoot, _encodedTokenIDs);
+
+        require(_pair.acceptsTokenIDs(_initialNFTs.ids, _initialNFTs.proof, _initialNFTs.proofFlags), "NFT not allowed");
+
+        // transfer initial tokens to pair
+        _token.safeTransferFrom(
+            msg.sender,
+            address(_pair),
+            _initialTokenBalance
+        );
+
+        // transfer initial NFTs from sender to pair
+        uint256 numNFTs = _initialNFTs.ids.length;
+        for (uint256 i; i < numNFTs; ) {
+            _nft.safeTransferFrom(
+                msg.sender,
+                address(_pair),
+                _initialNFTs.ids[i]
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /** 
       @dev Used to deposit NFTs into a pair after creation and emit an event for indexing (if recipient is indeed a pair)
     */
     function depositNFTs(
         IERC721 _nft,
         uint256[] calldata ids,
+        bytes32[] calldata proof,
+        bool[] calldata proofFlags,
         address recipient
     ) external {
+        bool _isPair =
+            isPair(recipient, PairVariant.ENUMERABLE_ERC20) ||
+            isPair(recipient, PairVariant.ENUMERABLE_ETH) ||
+            isPair(recipient, PairVariant.MISSING_ENUMERABLE_ERC20) ||
+            isPair(recipient, PairVariant.MISSING_ENUMERABLE_ETH);
+
+        if (_isPair) {
+            require(LSSVMPair(recipient).acceptsTokenIDs(ids, proof, proofFlags), "NFT not allowed");
+        }
+
         // transfer NFTs from caller to recipient
         uint256 numNFTs = ids.length;
         for (uint256 i; i < numNFTs; ) {
             _nft.safeTransferFrom(msg.sender, recipient, ids[i]);
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
-        if (
-            isPair(recipient, PairVariant.ENUMERABLE_ERC20) ||
-            isPair(recipient, PairVariant.ENUMERABLE_ETH) ||
-            isPair(recipient, PairVariant.MISSING_ENUMERABLE_ERC20) ||
-            isPair(recipient, PairVariant.MISSING_ENUMERABLE_ETH)
-        ) {
+
+        if (_isPair) {
             emit NFTDeposit(recipient);
         }
     }

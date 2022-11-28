@@ -15,6 +15,8 @@ contract LSSVMRouter2 {
     struct PairSwapSpecific {
         LSSVMPair pair;
         uint256[] nftIds;
+        bytes32[] proof;
+        bool[] proofFlags;
     }
 
     struct RobustPairSwapSpecific {
@@ -218,6 +220,8 @@ contract LSSVMRouter2 {
                 // Do the swap for token and then update outputAmount
                 sellList[i].swapInfo.pair.swapNFTsForToken(
                     sellList[i].swapInfo.nftIds,
+                    sellList[i].swapInfo.proof,
+                    sellList[i].swapInfo.proofFlags,
                     sellList[i].minOutput,
                     payable(msg.sender),
                     true,
@@ -248,6 +252,8 @@ contract LSSVMRouter2 {
                 // Do the swap for token and then update outputAmount
                 outputAmount += sellList[i].swapInfo.pair.swapNFTsForToken(
                     sellList[i].swapInfo.nftIds,
+                    sellList[i].swapInfo.proof,
+                    sellList[i].swapInfo.proofFlags,
                     sellList[i].minOutput,
                     payable(address(this)), // Send funds here first
                     true,
@@ -349,6 +355,8 @@ contract LSSVMRouter2 {
             // Do the swap for token and then update outputAmount
             outputAmount += swapList[i].swapInfo.pair.swapNFTsForToken(
                 swapList[i].swapInfo.nftIds,
+                swapList[i].swapInfo.proof,
+                swapList[i].swapInfo.proofFlags,
                 swapList[i].minOutput,
                 payable(msg.sender),
                 true,
