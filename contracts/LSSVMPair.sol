@@ -12,6 +12,7 @@ import {ICurve} from "./bonding-curves/ICurve.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
 import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
+import {TokenIDFilter} from "./filter/TokenIDFilter.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 /// @title The base contract for an NFT/TOKEN AMM pair
@@ -20,7 +21,8 @@ import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155
 abstract contract LSSVMPair is
     OwnableWithTransferCallback,
     ReentrancyGuard,
-    ERC1155Holder
+    ERC1155Holder,
+    TokenIDFilter
 {
     enum PoolType {
         TOKEN,
@@ -156,6 +158,16 @@ abstract contract LSSVMPair is
     /**
      * External state-changing functions
      */
+
+    /**
+        @notice Sets NFT token ID filter that is allowed in this pair
+        @param merkleRoot Merkle root representing all allowed IDs
+        @param encodedTokenIDs Opaque encoded list of token IDs
+     */
+    function setTokenIDFilter(bytes32 merkleRoot, bytes calldata encodedTokenIDs) external {
+        _setTokenIDFilterRoot(merkleRoot);
+        _emitTokenIDs(address(nft()), encodedTokenIDs);
+    }
 
     /**
         @notice Sends token to the pair in exchange for any `numNFTs` NFTs
@@ -297,6 +309,8 @@ abstract contract LSSVMPair is
         @notice Sends a set of NFTs to the pair in exchange for token
         @dev To compute the amount of token to that will be received, call bondingCurve.getSellInfo.
         @param nftIds The list of IDs of the NFTs to sell to the pair
+        @param proof Merkle multiproof proving list is allowed by pair
+        @param proofFlags Merkle multiproof flags for proof
         @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
         amount is less than this value, the transaction will be reverted.
         @param tokenRecipient The recipient of the token output
@@ -308,6 +322,8 @@ abstract contract LSSVMPair is
      */
     function swapNFTsForToken(
         uint256[] calldata nftIds,
+        bytes32[] calldata proof,
+        bool[] calldata proofFlags,
         uint256 minExpectedTokenOutput,
         address payable tokenRecipient,
         bool isRouter,
@@ -325,6 +341,7 @@ abstract contract LSSVMPair is
                 "Wrong Pool type"
             );
             require(nftIds.length > 0, "Must ask for > 0 NFTs");
+            require(acceptsTokenIDs(nftIds, proof, proofFlags), "NFT not allowed");
         }
 
         // Call bonding curve for pricing information
@@ -355,6 +372,25 @@ abstract contract LSSVMPair is
     /**
      * View functions
      */
+
+    /**
+        @notice Checks if NFTs is allowed in this pair
+        @param tokenID NFT ID
+        @param proof Merkle proof
+     */
+    function acceptsTokenID(uint256 tokenID, bytes32[] calldata proof) public view returns (bool) {
+        return _acceptsTokenID(tokenID, proof);
+    }
+
+    /**
+        @notice Checks if list of NFTs are allowed in this pair using Merkle multiproof and flags
+        @param tokenIDs List of NFT IDs
+        @param proof Merkle multiproof
+        @param proofFlags Merkle multiproof flags
+     */
+    function acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags) public view returns (bool) {
+        return _acceptsTokenIDs(tokenIDs, proof, proofFlags);
+    }
 
     /**
         @dev Used as read function to query the bonding curve for buy pricing info

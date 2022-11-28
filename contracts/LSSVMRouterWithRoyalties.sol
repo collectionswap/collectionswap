@@ -465,6 +465,8 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                     // Do the swap and update outputAmount with how many tokens we got
                     pairOutput = swap.swapInfo.pair.swapNFTsForToken(
                         swap.swapInfo.nftIds,
+                        swap.swapInfo.proof,
+                        swap.swapInfo.proofFlags,
                         0,
                         payable(address(this)),
                         true,
@@ -512,6 +514,8 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                     // Do the swap and update outputAmount with how many tokens we got
                     outputAmount += swap.swapInfo.pair.swapNFTsForToken(
                         swap.swapInfo.nftIds,
+                        swap.swapInfo.proof,
+                        swap.swapInfo.proofFlags,
                         0,
                         tokenRecipient,
                         true,
@@ -647,6 +651,8 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                         // Do the swap and update outputAmount with how many tokens we got
                         pairOutput = swapOut.swapInfo.pair.swapNFTsForToken(
                             swapOut.swapInfo.nftIds,
+                            swapOut.swapInfo.proof,
+                            swapOut.swapInfo.proofFlags,
                             0,
                             payable(address(this)),
                             true,
@@ -697,6 +703,8 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                         // Do the swap and update outputAmount with how many tokens we got
                         outputAmount += swapOut.swapInfo.pair.swapNFTsForToken(
                             swapOut.swapInfo.nftIds,
+                            swapOut.swapInfo.proof,
+                            swapOut.swapInfo.proofFlags,
                             0,
                             params.tokenRecipient,
                             true,
@@ -830,6 +838,8 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                         // Do the swap and update outputAmount with how many tokens we got
                         pairOutput = swapOut.swapInfo.pair.swapNFTsForToken(
                             swapOut.swapInfo.nftIds,
+                            swapOut.swapInfo.proof,
+                            swapOut.swapInfo.proofFlags,
                             0,
                             payable(address(this)),
                             true,
@@ -880,6 +890,8 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                         // Do the swap and update outputAmount with how many tokens we got
                         outputAmount += swapOut.swapInfo.pair.swapNFTsForToken(
                             swapOut.swapInfo.nftIds,
+                            swapOut.swapInfo.proof,
+                            swapOut.swapInfo.proofFlags,
                             0,
                             params.tokenRecipient,
                             true,
@@ -1126,6 +1138,8 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
             // Note: minExpectedTokenOutput is set to 0 since we're doing an aggregate slippage check below
             swapOutputAmount = swap.pair.swapNFTsForToken(
                 swap.nftIds,
+                swap.proof,
+                swap.proofFlags,
                 0,
                 payable(address(this)),
                 true,

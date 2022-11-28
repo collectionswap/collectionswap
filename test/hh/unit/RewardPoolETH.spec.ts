@@ -1215,7 +1215,6 @@ describe("RewardPoolETH", function () {
       const { newPairAddress, newTokenId } = await getPoolAddress(
         currTokenIdTx
       );
-      console.log(newPairAddress, newTokenId);
       expect((await nft.ownerOf(newNftTokenIds[0])).toLowerCase()).to.equal(
         newPairAddress.toLowerCase()
       );

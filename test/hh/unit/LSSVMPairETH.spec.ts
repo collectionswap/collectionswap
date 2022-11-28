@@ -206,6 +206,8 @@ describe("LSSVMPairETH", function () {
       .connect(user1)
       .swapNFTsForToken(
         nftTokenIds,
+        [],
+        [],
         outputAmount,
         user1.address,
         false,
@@ -339,6 +341,8 @@ describe("LSSVMPairETH", function () {
       .connect(user1)
       .swapNFTsForToken(
         nftTokenIds,
+        [],
+        [],
         outputAmount,
         user1.address,
         false,
@@ -413,6 +417,8 @@ describe("LSSVMPairETH", function () {
       .connect(user1)
       .swapNFTsForToken(
         [nftTokenIds[0]],
+        [],
+        [],
         outputAmount,
         user1.address,
         false,
@@ -452,6 +458,8 @@ describe("LSSVMPairETH", function () {
         .connect(user1)
         .swapNFTsForToken(
           [nftTokenIds[1]],
+          [],
+          [],
           outputAmount,
           user1.address,
           false,
@@ -571,6 +579,8 @@ describe("LSSVMPairETH", function () {
         .connect(user1)
         .swapNFTsForToken(
           nftTokenIds,
+          [],
+          [],
           outputAmount,
           user1.address,
           false,

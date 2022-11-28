@@ -24,6 +24,8 @@ contract MultiRouter {
     struct PairSwapSpecific {
         LSSVMPair pair;
         uint256[] nftIds;
+        bytes32[] proof;
+        bool[] proofFlags;
     }
 
     struct RobustPairSwapSpecificWithToken {
@@ -155,6 +157,8 @@ contract MultiRouter {
                         .pair
                         .swapNFTsForToken(
                             params.nftToTokenTrades[i].swapInfo.nftIds,
+                            params.nftToTokenTrades[i].swapInfo.proof,
+                            params.nftToTokenTrades[i].swapInfo.proofFlags,
                             0,
                             payable(msg.sender),
                             true,

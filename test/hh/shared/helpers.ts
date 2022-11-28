@@ -346,6 +346,8 @@ export async function sellToPool(
     .connect(externalTrader)
     .swapNFTsForToken(
       [nftToSell],
+      [],
+      [],
       bidInputAmount,
       externalTrader.address,
       false,
