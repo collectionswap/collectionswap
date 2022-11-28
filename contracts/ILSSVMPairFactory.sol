@@ -16,19 +16,4 @@ interface ILSSVMPairFactory {
         uint128 _spotPrice,
         uint256[] calldata _initialNFTIDs
     ) external payable returns (ILSSVMPairETH pair);
-
-    function createPairETHFiltered(
-        IERC721 _nft,
-        ICurve _bondingCurve,
-        address payable _assetRecipient,
-        ILSSVMPair.PoolType _poolType,
-        uint128 _delta,
-        uint96 _fee,
-        uint128 _spotPrice,
-        bytes32 _merkleRoot,
-        bytes[] calldata _encodedTokenIDs,
-        uint256[] calldata _initialNFTIDs,
-        bytes32[] calldata _initialProof,
-        bool[] calldata _initialProofFlags
-    ) external payable returns (ILSSVMPairETH pair);
 }

@@ -136,6 +136,13 @@ async function runTwoParticipantDraw(
 
   const expectedEndContribution = lastUpdateTime2.sub(startTime).mul(balance);
   const expectedEndContribution1 = periodFinish.sub(startTime).mul(balance1);
+  console.log(
+    "expectedEndContribution",
+    expectedEndContribution,
+    lastUpdateTime2,
+    startTime,
+    balance
+  );
 
   expect(await collectionswap.ownerOf(lpTokenId)).to.equal(user.address);
   expect(await rewardPool.balanceOf(user.address)).to.equal(0);
@@ -954,6 +961,7 @@ describe("RewardPoolETHDraw", function () {
       for (let i = 0; i < 3; i++) {
         const expectedEpoch = i + 1;
         // Stake LP tokens and they have the correct amount
+        console.log("Epoch", expectedEpoch);
         await runTwoParticipantDraw(
           collectionswap,
           user,
@@ -1040,6 +1048,7 @@ describe("RewardPoolETHDraw", function () {
       for (let i = 0; i < 3; i++) {
         const expectedEpoch = i + 1;
         // Stake LP tokens and they have the correct amount
+        console.log("Epoch", expectedEpoch);
         await runTwoParticipantDraw(
           collectionswap,
           user,
@@ -1112,6 +1121,14 @@ describe("RewardPoolETHDraw", function () {
             const prevBalance = prevBalanceTracking[i];
             const balance = balanceTracking[i];
             // Const reward = newRewardAmount
+            console.log(
+              "epoch",
+              epoch,
+              "rewardToken",
+              rewardToken.address,
+              balance.sub(prevBalance),
+              newRewardAmount
+            );
             expect(balance.sub(prevBalance)).to.approximately(
               newRewardAmount,
               newRewardAmount.div(10000)

@@ -179,6 +179,7 @@ describe("RewardPoolETH", function () {
       (event) => event.event === "IncentiveETHCreated"
     );
     const rewardPoolAddress = event?.args?.poolAddress;
+    console.log(rewardPoolAddress);
     let rewardPool = RewardPool.attach(rewardPoolAddress) as RewardPoolETH;
 
     const nftTokenIds = await mintNfts(nft, user.address);
@@ -1326,6 +1327,7 @@ describe("RewardPoolETH", function () {
       const { newPairAddress, newTokenId } = await getPoolAddress(
         currTokenIdTx
       );
+      console.log(newPairAddress, newTokenId);
       expect((await nft.ownerOf(newNftTokenIds[0])).toLowerCase()).to.equal(
         newPairAddress.toLowerCase()
       );

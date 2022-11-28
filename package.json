@@ -44,7 +44,6 @@
     "@anders-t/ethers-ledger": "^1.0.4",
     "@openzeppelin/contracts": "^4.7.3",
     "@openzeppelin/contracts-upgradeable": "^4.7.3",
-    "@openzeppelin/merkle-tree": "^1.0.0",
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.1",
     "eslint-config-prettier": "^8.5.0",
