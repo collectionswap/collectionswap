@@ -5,6 +5,7 @@ type Config = {
   SUBSCRIPTION_ID: BigNumberish; // Create subscription account at vrf.chain.link
   KEY_HASH: string, // see Gwei KeyHashes at https://docs.chain.link/docs/vrf/v2/subscription/supported-networks/#configurations
   PROTOCOL_FEE_MULTIPLIER: string; // Will be multiplied by 1e18 (100%): 0.005 = 0.5%
+  CARRY_FEE_MULTIPLIER: string; // Will be multiplied by 1e18 (100%): 0.005 = 0.5%
   EXPORT_FILENAME: string;
   EXISTING_COLLECTIONSWAP?: string;
   EXISTING_COLLECTIONSTAKER?: string;
@@ -32,6 +33,7 @@ export const configs: { [key: number]: Config } = {
     KEY_HASH: "0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15",
     SUBSCRIPTION_ID: 6344,
     PROTOCOL_FEE_MULTIPLIER: "0.005",
+    CARRY_FEE_MULTIPLIER: "0.005",
     EXPORT_FILENAME: "goerliAddresses.json",
   },
   // Rinkeby (Deprecated)
@@ -48,6 +50,7 @@ export const configs: { [key: number]: Config } = {
       "0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15",
     SUBSCRIPTION_ID: "1234",
     PROTOCOL_FEE_MULTIPLIER: "0.005",
+    CARRY_FEE_MULTIPLIER: "0.005",
     EXPORT_FILENAME: "hardhatAddresses.json",
   },
 };

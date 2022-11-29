@@ -3,6 +3,9 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
@@ -11,6 +14,7 @@ import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions
 // ETH and ERC20 tokens
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
+import {ReentrancyGuard} from './lib/ReentrancyGuard.sol';
 
 import {LSSVMPair} from "./LSSVMPair.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
@@ -18,14 +22,14 @@ import {LSSVMPairETH} from "./LSSVMPairETH.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 import {LSSVMPairERC20} from "./LSSVMPairERC20.sol";
 import {LSSVMPairCloner} from "./lib/LSSVMPairCloner.sol";
-import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {LSSVMPairEnumerableETH} from "./LSSVMPairEnumerableETH.sol";
 import {LSSVMPairEnumerableERC20} from "./LSSVMPairEnumerableERC20.sol";
 import {LSSVMPairMissingEnumerableETH} from "./LSSVMPairMissingEnumerableETH.sol";
 import {LSSVMPairMissingEnumerableERC20} from "./LSSVMPairMissingEnumerableERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
+contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorage, ILSSVMPairFactory {
     using LSSVMPairCloner for address;
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
@@ -36,7 +40,15 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
 
     uint256 internal constant MAX_PROTOCOL_FEE = 0.10e18; // 10%, must <= 1 - MAX_FEE
     uint256 internal constant MAX_CARRY_FEE = 0.50e18; // 50%
+    
+    /// @dev maps the tokenID to the pair address created
+    mapping(uint256 => LPTokenParams721) internal _tokenIdToPairParams;
+    /// @dev The ID of the next token that will be minted. Skips 0
+    uint256 internal _nextTokenId;
 
+    event NewTokenId(uint256 tokenId);
+
+    address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     LSSVMPairEnumerableETH public immutable enumerableETHTemplate;
     LSSVMPairMissingEnumerableETH public immutable missingEnumerableETHTemplate;
     LSSVMPairEnumerableERC20 public immutable enumerableERC20Template;
@@ -76,7 +88,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         address payable _protocolFeeRecipient,
         uint256 _protocolFeeMultiplier,
         uint256 _carryFeeMultiplier
-    ) {
+    ) ERC721('Collectionswap','CollectionLP') {
         enumerableETHTemplate = _enumerableETHTemplate;
         missingEnumerableETHTemplate = _missingEnumerableETHTemplate;
         enumerableERC20Template = _enumerableERC20Template;
@@ -94,41 +106,9 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
      * External functions
      */
 
-    /**
-        @notice Creates a pair contract using EIP-1167.
-        @param _nft The NFT contract of the collection the pair trades
-        @param _bondingCurve The bonding curve for the pair to price NFTs, must be whitelisted
-        @param _assetRecipient The address that will receive the assets traders give during trades.
-                              If set to address(0), assets will be sent to the pool address.
-                              Not available to TRADE pools.
-        @param _poolType TOKEN, NFT, or TRADE
-        @param _delta The delta value used by the bonding curve. The meaning of delta depends
-        on the specific curve.
-        @param _fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
-        @param _spotPrice The initial selling spot price
-        @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
-        being sent to the account to which the traded NFT's royalties are awardable.
-        Must be 0 if `_nft` is not IERC2981.
-        @param _initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pair
-        @return pair The new pair
-     */
-    struct CreateETHPairParams {
-        IERC721 nft;
-        ICurve bondingCurve;
-        address payable assetRecipient;
-        LSSVMPair.PoolType poolType;
-        uint128 delta;
-        uint96 fee;
-        uint128 spotPrice;
-        bytes props;
-        bytes state;
-        uint256 royaltyNumerator;
-        uint256[] initialNFTIDs;
-    }
-
     function createPairETH(
         CreateETHPairParams calldata params
-    ) external payable returns (LSSVMPairETH pair) {
+    ) external payable returns (address pair, uint256 tokenId) {
         require(
             bondingCurveAllowed[params.bondingCurve],
             "Bonding curve not whitelisted"
@@ -148,35 +128,36 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
           template = address(missingEnumerableETHTemplate);
         }
 
-        pair = LSSVMPairETH(
-            payable(
-                template.cloneETHPair(
-                    this,
-                    params.bondingCurve,
-                    params.nft,
-                    uint8(params.poolType)
-                )
-            )
+        pair = template.cloneETHPair(
+            this,
+            params.bondingCurve,
+            params.nft,
+            uint8(params.poolType)
         );
+
+        // issue new token
+        tokenId = mint(params.receiver);
+
+        // save params in mapping
+        _tokenIdToPairParams[tokenId] = LPTokenParams721({
+            nftAddress: address(params.nft),
+            bondingCurveAddress: address(params.bondingCurve),
+            tokenAddress: ETH_ADDRESS,
+            poolAddress: payable(pair),
+            fee: params.fee,
+            delta: params.delta,
+            initialSpotPrice: params.spotPrice,
+            initialPoolBalance: msg.value,
+            initialNFTIDsLength: params.initialNFTIDs.length
+        });
 
         _initializePairETH(
-            pair,
-            params
+            LSSVMPairETH(payable(pair)),
+            params,
+            tokenId
         );
-        emit NewPair(address(pair));
-    }
 
-    /**
-        @param merkleRoot Merkle root for NFT ID filter
-        @param encodedTokenIDs Encoded list of acceptable NFT IDs
-        @param initialProof Merkle multiproof for initial NFT IDs
-        @param initialProofFlags Merkle multiproof flags for initial NFT IDs
-     */
-    struct NFTFilterParams {
-        bytes32 merkleRoot;
-        bytes encodedTokenIDs;
-        bytes32[] initialProof;
-        bool[] initialProofFlags;
+        emit NewPair(pair);
     }
 
     /**
@@ -188,7 +169,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
     function createPairETHFiltered(
         CreateETHPairParams calldata params,
         NFTFilterParams calldata filterParams
-    ) external payable returns (LSSVMPairETH pair) {
+    ) external payable returns (address pair, uint256 tokenId) {
         require(
             bondingCurveAllowed[params.bondingCurve],
             "Bonding curve not whitelisted"
@@ -203,63 +184,41 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
           template = address(missingEnumerableETHTemplate);
         }
 
-        pair = LSSVMPairETH(
-            payable(
-                template.cloneETHPair(
-                    this,
-                    params.bondingCurve,
-                    params.nft,
-                    uint8(params.poolType)
-                )
-            )
+        pair = template.cloneETHPair(
+            this,
+            params.bondingCurve,
+            params.nft,
+            uint8(params.poolType)
         );
+
+        // issue new token
+        tokenId = mint(params.receiver);
+
+        // save params in mapping
+        _tokenIdToPairParams[tokenId] = LPTokenParams721({
+            nftAddress: address(params.nft),
+            bondingCurveAddress: address(params.bondingCurve),
+            tokenAddress: ETH_ADDRESS,
+            poolAddress: payable(pair),
+            fee: params.fee,
+            delta: params.delta,
+            initialSpotPrice: params.spotPrice,
+            initialPoolBalance: msg.value,
+            initialNFTIDsLength: params.initialNFTIDs.length
+        });
 
         _initializePairETHFiltered(
-            pair,
+            LSSVMPairETH(payable(pair)),
             params,
-            filterParams
+            filterParams,
+            tokenId
         );
-        emit NewPair(address(pair));
-    }
-
-    /**
-        @notice Creates a pair contract using EIP-1167.
-        @param _nft The NFT contract of the collection the pair trades
-        @param _bondingCurve The bonding curve for the pair to price NFTs, must be whitelisted
-        @param _assetRecipient The address that will receive the assets traders give during trades.
-                                If set to address(0), assets will be sent to the pool address.
-                                Not available to TRADE pools.
-        @param _poolType TOKEN, NFT, or TRADE
-        @param _delta The delta value used by the bonding curve. The meaning of delta depends
-        on the specific curve.
-        @param _fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
-        @param _spotPrice The initial selling spot price, in ETH
-        @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
-        being sent to the account to which the traded NFT's royalties are awardable.
-        Must be 0 if `_nft` is not IERC2981.
-        @param _initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pair
-        @param _initialTokenBalance The initial token balance sent from the sender to the new pair
-        @return pair The new pair
-     */
-    struct CreateERC20PairParams {
-        ERC20 token;
-        IERC721 nft;
-        ICurve bondingCurve;
-        address payable assetRecipient;
-        LSSVMPair.PoolType poolType;
-        uint128 delta;
-        uint96 fee;
-        uint128 spotPrice;
-        bytes props;
-        bytes state;
-        uint256 royaltyNumerator;
-        uint256[] initialNFTIDs;
-        uint256 initialTokenBalance;
+        emit NewPair(pair);
     }
 
     function createPairERC20(CreateERC20PairParams calldata params)
         external
-        returns (LSSVMPairERC20 pair)
+        returns (address pair, uint256 tokenId)
     {
         require(
             bondingCurveAllowed[params.bondingCurve],
@@ -280,23 +239,37 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
           template = address(missingEnumerableERC20Template);
         }
 
-        pair = LSSVMPairERC20(
-            payable(
-                template.cloneERC20Pair(
-                    this,
-                    params.bondingCurve,
-                    params.nft,
-                    uint8(params.poolType),
-                    params.token
-                )
-            )
+        pair = template.cloneERC20Pair(
+            this,
+            params.bondingCurve,
+            params.nft,
+            uint8(params.poolType),
+            params.token
         );
 
+        // issue new token
+        tokenId = mint(params.receiver);
+
+        // save params in mapping
+        _tokenIdToPairParams[tokenId] = LPTokenParams721({
+            nftAddress: address(params.nft),
+            bondingCurveAddress: address(params.bondingCurve),
+            tokenAddress: address(params.token),
+            poolAddress: payable(pair),
+            fee: params.fee,
+            delta: params.delta,
+            initialSpotPrice: params.spotPrice,
+            initialPoolBalance: params.initialTokenBalance,
+            initialNFTIDsLength: params.initialNFTIDs.length
+        });
+
         _initializePairERC20(
-            pair,
-            params
+            LSSVMPairERC20(payable(pair)),
+            params,
+            tokenId
         );
-        emit NewPair(address(pair));
+
+        emit NewPair(pair);
     }
 
     function createPairERC20Filtered(
@@ -304,7 +277,7 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
         NFTFilterParams calldata filterParams
     )
         external
-        returns (LSSVMPairERC20 pair)
+        returns (address pair, uint256 tokenId)
     {
         require(
             bondingCurveAllowed[params.bondingCurve],
@@ -320,25 +293,49 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
           template = address(missingEnumerableERC20Template);
         }
 
-        pair = LSSVMPairERC20(
-            payable(
-                template.cloneERC20Pair(
-                    this,
-                    params.bondingCurve,
-                    params.nft,
-                    uint8(params.poolType),
-                    params.token
-                )
-            )
+        pair = template.cloneERC20Pair(
+            this,
+            params.bondingCurve,
+            params.nft,
+            uint8(params.poolType),
+            params.token
         );
 
+        // issue new token
+        tokenId = mint(params.receiver);
+
+        // save params in mapping
+        _tokenIdToPairParams[tokenId] = LPTokenParams721({
+            nftAddress: address(params.nft),
+            bondingCurveAddress: address(params.bondingCurve),
+            tokenAddress: address(params.token),
+            poolAddress: payable(pair),
+            fee: params.fee,
+            delta: params.delta,
+            initialSpotPrice: params.spotPrice,
+            initialPoolBalance: params.initialTokenBalance,
+            initialNFTIDsLength: params.initialNFTIDs.length
+        });
+
         _initializePairERC20Filtered(
-            pair,
+            LSSVMPairERC20(payable(pair)),
             params,
-            filterParams
+            filterParams,
+            tokenId
         );
 
         emit NewPair(address(pair));
+    }
+
+    /**
+     * @return poolParams the parameters of the pool matching `tokenId`.
+     */
+    function viewPoolParams(uint256 tokenId)
+        public
+        view
+        returns (LPTokenParams721 memory poolParams)
+    {
+        poolParams = _tokenIdToPairParams[tokenId];
     }
 
     /**
@@ -517,11 +514,12 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
 
     function _initializePairETH(
         LSSVMPairETH _pair,
-        CreateETHPairParams calldata _params
+        CreateETHPairParams calldata _params,
+        uint256 tokenId
     ) internal {
         // initialize pair
         _pair.initialize(
-            msg.sender, 
+            tokenId, 
             _params.assetRecipient, 
             _params.delta, 
             _params.fee, 
@@ -552,11 +550,12 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
     function _initializePairETHFiltered(
         LSSVMPairETH _pair,
         CreateETHPairParams calldata _params,
-        NFTFilterParams calldata _filterParams
+        NFTFilterParams calldata _filterParams,
+        uint256 tokenId
     ) internal {
         // initialize pair
         _pair.initialize(
-            msg.sender,
+            tokenId,
             _params.assetRecipient,
             _params.delta,
             _params.fee,
@@ -589,11 +588,12 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
 
     function _initializePairERC20(
         LSSVMPairERC20 _pair,
-        CreateERC20PairParams calldata _params
+        CreateERC20PairParams calldata _params,
+        uint256 tokenId
     ) internal {
         // initialize pair
         _pair.initialize(
-            msg.sender, 
+            tokenId, 
             _params.assetRecipient, 
             _params.delta, 
             _params.fee, 
@@ -628,11 +628,12 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
     function _initializePairERC20Filtered(
         LSSVMPairERC20 _pair,
         CreateERC20PairParams calldata _params,
-        NFTFilterParams calldata _filterParams
+        NFTFilterParams calldata _filterParams,
+        uint256 tokenId
     ) internal {
         // initialize pair
         _pair.initialize(
-            msg.sender,
+            tokenId,
             _params.assetRecipient,
             _params.delta,
             _params.fee,
@@ -717,5 +718,110 @@ contract LSSVMPairFactory is Ownable, ILSSVMPairFactoryLike {
                 emit TokenDeposit(recipient);
             }
         }
+    }
+
+    function requireAuthorizedForToken(address spender, uint256 tokenId) external view {
+        require(_isApprovedOrOwner(spender, tokenId), "Not approved");
+    }
+
+    /// @dev requires LP token owner to give allowance to this factory contract for asset withdrawals
+    /// @dev withdrawn assets are sent directly to the LPToken owner
+    /// @dev does not withdraw airdropped assets, that should be done prior to calling this function
+    function burn(uint256 tokenId) external nonReentrant {
+        require(_isApprovedOrOwner(msg.sender, tokenId), "Not approved");
+        LPTokenParams721 memory poolParams = viewPoolParams(tokenId);
+        uint256[] memory heldNftIds;
+
+        // withdraw all ETH / ERC20
+        if (poolParams.tokenAddress == ETH_ADDRESS) {
+            // withdraw ETH, sent to owner of LPToken
+            LSSVMPairETH pool = LSSVMPairETH(poolParams.poolAddress);
+            pool.withdrawAllETH();
+
+            // then withdraw NFTs
+            heldNftIds = pool.getAllHeldIds();
+            pool.withdrawERC721(IERC721(poolParams.nftAddress), heldNftIds);
+            
+        } else {
+            // withdraw ERC20
+            LSSVMPairERC20 pool = LSSVMPairERC20(poolParams.poolAddress);
+            pool.withdrawAllERC20();
+            heldNftIds = pool.getAllHeldIds();
+
+            // then withdraw NFTs
+            heldNftIds = pool.getAllHeldIds();
+            pool.withdrawERC721(IERC721(poolParams.nftAddress), heldNftIds);
+        }
+
+        delete _tokenIdToPairParams[tokenId];
+        _burn(tokenId);
+    }
+
+    function mint(address recipient) internal returns (uint256 tokenId) {
+        _safeMint(recipient, (tokenId = ++_nextTokenId));
+
+        emit NewTokenId(tokenId);
+    }
+
+    /// @inheritdoc ILSSVMPairFactory
+    function validatePoolParamsLte(
+        uint256 tokenId,
+        address nftAddress,
+        address bondingCurveAddress,
+        uint96 fee,
+        uint128 delta
+    ) public view returns (bool) {    
+        LPTokenParams721 memory poolParams = viewPoolParams(tokenId);
+        return (
+            poolParams.nftAddress == nftAddress &&
+            poolParams.bondingCurveAddress == bondingCurveAddress &&
+            poolParams.fee <= fee &&
+            poolParams.delta <= delta
+        );
+    }
+
+    /// @inheritdoc ILSSVMPairFactory
+    function validatePoolParamsEq(
+        uint256 tokenId,
+        address nftAddress,
+        address bondingCurveAddress,
+        uint96 fee,
+        uint128 delta
+    ) public view returns (bool) {    
+        LPTokenParams721 memory poolParams = viewPoolParams(tokenId);
+        return (
+            poolParams.nftAddress == nftAddress &&
+            poolParams.bondingCurveAddress == bondingCurveAddress &&
+            poolParams.fee == fee &&
+            poolParams.delta == delta
+        );
+    }
+
+    // overrides required by Solidiity for ERC721 contract
+    // The following functions are overrides required by Solidity.
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
+        internal
+        override (ERC721, ERC721Enumerable)
+    {
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    function _burn(uint256 tokenId) internal override (ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override (IERC165, ERC721, ERC721Enumerable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function tokenURI(uint256 tokenId) public view override (ERC721, ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
     }
 }

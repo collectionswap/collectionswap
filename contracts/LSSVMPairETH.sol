@@ -5,7 +5,7 @@ import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
-import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 
 /**
@@ -23,7 +23,7 @@ abstract contract LSSVMPairETH is LSSVMPair {
         uint256 inputAmount,
         bool, /*isRouter*/
         address, /*routerCaller*/
-        ILSSVMPairFactoryLike _factory,
+        ILSSVMPairFactory _factory,
         uint256 protocolFee,
         RoyaltyDue[] memory royaltiesDue
     ) internal override {
@@ -78,7 +78,7 @@ abstract contract LSSVMPairETH is LSSVMPair {
 
     /// @inheritdoc LSSVMPair
     function _payProtocolFeeFromPair(
-        ILSSVMPairFactoryLike _factory,
+        ILSSVMPairFactory _factory,
         uint256 protocolFee
     ) internal override {
         // Take protocol fee

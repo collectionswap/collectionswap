@@ -7,7 +7,6 @@ import {LSSVMPair} from "../LSSVMPair.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {LSSVMPairCloner} from "../lib/LSSVMPairCloner.sol";
 import {LSSVMPairERC20} from "../LSSVMPairERC20.sol";
-import {ILSSVMPairFactoryLike} from "../LSSVMPairFactory.sol";
 
 // original sudoswap code points to an old version of solmate in raricapital library (deprecated),
 // later versions omit fpow and fmul, we use the new version with the functions added back in

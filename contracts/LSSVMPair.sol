@@ -6,11 +6,10 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import {OwnableWithTransferCallback} from "./lib/OwnableWithTransferCallback.sol";
 import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
-import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 import {TokenIDFilter} from "./filter/TokenIDFilter.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -19,7 +18,6 @@ import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155
 /// @author boredGenius and 0xmons
 /// @notice This implements the core swap logic from NFT to TOKEN
 abstract contract LSSVMPair is
-    OwnableWithTransferCallback,
     ReentrancyGuard,
     ERC1155Holder,
     TokenIDFilter
@@ -90,6 +88,8 @@ abstract contract LSSVMPair is
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
 
+    uint256 public tokenId;
+
     modifier validRoyaltyNumerator(
         uint256 _royaltyNumerator
     ) {
@@ -98,23 +98,42 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Called during pair creation to set initial parameters
-        @dev Only called once by factory to initialize.
-        We verify this by making sure that the current owner is address(0). 
-        The Ownable library we use disallows setting the owner to be address(0), so this condition
-        should only be valid before the first initialize call. 
-        @param _owner The owner of the pair
-        @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pair during swaps. NOTE: If set to address(0), they will go to the pair itself.
-        @param _delta The initial delta of the bonding curve
-        @param _fee The initial % fee taken, if this is a trade pair 
-        @param _spotPrice The initial price to sell an asset into the pair
-        @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
-        being sent to the account to which the traded NFT's royalties are awardable.
-        Must be 0 if `_nft` is not IERC2981. Should be enforced by factory so not
-        checked here
+     * Ownable functions
+     */
+
+    /// @dev Returns the address of the current owner.
+    function owner() public view virtual returns (address) {
+        return IERC721(address(factory())).ownerOf(tokenId);
+    }
+
+    /// @dev Throws if called by any account other than the owner.
+    modifier onlyOwner() {
+        factory().requireAuthorizedForToken(msg.sender, tokenId);
+        _;
+    }
+
+    /// @dev Transfers ownership of the contract to a new account (`newOwner`).
+    /// Disallows setting to the zero address as a way to more gas-efficiently avoid reinitialization
+    /// When ownership is transferred, if the new owner implements IOwnershipTransferCallback, we make a callback
+    /// Can only be called by the current owner.
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        IERC721(address(factory())).safeTransferFrom(msg.sender, newOwner, tokenId);
+    }
+
+    /**
+      @notice Called during pair creation to set initial parameters
+      @dev Only called once by factory to initialize.
+      We verify this by making sure that the current owner is address(0).
+      The Ownable library we use disallows setting the owner to be address(0), so this condition
+      should only be valid before the first initialize call.
+      @param _tokenId The token id of the pair
+      @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pair during swaps. NOTE: If set to address(0), they will go to the pair itself.
+      @param _delta The initial delta of the bonding curve
+      @param _fee The initial % fee taken, if this is a trade pair
+      @param _spotPrice The initial price to sell an asset into the pair
      */
     function initialize(
-        address _owner,
+        uint256 _tokenId,
         address payable _assetRecipient,
         uint128 _delta,
         uint96 _fee,
@@ -123,8 +142,8 @@ abstract contract LSSVMPair is
         bytes calldata _state,
         uint256 _royaltyNumerator
     ) external payable validRoyaltyNumerator(_royaltyNumerator) {
-        require(owner() == address(0), "Initialized");
-        __Ownable_init(_owner);
+        require(tokenId == 0, "Initialized");
+        tokenId = _tokenId;
         __ReentrancyGuard_init();
 
         ICurve _bondingCurve = bondingCurve();
@@ -191,7 +210,7 @@ abstract contract LSSVMPair is
         address routerCaller
     ) external payable virtual nonReentrant returns (uint256 inputAmount) {
         // Store locally to remove extra calls
-        ILSSVMPairFactoryLike _factory = factory();
+        ILSSVMPairFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
         IERC721 _nft = nft();
 
@@ -262,7 +281,7 @@ abstract contract LSSVMPair is
         address routerCaller
     ) external payable virtual nonReentrant returns (uint256 inputAmount) {
         // Store locally to remove extra calls
-        ILSSVMPairFactoryLike _factory = factory();
+        ILSSVMPairFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
 
         // Input validation
@@ -330,7 +349,7 @@ abstract contract LSSVMPair is
         address routerCaller
     ) external virtual nonReentrant returns (uint256 outputAmount) {
         // Store locally to remove extra calls
-        ILSSVMPairFactoryLike _factory = factory();
+        ILSSVMPairFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
 
         // Input validation
@@ -351,8 +370,7 @@ abstract contract LSSVMPair is
         (_tradeFee, protocolFee, outputAmount, royaltyAmounts) = _calculateSellInfoAndUpdatePoolParams(
             nftIds.length,
             minExpectedTokenOutput,
-            _bondingCurve,
-            _factory
+            _bondingCurve
         );
 
         // Accrue trade fees before sending token output. This ensures that the balance is always sufficient for trade fee withdrawal.
@@ -470,9 +488,9 @@ abstract contract LSSVMPair is
         public
         pure
         virtual
-        returns (ILSSVMPairFactoryLike.PairVariant);
+        returns (ILSSVMPairFactory.PairVariant);
 
-    function factory() public pure returns (ILSSVMPairFactoryLike _factory) {
+    function factory() public pure returns (ILSSVMPairFactory _factory) {
         uint256 paramsLength = _immutableParamsLength();
         assembly {
             _factory := shr(
@@ -554,7 +572,7 @@ abstract contract LSSVMPair is
         );
     }
 
-    function feeMultipliers() public view returns (ICurve.FeeMultipliers memory feeMultipliers) {
+    function feeMultipliers() public view returns (ICurve.FeeMultipliers memory) {
         uint256 protocolFeeMultiplier;
         uint256 carryFeeMultiplier;
 
@@ -591,7 +609,7 @@ abstract contract LSSVMPair is
         uint256 numNFTs,
         uint256 maxExpectedTokenInput,
         ICurve _bondingCurve,
-        ILSSVMPairFactoryLike
+        ILSSVMPairFactory
     ) internal returns (
         uint256 _tradeFee,
         uint256 protocolFee, 
@@ -652,7 +670,7 @@ abstract contract LSSVMPair is
         @param numNFTs The amount of NFTs to send to the the pair
         @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
         amount is less than this value, the transaction will be reverted.
-        @param protocolFee The percentage of protocol fee to be taken, as a percentage
+        @param _bondingCurve The bonding curve used to fetch pricing information from
         @return _tradeFee The amount of tokens to send as trade fee
         @return protocolFee The amount of tokens to send as protocol fee
         @return outputAmount The amount of tokens total tokens receive
@@ -660,8 +678,7 @@ abstract contract LSSVMPair is
     function _calculateSellInfoAndUpdatePoolParams(
         uint256 numNFTs,
         uint256 minExpectedTokenOutput,
-        ICurve _bondingCurve,
-        ILSSVMPairFactoryLike _factory
+        ICurve _bondingCurve
     ) internal returns (
         uint256 _tradeFee,
         uint256 protocolFee, 
@@ -733,7 +750,7 @@ abstract contract LSSVMPair is
         uint256 inputAmount,
         bool isRouter,
         address routerCaller,
-        ILSSVMPairFactoryLike _factory,
+        ILSSVMPairFactory _factory,
         uint256 protocolFee,
         RoyaltyDue[] memory royaltyAmounts
     ) internal virtual;
@@ -749,7 +766,7 @@ abstract contract LSSVMPair is
         @notice Sends protocol fee (if it exists) back to the LSSVMPairFactory from the pair
      */
     function _payProtocolFeeFromPair(
-        ILSSVMPairFactoryLike _factory,
+        ILSSVMPairFactory _factory,
         uint256 protocolFee
     ) internal virtual;
 
@@ -802,7 +819,7 @@ abstract contract LSSVMPair is
     function _takeNFTsFromSender(
         IERC721 _nft,
         uint256[] calldata nftIds,
-        ILSSVMPairFactoryLike _factory,
+        ILSSVMPairFactory _factory,
         bool isRouter,
         address routerCaller
     ) internal virtual {
@@ -1028,7 +1045,7 @@ abstract contract LSSVMPair is
         external
         onlyOwner
     {
-        ILSSVMPairFactoryLike _factory = factory();
+        ILSSVMPairFactory _factory = factory();
         require(_factory.callAllowed(target), "Target must be whitelisted");
         (bool result, ) = target.call{value: 0}(data);
         require(result, "Call failed");

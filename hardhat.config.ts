@@ -27,14 +27,29 @@ import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/ta
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.17",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 150
-        // runs: 999999
-      },
-      viaIR: true //TODO: uncomment on when ready for production. More info at https://docs.soliditylang.org/en/latest/ir-breaking-changes.html
+    compilers: [
+      {
+        version: "0.8.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 4999
+          },
+          viaIR: true
+        }
+      }
+    ],
+    overrides: {
+      "contracts/RewardPoolETHDraw.sol": {
+        version: "0.8.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 150
+          },
+          viaIR: true
+        }
+      }
     }
   },
   gasReporter: {

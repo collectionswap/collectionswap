@@ -7,10 +7,8 @@ import { configs } from "./config";
 
 import type {
   Collectionstaker__factory,
-  Collectionswap__factory,
   RNGChainlinkV2__factory,
   Collectionstaker,
-  Collectionswap,
   RNGChainlinkV2,
   LSSVMPairFactory,
   LSSVMPairFactory__factory,
@@ -32,7 +30,6 @@ const curveNames = ["LinearCurve", "ExponentialCurve", "XykCurve"]; // "SigmoidC
 const curveAddresses: string[] = [];
 
 let factory: LSSVMPairFactory;
-let collectionSwap: Collectionswap;
 let collectionStaker: Collectionstaker;
 let rng: RNGChainlinkV2;
 
@@ -97,22 +94,13 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
 
   console.log(`------------------------------`);
 
-  console.log(`Deploying Collectionswap...`);
-  const collectionSwapFactory = (await hre.ethers.getContractFactory(
-    "Collectionswap",
-    deployer
-  )) as Collectionswap__factory;
-  collectionSwap = await collectionSwapFactory.deploy(factory.address);
-  await collectionSwap.deployed();
-  console.log(`Collectionswap address: ${collectionSwap.address}`);
-
   console.log(`Deploying Collectionstaker...`);
   const collectionStakerFactory = (await hre.ethers.getContractFactory(
     "Collectionstaker",
     deployer
   )) as Collectionstaker__factory;
   collectionStaker = await collectionStakerFactory.deploy(
-    collectionSwap.address
+    factory.address
   );
   await collectionStaker.deployed();
   console.log(`Collectionstaker address: ${collectionStaker.address}`);
@@ -146,7 +134,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     exponentialCurve: curveAddresses[1],
     xykCurve: curveAddresses[2],
     // SigmoidCurve: curveAddresses[3],
-    collectionSwap: collectionSwap.address,
+    factory: factory.address,
     collectionStaker: collectionStaker.address,
     rng: rng.address,
   };
@@ -182,6 +170,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
       templateAddresses[3],
       hre.ethers.constants.AddressZero, // Payout address
       hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
+      hre.ethers.utils.parseEther(config.CARRY_FEE_MULTIPLIER),
     ],
   });
 
@@ -193,16 +182,10 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     });
   }
 
-  console.log("verifying Collectionswap...");
-  await hre.run("verify:verify", {
-    address: collectionSwap.address,
-    constructorArguments: [factory.address],
-  });
-
   console.log("verifying Collectionstaker...");
   await hre.run("verify:verify", {
     address: collectionStaker.address,
-    constructorArguments: [collectionSwap.address],
+    constructorArguments: [factory.address],
   });
 
   console.log("verifying RNG...");

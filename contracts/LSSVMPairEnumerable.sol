@@ -5,7 +5,7 @@ import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
-import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 
 /**
     @title An NFT/Token pair for an NFT that implements ERC721Enumerable
@@ -83,8 +83,9 @@ abstract contract LSSVMPairEnumerable is LSSVMPair {
         onlyOwner
     {
         uint256 numNFTs = nftIds.length;
+        address owner = owner();
         for (uint256 i; i < numNFTs; ) {
-            a.safeTransferFrom(address(this), msg.sender, nftIds[i]);
+            a.safeTransferFrom(address(this), owner, nftIds[i]);
 
             unchecked {
                 ++i;

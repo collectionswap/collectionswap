@@ -16,7 +16,7 @@ pragma solidity ^0.8.0;
 
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {IRoyaltyRegistry} from "@manifoldxyz/royalty-registry-solidity/contracts/IRoyaltyRegistry.sol";
-import {LSSVMRouter, IERC721, ERC20, SafeTransferLib, LSSVMPair, ILSSVMPairFactoryLike, CurveErrorCodes} from "./LSSVMRouter.sol";
+import {LSSVMRouter, IERC721, ERC20, SafeTransferLib, LSSVMPair, ILSSVMPairFactory, CurveErrorCodes} from "./LSSVMRouter.sol";
 import {LSSVMPairERC20} from "./LSSVMPairERC20.sol";
 
 contract LSSVMRouterWithRoyalties is LSSVMRouter {
@@ -41,7 +41,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
 
     uint256 public immutable FETCH_TOKEN_ID;
 
-    constructor(ILSSVMPairFactoryLike _factory) LSSVMRouter(_factory) {
+    constructor(ILSSVMPairFactory _factory) LSSVMRouter(_factory) {
         // used to query the default royalty for a NFT collection
         // allows collection owner to set a particular royalty for this router
         FETCH_TOKEN_ID = uint256(keccak256(abi.encode(address(this))));
@@ -479,35 +479,36 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                         ERC20 token = LSSVMPairERC20(
                             address(swap.swapInfo.pair)
                         ).token();
-                        if (royaltyAmount > 0) {
-                            token.safeTransfer(royaltyRecipient, royaltyAmount);
-                            emit RoyaltyIssued(
-                                msg.sender,
-                                address(swap.swapInfo.pair),
-                                royaltyRecipient,
-                                pairOutput,
-                                royaltyAmount
-                            );
-                        }
+
+                        token.safeTransfer(royaltyRecipient, royaltyAmount);
+
                         token.safeTransfer(
                             tokenRecipient,
                             pairOutput - royaltyAmount
                         );
+
+                        emit RoyaltyIssued(
+                            msg.sender,
+                            address(swap.swapInfo.pair),
+                            royaltyRecipient,
+                            pairOutput,
+                            royaltyAmount
+                        );
                     } else {
-                        if (royaltyAmount > 0) {
-                            payable(royaltyRecipient).safeTransferETH(
-                                royaltyAmount
-                            );
-                            emit RoyaltyIssued(
-                                msg.sender,
-                                address(swap.swapInfo.pair),
-                                royaltyRecipient,
-                                pairOutput,
-                                royaltyAmount
-                            );
-                        }
+                        payable(royaltyRecipient).safeTransferETH(
+                            royaltyAmount
+                        );
+
                         tokenRecipient.safeTransferETH(
                             pairOutput - royaltyAmount
+                        );
+
+                        emit RoyaltyIssued(
+                            msg.sender,
+                            address(swap.swapInfo.pair),
+                            royaltyRecipient,
+                            pairOutput,
+                            royaltyAmount
                         );
                     }
                 } else {
@@ -613,6 +614,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                 params.tokenRecipient.safeTransferETH(remainingValue);
             }
         }
+
         {
             // Try doing each swap
             RobustPairSwapSpecificForToken calldata swapOut;
@@ -665,38 +667,39 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                             ERC20 token = LSSVMPairERC20(
                                 address(swapOut.swapInfo.pair)
                             ).token();
-                            if (royaltyAmount > 0) {
-                                token.safeTransfer(
-                                    royaltyRecipient,
-                                    royaltyAmount
-                                );
-                                emit RoyaltyIssued(
-                                    msg.sender,
-                                    address(swapOut.swapInfo.pair),
-                                    royaltyRecipient,
-                                    pairOutput,
-                                    royaltyAmount
-                                );
-                            }
+
+                            token.safeTransfer(
+                                royaltyRecipient,
+                                royaltyAmount
+                            );
+                            
                             token.safeTransfer(
                                 params.tokenRecipient,
                                 pairOutput - royaltyAmount
                             );
+
+                            emit RoyaltyIssued(
+                                msg.sender,
+                                address(swapOut.swapInfo.pair),
+                                royaltyRecipient,
+                                pairOutput,
+                                royaltyAmount
+                            );
                         } else {
-                            if (royaltyAmount > 0) {
-                                payable(royaltyRecipient).safeTransferETH(
-                                    royaltyAmount
-                                );
-                                emit RoyaltyIssued(
-                                    msg.sender,
-                                    address(swapOut.swapInfo.pair),
-                                    royaltyRecipient,
-                                    pairOutput,
-                                    royaltyAmount
-                                );
-                            }
+                            payable(royaltyRecipient).safeTransferETH(
+                                royaltyAmount
+                            );
+
                             params.tokenRecipient.safeTransferETH(
                                 pairOutput - royaltyAmount
+                            );
+                                
+                            emit RoyaltyIssued(
+                                msg.sender,
+                                address(swapOut.swapInfo.pair),
+                                royaltyRecipient,
+                                pairOutput,
+                                royaltyAmount
                             );
                         }
                     } else {
@@ -846,43 +849,45 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
                             msg.sender
                         );
 
-                        outputAmount += pairOutput - royaltyAmount;
+                        outputAmount = outputAmount + pairOutput - royaltyAmount;
 
                         if (royaltyType == RoyaltyType.ERC20) {
                             ERC20 token = LSSVMPairERC20(
                                 address(swapOut.swapInfo.pair)
                             ).token();
-                            if (royaltyAmount > 0) {
-                                token.safeTransfer(
-                                    royaltyRecipient,
-                                    royaltyAmount
-                                );
-                                emit RoyaltyIssued(
-                                    msg.sender,
-                                    address(swapOut.swapInfo.pair),
-                                    royaltyRecipient,
-                                    pairOutput,
-                                    royaltyAmount
-                                );
-                            }
+
+                            token.safeTransfer(
+                                royaltyRecipient,
+                                royaltyAmount
+                            );
+
                             token.safeTransfer(
                                 params.tokenRecipient,
                                 outputAmount
                             );
+
+                            emit RoyaltyIssued(
+                                msg.sender,
+                                address(swapOut.swapInfo.pair),
+                                royaltyRecipient,
+                                pairOutput,
+                                royaltyAmount
+                            );
+
                         } else {
-                            if (royaltyAmount > 0) {
-                                payable(royaltyRecipient).safeTransferETH(
-                                    royaltyAmount
-                                );
-                                emit RoyaltyIssued(
-                                    msg.sender,
-                                    address(swapOut.swapInfo.pair),
-                                    royaltyRecipient,
-                                    pairOutput,
-                                    royaltyAmount
-                                );
-                            }
+                            payable(royaltyRecipient).safeTransferETH(
+                                royaltyAmount
+                            );
+
                             params.tokenRecipient.safeTransferETH(
+                                royaltyAmount
+                            );
+                            
+                            emit RoyaltyIssued(
+                                msg.sender,
+                                address(swapOut.swapInfo.pair),
+                                royaltyRecipient,
+                                pairOutput,
                                 royaltyAmount
                             );
                         }
@@ -1148,7 +1153,7 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
 
             RoyaltyType royaltyType = _fetchRoyaltyType(swap.pair);
 
-            ILSSVMPairFactoryLike.PairVariant pairVariant = swap
+            ILSSVMPairFactory.PairVariant pairVariant = swap
                 .pair
                 .pairVariant();
 
@@ -1279,8 +1284,8 @@ contract LSSVMRouterWithRoyalties is LSSVMRouter {
         pure
         returns (RoyaltyType)
     {
-        ILSSVMPairFactoryLike.PairVariant pairVariant = pair.pairVariant();
-        if (pairVariant >= ILSSVMPairFactoryLike.PairVariant.ENUMERABLE_ERC20) {
+        ILSSVMPairFactory.PairVariant pairVariant = pair.pairVariant();
+        if (pairVariant >= ILSSVMPairFactory.PairVariant.ENUMERABLE_ERC20) {
             return RoyaltyType.ERC20;
         } else {
             return RoyaltyType.ETH;

@@ -8,16 +8,16 @@ import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 
 import {LSSVMPair} from "./LSSVMPair.sol";
-import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 
 contract MultiRouter {
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
 
-    ILSSVMPairFactoryLike public immutable erc721factory;
+    ILSSVMPairFactory public immutable erc721factory;
 
-    constructor(ILSSVMPairFactoryLike _erc721factory) {
+    constructor(ILSSVMPairFactory _erc721factory) {
         erc721factory = _erc721factory;
     }
 
@@ -196,15 +196,15 @@ contract MultiRouter {
         uint8 variant
     ) external {
         // verify caller is an ERC20 pair contract
-        ILSSVMPairFactoryLike.PairVariant _variant = ILSSVMPairFactoryLike
+        ILSSVMPairFactory.PairVariant _variant = ILSSVMPairFactory
             .PairVariant(variant);
         require(erc721factory.isPair(msg.sender, _variant), "Not pair");
 
         // verify caller is an ERC20 pair
         require(
-            _variant == ILSSVMPairFactoryLike.PairVariant.ENUMERABLE_ERC20 ||
+            _variant == ILSSVMPairFactory.PairVariant.ENUMERABLE_ERC20 ||
                 _variant ==
-                ILSSVMPairFactoryLike.PairVariant.MISSING_ENUMERABLE_ERC20,
+                ILSSVMPairFactory.PairVariant.MISSING_ENUMERABLE_ERC20,
             "Not ERC20 pair"
         );
         // transfer tokens to pair
@@ -225,7 +225,7 @@ contract MultiRouter {
         address from,
         address to,
         uint256 id,
-        ILSSVMPairFactoryLike.PairVariant variant
+        ILSSVMPairFactory.PairVariant variant
     ) external {
         // verify caller is a trusted pair contract
         require(erc721factory.isPair(msg.sender, variant), "Not pair");

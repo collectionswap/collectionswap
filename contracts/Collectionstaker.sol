@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import "./ICollectionswap.sol";
+import "./ILSSVMPairFactory.sol";
 import "./RewardPoolETH.sol";
 import "./RewardPoolETHDraw.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 contract Collectionstaker is Ownable {
     using SafeERC20 for IERC20;
 
-    ICollectionswap immutable lpToken;
+    ILSSVMPairFactory immutable lpToken;
     RewardPoolETH immutable rewardPoolETHLogic;
     RewardPoolETHDraw immutable rewardPoolETHDrawLogic;
     uint256 public constant MAX_REWARD_TOKENS = 5;
@@ -39,7 +39,7 @@ contract Collectionstaker is Ownable {
         uint256 endTime
     );
 
-    constructor(ICollectionswap _lpToken) {
+    constructor(ILSSVMPairFactory _lpToken) {
         lpToken = _lpToken;
         rewardPoolETHLogic = new RewardPoolETH();
         rewardPoolETHDrawLogic = new RewardPoolETHDraw();
@@ -70,7 +70,7 @@ contract Collectionstaker is Ownable {
         uint256[] memory rewardRates = new uint256[](rewardTokensLength);
         for (uint256 i; i < rewardTokensLength; ) {
             rewardRates[i] = rewards[i] / (endTime - startTime); // guaranteed endTime > startTime
-            require(rewardRates[i] != 0, "0 reward rate");
+            require(rewardRates[i] != 0, "0 rate");
             unchecked {
                 ++i;
             }
@@ -78,8 +78,6 @@ contract Collectionstaker is Ownable {
         RewardPoolETH rewardPool = RewardPoolETH(
             Clones.clone(address(rewardPoolETHLogic))
         );
-
-        lpToken.setCanSpecifySender(address(rewardPool), true);
         
         rewardPool.initialize(
             owner(),
@@ -156,7 +154,7 @@ contract Collectionstaker is Ownable {
         uint256[] memory rewardRates = new uint256[](rewardTokensLength);
         for (uint256 i; i < rewardTokensLength; ) {
             rewardRates[i] = rewards[i] / (rewardEndTime - rewardStartTime); // guaranteed endTime > startTime
-            require(rewardRates[i] != 0, "0 reward rate");
+            require(rewardRates[i] != 0, "0 rate");
             unchecked {
                 ++i;
             }
@@ -165,8 +163,6 @@ contract Collectionstaker is Ownable {
         RewardPoolETHDraw rewardPool = RewardPoolETHDraw(
             Clones.clone(address(rewardPoolETHDrawLogic))
         );
-
-        lpToken.setCanSpecifySender(address(rewardPool), true);
 
         rewardPool.initialize(
             owner(),

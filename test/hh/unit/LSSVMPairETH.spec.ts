@@ -48,20 +48,21 @@ describe("LSSVMPairETH", function () {
 
   async function lsSVMETHFixture() {
     const { protocol, user, user1 } = await getSigners();
-    const { curve, lsSVMPairFactory } = await lsSVMFixture();
+    const { curve, factory } = await lsSVMFixture();
     const { nft } = await nftFixture();
     const nftTokenIds = await mintNfts(nft, user.address);
-    await nft.connect(user).setApprovalForAll(lsSVMPairFactory.address, true);
+    await nft.connect(user).setApprovalForAll(factory.address, true);
 
     const poolType = 2;
     const fee = ethers.utils.parseEther("0.89");
     const { delta, spotPrice, props, state, royaltyNumerator, protocolFee } =
       getCurveParameters();
 
-    const resp = await lsSVMPairFactory.connect(user).createPairETH({
+    const resp = await factory.connect(user).createPairETH({
       nft: nft.address,
       bondingCurve: curve.address,
       assetRecipient: ethers.constants.AddressZero,
+      receiver: user.address,
       poolType,
       delta,
       fee,
@@ -74,10 +75,10 @@ describe("LSSVMPairETH", function () {
     const receipt = await resp.wait();
 
     return {
-      lsSVMPairFactory,
+      lsSVMPairFactory: factory,
       lssvmPairETH: await ethers.getContractAt(
         "LSSVMPairETH",
-        receipt.events!.at(-1)!.args!.poolAddress,
+        receipt.events![5].args!.poolAddress,
         user
       ),
       nft,

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {RewardPoolETH} from "./RewardPoolETH.sol";
-import "./ICollectionswap.sol";
+import "./ILSSVMPairFactory.sol";
 import "./ILSSVMPair.sol";
 import "./SortitionSumTreeFactory.sol";
 import "./lib/ReentrancyGuard.sol";
@@ -19,12 +19,12 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
 
     /// @notice RNG contract interface
     RNGInterface public rng;
-
-    uint256 public thisEpoch;
     uint32 public myRNGRequestId;
-    mapping(uint256 => uint256) public epochToStartTime;
-    mapping(uint256 => uint256) public epochToFinishTime;
-    mapping(uint256 => uint256) public epochToRandomNumber;
+    uint64 public thisEpoch;
+
+    mapping(uint64 => uint256) public epochToStartTime;
+    mapping(uint64 => uint256) public epochToFinishTime;
+    mapping(uint64 => uint256) public epochToRandomNumber;
     
     struct SimpleObservation {
         uint256 timestamp;
@@ -75,13 +75,13 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 remainder;
     }
     // Mappings of epoch to prize data
-    mapping(uint256 => PrizeSet) public epochPrizeSets;
-    mapping(uint256 => mapping(IERC20 => uint256)) public epochERC20PrizeAmounts;
-    mapping(uint256 => mapping(IERC721 => bool)) public epochERC721Collections;
-    mapping(uint256 => mapping(uint256 => NFTData)) public epochERC721PrizeIdsData;
-    mapping(uint256 => WinnerConfig) public epochWinnerConfigs;
+    mapping(uint64 => PrizeSet) public epochPrizeSets;
+    mapping(uint64 => mapping(IERC20 => uint256)) public epochERC20PrizeAmounts;
+    mapping(uint64 => mapping(IERC721 => bool)) public epochERC721Collections;
+    mapping(uint64 => mapping(uint256 => NFTData)) public epochERC721PrizeIdsData;
+    mapping(uint64 => WinnerConfig) public epochWinnerConfigs;
 
-    mapping(uint256 => mapping(address => uint256)) public epochUserERC20NumWinnerEntries; // denominator is epochWinnerConfigs[epoch].numberOfDrawWinners
+    mapping(uint64 => mapping(address => uint256)) public epochUserERC20NumWinnerEntries; // denominator is epochWinnerConfigs[epoch].numberOfDrawWinners
 
     // NFT prizes
     /** 
@@ -91,17 +91,17 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
      * `epochERC721PrizeIdsData[(index + 1) * numberOfPrizesPerWinner]`
      * for all `index` in `index_arr`
      */
-    mapping(uint256 => mapping(address => uint256[])) public epochUserPrizeStartIndices; 
+    mapping(uint64 => mapping(address => uint256[])) public epochUserPrizeStartIndices; 
 
     // Both ERC20 and ERC721 prizes
-    mapping(uint256 => mapping(address => bool)) public isPrizeClaimable;
+    mapping(uint64 => mapping(address => bool)) public isPrizeClaimable;
 
     //////////////////////////////////////////
     // EVENTS
     //////////////////////////////////////////
 
-    event DrawOpen(uint256 indexed epoch);
-    event DrawClosed(uint256 indexed epoch);
+    event DrawOpen(uint64 epoch);
+    event DrawClosed(uint64 epoch);
     event PrizesAdded(
         uint256 indexed epoch,
         IERC721[] prizeNftCollections,
@@ -112,11 +112,22 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 endTime
     );
     event PrizesPerWinnerUpdated(uint256 indexed epoch, uint256 numPrizesPerWinner);
-    event DrawResolved(uint256 indexed epoch, address[] winners);
-    event Claimed(uint256 indexed epoch, address user);
+    event DrawResolved(uint64 epoch, address[] winners);
+    event Claimed(address user, uint64 epoch);
+
+    //////////////////////////////////////////
+    // ERRORS
+    //////////////////////////////////////////
+    error BadEpochZeroInitalization();
+    error BadStartTime();
+    error CallerNotDeployer();
+    error IncorrectDrawStatus();
+    error NoClaimableShare();
+    error NFTPrizeRequired();
+    error RNGRequestIncomplete();
 
     modifier onlyDeployer() {
-        require(msg.sender == deployer, "Only deployer");
+        if (msg.sender != deployer) revert CallerNotDeployer();
         _;
     }
 
@@ -141,7 +152,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         address _protocolOwner,
         address _factory,
         address _deployer,
-        ICollectionswap _lpToken,
+        ILSSVMPairFactory _lpToken,
         IValidator _validator,
         IERC721 _nft,
         address _bondingCurve,
@@ -161,7 +172,6 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 _drawPeriodFinish
     )  external {
         __ReentrancyGuard_init();
-        LOCK_TIME = 90 days;
         factory = _factory;
 
         super.initialize({
@@ -178,6 +188,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             _startTime: _rewardStartTime,
             _periodFinish: _rewardPeriodFinish
         });
+
+        LOCK_TIME = 90 days;
 
         rng = _rng;
         TREE_KEY = keccak256(abi.encodePacked(uint256(1)));
@@ -249,7 +261,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 _drawStartTime,
         uint256 _drawPeriodFinish,
         bool _callerIsDeployer,
-        uint256 _epoch
+        uint64 _epoch
     ) internal nonReentrant {
         uint256 numNfts = _nftCollectionsPrize.length;
 
@@ -259,14 +271,14 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         if (_drawStartTime != 0) {
             // ensure that current epoch has been resolved
             // excludes base case of _epoch == 0 (uninitialized)
-            if (_epoch != 0) require(drawStatus == DrawStatus.Resolved, "Should be resolved");
+            if (_epoch != 0) if (drawStatus != DrawStatus.Resolved) revert IncorrectDrawStatus();
 
             // when setting new epoch, 
             // we need numNfts > 0 to ensure the draw is workable
             // because the distribution of the prizes depends on the number of ERC721 tokens
-            require(numNfts > 0, "Min 1 NFT"); 
-            require(_drawStartTime > block.timestamp, "start < now");
-            require(_drawPeriodFinish > _drawStartTime, "end <= start");
+            if (numNfts == 0) revert NFTPrizeRequired();
+            if (_drawStartTime <= block.timestamp) revert BadStartTime();
+            if (_drawPeriodFinish <= _drawStartTime) revert BadEndTime();
 
             // update thisEpoch storage variable
             // and increment _epoch to new epoch
@@ -289,32 +301,33 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             if (_epoch != 0) {
                 // when adding to an existing epoch, 
                 // require that the draw is not resolved
-                require(drawStatus != DrawStatus.Resolved, "Should not be resolved"); 
+                if (drawStatus == DrawStatus.Resolved) revert IncorrectDrawStatus();
             } else {
                 // If epoch is zero (initialization),
                 // We assume the project is only using the reward distribution portion initially,
                 // and would use the draw functionality in the future
                 // Hence, we check that no rewards are being distributed
-                require(numNfts == 0 && _erc20Prize.length == 0, "Init with 0 startTime");
+                if (numNfts != 0 || _erc20Prize.length != 0) revert BadEpochZeroInitalization();
             }
         }
 
         ////////////////////////////
         /// HANDLING NFT PRIZES  ///
         ////////////////////////////
-        require(numNfts == _nftIdsPrize.length, "Diff NFT lengths");
+        if (numNfts != _nftIdsPrize.length) revert LengthMismatch();
 
         PrizeSet storage prizeSet = epochPrizeSets[_epoch];
         // index for appending to existing number of NFTs
         uint256 prizeIdIndex = prizeSet.numERC721Prizes;
-        require(prizeIdIndex + numNfts < MAX_REWARD_NFTS, "Exceed max NFTs");
+        if (prizeIdIndex + numNfts > MAX_REWARD_NFTS) revert LengthLimitExceeded();
         // iterate through each nft in prizePool.nftCollections and transfer to this contract if caller is deployer
         for (uint256 i; i < numNfts; ++i) {
             IERC721 myCollAdd = (_nftCollectionsPrize[i]);
             
             if (!epochERC721Collections[_epoch][myCollAdd]) {
                 // new collection for this epoch
-                require(_nftCollectionsPrize[i].supportsInterface(0x80ac58cd), "NFT Prize not ERC721"); // check if it supports ERC721
+                // check if it supports ERC721
+                if (!_nftCollectionsPrize[i].supportsInterface(0x80ac58cd)) revert NFTNotERC721();
                 epochERC721Collections[_epoch][myCollAdd] = true;
                 prizeSet.erc721RewardTokens.push(myCollAdd);
             }
@@ -333,11 +346,11 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         /////////////////////////////
         /// HANDLING ERC20 PRIZES ///
         /////////////////////////////
-        require(_erc20Prize.length == _erc20PrizeAmounts.length, "Diff ERC20 lengths");
+        if (_erc20Prize.length != _erc20PrizeAmounts.length) revert LengthMismatch();
 
         // iterate through each ERC20 token and transfer to this contract
         for (uint256 i; i < _erc20Prize.length; ++i) {
-            require(_erc20PrizeAmounts[i] != 0, "0 prize amount");
+            if (_erc20PrizeAmounts[i] == 0) revert ZeroRewardRate();
             // @dev: only need transfer tokens in if caller is deployer
             if (_callerIsDeployer) {
                 _erc20Prize[i].safeTransferFrom(msg.sender, address(this), _erc20PrizeAmounts[i]);
@@ -349,7 +362,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
                 // not encountered before
                 prizeSet.erc20RewardTokens.push(myCollAdd);
                 // ensure no. of ERC20 tokens don't exceed MAX_REWARD_TOKENS
-                require(prizeSet.erc20RewardTokens.length <= MAX_REWARD_TOKENS, "Exceed max tokens");
+                if (prizeSet.erc20RewardTokens.length > MAX_REWARD_TOKENS) revert LengthLimitExceeded();
             }
             epochERC20PrizeAmounts[_epoch][myCollAdd] = epochAmount + _erc20PrizeAmounts[i];
         }
@@ -381,7 +394,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     /**
         @dev - initializes prize set for new epoch. Callable internally only after epoch has been incremented.
     **/
-    function _initPrizeSet(uint256 epoch) internal {
+    function _initPrizeSet(uint64 epoch) internal {
         epochPrizeSets[epoch] = PrizeSet({
             erc721RewardTokens: new IERC721[](0),
             numERC721Prizes: 0,
@@ -407,7 +420,10 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
      * pruned upon calling this function.
      */
     function recalcSortitionTreesEpochStart() internal {
-        uint256 amountTimeRemainingToVaultEnd = getFunctionalTimeRemainingInVault(block.timestamp);
+        // lastObservationTimestamp is arbitrarily set as 0
+        // because it is only used for calculation of timeElapsed
+        // which is redundant in this function
+        (, uint256 amountTimeRemainingToVaultEnd) = getTimeProgressInEpoch(block.timestamp, 0);
 
         // Recalculate sortition trees for everything in vaultInteractorList,
         // for the new periodFinish. Use i - 1 because (0 - 1) underflows to 
@@ -461,41 +477,44 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     /**
-        @dev - get "functional time" = the remaining amount of usable time to extend on the current TWAB cumsum. This is to calculate the expected TWAB at drawFinish so that we don't have to iterate through all addresses to get the right epoch-end weighted stake.
-        We check that (A) eventTimestamp is less than drawFinish. And it is always bounded by the drawFinish - start time, even if the vault hasn't started.
-    **/ 
-    function getFunctionalTimeRemainingInVault(uint256 eventTimestamp) public view returns (uint256) {
-        uint256 _epoch = thisEpoch;
+       @param eventTimestamp specified timestamp of when to calculate progress from
+       @param lastObservationTimestamp timestamp at which the last observation for the user was made
+       @return timeElapsed the effective time elapsed during thisEpoch
+       @return timeRemaining the remaining amount of usable time to extend on the current TWAB cumsum. 
+       This is to calculate the expected TWAB at drawFinish so that 
+       we don't have to iterate through all addresses to get the right epoch-end weighted stake.
+       We check that (A) eventTimestamp is less than drawFinish.
+       And it is always bounded by the drawFinish - start time, even if the vault hasn't started.
+    **/
+    function getTimeProgressInEpoch(
+        uint256 eventTimestamp,
+        uint256 lastObservationTimestamp
+    ) public view returns (uint256 timeElapsed, uint256 timeRemaining) {
+        uint64 _epoch = thisEpoch;
         uint256 _drawStart = epochToStartTime[_epoch];
         uint256 _drawFinish = epochToFinishTime[_epoch];
+
         if (eventTimestamp < _drawStart) {
-            // draw program has not commenced
-            return _drawFinish - _drawStart;
+            // draw has not commenced:
+            // timeElapsed should be 0
+            // timeRemaining should be the full draw duration
+            return (0, _drawFinish - _drawStart);
         }
-        return eventTimestamp > _drawFinish ? 0 : _drawFinish - eventTimestamp;
-    }
 
-    function getEffectiveTimeElapsedThisEpoch(uint256 eventTimestamp, uint256 lastObservationTimestamp) public view returns (uint256) {
-        uint256 _epoch = thisEpoch;
-        uint256 _drawStart = epochToStartTime[_epoch];
-        uint256 _drawFinish = epochToFinishTime[_epoch];
-        // return 0 if draw program has not commenced
-        if (eventTimestamp < _drawStart) return 0;
-
-        // min(drawFinish, eventTimestamp) - max(drawStart, lastObservationTimestamp)
+        // timeElapsed = min(drawFinish, eventTimestamp) - max(drawStart, lastObservationTimestamp)
         uint256 effectiveEndPoint = eventTimestamp > _drawFinish ? _drawFinish : eventTimestamp;
         uint256 effectiveStartPoint = lastObservationTimestamp < _drawStart ? _drawStart : lastObservationTimestamp;
-        return effectiveEndPoint - effectiveStartPoint;
+        timeElapsed = effectiveEndPoint - effectiveStartPoint;
+
+        timeRemaining = eventTimestamp > _drawFinish ? 0 : _drawFinish - eventTimestamp;
     }
 
     /**
         @dev - updateSortitionStake (updates Sortition stake and TWAB). This is called either when a user stakes/burns, but sortition tree is modified only when draw is open
     **/ 
     function updateSortitionStake(address _staker, uint256 _amount, bool isIncrement, bool modifySortition) internal {
-        uint256 amountTimeRemainingToVaultEnd = getFunctionalTimeRemainingInVault(block.timestamp);
-
         SimpleObservation storage lastObservation = lastTWAPObservation[_staker];
-        uint256 timeElapsed = getEffectiveTimeElapsedThisEpoch(block.timestamp, lastObservation.timestamp);
+        (uint256 timeElapsed, uint256 amountTimeRemainingToVaultEnd) = getTimeProgressInEpoch(block.timestamp, lastObservation.timestamp);
         
         // update lastObservation parameters
         // increment cumulative sum given effective time elapsed
@@ -518,16 +537,15 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         @dev - get numerator/denominator for chances of winning
     **/ 
     function viewChanceOfDraw(address _staker) external view returns (uint256 chanceNumerator, uint256 chanceDenominator) {
-        bytes32 _ID = addressToBytes32(_staker);
         bytes32 _treeKey = TREE_KEY;
-        chanceNumerator = sortitionSumTrees.stakeOf(_treeKey, _ID);
+        chanceNumerator = sortitionSumTrees.stakeOf(_treeKey, addressToBytes32(_staker));
         chanceDenominator = sortitionSumTrees.total(_treeKey);
     }
 
     /**
         @dev - get number of winners and number of prizes per winner
     **/ 
-    function getDrawDistribution(uint256 epoch) public view returns (uint256 numberOfDrawWinners, uint256 numberOfPrizesPerWinner, uint256 remainder) {
+    function getDrawDistribution(uint64 epoch) public view returns (uint256 numberOfDrawWinners, uint256 numberOfPrizesPerWinner, uint256 remainder) {
         numberOfPrizesPerWinner = epochPrizeSets[epoch].prizePerWinner;
         uint256 numPrizes = epochPrizeSets[epoch].numERC721Prizes;
         // numberOfPrizesPerWinner has been checked to be <= numPrizes
@@ -544,8 +562,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     function _setPrizePerWinner(PrizeSet storage prizeSet, uint256 _prizePerWinner) internal {
-        require(_prizePerWinner <= prizeSet.numERC721Prizes, "prizePerWinner > NFTs");
-        require(_prizePerWinner > 0, "0 prizePerWinner");
+        if (_prizePerWinner > prizeSet.numERC721Prizes) revert LengthLimitExceeded();
+        if (_prizePerWinner == 0) revert ZeroRewardRate();
         prizeSet.prizePerWinner = _prizePerWinner;
         emit PrizesPerWinnerUpdated(thisEpoch, _prizePerWinner);
     }
@@ -556,8 +574,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     function closeDraw() external
         returns (uint32 requestId, uint32 lockBlock)
     {
-        require(drawStatus == DrawStatus.Open, "Draw not open");
-        require(block.timestamp > epochToFinishTime[thisEpoch], "Too early");
+        if (drawStatus != DrawStatus.Open) revert IncorrectDrawStatus();
+        if (block.timestamp < epochToFinishTime[thisEpoch]) revert TooEarly();
         drawStatus = DrawStatus.Closed;
         (requestId, lockBlock) = rng.requestRandomNumber();
         myRNGRequestId = requestId;
@@ -588,9 +606,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     function resolveDrawResults() external {
         // cache storage read
         uint32 _myRNGRequestId = myRNGRequestId;
-        require(drawStatus == DrawStatus.Closed, "Draw not closed");
-        require(rng.isRequestComplete(_myRNGRequestId), "Request incomplete");
-        uint256 _epoch = thisEpoch;
+        if (drawStatus != DrawStatus.Closed) revert IncorrectDrawStatus();
+        if (!rng.isRequestComplete(_myRNGRequestId)) revert RNGRequestIncomplete();
+        uint64 _epoch = thisEpoch;
         // set drawStatus to resolved
         drawStatus = DrawStatus.Resolved;
         uint256 randomNum = rng.randomNumber(_myRNGRequestId);
@@ -634,8 +652,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     /**
         @dev - Claims your share of the prize per epoch. Takes cue from the number of ERC721 tokens, first-class prizes. ERC20 tokens distribution are determined from ERC-721 tokens
     **/
-    function claimMyShare(uint256 epoch) public {
-        require(isPrizeClaimable[epoch][msg.sender], "No claimable share");
+    function claimMyShare(uint64 epoch) public {
+        if (!isPrizeClaimable[epoch][msg.sender]) revert NoClaimableShare();
         // blocks re-entrancy for the same epoch
         isPrizeClaimable[epoch][msg.sender] = false;
 
@@ -658,7 +676,6 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             }
         }
 
-        // claimMyShareERC20(epoch);
         // ERC20s
         uint256 numerator = epochUserERC20NumWinnerEntries[epoch][msg.sender];
         /**
@@ -676,41 +693,24 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     /**
-        @dev - Claims your share of the prize for all epochs
+        @dev - Claims your share of the prize for specified epochs
     **/  
-    function claimAllKnownShares() external {
-        uint256 epoch = thisEpoch;
+    function claimMySharesMultiple(uint64[] calldata epochs) external {
         unchecked {
-            for (uint256 i = 1; i <= epoch; ++i) {
-                if (isPrizeClaimable[i][msg.sender]) {
-                    claimMyShare(i);
-                }
+            for (uint256 i; i < epochs.length; ++i) {
+                claimMyShare(epochs[i]);
             }
         }
     }
 
     /**
-        @dev - Sweeps remaining NFTs after draw resolution
-    **/  
-    function sweepRemainderNfts(uint256 epoch) external onlyDeployer {
-        require(epochToRandomNumber[epoch] != 0, "Unresolved draw");
-        uint256 numNfts = epochPrizeSets[epoch].numERC721Prizes;
-        // undistributed NFTs will be from the last index
-        // prizeData is 1-indexed
-        uint256 endIndex = numNfts - epochWinnerConfigs[epoch].remainder;
-        unchecked {
-            for (uint256 i = numNfts; i > endIndex; --i) {
-                NFTData storage nftData = epochERC721PrizeIdsData[epoch][i];
-                nftData.nftAddress.safeTransferFrom(address(this), msg.sender, nftData.nftID);
-            }
-        }
-    }
-
-    /**
-        @dev - Sweeps unclaimed NFTs, but only after rewardSweepTime
+        @dev - Sweeps specified unclaimed NFTs, but only after rewardSweepTime
+        Note that remainder NFTs count from the last index, and that prizeData is 1-indexed
+        Eg. 10 NFT prizes, 4 winners for the draw = remainder of 2 NFTs
+        Specified NFT ids should be 9 and 10
     **/
-    function sweepUnclaimedNfts(uint256 epoch, uint256[] calldata prizeIndices) external onlyDeployer {
-        require(block.timestamp > rewardSweepTime, "Too early");
+    function sweepUnclaimedNfts(uint64 epoch, uint256[] calldata prizeIndices) external onlyDeployer {
+        if (block.timestamp < rewardSweepTime) revert TooEarly();
         unchecked {
             for (uint256 i; i < prizeIndices.length; ++i) {
                 NFTData storage nftData = epochERC721PrizeIdsData[epoch][prizeIndices[i]];

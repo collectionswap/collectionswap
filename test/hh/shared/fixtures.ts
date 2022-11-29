@@ -73,7 +73,7 @@ export function getCurveParameters(): {
 
 export async function integrationFixture() {
   const { owner, protocol, user } = await getSigners();
-  const { collectionswap, collectionstaker, curve } =
+  const { factory, collectionstaker, curve } =
     await collectionstakerFixture();
   const { monotonicIncreasingValidator } = await validatorFixture();
   const rewardTokens = (await rewardTokenFixture()).slice(0, NUM_REWARD_TOKENS);
@@ -93,7 +93,7 @@ export async function integrationFixture() {
   } = getCurveParameters();
 
   return {
-    collectionswap: collectionswap.connect(user),
+    factory: factory.connect(user),
     collectionstaker: collectionstaker.connect(protocol),
     monotonicIncreasingValidator,
     curve: curve as unknown as ICurve,
@@ -115,26 +115,21 @@ export async function integrationFixture() {
   };
 }
 
-export async function collectionswapFixture() {
+export async function factoryFixture() {
   const { collection } = await getSigners();
 
-  const { curve, lsSVMPairFactory } = await lsSVMFixture();
-  const Collectionswap = await ethers.getContractFactory("Collectionswap");
-  const collectionswap = await Collectionswap.connect(collection).deploy(
-    lsSVMPairFactory.address
-  );
+  const { curve, factory } = await lsSVMFixture();
 
-  return { curve, collectionswap, collection };
+  return { curve, factory, collection };
 }
 
 export async function collectionstakerFixture() {
-  const { collectionswap, collection, curve } = await collectionswapFixture();
+  const { factory, collection, curve } = await factoryFixture();
   const Collectionstaker = await ethers.getContractFactory("Collectionstaker");
   const collectionstaker = await Collectionstaker.connect(collection).deploy(
-    collectionswap.address
+    factory.address
   );
-  await collectionswap.connect(collection).setSenderSpecifierOperator(collectionstaker.address, true);
-  return { collectionswap, collectionstaker, curve, collection };
+  return { factory, collectionstaker, curve, collection };
 }
 
 export async function collectionstakerWithRewardsFixture() {
@@ -241,7 +236,7 @@ export async function lsSVMFixture() {
 
   return {
     curve: map[CURVE_TYPE!],
-    lsSVMPairFactory,
+    factory: lsSVMPairFactory,
   };
 }
 
@@ -250,7 +245,7 @@ function stringToBigNumber(value: string): BigNumber {
 }
 
 /**
- * Has everything needed for DeployCollectionSwap suite. Trim down when we have
+ * Has everything needed for DeployCollectionSet suite. Trim down when we have
  * time, but convenient for now.
  */
 export async function everythingFixture() {
@@ -342,16 +337,11 @@ export async function everythingFixture() {
   const initialNFTIDs = [...Array(3).keys()].map((num) => num + 1234);
   await lssvmPairFactory.setBondingCurveAllowed(curve.address, true);
 
-  const Collectionswap = await ethers.getContractFactory("Collectionswap");
-  const collectionswap = await Collectionswap.deploy(lssvmPairFactory.address);
-  // Console.log(`Collectionswap deployed to ${collectionswap.address}`)
-
   const delta = stringToBigNumber(bigDelta);
   const fee = stringToBigNumber(bigPctFee);
   const spotPrice = stringToBigNumber(bigSpot);
 
   const ret = {
-    collectionswap,
     lssvmPairFactory,
     lssvmPairEnumerableETH,
     lssvmPairMissingEnumerableETH,
@@ -383,6 +373,7 @@ export async function everythingFixture() {
       nft: nftContractCollection.address,
       bondingCurve: curve.address,
       assetRecipient,
+      receiver: otherAccount0.address,
       poolType,
       delta,
       fee,
@@ -400,7 +391,7 @@ export async function everythingFixture() {
 export async function rewardPoolFixture() {
   const { owner, user, user1, collection } = await getSigners();
 
-  let { collectionswap, curve } = await collectionswapFixture();
+  let { factory, curve } = await factoryFixture();
   const { monotonicIncreasingValidator } = await validatorFixture();
   const allRewardTokens = await rewardTokenFixture();
   const rewardTokens = allRewardTokens.slice(0, NUM_REWARD_TOKENS);
@@ -415,7 +406,7 @@ export async function rewardPoolFixture() {
     getCurveParameters();
 
   const RewardPool = await ethers.getContractFactory("RewardPoolETH");
-  let rewardPool = await RewardPool.connect(collectionswap.signer).deploy();
+  let rewardPool = await RewardPool.connect(factory.signer).deploy();
 
   const Clones = await ethers.getContractFactory("TestClones");
   const clones = await Clones.deploy();
@@ -426,7 +417,7 @@ export async function rewardPoolFixture() {
   await rewardPool.initialize(
     collection.address,
     owner.address,
-    collectionswap.address,
+    factory.address,
     monotonicIncreasingValidator.address,
     nft.address,
     curve.address,
@@ -445,7 +436,7 @@ export async function rewardPoolFixture() {
   const nftTokenIds = await mintNfts(nft, user.address);
   const nftTokenIds1 = await mintNfts(nft, user1.address);
 
-  collectionswap = collectionswap.connect(user);
+  factory = factory.connect(user);
   nft = nft.connect(user);
   rewardPool = rewardPool.connect(user);
 
@@ -460,14 +451,14 @@ export async function rewardPoolFixture() {
     value: ethers.utils.parseEther("2"),
   };
 
-  const { lpTokenId } = await createPairEth(collectionswap, {
+  const { lpTokenId } = await createPairEth(factory, {
     ...params,
     nft: nft as unknown as IERC721,
     nftTokenIds,
   });
 
   const { lpTokenId: lpTokenId1 } = await createPairEth(
-    collectionswap.connect(user1),
+    factory.connect(user1),
     {
       ...params,
       nft: nft.connect(user1) as unknown as IERC721,
@@ -476,7 +467,7 @@ export async function rewardPoolFixture() {
   );
 
   return {
-    collectionswap,
+    factory,
     monotonicIncreasingValidator,
     allRewardTokens,
     rewardTokens,

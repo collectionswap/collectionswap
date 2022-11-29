@@ -14,7 +14,7 @@ describe("integration", function () {
 
   it("Should integrate", async function () {
     const {
-      collectionswap,
+      factory,
       collectionstaker,
       monotonicIncreasingValidator,
       curve,
@@ -55,7 +55,7 @@ describe("integration", function () {
       delta,
       fee,
     };
-    const result = await createPairEth(collectionswap, {
+    const result = await createPairEth(factory, {
       ...params,
       spotPrice: bigSpot,
       nftTokenIds: initialNftTokenIds,
@@ -79,7 +79,7 @@ describe("integration", function () {
     }
 
     // User should be minted an lp token
-    expect(await collectionswap.ownerOf(lpTokenId)).to.equal(user.address);
+    expect(await factory.ownerOf(lpTokenId)).to.equal(user.address);
 
     // Protocol should have the reward tokens
     for (let i = 0; i < numRewardTokens; i++) {
@@ -110,13 +110,13 @@ describe("integration", function () {
     rewardPool = rewardPool.connect(user);
 
     // User should have the lp token
-    expect(await collectionswap.ownerOf(lpTokenId)).to.equal(user.address);
+    expect(await factory.ownerOf(lpTokenId)).to.equal(user.address);
 
-    await collectionswap.approve(rewardPool.address, lpTokenId);
+    await factory.approve(rewardPool.address, lpTokenId);
     await rewardPool.stake(lpTokenId);
 
     // Reward pool should now have the lp token
-    expect(await collectionswap.ownerOf(lpTokenId)).to.equal(
+    expect(await factory.ownerOf(lpTokenId)).to.equal(
       rewardPool.address
     );
 
@@ -141,7 +141,7 @@ describe("integration", function () {
     await rewardPool.exit(lpTokenId);
 
     // User should get back lp token
-    expect(await collectionswap.ownerOf(lpTokenId)).to.equal(user.address);
+    expect(await factory.ownerOf(lpTokenId)).to.equal(user.address);
 
     // User should get all the rewards
     for (let i = 0; i < numRewardTokens; i++) {
@@ -152,16 +152,14 @@ describe("integration", function () {
       );
     }
 
+    await factory.setApprovalForAll(factory.address, true);
     prevBalance = await user.getBalance();
-    const response = await collectionswap.useLPTokenToDestroyDirectPairETH(
-      user.address,
-      lpTokenId
-    );
+    const response = await factory.burn(lpTokenId);
     const receipt = await response.wait();
     dBalance = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
     // Lp token should be burnt
-    await expect(collectionswap.ownerOf(lpTokenId)).to.be.revertedWith(
+    await expect(factory.ownerOf(lpTokenId)).to.be.revertedWith(
       "ERC721: invalid token ID"
     );
 

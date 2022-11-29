@@ -5,7 +5,7 @@ import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
-import {ILSSVMPairFactoryLike} from "./ILSSVMPairFactoryLike.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
@@ -38,7 +38,7 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         uint256 inputAmount,
         bool isRouter,
         address routerCaller,
-        ILSSVMPairFactoryLike _factory,
+        ILSSVMPairFactory _factory,
         uint256 protocolFee,
         RoyaltyDue[] memory royaltiesDue
     ) internal override {
@@ -164,7 +164,7 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
 
     /// @inheritdoc LSSVMPair
     function _payProtocolFeeFromPair(
-        ILSSVMPairFactoryLike _factory,
+        ILSSVMPairFactory _factory,
         uint256 protocolFee
     ) internal override {
         // Take protocol fee (if it exists)
@@ -227,7 +227,7 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
 
         ERC20 _token = token();
         uint256 amount = _token.balanceOf(address(this));
-        _token.safeTransfer(msg.sender, amount);
+        _token.safeTransfer(owner(), amount);
 
         // emit event since it is the pair token
         emit TokenWithdrawal(amount);

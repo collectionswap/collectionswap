@@ -6,7 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import "./ICollectionswap.sol";
+import "./ILSSVMPairFactory.sol";
 import "./ILSSVMPair.sol";
 import "./validators/IValidator.sol";
 
@@ -27,15 +27,16 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
     address protocolOwner;
     address deployer;
-    ICollectionswap public lpToken;
+    ILSSVMPairFactory public lpToken;
+    ILSSVMPair.PoolType public constant POOL_TYPE = ILSSVMPair.PoolType.TRADE;
     IValidator public validator;
     IERC721 nft;
-    address bondingCurve;
     ICurve.Params curveParams;
+    address bondingCurve;
     uint96 fee;
 
     uint256 public constant MAX_REWARD_TOKENS = 5;
-    uint256 public LOCK_TIME = 30 days;
+    uint256 public LOCK_TIME;
 
     /// @dev The total number of tokens minted
     uint256 private _totalSupply;
@@ -76,6 +77,25 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint256 endTime
     );
 
+    //////////////////////////////////////////
+    // ERRORS
+    //////////////////////////////////////////
+    error BadEndTime();
+    error BalanceOverflow();
+    error CallerNotEOA();
+    error LengthLimitExceeded();
+    error LengthMismatch();
+    error MissingExistingTokens();
+    error NFTNotERC721();
+    error NotTwoSidedLP();
+    error PoolMismatch();
+    error RepeatedToken();
+    error RewardsOngoing();
+    error TokenMismatch();
+    error TooEarly();
+    error Unauthorized();
+    error ZeroRewardRate();
+
     modifier updateReward(address account) {
         // skip update after rewards program starts
         // cannot include equality because
@@ -86,6 +106,11 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
             return;
         }
 
+        _applyRewardUpdate(account);
+        _;
+    }
+
+    function _applyRewardUpdate(address account) internal {
         uint256 rewardTokensLength = rewardTokens.length;
         // lastUpdateTime is set to startTime in constructor
         if (block.timestamp > lastUpdateTime) {
@@ -110,7 +135,6 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
                 }
             }
         }
-        _;
     }
 
     constructor() {
@@ -120,7 +144,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     function initialize(
         address _protocolOwner,
         address _deployer,
-        ICollectionswap _lpToken,
+        ILSSVMPairFactory _lpToken,
         IValidator _validator,
         IERC721 _nft,
         address _bondingCurve,
@@ -132,7 +156,8 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint256 _periodFinish
     ) public initializer {
         protocolOwner = _protocolOwner;
-        require(_nft.supportsInterface(0x80ac58cd), "NFT not ERC721"); // check if it supports ERC721
+        LOCK_TIME = 30 days;
+        if (!_nft.supportsInterface(0x80ac58cd)) revert NFTNotERC721(); // check if it supports ERC721
         deployer = _deployer;
         lpToken = _lpToken;
         validator = _validator;
@@ -143,10 +168,8 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         rewardTokens = _rewardTokens;
         unchecked {
             for (uint256 i; i < rewardTokens.length; ++i) {
-                require(
-                    !rewardTokenValid[_rewardTokens[i]],
-                    "Repeated token"
-                );
+                // ensure reward token hasn't been added yet
+                if (rewardTokenValid[_rewardTokens[i]]) revert RepeatedToken();
                 rewardRates[_rewardTokens[i]] = _rewardRates[i];
                 rewardTokenValid[_rewardTokens[i]] = true;
             }
@@ -172,23 +195,14 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint256[] calldata inputRewardAmounts,
         uint256 _newPeriodFinish
     ) public virtual updateReward(address(0)) {
-        require(
-            msg.sender == deployer || msg.sender == protocolOwner,
-            "Not authorized"
-        );
-        require(_newPeriodFinish > block.timestamp, "Invalid period finish");
-        require(
-            block.timestamp > periodFinish,
-            "Ongoing rewards"
-        );
+        if (msg.sender != deployer && msg.sender != protocolOwner) revert Unauthorized();
+        if (_newPeriodFinish <= block.timestamp) revert BadEndTime();
+        if (block.timestamp <= periodFinish) revert RewardsOngoing();
         uint256 oldRewardTokensLength = rewardTokens.length;
         uint256 newRewardTokensLength = inputRewardTokens.length;
-        require(oldRewardTokensLength <= newRewardTokensLength, "Bad token config");
-        require(newRewardTokensLength <= MAX_REWARD_TOKENS, "Exceed max tokens");
-        require(
-            newRewardTokensLength == inputRewardAmounts.length,
-            "Inconsistent length"
-        );
+        if (oldRewardTokensLength > newRewardTokensLength) revert MissingExistingTokens();
+        if (newRewardTokensLength > MAX_REWARD_TOKENS) revert LengthLimitExceeded();
+        if (newRewardTokensLength != inputRewardAmounts.length) revert LengthMismatch();
 
         // Mark each ERC20 in the input as used by this pool, and ensure no
         // duplicates within the input
@@ -197,13 +211,10 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
             IERC20 inputRewardToken = inputRewardTokens[i];
             // ensure same ordering for existing tokens
             if (i < oldRewardTokensLength) {
-                require(inputRewardToken == rewardTokens[i], "Reward token mismatch");
+                if (inputRewardToken != rewardTokens[i]) revert TokenMismatch();
             } else {
                 // adding new token
-                require(
-                    !rewardTokenValid[inputRewardToken],
-                    "Repeated token"
-                );
+                if (rewardTokenValid[inputRewardToken]) revert RepeatedToken();
                 rewardTokenValid[inputRewardToken] = true;
             }
 
@@ -219,7 +230,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
                 // newReward = new reward rate
                 newReward /= (_newPeriodFinish - block.timestamp);
-                require(newReward != 0, "0 reward rate");
+                if (newReward == 0) revert ZeroRewardRate();
             }
             rewardRates[inputRewardToken] = newReward;
 
@@ -245,15 +256,15 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
      * @notice Sends all ERC20 token balances of this pool to the deployer.
      */
     function sweepRewards() external {
-        require(msg.sender == deployer, "Not authorized");
-        require(block.timestamp >= rewardSweepTime, "Too early");
+        if (block.timestamp < rewardSweepTime) revert TooEarly();
         emit RewardSwept();
         uint256 rewardTokensLength = rewardTokens.length;
+        address _deployer = deployer;
         unchecked {
             for (uint256 i; i < rewardTokensLength; ++i) {
                 IERC20 rewardToken = rewardTokens[i];
                 rewardToken.safeTransfer(
-                    msg.sender,
+                    _deployer,
                     rewardToken.balanceOf(address(this))
                 );
             }
@@ -270,9 +281,40 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         bytes calldata _state,
         uint256 _royaltyNumerator,
         uint256[] calldata _initialNFTIDs
-    ) public payable returns (uint256 currTokenId) {
-        ICollectionswap _lpToken = lpToken;
-        (,currTokenId) = _lpToken.createDirectPairETH{value:msg.value}(msg.sender,_nft,_bondingCurve, _delta, _fee, _spotPrice, _props, _state, _royaltyNumerator, _initialNFTIDs);
+    ) external payable returns (uint256 currTokenId) {
+        // create pool with empty NFTs first
+         uint256[] memory _emptyInitialNFTIDs;
+         address pair;
+
+        (pair, currTokenId) = lpToken.createPairETH{value:msg.value}(
+            ILSSVMPairFactory.CreateETHPairParams({
+                nft: _nft,
+                bondingCurve: _bondingCurve,
+                assetRecipient: payable(0),
+                receiver: msg.sender,
+                poolType: POOL_TYPE,
+                delta: _delta,
+                fee: _fee,
+                spotPrice: _spotPrice,
+                props: _props,
+                state: _state,
+                royaltyNumerator: _royaltyNumerator,
+                initialNFTIDs: _emptyInitialNFTIDs
+            })
+        );
+
+        // transfer NFTs into pool
+        for (uint256 i; i < _initialNFTIDs.length; ) {
+            _nft.safeTransferFrom(
+                msg.sender,
+                pair,
+                _initialNFTIDs[i]
+            );
+            unchecked {
+                ++i;
+            }
+        }
+
         stake(currTokenId);
     }
 
@@ -280,10 +322,8 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint256 _tokenId
     ) external {
         exit(_tokenId);
-        ICollectionswap _lpToken = lpToken;
-        _lpToken.useLPTokenToDestroyDirectPairETH(msg.sender, _tokenId);
+        lpToken.burn(_tokenId);
     }
-
 
     /**
      * @notice Add the balances of an LP token to the reward pool and mint
@@ -293,23 +333,22 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
      * @return amount The number of tokens minted
      */
     function mint(uint256 tokenId) private returns (uint256 amount) {
-        ICollectionswap _lpToken = lpToken;
-        require(_lpToken.ownerOf(tokenId) == msg.sender, "Not owner");
+        ILSSVMPairFactory _lpToken = lpToken;
+        if (_lpToken.ownerOf(tokenId) != msg.sender) revert Unauthorized();
 
-        ICollectionswap.LPTokenParams721ETH memory params = _lpToken
+        ILSSVMPairFactory.LPTokenParams721 memory params = _lpToken
             .viewPoolParams(tokenId);
         ILSSVMPair _pair = ILSSVMPair(params.poolAddress);
         IERC721 _nft = nft;
-        require(
-            params.nftAddress == address(_nft) &&
-                params.bondingCurveAddress == bondingCurve &&
-                validator.validate(
-                    _pair,
-                    curveParams,
-                    fee
-                ),
-            "Wrong pool"
-        );
+        if (
+            params.nftAddress != address(_nft) ||
+            params.bondingCurveAddress != bondingCurve ||
+            !validator.validate(
+                _pair,
+                curveParams,
+                fee
+            )
+        ) revert PoolMismatch();
 
         // Calculate the number of tokens to mint. Equal to
         // sqrt(NFT balance * ETH balance) if there's enough ETH for the pool to
@@ -325,10 +364,10 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
         uint256 balance0 = _reserve0 + amount0;
         uint256 balance1 = _reserve1 + amount1;
-        require(
-            balance0 <= type(uint128).max && balance1 <= type(uint128).max,
-            "Balance overflow"
-        );
+        if (
+            balance0 > type(uint128).max ||
+            balance1 > type(uint128).max
+        ) revert BalanceOverflow();
 
         reserve0 = uint128(balance0);
         reserve1 = uint128(balance1);
@@ -349,16 +388,13 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
      */
     function burn(uint256 tokenId) internal virtual returns (uint256 amount) {
         LPTokenInfo memory lpTokenIdInfo = lpTokenInfo[tokenId];
-        require(lpTokenIdInfo.owner == msg.sender, "Not owner");
+        if (lpTokenIdInfo.owner != msg.sender) revert Unauthorized();
         amount = lpTokenIdInfo.amount;
 
         (uint128 _reserve0, uint128 _reserve1) = getReserves(); // gas savings
 
-        uint256 balance0 = _reserve0 - lpTokenIdInfo.amount0;
-        uint256 balance1 = _reserve1 - lpTokenIdInfo.amount1;
-
-        reserve0 = uint128(balance0);
-        reserve1 = uint128(balance1);
+        reserve0 = uint128(_reserve0 - lpTokenIdInfo.amount0);
+        reserve1 = uint128(_reserve1 - lpTokenIdInfo.amount1);
 
         delete lpTokenInfo[tokenId];
     }
@@ -429,9 +465,9 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
      * @return amount The amount of reward token minted as a result
      */
     function stake(uint256 tokenId) public virtual updateReward(msg.sender) returns (uint256 amount) {
-        require(tx.origin == msg.sender, "Caller must be EOA");
+        if (tx.origin != msg.sender) revert CallerNotEOA();
         amount = mint(tokenId);
-        require(amount > 0, "Cannot stake one-sided LPs");
+        if (amount == 0) revert NotTwoSidedLP();
 
         _totalSupply += amount;
         _balances[msg.sender] += amount;

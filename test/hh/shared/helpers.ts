@@ -3,7 +3,8 @@ import { BigNumber } from "ethers";
 import { assert, ethers } from "hardhat";
 
 import type {
-  Collectionswap,
+  LSSVMPairFactory,
+  ILSSVMPairFactory,
   ICurve,
   Collectionstaker,
   IERC20,
@@ -112,7 +113,7 @@ export async function createIncentiveEth(
 }
 
 export async function createPairEth(
-  collectionswap: Collectionswap,
+  factory: LSSVMPairFactory,
   {
     user,
     nft,
@@ -138,23 +139,26 @@ export async function createPairEth(
   pairAddress: string;
   lpTokenId: BigNumberish;
 }> {
-  let response = await nft.setApprovalForAll(collectionswap.address, true);
+  let response = await nft.setApprovalForAll(factory.address, true);
   let receipt = await response.wait();
   let dBalance = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
-  response = await collectionswap.createDirectPairETH(
-    user,
-    nft.address,
-    bondingCurve.address,
-    delta,
-    fee,
-    spotPrice,
-    props,
-    state,
-    royaltyNumerator,
-    nftTokenIds,
-    { value }
-  );
+  let params: ILSSVMPairFactory.CreateETHPairParamsStruct = {
+    nft: nft.address,
+    bondingCurve: bondingCurve.address,
+    assetRecipient: ethers.constants.AddressZero,
+    receiver: factory.signer.address,
+    poolType: 2, // TRADE
+    delta: delta,
+    fee: fee,
+    spotPrice: spotPrice,
+    props: props,
+    state: state,
+    royaltyNumerator: royaltyNumerator,
+    initialNFTIDs: nftTokenIds
+  };
+
+  response = await factory.createPairETH(params, { value });
   receipt = await response.wait();
   dBalance = dBalance.add(
     receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice)
@@ -162,8 +166,8 @@ export async function createPairEth(
   const events = receipt.events!;
   return {
     dBalance,
-    pairAddress: events[1].args!.poolAddress,
-    lpTokenId: events.at(-2)!.args!.tokenId,
+    pairAddress: events[5].args!.poolAddress,
+    lpTokenId: events[0].args!.tokenId,
   };
 }
 

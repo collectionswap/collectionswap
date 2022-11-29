@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Forked from OpenZeppelin Contracts v4.4.1 (security/ReentrancyGuard.sol), 
-// removed initializer check as we already do that in our modified Ownable
+// to use a custom error
 
 pragma solidity ^0.8.0;
 
@@ -37,6 +37,8 @@ abstract contract ReentrancyGuard {
 
     uint256 private _status;
 
+    error Reentrancy();
+
     function __ReentrancyGuard_init() internal {
       _status = _NOT_ENTERED;
     } 
@@ -50,7 +52,7 @@ abstract contract ReentrancyGuard {
      */
     modifier nonReentrant() {
         // On the first call to nonReentrant, _notEntered will be true
-        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        if (_status == _ENTERED) revert Reentrancy();
 
         // Any calls to nonReentrant after this point will fail
         _status = _ENTERED;
