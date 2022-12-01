@@ -89,13 +89,9 @@ async function runTwoParticipantDraw(
 
   epoch?: number
 ) {
-  await factory
-    .connect(user)
-    .setApprovalForAll(rewardPool.address, true);
+  await factory.connect(user).setApprovalForAll(rewardPool.address, true);
   await rewardPool.connect(user).stake(lpTokenId);
-  await factory
-    .connect(user1)
-    .setApprovalForAll(rewardPool.address, true);
+  await factory.connect(user1).setApprovalForAll(rewardPool.address, true);
   await rewardPool.connect(user1).stake(lpTokenId1);
 
   if (epoch) {
@@ -261,8 +257,7 @@ describe("RewardPoolETHDraw", function () {
   async function rewardPoolDrawFixture() {
     const { owner, user, user1, user2, collection } = await getSigners();
 
-    let { factory, collectionstaker, curve } =
-      await collectionstakerFixture();
+    let { factory, collectionstaker, curve } = await collectionstakerFixture();
     const { monotonicIncreasingValidator } = await validatorFixture();
     const allRewardTokens = await rewardTokenFixture();
     const rewardTokens = allRewardTokens.slice(0, numRewardTokens);
@@ -504,9 +499,7 @@ describe("RewardPoolETHDraw", function () {
       const { rewardPool, lpTokenId, user } = await loadFixture(
         rewardPoolDrawFixture
       );
-      await factory
-        .connect(user)
-        .setApprovalForAll(rewardPool.address, true);
+      await factory.connect(user).setApprovalForAll(rewardPool.address, true);
 
       await rewardPool.stake(lpTokenId);
 
@@ -518,9 +511,7 @@ describe("RewardPoolETHDraw", function () {
         .sub(lastUpdateTime)
         .mul(balance);
 
-      expect(await factory.ownerOf(lpTokenId)).to.equal(
-        rewardPool.address
-      );
+      expect(await factory.ownerOf(lpTokenId)).to.equal(rewardPool.address);
       expect(await rewardPool.balanceOf(user.address)).to.not.equal(0);
 
       const chances = await rewardPool.viewChanceOfDraw(user.address);

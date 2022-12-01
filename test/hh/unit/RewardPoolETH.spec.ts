@@ -7,9 +7,7 @@ import {
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  rewardPoolFixture,
-} from "../shared/fixtures";
+import { rewardPoolFixture } from "../shared/fixtures";
 import { mintNfts } from "../shared/helpers";
 
 import type {
@@ -156,9 +154,7 @@ describe("RewardPoolETH", function () {
       await factory.approve(rewardPool.address, lpTokenId);
 
       await rewardPool.stake(lpTokenId);
-      expect(await factory.ownerOf(lpTokenId)).to.equal(
-        rewardPool.address
-      );
+      expect(await factory.ownerOf(lpTokenId)).to.equal(rewardPool.address);
       expect(await rewardPool.balanceOf(user.address)).to.not.equal(0);
     });
   });
@@ -280,9 +276,7 @@ describe("RewardPoolETH", function () {
     it("Two users who staked the same amount right from the beginning", async function () {
       await factory.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
-      await factory
-        .connect(user1)
-        .approve(rewardPool.address, lpTokenId1);
+      await factory.connect(user1).approve(rewardPool.address, lpTokenId1);
       await rewardPool.connect(user1).stake(lpTokenId1);
       // The user should still be able to stake and see his stake
       expect(await rewardPool.balanceOf(user.address)).to.not.equal(0);
@@ -353,10 +347,9 @@ describe("RewardPoolETH", function () {
     // The only user should get most rewards
     // there will be some dust in the contract
     // await rewardPool.connect(owner).exit(lpTokenId);
-    await expect(rewardPool.connect(user1).exit(lpTokenId)).to.be.revertedWithCustomError(
-      rewardPool,
-      "Unauthorized"
-    );
+    await expect(
+      rewardPool.connect(user1).exit(lpTokenId)
+    ).to.be.revertedWithCustomError(rewardPool, "Unauthorized");
     await rewardPool.exit(lpTokenId);
     await rewardPool.connect(user1).exit(lpTokenId1);
 
@@ -720,9 +713,7 @@ describe("RewardPoolETH", function () {
       await factory.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
 
-      await factory
-        .connect(user1)
-        .approve(rewardPool.address, lpTokenId1);
+      await factory.connect(user1).approve(rewardPool.address, lpTokenId1);
       await rewardPool.connect(user1).stake(lpTokenId1);
 
       await mine();
@@ -817,9 +808,7 @@ describe("RewardPoolETH", function () {
       await factory.approve(rewardPool.address, lpTokenId);
       await rewardPool.stake(lpTokenId);
 
-      await factory
-        .connect(user1)
-        .approve(rewardPool.address, lpTokenId1);
+      await factory.connect(user1).approve(rewardPool.address, lpTokenId1);
       await rewardPool.connect(user1).stake(lpTokenId1);
 
       await mine();
@@ -925,9 +914,7 @@ describe("RewardPoolETH", function () {
       await time.increase(rewardDuration / 2);
       await mine();
 
-      await factory
-        .connect(user1)
-        .approve(rewardPool.address, lpTokenId1);
+      await factory.connect(user1).approve(rewardPool.address, lpTokenId1);
       await rewardPool.connect(user1).stake(lpTokenId1);
       const user1StakeTime = await time.latest();
       expect(await rewardPool.balanceOf(user1.address)).to.not.equal(0);
@@ -1086,18 +1073,16 @@ describe("RewardPoolETH", function () {
 
   describe("Sweep", function () {
     it("should prevent deployer from sweeping rewards early", async function () {
-      await expect(rewardPool.connect(owner).sweepRewards()).to.be.revertedWithCustomError(
-        rewardPool,
-        "TooEarly"
-      );
+      await expect(
+        rewardPool.connect(owner).sweepRewards()
+      ).to.be.revertedWithCustomError(rewardPool, "TooEarly");
       // Set block timestamp to just before rewardSweepTime
       await time.setNextBlockTimestamp(
         (await rewardPool.rewardSweepTime()).sub(1)
       );
-      await expect(rewardPool.connect(owner).sweepRewards()).to.be.revertedWithCustomError(
-        rewardPool,
-        "TooEarly"
-      );
+      await expect(
+        rewardPool.connect(owner).sweepRewards()
+      ).to.be.revertedWithCustomError(rewardPool, "TooEarly");
     });
 
     it("should allow deployer to sweep rewards", async function () {
@@ -1161,9 +1146,7 @@ describe("RewardPoolETH", function () {
       // console.log(factory.address);
       // console.log(rewardPool.address);
       // console.log(2);
-      await factory
-        .connect(user)
-        .setApprovalForAll(rewardPool.address, true);
+      await factory.connect(user).setApprovalForAll(rewardPool.address, true);
       // Console.log(3);
       const currTokenIdTx = await rewardPool
         .connect(user)
@@ -1205,9 +1188,7 @@ describe("RewardPoolETH", function () {
       //   Await nft.connect(user).setApprovalForAll(rewardPool.address, true);
       const newNftTokenIds = await mintNfts(nft.connect(owner), user.address);
       await nft.connect(user).setApprovalForAll(rewardPool.address, true);
-      await factory
-        .connect(user)
-        .setApprovalForAll(rewardPool.address, true);
+      await factory.connect(user).setApprovalForAll(rewardPool.address, true);
       const currTokenIdTx = await rewardPool
         .connect(user)
         .atomicPoolAndVault(

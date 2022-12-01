@@ -501,7 +501,7 @@ describe("Collectionswap", function () {
     });
   });
 
-  // describe("Direct interactions with collectionswap", function () {
+  // Describe("Direct interactions with collectionswap", function () {
   //   it("Should be able to create and destroy a sudoswap pair through collection swap", async function () {
   //     const {
   //       lssvmPairFactory,

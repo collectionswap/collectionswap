@@ -23,9 +23,9 @@ import type {
   Test721Enumerable,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { BigNumber } from "ethers";
+import type { BigNumber } from "ethers";
 
-describe.only("LSSVMPairETH", function () {
+describe("LSSVMPairETH", function () {
   let lsSVMPairFactory: LSSVMPairFactory;
   let lssvmPairETH: LSSVMPairETH;
   let nft: Test721Enumerable;
@@ -105,7 +105,7 @@ describe.only("LSSVMPairETH", function () {
     ] = await lssvmPairETH.getBuyNFTQuote(nftsToBuy);
     const numNFTs = await nft.balanceOf(user1.address);
 
-    let curveParams = await lssvmPairETH.curveParams();
+    const curveParams = await lssvmPairETH.curveParams();
 
     // First calculate the expected sale value + royalty amounts
     const buyAmounts = await cumulativeSumWithRoyalties(
@@ -178,7 +178,7 @@ describe.only("LSSVMPairETH", function () {
       value: outputAmount.add(tradeFee),
     });
 
-    let curveParams = await lssvmPairETH.curveParams();
+    const curveParams = await lssvmPairETH.curveParams();
 
     // First calculate the expected sale value + royalty amounts
     const sellAmounts = await cumulativeSumWithRoyalties(
@@ -248,7 +248,7 @@ describe.only("LSSVMPairETH", function () {
     ] = await lssvmPairETH.getBuyNFTQuote(nftsToBuy);
     const numNFTs = await nft.balanceOf(user1.address);
 
-    let curveParams = await lssvmPairETH.curveParams();
+    const curveParams = await lssvmPairETH.curveParams();
 
     // First calculate the expected sale value + royalty amounts
     const buyAmounts = await cumulativeSumWithRoyalties(
@@ -321,7 +321,7 @@ describe.only("LSSVMPairETH", function () {
     // First calculate the expected sale value + royalty amounts
     const sellAmounts = await cumulativeSumWithRoyalties(
       calculateBid,
-      0,
+      -1,
       nftTokenIds.length,
       1,
       lssvmPairETH,
@@ -358,7 +358,7 @@ describe.only("LSSVMPairETH", function () {
           outputAmount
             .mul(-1)
             .sub(protocolFee)
-            .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
+            .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
           outputAmount,
         ]
       )
@@ -385,7 +385,7 @@ describe.only("LSSVMPairETH", function () {
     ] = await lssvmPairETH.getSellNFTQuote(1);
 
     // First calculate the expected sale value + royalty amounts
-    let curveParams = await lssvmPairETH.curveParams();
+    const curveParams = await lssvmPairETH.curveParams();
     const sellAmounts = await cumulativeSumWithRoyalties(
       calculateBid,
       0,

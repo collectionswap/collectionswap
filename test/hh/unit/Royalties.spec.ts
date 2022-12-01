@@ -1,7 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { BigNumber, providers } from "ethers";
 import { ethers } from "hardhat";
+
 import { getPoolAddress } from "../shared/constants";
 import {
   DEFAULT_VALID_ROYALTY,
@@ -15,6 +15,8 @@ import {
   pickRandomElements,
   prepareQuoteValues,
 } from "../shared/helpers";
+
+import type { BigNumber, providers } from "ethers";
 
 const newRoyaltyNumerator = ethers.utils.parseEther("0.5");
 
@@ -203,7 +205,7 @@ describe("Royalties", function () {
       } = await loadFixture(royaltyWithPoolFixture);
 
       const initialBalances = await Promise.all(
-        recipients.map((recipient) => recipient.getBalance())
+        recipients.map(async (recipient) => recipient.getBalance())
       );
 
       expect(
@@ -221,7 +223,7 @@ describe("Royalties", function () {
       ).to.be.revertedWith("Must ask for > 0 NFTs");
 
       const finalBalances = await Promise.all(
-        recipients.map((recipient) => recipient.getBalance())
+        recipients.map(async (recipient) => recipient.getBalance())
       );
 
       expect(finalBalances).deep.equal(initialBalances);
@@ -235,7 +237,7 @@ describe("Royalties", function () {
       } = await loadFixture(royaltyWithPoolFixture);
 
       const initialBalances = await Promise.all(
-        recipients.map((recipient) => recipient.getBalance())
+        recipients.map(async (recipient) => recipient.getBalance())
       );
 
       expect(
@@ -251,7 +253,7 @@ describe("Royalties", function () {
       ).to.be.revertedWith("Must ask for > 0 NFTs");
 
       const finalBalances = await Promise.all(
-        recipients.map((recipient) => recipient.getBalance())
+        recipients.map(async (recipient) => recipient.getBalance())
       );
 
       expect(finalBalances).deep.equal(initialBalances);
@@ -277,7 +279,8 @@ describe("Royalties", function () {
           protocolFee,
           royaltyNumerator,
           trader,
-          1
+          1,
+          0
         );
 
       // Figure out which random NFT the trader bought
@@ -324,7 +327,8 @@ describe("Royalties", function () {
           protocolFee,
           royaltyNumerator,
           trader,
-          specificTokenIds
+          specificTokenIds,
+          0
         );
 
       const recipient = (await nft.royaltyInfo(specificTokenIds[0], 0))[0];
@@ -364,7 +368,8 @@ describe("Royalties", function () {
           protocolFee,
           royaltyNumerator,
           trader,
-          specificTokenIds
+          specificTokenIds,
+          0
         );
 
       const recipient = (await nft.royaltyInfo(specificTokenIds[0], 0))[0];
@@ -411,7 +416,8 @@ describe("Royalties", function () {
         protocolFee,
         royaltyNumerator,
         trader,
-        numSold
+        numSold,
+        0
       );
 
       // Figure out which random NFT the trader bought
@@ -467,7 +473,8 @@ describe("Royalties", function () {
         protocolFee,
         royaltyNumerator,
         trader,
-        nftsTraded
+        nftsTraded,
+        0
       );
 
       // Figure out which random NFT the trader bought
@@ -539,7 +546,8 @@ describe("Royalties", function () {
         protocolFee,
         royaltyNumerator,
         trader,
-        nftsTraded
+        nftsTraded,
+        0
       );
 
       const recipients = await Promise.all(
@@ -570,9 +578,9 @@ describe("Royalties", function () {
         protocolFee,
         royaltyNumerator,
         enumerateTrader,
-        traderNfts,
       } = await loadFixture(royaltyWithPoolFixture);
 
+      const initialNftsInPool = (await pool.getAllHeldIds()).length;
       const royaltiesDue = new Map<string, BigNumber>();
       const allTransactions:
         | providers.TransactionResponse[]
@@ -597,7 +605,7 @@ describe("Royalties", function () {
             recipients,
             amounts
           )
-        );
+        ).to.be.true;
       };
 
       const sellRoutine = async () => {
@@ -605,6 +613,7 @@ describe("Royalties", function () {
         const nftsHeld = await enumerateTrader();
         const numNftsToSell = getRandomInt(1, nftsHeld.length);
         const nftsToSell = pickRandomElements(nftsHeld, numNftsToSell);
+        const currentNumNftsInPool = (await pool.getAllHeldIds()).length;
 
         // Create the transaction and get expected values
         const { tx, expectedRoyalties } = await prepareQuoteValues(
@@ -614,7 +623,8 @@ describe("Royalties", function () {
           protocolFee,
           royaltyNumerator,
           trader,
-          nftsToSell
+          nftsToSell,
+          currentNumNftsInPool - initialNftsInPool
         );
 
         // Record the transaction
@@ -639,6 +649,7 @@ describe("Royalties", function () {
         // the NFTs were selected so we can only test with quantity 1
         const numNftsToBuy = 1;
         const traderInitialNfts = await enumerateTrader();
+        const currentNumNftsInPool = (await pool.getAllHeldIds()).length;
 
         // Create the transaction and get expected values
         const { tx, expectedRoyalties } = await prepareQuoteValues(
@@ -648,7 +659,8 @@ describe("Royalties", function () {
           protocolFee,
           royaltyNumerator,
           trader,
-          numNftsToBuy
+          numNftsToBuy,
+          currentNumNftsInPool - initialNftsInPool
         );
 
         // Record the transaction
@@ -669,11 +681,13 @@ describe("Royalties", function () {
           royaltiesDue.set(recipient, oldValue.add(amount));
         }
       };
+
       const buySpecificRoutine = async () => {
         // Select a random number of NFTs to buy
         const nftsInPool = await pool.getAllHeldIds();
         const numNftsToBuy = getRandomInt(1, nftsInPool.length);
         const nftsToBuy = pickRandomElements(nftsInPool, numNftsToBuy);
+        const currentNumNftsInPool = (await pool.getAllHeldIds()).length;
 
         // Create the transaction and get expected values
         const { tx, expectedRoyalties } = await prepareQuoteValues(
@@ -683,7 +697,8 @@ describe("Royalties", function () {
           protocolFee,
           royaltyNumerator,
           trader,
-          nftsToBuy
+          nftsToBuy,
+          currentNumNftsInPool - initialNftsInPool
         );
 
         // Record the transaction
@@ -792,7 +807,8 @@ describe("Royalties", function () {
           protocolFee,
           newRoyaltyNumerator,
           trader,
-          [specificTokenIds]
+          [specificTokenIds],
+          0
         );
 
       const recipient = (await nft.royaltyInfo(specificTokenIds, 0))[0];

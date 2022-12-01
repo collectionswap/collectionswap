@@ -14,8 +14,8 @@ import type {
   Test721Enumerable,
 } from "../../../typechain-types";
 import type { curveType } from "./constants";
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumber } from "ethers";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 const NUM_REWARD_TOKENS = 2;
 const DAY_DURATION = 86400;
@@ -558,7 +558,7 @@ export async function royaltyFixture(): Promise<{
 
   const recipients = [royaltyRecipient0, royaltyRecipient1, royaltyRecipient2];
   await Promise.all(
-    nftsWithRoyalty.map((tokenId, index) =>
+    nftsWithRoyalty.map(async (tokenId, index) =>
       nft.setRoyaltyRecipient(tokenId, recipients[index].address)
     )
   );
@@ -570,6 +570,7 @@ export async function royaltyFixture(): Promise<{
   for (const id of nftsWithRoyalty) {
     await nft.connect(owner).approve(lssvmPairFactory.address, id);
   }
+
   for (const id of nftsWithoutRoyalty) {
     await nftNon2981.connect(owner).approve(lssvmPairFactory.address, id);
   }
@@ -656,7 +657,7 @@ export async function royaltyWithPoolFixture(): Promise<{
     await getSigners();
   const recipients2 = [royaltyRecipient3, royaltyRecipient4, royaltyRecipient5];
   await Promise.all(
-    traderNfts.map((tokenId, index) =>
+    traderNfts.map(async (tokenId, index) =>
       nft2981.setRoyaltyRecipient(tokenId, recipients2[index].address)
     )
   );

@@ -116,9 +116,7 @@ describe("integration", function () {
     await rewardPool.stake(lpTokenId);
 
     // Reward pool should now have the lp token
-    expect(await factory.ownerOf(lpTokenId)).to.equal(
-      rewardPool.address
-    );
+    expect(await factory.ownerOf(lpTokenId)).to.equal(rewardPool.address);
 
     // Time passes to halfway of incentive
     const period = endTime - startTime;

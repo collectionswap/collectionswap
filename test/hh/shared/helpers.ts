@@ -1,6 +1,9 @@
 import { expect } from "chai";
 import { BigNumber } from "ethers";
+import { formatEther } from "ethers/lib/utils";
 import { assert, ethers } from "hardhat";
+
+import { CURVE_TYPE } from "./constants";
 
 import type {
   LSSVMPairFactory,
@@ -16,10 +19,8 @@ import type {
   LSSVMPair,
   LSSVMPairETH,
 } from "../../../typechain-types";
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumberish, Contract, providers, Signer, Wallet } from "ethers";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { formatEther } from "ethers/lib/utils";
-import { CURVE_TYPE } from "./constants";
 
 const SIGMOID_NORMALIZATION_CONSTANT = 1024;
 
@@ -143,18 +144,18 @@ export async function createPairEth(
   let receipt = await response.wait();
   let dBalance = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
-  let params: ILSSVMPairFactory.CreateETHPairParamsStruct = {
+  const params: ILSSVMPairFactory.CreateETHPairParamsStruct = {
     nft: nft.address,
     bondingCurve: bondingCurve.address,
     assetRecipient: ethers.constants.AddressZero,
     receiver: factory.signer.address,
     poolType: 2, // TRADE
-    delta: delta,
-    fee: fee,
-    spotPrice: spotPrice,
-    props: props,
-    state: state,
-    royaltyNumerator: royaltyNumerator,
+    delta,
+    fee,
+    spotPrice,
+    props,
+    state,
+    royaltyNumerator,
     initialNFTIDs: nftTokenIds,
   };
 
@@ -583,7 +584,8 @@ export async function prepareQuoteValues(
   protocolFee: BigNumber,
   royaltyNumerator: BigNumber,
   trader: SignerWithAddress,
-  quantityOrIds: number | (string | BigNumber)[]
+  quantityOrIds: number | (string | BigNumber)[],
+  changeInNftsInPoolSinceCreation: number
 ) {
   const isSell = ["bid", "sell"].includes(side);
   const isRandom = !Array.isArray(quantityOrIds);
@@ -608,7 +610,7 @@ export async function prepareQuoteValues(
 
   const amounts = await cumulativeSumWithRoyalties(
     isSell ? calculateBid : calculateAsk,
-    0,
+    changeInNftsInPoolSinceCreation,
     numberOfNfts,
     isSell ? 1 : -1,
     pool,
@@ -682,6 +684,7 @@ export function getRandomInt(min: number, max: number): number {
       `Called getRandomInt with min > max (${min} and ${max}, respectively)`
     );
   }
+
   min = Math.ceil(min);
   max = Math.floor(max);
   return Math.floor(Math.random() * (max - min + 1)) + min;
