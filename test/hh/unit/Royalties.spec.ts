@@ -271,10 +271,14 @@ describe("Royalties", function () {
         traderNfts,
       } = await loadFixture(royaltyWithPoolFixture);
 
+      const { spotPrice, delta, props } = await pool.curveParams();
       const { tx, quote, protocolFeeAmount, totalRoyalties } =
         await prepareQuoteValues(
           "buy",
           pool,
+          spotPrice,
+          delta,
+          props,
           fee,
           protocolFee,
           royaltyNumerator,
@@ -319,10 +323,14 @@ describe("Royalties", function () {
 
       const specificTokenIds = [tokenIdsWithRoyalty[0]];
 
+      const { spotPrice, delta, props } = await pool.curveParams();
       const { tx, quote, protocolFeeAmount, totalRoyalties } =
         await prepareQuoteValues(
           "buy",
           pool,
+          spotPrice,
+          delta,
+          props,
           fee,
           protocolFee,
           royaltyNumerator,
@@ -360,10 +368,14 @@ describe("Royalties", function () {
 
       const specificTokenIds = [traderNfts[0]];
 
+      const { spotPrice, delta, props } = await pool.curveParams();
       const { tx, quote, protocolFeeAmount, totalRoyalties } =
         await prepareQuoteValues(
           "sell",
           pool,
+          spotPrice,
+          delta,
+          props,
           fee,
           protocolFee,
           royaltyNumerator,
@@ -403,6 +415,7 @@ describe("Royalties", function () {
       // Specify quantity of random NFTs to buy
       const numSold = 3;
 
+      const { spotPrice, delta, props } = await pool.curveParams();
       const {
         tx,
         quote,
@@ -412,6 +425,9 @@ describe("Royalties", function () {
       } = await prepareQuoteValues(
         "buy",
         pool,
+        spotPrice,
+        delta,
+        props,
         fee,
         protocolFee,
         royaltyNumerator,
@@ -460,6 +476,7 @@ describe("Royalties", function () {
       // Specify NFTs to buy
       const nftsTraded = tokenIdsWithRoyalty;
 
+      const { spotPrice, delta, props } = await pool.curveParams();
       const {
         tx,
         quote,
@@ -469,6 +486,9 @@ describe("Royalties", function () {
       } = await prepareQuoteValues(
         "buy",
         pool,
+        spotPrice,
+        delta,
+        props,
         fee,
         protocolFee,
         royaltyNumerator,
@@ -533,6 +553,7 @@ describe("Royalties", function () {
       // Specify NFTs to buy
       const nftsTraded = traderNfts;
 
+      const { spotPrice, delta, props } = await pool.curveParams();
       const {
         tx,
         quote,
@@ -542,6 +563,9 @@ describe("Royalties", function () {
       } = await prepareQuoteValues(
         "sell",
         pool,
+        spotPrice,
+        delta,
+        props,
         fee,
         protocolFee,
         royaltyNumerator,
@@ -586,6 +610,7 @@ describe("Royalties", function () {
         | providers.TransactionResponse[]
         | Promise<providers.TransactionResponse[]> = [];
       const NUM_ITERS = 15;
+      const { spotPrice, delta, props } = await pool.curveParams();
 
       const checkState = async (iteration: number) => {
         console.log(
@@ -619,6 +644,9 @@ describe("Royalties", function () {
         const { tx, expectedRoyalties } = await prepareQuoteValues(
           "sell",
           pool,
+          spotPrice,
+          delta,
+          props,
           fee,
           protocolFee,
           royaltyNumerator,
@@ -655,6 +683,9 @@ describe("Royalties", function () {
         const { tx, expectedRoyalties } = await prepareQuoteValues(
           "buy",
           pool,
+          spotPrice,
+          delta,
+          props,
           fee,
           protocolFee,
           royaltyNumerator,
@@ -693,6 +724,9 @@ describe("Royalties", function () {
         const { tx, expectedRoyalties } = await prepareQuoteValues(
           "buy",
           pool,
+          spotPrice,
+          delta,
+          props,
           fee,
           protocolFee,
           royaltyNumerator,
@@ -799,10 +833,14 @@ describe("Royalties", function () {
 
       const specificTokenIds = traderNfts[0];
 
+      const { spotPrice, delta, props } = await pool.curveParams();
       const { tx, quote, protocolFeeAmount, totalRoyalties } =
         await prepareQuoteValues(
           "sell",
           pool,
+          spotPrice,
+          delta,
+          props,
           fee,
           protocolFee,
           newRoyaltyNumerator,

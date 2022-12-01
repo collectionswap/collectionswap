@@ -434,6 +434,8 @@ export async function hasProtocolFee(pair: LSSVMPair): Promise<boolean> {
 }
 
 /**
+ * @notice spot, delta, props should all be taken from the pool at creation
+ * time. This function accounts for all variable changes due to buying/selling
  * @return A tuple of the final amount payable, and the royalty awardable.
  */
 export async function calculateAsk(
@@ -479,6 +481,8 @@ export async function calculateAsk(
 }
 
 /**
+ * @notice spot, delta, props should all be taken from the pool at creation
+ * time. This function accounts for all variable changes due to buying/selling
  * @return A tuple of the final amount payable, and the royalty awardable.
  */
 export async function calculateBid(
@@ -580,6 +584,9 @@ export async function cumulativeSumWithRoyalties(
 export async function prepareQuoteValues(
   side: "buy" | "sell" | "ask" | "bid",
   pool: LSSVMPairETH,
+  spotPrice: BigNumber,
+  delta: BigNumber,
+  props: any,
   fee: BigNumber,
   protocolFee: BigNumber,
   royaltyNumerator: BigNumber,
@@ -605,8 +612,6 @@ export async function prepareQuoteValues(
   ] = isSell
     ? await pool.getSellNFTQuote(numberOfNfts)
     : await pool.getBuyNFTQuote(numberOfNfts);
-
-  const { spotPrice, delta, props } = await pool.curveParams();
 
   const amounts = await cumulativeSumWithRoyalties(
     isSell ? calculateBid : calculateAsk,

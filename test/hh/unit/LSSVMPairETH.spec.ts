@@ -483,7 +483,7 @@ describe("LSSVMPairETH", function () {
       ] = await lssvmPairETH.getBuyNFTQuote(nftsToBuy);
       const numNFTs = await nft.balanceOf(user1.address);
 
-      let curveParams = await lssvmPairETH.curveParams();
+      const curveParams = await lssvmPairETH.curveParams();
 
       // First calculate the expected sale value + royalty amounts
       const buyAmounts = await cumulativeSumWithRoyalties(
@@ -551,7 +551,6 @@ describe("LSSVMPairETH", function () {
       const nftTokenIds = await mintNfts(nft, user1.address);
 
       // First calculate the expected sale value + royalty amounts
-      curveParams = await lssvmPairETH.curveParams();
       const sellAmounts = await cumulativeSumWithRoyalties(
         calculateBid,
         -1, // We bought one from pool just now so -1
