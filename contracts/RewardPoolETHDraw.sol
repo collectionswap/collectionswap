@@ -99,18 +99,20 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     // EVENTS
     //////////////////////////////////////////
 
-    event DrawOpen(uint256 epoch);
-    event DrawClosed(uint256 epoch);
-    event ERC721PrizesAdded(
-        IERC721[] nftCollections,
-        uint256[] nftIds
+    event DrawOpen(uint256 indexed epoch);
+    event DrawClosed(uint256 indexed epoch);
+    event PrizesAdded(
+        uint256 indexed epoch,
+        IERC721[] prizeNftCollections,
+        uint256[] prizeNftIds,
+        IERC20[] prizeTokens,
+        uint256[] prizeAmounts,
+        uint256 startTime,
+        uint256 endTime
     );
-    event ERC20PrizesAdded(
-        IERC20[] rewardTokens,
-        uint256[] rewardAmounts
-    );
-    event DrawResolved(uint256 epoch, address[] winners);
-    event Claimed(address user, uint256 epoch);
+    event PrizesPerWinnerUpdated(uint256 indexed epoch, uint256 numPrizesPerWinner);
+    event DrawResolved(uint256 indexed epoch, address[] winners);
+    event Claimed(uint256 indexed epoch, address user);
 
     modifier onlyDeployer() {
         require(msg.sender == deployer, "Only deployer");
@@ -325,8 +327,6 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             _setPrizePerWinner(prizeSet, _prizesPerWinner);
         }
 
-        emit ERC721PrizesAdded(_nftCollectionsPrize, _nftIdsPrize);
-
         /////////////////////////////
         /// HANDLING ERC20 PRIZES ///
         /////////////////////////////
@@ -351,7 +351,15 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             epochERC20PrizeAmounts[_epoch][myCollAdd] = epochAmount + _erc20PrizeAmounts[i];
         }
 
-        emit ERC20PrizesAdded(_erc20Prize, _erc20PrizeAmounts);
+        emit PrizesAdded(
+            _epoch,
+            _nftCollectionsPrize,
+            _nftIdsPrize,
+            _erc20Prize,
+            _erc20PrizeAmounts,
+            _drawStartTime,
+            _drawPeriodFinish
+        );
     }
 
     function rechargeRewardPool(
@@ -536,6 +544,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         require(_prizePerWinner <= prizeSet.numERC721Prizes, "prizePerWinner > NFTs");
         require(_prizePerWinner > 0, "0 prizePerWinner");
         prizeSet.prizePerWinner = _prizePerWinner;
+        emit PrizesPerWinnerUpdated(thisEpoch, _prizePerWinner);
     }
 
     /**
@@ -660,7 +669,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             uint256 userReward = (totalReward * numerator) / denominator;
             token.safeTransfer(msg.sender, userReward);
         }
-        emit Claimed(msg.sender, epoch);
+        emit Claimed(epoch, msg.sender);
     }
 
     /**
