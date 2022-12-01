@@ -155,7 +155,7 @@ export async function createPairEth(
     props: props,
     state: state,
     royaltyNumerator: royaltyNumerator,
-    initialNFTIDs: nftTokenIds
+    initialNFTIDs: nftTokenIds,
   };
 
   response = await factory.createPairETH(params, { value });
@@ -188,7 +188,7 @@ export async function getBalanceChanges(
     | Promise<providers.TransactionResponse>,
   accounts: Array<Account | string>,
   options?: BalanceChangeOptions
-) {
+): Promise<BigNumber[]> {
   const txResponse = await transaction;
 
   const txReceipt = await txResponse.wait();
@@ -300,14 +300,54 @@ export async function changesEtherBalancesFuzzy(
   }
 
   const changes = await getBalanceChanges(tx, addresses);
-  changes.forEach((change, index) => {
+
+  for (let index = 0; index < amounts.length; index++) {
+    const change = changes[index];
     if (!closeEnough(change, amounts[index])) {
       console.log(
         `changeEtherBalancesFuzzy: Change at index ${index} was not close enough. Got ${change}. Expected ${amounts[index]}`
       );
       return false;
     }
-  });
+  }
+
+  return true;
+}
+
+/**
+ * Same idea as changesEtherBalancesFuzzy but takes an array of transactions
+ */
+export async function changesEtherBalancesFuzzyMultipleTransactions(
+  txs:
+    | providers.TransactionResponse[]
+    | Promise<providers.TransactionResponse[]>,
+  addresses: Array<Account | string>,
+  amounts: BigNumber[]
+): Promise<boolean> {
+  if (addresses.length !== amounts.length) {
+    throw new Error(
+      "changesEtherBalancesFuzzy: `addresses` and `amounts` lengths dont match."
+    );
+  }
+
+  const totalChanges = addresses.map((_) => ethers.BigNumber.from("0"));
+  for (const tx of await txs) {
+    const changes = await getBalanceChanges(tx, addresses);
+    for (let i = 0; i < changes.length; i++) {
+      const balanceChange = changes[i];
+      totalChanges[i] = totalChanges[i].add(balanceChange);
+    }
+  }
+
+  for (let index = 0; index < amounts.length; index++) {
+    const change = totalChanges[index];
+    if (!closeEnough(change, amounts[index])) {
+      console.log(
+        `changeEtherBalancesFuzzyMultipleTransactions: Change at index ${index} was not close enough. Got ${change}. Expected ${amounts[index]}`
+      );
+      return false;
+    }
+  }
 
   return true;
 }
@@ -530,4 +570,130 @@ export async function cumulativeSumWithRoyalties(
   }
 
   return out;
+}
+
+/**
+ * Returns the expected values for a pool interaction along with the transaction
+ * to test
+ */
+export async function prepareQuoteValues(
+  side: "buy" | "sell" | "ask" | "bid",
+  pool: LSSVMPairETH,
+  fee: BigNumber,
+  protocolFee: BigNumber,
+  royaltyNumerator: BigNumber,
+  trader: SignerWithAddress,
+  quantityOrIds: number | (string | BigNumber)[]
+) {
+  const isSell = ["bid", "sell"].includes(side);
+  const isRandom = !Array.isArray(quantityOrIds);
+  const numberOfNfts = isRandom ? quantityOrIds : quantityOrIds.length;
+
+  if (isSell && isRandom)
+    throw new Error("You can't sell random NFTS to pools");
+
+  const [
+    _error,
+    _newSpotPrice,
+    _newDelta,
+    _newState,
+    quote,
+    ,
+    protocolFeeAmount,
+  ] = isSell
+    ? await pool.getSellNFTQuote(numberOfNfts)
+    : await pool.getBuyNFTQuote(numberOfNfts);
+
+  const { spotPrice, delta, props } = await pool.curveParams();
+
+  const amounts = await cumulativeSumWithRoyalties(
+    isSell ? calculateBid : calculateAsk,
+    0,
+    numberOfNfts,
+    isSell ? 1 : -1,
+    pool,
+    spotPrice,
+    delta,
+    props,
+    fee,
+    protocolFee,
+    royaltyNumerator
+  );
+
+  const expectedRoyalties = amounts.slice(1, undefined);
+  let totalRoyalties = 0;
+  expectedRoyalties.forEach((royalty) => {
+    totalRoyalties += royalty;
+  });
+
+  const tx = await (isSell
+    ? // Sell to pool
+      pool
+        .connect(trader)
+        .swapNFTsForToken(
+          quantityOrIds as string[],
+          [],
+          [],
+          quote,
+          trader.address,
+          false,
+          ethers.constants.AddressZero
+        )
+    : isRandom
+    ? // Buy random NFTs from pool
+      pool
+        .connect(trader)
+        .swapTokenForAnyNFTs(
+          quantityOrIds,
+          quote,
+          trader.address,
+          false,
+          ethers.constants.AddressZero,
+          { value: quote }
+        )
+    : // Buy specific NFTs from pool
+      pool
+        .connect(trader)
+        .swapTokenForSpecificNFTs(
+          quantityOrIds,
+          quote,
+          trader.address,
+          false,
+          ethers.constants.AddressZero,
+          { value: quote }
+        ));
+
+  return {
+    tx,
+    quote,
+    protocolFeeAmount,
+    expectedQuote: amounts[0],
+    expectedRoyalties,
+    totalRoyalties,
+  };
+}
+
+/**
+ * Inclusive min and max
+ */
+export function getRandomInt(min: number, max: number): number {
+  if (min > max) {
+    throw new Error(
+      `Called getRandomInt with min > max (${min} and ${max}, respectively)`
+    );
+  }
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function pickRandomElements<ElemType>(
+  array: ElemType[],
+  n: number
+): ElemType[] {
+  // Shuffle array
+  const shuffled = array.slice().sort(() => 0.5 - Math.random());
+
+  // Get sub-array of first n elements after shuffled
+  return shuffled.slice(0, n);
 }

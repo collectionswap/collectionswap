@@ -25,7 +25,7 @@ import type {
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "ethers";
 
-describe("LSSVMPairETH", function () {
+describe.only("LSSVMPairETH", function () {
   let lsSVMPairFactory: LSSVMPairFactory;
   let lssvmPairETH: LSSVMPairETH;
   let nft: Test721Enumerable;
@@ -151,7 +151,7 @@ describe("LSSVMPairETH", function () {
           inputAmount.mul(-1),
         ]
       )
-    );
+    ).to.be.true;
     expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
     // The pair should accrue trade fees
@@ -227,7 +227,7 @@ describe("LSSVMPairETH", function () {
           outputAmount,
         ]
       )
-    );
+    ).to.be.true;
 
     await expectAddressToOwnNFTs(lssvmPairETH.address, nft, nftTokenIds);
 
@@ -294,7 +294,7 @@ describe("LSSVMPairETH", function () {
           inputAmount.mul(-1),
         ]
       )
-    );
+    ).to.be.true;
 
     expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
@@ -362,7 +362,7 @@ describe("LSSVMPairETH", function () {
           outputAmount,
         ]
       )
-    );
+    ).to.be.true;
 
     await expectAddressToOwnNFTs(lssvmPairETH.address, nft, nftTokenIds);
 
@@ -438,7 +438,7 @@ describe("LSSVMPairETH", function () {
           outputAmount,
         ]
       )
-    );
+    ).to.be.true;
 
     expect(await nft.ownerOf(nftTokenIds[0])).to.equal(lssvmPairETH.address);
 
@@ -529,7 +529,7 @@ describe("LSSVMPairETH", function () {
             inputAmount.mul(-1),
           ]
         )
-      );
+      ).to.be.true;
 
       expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
@@ -554,7 +554,7 @@ describe("LSSVMPairETH", function () {
       curveParams = await lssvmPairETH.curveParams();
       const sellAmounts = await cumulativeSumWithRoyalties(
         calculateBid,
-        0,
+        -1, // We bought one from pool just now so -1
         nftTokenIds.length,
         1,
         lssvmPairETH,
@@ -600,7 +600,7 @@ describe("LSSVMPairETH", function () {
             outputAmount,
           ]
         )
-      );
+      ).to.be.true;
 
       await expectAddressToOwnNFTs(lssvmPairETH.address, nft, nftTokenIds);
 

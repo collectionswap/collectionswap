@@ -13,8 +13,7 @@ contract Test721Enumerable is ERC721Enumerable, IERC2981 {
     }
 
     function royaltyInfo(uint256 tokenId, uint256) external view returns (
-        address receiver, 
-        uint256 royaltyAmount
+        address, uint256
     ) {
         return (royaltyRecipients[tokenId], 0);
     }

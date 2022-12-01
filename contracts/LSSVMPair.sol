@@ -131,6 +131,9 @@ abstract contract LSSVMPair is
       @param _delta The initial delta of the bonding curve
       @param _fee The initial % fee taken, if this is a trade pair
       @param _spotPrice The initial price to sell an asset into the pair
+      @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
+        being sent to the account to which the traded NFT's royalties are awardable.
+        Must be 0 if `_nft` is not IERC2981. 
      */
     function initialize(
         uint256 _tokenId,
@@ -1030,7 +1033,6 @@ abstract contract LSSVMPair is
 
     function changeRoyaltyNumerator(uint256 newRoyaltyNumerator) external onlyOwner validRoyaltyNumerator(newRoyaltyNumerator) {
         require(IERC165(nft()).supportsInterface(_INTERFACE_ID_ERC2981), "NFT not ERC2981");
-        royaltyNumerator = feeMultipliers().royaltyNumerator;
         royaltyNumerator = newRoyaltyNumerator;
         emit RoyaltyNumeratorUpdate(newRoyaltyNumerator);
     }
