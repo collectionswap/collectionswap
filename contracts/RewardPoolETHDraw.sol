@@ -141,12 +141,23 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         @param _factory - the factory address
         @param _deployer - the vault deployer's address
         @param _lpToken - Collectionswap deployment address
-
+        @param _validator - the validator contract address
+        @param _nft - the NFT contract address
+        @param _bondingCurve - the bonding curve contract address
+        @param _curveParams - the bonding curve parameters
+        @param _fee - the fee amount to incentivize
+        @param _rewardTokens - the reward token addresses
+        @param _rewardRates - the reward rates. Reward rates is in amount per second
+        @param _rewardStartTime - the reward start time (note that this can be different from the draw start time)
+        @param _rewardPeriodFinish - the reward period finish time
         @param _rng - RNG contract address
         @param _additionalERC20DrawPrize - additional ERC20 prize to add to the draw, list
-        @param _additionalERC20DrawPrizeAmounts - additional ERC20 prize amount to add to the draw, list
+        @param _additionalERC20DrawPrizeAmounts - additional ERC20 prize amount to add to the draw, list. NB: Note that this is NOT divided per second, unlike the _rewardRates
         @param _nftCollectionsPrize - additional ERC721 prize to add to the draw, list
         @param _nftIdsPrize - additional ERC721 prize ID to add to the draw, list
+        @param _prizesPerWinner - number of ERC721 prizes per winner
+        @param _drawStartTime - the start time of draw
+        @param _drawPeriodFinish - the end time of draw
     **/
     function initialize(
         address _protocolOwner,
@@ -249,8 +260,11 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     /**
-        @dev - internal method for transferring and adding ERC721 and ERC20 prizes to the prize set.
-        @dev - Factory has a special-workflow for not transferring as it is easier to initialize state and then transfer tokens in.
+     * @dev - internal method for transferring and adding ERC721 and ERC20 prizes to the prize set.
+     * @dev - Factory has a special-workflow for not transferring as it is easier to initialize state and then transfer tokens in.
+     * @dev - workflow 1: call with non-zero drawStartTime to add a new epoch.
+     * @dev - workflow 2: call with zero drawStartTime to add prizes during the current epoch.
+     * @dev - NB: _drawStartTime and _drawPeriodFinish are potentially different from the rewards start and end time. (draw and rewards can potentially run on different timers)
     **/
     function _addNewPrizeEpoch(
         IERC721[] calldata _nftCollectionsPrize,
@@ -378,6 +392,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         );
     }
 
+    /**
+     * @notice as sweep time may be updated by both the draw and reward functions, we have defensive logic to ensure it is set to the maximum of the two
+     **/
     function rechargeRewardPool(
         IERC20[] calldata inputRewardTokens,
         uint256[] calldata inputRewardAmounts,
@@ -413,9 +430,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     /**
      * @notice Fresh state for the sortition tree at the start of a new epoch.
      * prune interactors with 0 `lastAmount` as they are effectively irrelevant
-     * @dev - As we are taking a TWAB and using a persistent sortition tree, we
+     * @dev - As we are taking a TWAP and using a persistent sortition tree, we
      * need to maintain a list of addresses who have interacted with the vault
-     * in the past, and recalc the TWAB for each epoch. This is done by the
+     * in the past, and recalc the TWAP for each epoch. This is done by the
      * deployer, and is part of the cost of recharging. The interactor list is
      * pruned upon calling this function.
      */
@@ -460,7 +477,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
      * @notice Stake an LP token
      * @param tokenId The tokenId of the LP token to stake
      * @return amount The amount of reward token minted as a result
-     * @dev - Maintain the new expected TWAB balance for the user.
+     * @dev - Maintain the new expected TWAP balance for the user.
      */    
     function stake(uint256 tokenId) public override returns (uint256 amount) {
         if (firstTimeUser(msg.sender)) totalVaultInteractorList.push(msg.sender);
@@ -469,7 +486,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     /**
-        @dev - if draw is open, directly calculate the expected TWAB balance for the user.
+        @dev - if draw is open, directly calculate the expected TWAP balance for the user.
     **/    
     function burn(uint256 tokenId) internal override returns (uint256 amount) {
         amount = super.burn(tokenId);
@@ -480,8 +497,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
        @param eventTimestamp specified timestamp of when to calculate progress from
        @param lastObservationTimestamp timestamp at which the last observation for the user was made
        @return timeElapsed the effective time elapsed during thisEpoch
-       @return timeRemaining the remaining amount of usable time to extend on the current TWAB cumsum. 
-       This is to calculate the expected TWAB at drawFinish so that 
+       @return timeRemaining the remaining amount of usable time to extend on the current TWAP cumsum. 
+       This is to calculate the expected TWAP at drawFinish so that 
        we don't have to iterate through all addresses to get the right epoch-end weighted stake.
        We check that (A) eventTimestamp is less than drawFinish.
        And it is always bounded by the drawFinish - start time, even if the vault hasn't started.
@@ -510,7 +527,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     }
 
     /**
-        @dev - updateSortitionStake (updates Sortition stake and TWAB). This is called either when a user stakes/burns, but sortition tree is modified only when draw is open
+        @dev - updateSortitionStake (updates Sortition stake and TWAP). This is called either when a user stakes/burns, but sortition tree is modified only when draw is open
     **/ 
     function updateSortitionStake(address _staker, uint256 _amount, bool isIncrement, bool modifySortition) internal {
         SimpleObservation storage lastObservation = lastTWAPObservation[_staker];
