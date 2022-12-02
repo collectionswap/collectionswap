@@ -38,8 +38,17 @@ export async function deployCollectionSwapAndStaker(
     "Collectionswap",
     deployer
   )) as Collectionswap__factory;
-  collectionSwap = await collectionSwapFactory.deploy(factoryAddress);
-  await collectionSwap.deployed();
+
+  // If EXISTING_COLLECTIONSWAP_ADDRESS is set, use that
+  if (config.EXISTING_COLLECTIONSWAP) {
+    collectionSwap = collectionSwapFactory.attach(
+      config.EXISTING_COLLECTIONSWAP
+    );
+  } else {
+    collectionSwap = await collectionSwapFactory.deploy(factoryAddress);
+    await collectionSwap.deployed();
+  }
+
   console.log(`Collectionswap address: ${collectionSwap.address}`);
 
   console.log(`Deploying Collectionstaker...`);
@@ -47,10 +56,22 @@ export async function deployCollectionSwapAndStaker(
     "Collectionstaker",
     deployer
   )) as Collectionstaker__factory;
-  collectionStaker = await collectionStakerFactory.deploy(
-    collectionSwap.address
-  );
-  await collectionStaker.deployed();
+
+  // If EXISTING_COLLECTIONSTAKER_ADDRESS is set, use that
+  if (config.EXISTING_COLLECTIONSTAKER) {
+    collectionStaker = collectionStakerFactory.attach(
+      config.EXISTING_COLLECTIONSTAKER
+    );
+  } else {
+    // add optional options if networkId is 1
+    const options = networkId === 1 ? { gasPrice: 13 * 1e9 } : {};
+    collectionStaker = await collectionStakerFactory.deploy(
+      collectionSwap.address,
+      // { gasPrice: 10 * 1e9 }
+      options
+    );
+    await collectionStaker.deployed();
+  }
   console.log(`Collectionstaker address: ${collectionStaker.address}`);
 
   console.log(`Deploying ChainlinkRNGv2...`);
@@ -58,18 +79,30 @@ export async function deployCollectionSwapAndStaker(
     "RNGChainlinkV2",
     deployer
   )) as RNGChainlinkV2__factory;
-  rng = await rngFactory.deploy(
-    deployerAddress,
-    config.VRF_COORDINATOR,
-    config.SUBSCRIPTION_ID,
-    config.KEY_HASH
-  );
-  await rng.deployed();
+
+  // If EXISTING_RNG_ADDRESS is set, use that
+  if (config.EXISTING_RNG) {
+    rng = rngFactory.attach(config.EXISTING_RNG);
+  } else {
+    rng = await rngFactory.deploy(
+      deployerAddress,
+      config.VRF_COORDINATOR,
+      config.SUBSCRIPTION_ID,
+      config.KEY_HASH
+    );
+    await rng.deployed();
+  };
   console.log(`Chainlink RNG address: ${collectionStaker.address}`);
 
-  console.log(`Setting RNG in staker...`);
-  // set RNG in staker
-  await collectionStaker.setRNG(rng.address);
+  // If EXISTING_RNG_ADDRESS is NOT set
+  if (!config.EXISTING_RNG) {
+    console.log(`Setting RNG in staker...`);
+    // set RNG in staker
+    await collectionStaker.setRNG(rng.address);
+
+    console.log("Setting allowed caller in RNG...")
+    await rng.setAllowedCaller(collectionStaker.address);
+  }
 
   console.log("exporting addresses...");
   const addressesToExport = {

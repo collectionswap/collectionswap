@@ -6,6 +6,9 @@ type Config = {
   SUBSCRIPTION_ID: BigNumberish; // Create subscription account at vrf.chain.link
   KEY_HASH: string, // see Gwei KeyHashes at https://docs.chain.link/docs/vrf/v2/subscription/supported-networks/#configurations
   EXPORT_FILENAME: string;
+  EXISTING_COLLECTIONSWAP?: string;
+  EXISTING_COLLECTIONSTAKER?: string;
+  EXISTING_RNG?: string;
 };
 
 export const configs: { [key: number]: Config } = {
@@ -15,8 +18,11 @@ export const configs: { [key: number]: Config } = {
     FACTORY: "0xb16c1342E617A5B6E4b631EB114483FDB289c0A4",
     VRF_COORDINATOR: "0x271682DEB8C4E0901D1a1550aD2e64D568E69909",
     KEY_HASH: "0x8af398995b04c28e9951adb9721ef74c74f93e6a478f39e7e0777be13527e7ef",
-    SUBSCRIPTION_ID: 0,
+    SUBSCRIPTION_ID: 538,
     EXPORT_FILENAME: "mainnetAddresses.json",
+    EXISTING_COLLECTIONSWAP: "0x226620C03C2f2dBBBd90E2Eca4754D8a41Fd3DEB",
+    EXISTING_COLLECTIONSTAKER: "0x7DEC8F08567a284A1354AEb95977bE1a0DEDC4fb",
+    EXISTING_RNG: "0xB38DDf6914717674500425e18024806C31250725",
   },
   // Goerli
   5: {
