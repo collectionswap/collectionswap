@@ -123,7 +123,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     event DrawOpen(uint64 epoch);
     event DrawClosed(uint64 epoch);
     event PrizesAdded(
-        uint256 indexed epoch,
+        uint64 indexed epoch,
         IERC721[] prizeNftCollections,
         uint256[] prizeNftIds,
         IERC20[] prizeTokens,
@@ -131,9 +131,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 startTime,
         uint256 endTime
     );
-    event PrizesPerWinnerUpdated(uint256 indexed epoch, uint256 numPrizesPerWinner);
+    event PrizesPerWinnerUpdated(uint64 indexed epoch, uint256 numPrizesPerWinner);
     event DrawResolved(uint64 epoch, address[] winners);
-    event Claimed(address user, uint64 epoch);
+    event Claimed(uint64 epoch, address user);
 
     //////////////////////////////////////////
     // ERRORS

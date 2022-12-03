@@ -47,7 +47,6 @@ export async function mintNfts(
 }
 
 interface Params {
-  user: string;
   nft: IERC721;
   bondingCurve: ICurve;
   delta: BigNumberish;
@@ -57,7 +56,6 @@ interface Params {
 export async function createIncentiveEth(
   collectionstaker: Collectionstaker,
   {
-    user,
     validator,
     nft,
     bondingCurve,
@@ -116,7 +114,6 @@ export async function createIncentiveEth(
 export async function createPairEth(
   factory: LSSVMPairFactory,
   {
-    user,
     nft,
     bondingCurve,
     delta,

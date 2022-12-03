@@ -49,7 +49,6 @@ describe("integration", function () {
     const delta = bigDelta;
     const fee = bigPctFee;
     const params = {
-      user: user.address,
       nft: nft.connect(user) as unknown as IERC721,
       bondingCurve: curve,
       delta,

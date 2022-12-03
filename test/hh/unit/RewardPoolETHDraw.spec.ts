@@ -395,8 +395,7 @@ describe("RewardPoolETHDraw", function () {
 
     const { delta, fee, spotPrice, props, state, royaltyNumerator } =
       getCurveParameters();
-    let params = {
-      user: user.address,
+    const params = {
       bondingCurve: curve as unknown as ICurve,
       delta,
       fee,
@@ -413,8 +412,6 @@ describe("RewardPoolETHDraw", function () {
       nft: nft as unknown as IERC721,
       nftTokenIds,
     });
-
-    params.user = user1.address;
 
     const { lpTokenId: lpTokenId1 } = await createPairEth(
       factory.connect(user1),
@@ -665,7 +662,7 @@ describe("RewardPoolETHDraw", function () {
       } = await loadFixture(rewardPoolDrawFixture);
 
       await runTwoParticipantDraw(
-        collectionswap,
+        factory,
         user,
         user1,
         rewardPool,
@@ -695,7 +692,19 @@ describe("RewardPoolETHDraw", function () {
         );
       }
 
-      await rewardPool.connect(owner).sweepRemainderNfts(epoch);
+      // can only sweep after reward sweep time
+      let rewardSweepTime = await rewardPool.rewardSweepTime();
+      await time.increaseTo(rewardSweepTime);
+
+      // get numPrizes
+      let numNFTPrizes = (await rewardPool.epochPrizeSets(epoch)).numERC721Prizes;
+      // NFTs are swept from the back
+      let remainderNfts = [];
+      for (let i = 0; i < thisRemainder; ++i) {
+        remainderNfts.push(numNFTPrizes.sub(i));
+      }
+
+      await rewardPool.connect(owner).sweepUnclaimedNfts(epoch, remainderNfts);
       // Loop through distinctNFTs
       let afterBalance = ethers.utils.parseEther("0");
       for (let i = 0; i < distinctNFTs.length; i++) {
@@ -709,7 +718,7 @@ describe("RewardPoolETHDraw", function () {
 
       // Cannot call it again for the same epoch
       await expect(
-        rewardPool.connect(owner).sweepRemainderNfts(epoch)
+        rewardPool.connect(owner).sweepUnclaimedNfts(epoch, remainderNfts)
       ).to.be.revertedWith("ERC721: caller is not token owner nor approved");
     });
 
