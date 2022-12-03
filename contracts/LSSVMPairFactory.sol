@@ -38,7 +38,19 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
     bytes4 private constant INTERFACE_ID_ERC721_ENUMERABLE =
         type(IERC721Enumerable).interfaceId;
 
+    /**
+     * @dev The MAX_PROTOCOL_FEE constant specifies the maximum fee that can be charged by the AMM pair contract 
+     * for facilitating token or NFT swaps on the decentralized exchange. 
+     * This fee is charged as a flat percentage of the final traded price for each swap, 
+     * and it is used to cover the costs associated with running the AMM pair contract and providing liquidity to the decentralized exchange.
+     * This is used for NFT/TOKEN trading pairs, that have a limited amount of dry powder
+     */
     uint256 internal constant MAX_PROTOCOL_FEE = 0.10e18; // 10%, must <= 1 - MAX_FEE
+    /**
+     * @dev The MAX_CARRY_FEE constant specifies the maximum fee that can be charged by the AMM pair contract for facilitating token 
+     * or NFT swaps on the decentralized exchange. This fee is charged as a percentage of the fee set by the trading pair creator, 
+     * which is itself a percentage of the final traded price. This is used for TRADE pairs, that form a continuous liquidity pool
+     */
     uint256 internal constant MAX_CARRY_FEE = 0.50e18; // 50%
     
     /// @dev maps the tokenID to the pair address created
@@ -364,6 +376,7 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
         @notice Checks if an address is a LSSVMPair. Uses the fact that the pairs are EIP-1167 minimal proxies.
         @param potentialPair The address to check
         @param variant The pair variant (NFT is enumerable or not, pair uses ETH or ERC20)
+        @dev The PairCloner contract is a utility contract that is used by the PairFactory contract to create new instances of automated market maker (AMM) pairs. 
         @return True if the address is the specified pair variant, false otherwise
      */
     function isPair(address potentialPair, PairVariant variant)
@@ -728,7 +741,8 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
     }
 
     /**
-      @dev Used to deposit ERC20s into a pair after creation and emit an event for indexing (if recipient is indeed an ERC20 pair and the token matches)
+      @dev Used to deposit ERC20s into a pair after creation and emit an event for indexing (if recipient is indeed an ERC20 pair 
+      and the token matches)
      */
     function depositERC20(
         ERC20 token,

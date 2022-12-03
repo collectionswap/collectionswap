@@ -19,6 +19,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
 
     /// @notice RNG contract interface
     RNGInterface public rng;
+    /// @notice RNG request ID corresponding to the Chainlink interactor, so we can look up the RNG status and result.
     uint32 public myRNGRequestId;
     uint64 public thisEpoch;
 
@@ -26,6 +27,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     mapping(uint64 => uint256) public epochToFinishTime;
     mapping(uint64 => uint256) public epochToRandomNumber;
     
+    /**
+     * @dev This struct is used to track the last observed amount and the time-weighted average price (TWAP) for a user's balance.
+     */
     struct SimpleObservation {
         uint256 timestamp;
         uint256 lastAmount;
@@ -37,6 +41,12 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     address[] internal totalVaultInteractorList;
     mapping(address => SimpleObservation) public lastTWAPObservation;
 
+    /**
+     * @dev This enum is used to track the status of the draw for a given epoch. The possible statuses are:
+     * @dev Open: The draw is currently open and users can enter.
+     * @dev Closed: The draw is closed and no more entries are accepted.
+     * @dev Resolved: The winners have been determined and the rewards have been distributed.
+     */
     enum DrawStatus {
         Open,
         Closed,
@@ -56,6 +66,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     address private constant DUMMY_ADDRESS = address(0);
     SortitionSumTreeFactory.SortitionSumTrees internal sortitionSumTrees;
 
+    /**
+     * @dev This struct is used to store information about a non-fungible token (NFT) that is being awarded as a prize.
+     */
     struct NFTData {
         IERC721 nftAddress;
         uint256 nftID;
@@ -69,6 +82,10 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 numERC721Prizes;
         uint256 prizePerWinner;
     }
+
+    /**
+     * @dev This struct is used to store information about the winners for a given epoch. It includes the number of draw winners, the number of prizes per winner, and the remainder.
+     */
     struct WinnerConfig {
         uint256 numberOfDrawWinners;
         uint256 numberOfPrizesPerWinner;
@@ -78,6 +95,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     mapping(uint64 => PrizeSet) public epochPrizeSets;
     mapping(uint64 => mapping(IERC20 => uint256)) public epochERC20PrizeAmounts;
     mapping(uint64 => mapping(IERC721 => bool)) public epochERC721Collections;
+    /**
+     * @dev This mapping is used to store information about the specific NFTs that will be awarded as prizes for each epoch.
+     */
     mapping(uint64 => mapping(uint256 => NFTData)) public epochERC721PrizeIdsData;
     mapping(uint64 => WinnerConfig) public epochWinnerConfigs;
 

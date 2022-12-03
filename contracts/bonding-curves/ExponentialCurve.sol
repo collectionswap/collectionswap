@@ -3,14 +3,10 @@ pragma solidity ^0.8.0;
 
 import {ICurve} from "./ICurve.sol";
 import {CurveErrorCodes} from "./CurveErrorCodes.sol";
-// import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
-
-// original sudoswap code points to an old version of solmate in raricapital library (deprecated), 
-// later versions omit fpow and fmul, we use the new version with the functions added back in
 import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 
 /*
-    @author 0xmons and boredGenius
+    @author Collection
     @notice Bonding curve logic for an exponential curve, where each buy/sell changes spot price by multiplying/dividing delta
 */
 contract ExponentialCurve is ICurve, CurveErrorCodes {

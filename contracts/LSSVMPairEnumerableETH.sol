@@ -7,7 +7,7 @@ import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 
 /**
     @title An NFT/Token pair where the NFT implements ERC721Enumerable, and the token is ETH
-    @author boredGenius and 0xmons
+    @author Collection
  */
 contract LSSVMPairEnumerableETH is LSSVMPairEnumerable, LSSVMPairETH {
     /**

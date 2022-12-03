@@ -15,7 +15,7 @@ import {TokenIDFilter} from "./filter/TokenIDFilter.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 /// @title The base contract for an NFT/TOKEN AMM pair
-/// @author boredGenius and 0xmons
+/// @author Collection
 /// @notice This implements the core swap logic from NFT to TOKEN
 abstract contract LSSVMPair is
     ReentrancyGuard,
@@ -28,14 +28,48 @@ abstract contract LSSVMPair is
         TRADE
     }
 
+    /**
+     * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps. 
+     * It contains two fields:
+     * @dev amount: The amount of the royalty payment, in the token's base units. 
+     * This value is calculated based on the price of the NFT being swapped, and the royaltyNumerator value set in the AMM pair contract.
+     * @dev recipient: The address to which the royalty payment should be sent. 
+     * This value is determined by the NFT being swapped, and it is specified in the ERC2981 metadata for the NFT.
+     * @dev When a user swaps an NFT for tokens using the AMM pair contract, a RoyaltyDue struct is created to track the amount 
+     * and recipient of the royalty payment that is due on the NFT swap. This struct is then used to facilitate the payment of 
+     * the royalty to the appropriate recipient.
+     */
     struct RoyaltyDue {
         uint256 amount;
         address recipient;
     }
 
+    /**
+     * @dev The _INTERFACE_ID_ERC2981 constant specifies the interface ID for the ERC2981 standard. This standard is used for tracking 
+     * royalties on non-fungible tokens (NFTs). It defines a standard interface for NFTs that includes metadata about the royalties that 
+     * are due on the NFT when it is swapped or transferred.
+     * @dev The _INTERFACE_ID_ERC2981 constant is used in the AMM pair contract to check whether an NFT being swapped implements the ERC2981 
+     * standard. If it does, the contract can use the metadata provided by the ERC2981 interface to facilitate the payment of royalties on the 
+     * NFT swap. If the NFT does not implement the ERC2981 standard, the contract will not track or pay royalties on the NFT swap.
+     * This can be overridden by the royaltyNumerator field in the AMM pair contract.
+     * @dev For more information about the ERC2981 standard, see https://eips.ethereum.org/EIPS/eip-2981
+     */
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-    // 90%, must <= 1 - MAX_PROTOCOL_FEE (set in LSSVMPairFactory)
+    /**
+     * @dev The MAX_FEE constant specifies the maximum fee you, the user, are allowed to charge for this AMM pair. 
+     * It is used to limit the amount of fees that can be charged by the AMM pair contract on NFT/token swaps.
+     * @dev The MAX_FEE constant is used to ensure that the AMM pair does not charge excessive fees on NFT/token swaps. 
+     * It also helps to protect users from paying excessive fees when using the AMM pair contract.
+     * @dev usage: 90%, must <= 1 - MAX_PROTOCOL_FEE (set in LSSVMPairFactory)
+     * @dev If the bid/ask is 9/10 and the fee is set to 1%, then the fee is calculated as follows:
+     * @dev For a buy order, the fee would be the bid price multiplied by the fee rate, or 9 * 1% = 0.09
+     * @dev For a sell order, the fee would be the ask price multiplied by the fee rate, or 10 * 1% = 0.1
+     * @dev The fee is charged as a percentage of the bid/ask price, and it is used to cover the costs associated with running the AMM pair 
+     * contract and providing liquidity to the decentralized exchange. The fee is deducted from the final price of the token or NFT swap, 
+     * and it is paid to the contract owner or to a designated fee recipient. The exact fee rate and fee recipient can be configured by the 
+     * contract owner when the AMM pair contract is deployed.
+     */
     uint256 internal constant MAX_FEE = 0.90e18;
 
     // The current price of the NFT
@@ -136,7 +170,8 @@ abstract contract LSSVMPair is
       The Ownable library we use disallows setting the owner to be address(0), so this condition
       should only be valid before the first initialize call.
       @param _tokenId The token id of the pair
-      @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pair during swaps. NOTE: If set to address(0), they will go to the pair itself.
+      @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pair during swaps. 
+      NOTE: If set to address(0), they will go to the pair itself.
       @param _delta The initial delta of the bonding curve
       @param _fee The initial % fee taken, if this is a trade pair
       @param _spotPrice The initial price to sell an asset into the pair

@@ -10,7 +10,7 @@ import {ICurve} from "./bonding-curves/ICurve.sol";
 
 /**
     @title An NFT/Token pair where the token is ETH
-    @author boredGenius and 0xmons
+    @author Collection
  */
 abstract contract LSSVMPairETH is LSSVMPair {
     using SafeTransferLib for address payable;

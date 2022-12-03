@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 export async function getSigners() {
   const [
     owner,
-    sudoswap,
+    ammDeployer,
     collection,
     protocol,
     user,
@@ -21,7 +21,7 @@ export async function getSigners() {
   ] = await ethers.getSigners();
   return {
     owner,
-    sudoswap,
+    ammDeployer,
     collection,
     protocol,
     user,

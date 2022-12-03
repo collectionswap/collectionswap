@@ -7,13 +7,10 @@ import {LSSVMPair} from "../LSSVMPair.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {LSSVMPairCloner} from "../lib/LSSVMPairCloner.sol";
 import {LSSVMPairERC20} from "../LSSVMPairERC20.sol";
-
-// original sudoswap code points to an old version of solmate in raricapital library (deprecated),
-// later versions omit fpow and fmul, we use the new version with the functions added back in
 import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 
 /*
-    @author 0xacedia
+    @author Collection
     @notice Bonding curve logic for an x*y=k curve using virtual reserves.
     @dev    The virtual token reserve is stored in `spotPrice` and the virtual nft reserve is stored in `delta`.
             An LP can modify the virtual reserves by changing the `spotPrice` (tokens) or `delta` (nfts).

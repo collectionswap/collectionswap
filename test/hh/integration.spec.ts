@@ -73,7 +73,7 @@ describe("integration", function () {
       initialETH
     );
 
-    // Sudoswap should now have the eth and nfts
+    // AMM should now have the eth and nfts
     expect(await ethers.provider.getBalance(pairAddress)).to.equal(initialETH);
     for (const nftTokenId of initialNftTokenIds) {
       expect(await nft.ownerOf(nftTokenId)).to.equal(pairAddress);

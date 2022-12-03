@@ -8,9 +8,6 @@ import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
 
 import {Hevm} from "../utils/Hevm.sol";
-
-// original sudoswap code points to an old version of solmate in raricapital library (deprecated),
-// later versions omit fpow and fmul, we use the new version with the functions added back in
 import {FixedPointMathLib} from "../../../contracts/lib/FixedPointMathLib.sol";
 
 contract ExponentialCurveTest is DSTest {

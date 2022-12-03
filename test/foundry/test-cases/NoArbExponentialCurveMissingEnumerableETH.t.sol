@@ -8,7 +8,7 @@ import {UsingMissingEnumerable} from "../mixins/UsingMissingEnumerable.sol";
 import {UsingETH} from "../mixins/UsingETH.sol";
 
 contract NoArbExponentialCurveMissingEnumerableETHTest is
-    // The original sudoswap test does not work when protocol fee is 0.
+    // The original AMM test does not work when protocol fee is 0.
     // NoArbBondingCurve,
     UsingExponentialCurve,
     UsingMissingEnumerable,

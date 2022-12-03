@@ -200,40 +200,40 @@ export async function nftFixture() {
 }
 
 export async function lsSVMFixture() {
-  const { sudoswap } = await getSigners();
+  const { ammDeployer } = await getSigners();
 
   const LSSVMPairEnumerableETH = await ethers.getContractFactory(
     "LSSVMPairEnumerableETH"
   );
   const lsSVMPairEnumerableETH = await LSSVMPairEnumerableETH.connect(
-    sudoswap
+    ammDeployer
   ).deploy();
 
   const LSSVMPairMissingEnumerableETH = await ethers.getContractFactory(
     "LSSVMPairMissingEnumerableETH"
   );
   const lsSVMPairMissingEnumerableETH =
-    await LSSVMPairMissingEnumerableETH.connect(sudoswap).deploy();
+    await LSSVMPairMissingEnumerableETH.connect(ammDeployer).deploy();
 
   const LSSVMPairEnumerableERC20 = await ethers.getContractFactory(
     "LSSVMPairEnumerableERC20"
   );
   const lsSVMPairEnumerableERC20 = await LSSVMPairEnumerableERC20.connect(
-    sudoswap
+    ammDeployer
   ).deploy();
 
   const LSSVMPairMissingEnumerableERC20 = await ethers.getContractFactory(
     "LSSVMPairMissingEnumerableERC20"
   );
   const lsSVMPairMissingEnumerableERC20 =
-    await LSSVMPairMissingEnumerableERC20.connect(sudoswap).deploy();
+    await LSSVMPairMissingEnumerableERC20.connect(ammDeployer).deploy();
 
   const protocolFeeRecipient = ethers.constants.AddressZero;
   const protocolFeeMultiplier = ethers.utils.parseEther("0.05");
   const carryFeeMultiplier = ethers.utils.parseEther("0.05");
 
   const LSSVMPairFactory = await ethers.getContractFactory("LSSVMPairFactory");
-  const lsSVMPairFactory = await LSSVMPairFactory.connect(sudoswap).deploy(
+  const lsSVMPairFactory = await LSSVMPairFactory.connect(ammDeployer).deploy(
     lsSVMPairEnumerableETH.address,
     lsSVMPairMissingEnumerableETH.address,
     lsSVMPairEnumerableERC20.address,
@@ -246,15 +246,15 @@ export async function lsSVMFixture() {
   // Deploy all contract types and set them allowed. Return only the desired
   // curve
   const ExponentialCurve = await ethers.getContractFactory("ExponentialCurve");
-  const exponentialCurve = await ExponentialCurve.connect(sudoswap).deploy();
+  const exponentialCurve = await ExponentialCurve.connect(ammDeployer).deploy();
   await lsSVMPairFactory.setBondingCurveAllowed(exponentialCurve.address, true);
 
   const LinearCurve = await ethers.getContractFactory("LinearCurve");
-  const linearCurve = await LinearCurve.connect(sudoswap).deploy();
+  const linearCurve = await LinearCurve.connect(ammDeployer).deploy();
   await lsSVMPairFactory.setBondingCurveAllowed(linearCurve.address, true);
 
   const SigmoidCurve = await ethers.getContractFactory("SigmoidCurve");
-  const sigmoidCurve = await SigmoidCurve.connect(sudoswap).deploy();
+  const sigmoidCurve = await SigmoidCurve.connect(ammDeployer).deploy();
   await lsSVMPairFactory.setBondingCurveAllowed(sigmoidCurve.address, true);
 
   const map: { [key in curveType]: any } = {

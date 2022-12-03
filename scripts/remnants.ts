@@ -13,7 +13,7 @@ import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumber, ContractTransaction, ContractReceipt } from "ethers";
 
 // https://ethereum.stackexchange.com/questions/4086/how-are-enums-converted-to-uint
-async function directSudoswapPoolCreation(
+async function directAMMPoolCreation(
   connectToThisAccount: SignerWithAddress,
   lssvmPairFactory: LSSVMPairFactory,
   nftContractCollection: Alchemy,

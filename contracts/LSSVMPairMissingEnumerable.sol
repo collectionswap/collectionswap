@@ -8,7 +8,7 @@ import {LSSVMRouter} from "./LSSVMRouter.sol";
 
 /**
     @title An NFT/Token pair for an NFT that does not implement ERC721Enumerable
-    @author boredGenius and 0xmons
+    @author Collection
  */
 abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
     using EnumerableSet for EnumerableSet.UintSet;
