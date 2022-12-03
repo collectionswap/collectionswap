@@ -23,6 +23,7 @@ interface ILSSVMPairFactory is IERC721, IERC721Enumerable {
         address payable poolAddress;
         uint96 fee;
         uint128 delta;
+        uint256 royaltyNumerator;
         uint128 initialSpotPrice;
         uint256 initialPoolBalance;
         uint256 initialNFTIDsLength;
@@ -56,7 +57,11 @@ interface ILSSVMPairFactory is IERC721, IERC721Enumerable {
         @param spotPrice The initial selling spot price
         @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
         being sent to the account to which the traded NFT's royalties are awardable.
-        Must be 0 if `_nft` is not IERC2981.
+        Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
+        @param royaltyRecipientOverride An address to which all royalties will
+        be paid to if not address(0). This overrides ERC2981 royalties set by
+        the NFT creator, and allows sending royalties to arbitrary addresses
+        even if a collection does not support ERC2981.
         @param initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pair
         @return pair The new pair
      */
@@ -72,6 +77,7 @@ interface ILSSVMPairFactory is IERC721, IERC721Enumerable {
         bytes props;
         bytes state;
         uint256 royaltyNumerator;
+        address payable royaltyRecipientOverride;
         uint256[] initialNFTIDs;
     }
 
@@ -91,7 +97,11 @@ interface ILSSVMPairFactory is IERC721, IERC721Enumerable {
         @param spotPrice The initial selling spot price, in ETH
         @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
         being sent to the account to which the traded NFT's royalties are awardable.
-        Must be 0 if `_nft` is not IERC2981.
+        Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
+        @param royaltyRecipientOverride An address to which all royalties will
+        be paid to if not address(0). This overrides ERC2981 royalties set by
+        the NFT creator, and allows sending royalties to arbitrary addresses
+        even if a collection does not support ERC2981.
         @param initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pair
         @param initialTokenBalance The initial token balance sent from the sender to the new pair
         @return pair The new pair
@@ -109,6 +119,7 @@ interface ILSSVMPairFactory is IERC721, IERC721Enumerable {
         bytes props;
         bytes state;
         uint256 royaltyNumerator;
+        address payable royaltyRecipientOverride;
         uint256[] initialNFTIDs;
         uint256 initialTokenBalance;
     }
@@ -169,7 +180,8 @@ interface ILSSVMPairFactory is IERC721, IERC721Enumerable {
         address nftAddress,
         address bondingCurveAddress,
         uint96 fee,
-        uint128 delta
+        uint128 delta,
+        uint256 royaltyNumerator
     )
         external
         view
@@ -193,7 +205,8 @@ interface ILSSVMPairFactory is IERC721, IERC721Enumerable {
         address nftAddress,
         address bondingCurveAddress,
         uint96 fee,
-        uint128 delta
+        uint128 delta,
+        uint256 royaltyNumerator
     )
         external
         view

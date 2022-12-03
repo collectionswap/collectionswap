@@ -404,6 +404,7 @@ describe("RewardPoolETHDraw", function () {
       props,
       state,
       royaltyNumerator,
+      royaltyRecipientOverride: ethers.constants.AddressZero,
       value: ethers.utils.parseEther("2"),
     };
 

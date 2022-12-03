@@ -34,6 +34,7 @@ type EthPoolParams = {
   props: any;
   state: any;
   royaltyNumerator: BigNumber;
+  royaltyRecipientOverride: string;
   receiver: string;
 };
 
@@ -409,6 +410,7 @@ export async function everythingFixture() {
       props,
       state,
       royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
+      royaltyRecipientOverride: ethers.constants.AddressZero,
     },
   };
 
@@ -475,6 +477,7 @@ export async function rewardPoolFixture() {
     props,
     state,
     royaltyNumerator,
+    royaltyRecipientOverride: ethers.constants.AddressZero,
     value: ethers.utils.parseEther("2"),
   };
 
@@ -534,6 +537,7 @@ export async function royaltyFixture(): Promise<{
   nftNon2981: IERC721;
   initialOwner: SignerWithAddress;
   recipients: SignerWithAddress[];
+  royaltyRecipientOverride: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
   tokenIdsWithoutRoyalty: string[];
   lssvmPairFactory: LSSVMPairFactory;
@@ -544,8 +548,13 @@ export async function royaltyFixture(): Promise<{
   // Generic NFT collection implementing 2981 and allowing recipient setting
   const { nft } = await nftFixture();
   // Tokens will be minted to `owner` and royalties awardable to royaltyRecipients
-  const { owner, royaltyRecipient0, royaltyRecipient1, royaltyRecipient2 } =
-    await getSigners();
+  const {
+    owner,
+    royaltyRecipient0,
+    royaltyRecipient1,
+    royaltyRecipient2,
+    royaltyRecipientOverride,
+  } = await getSigners();
 
   const nftsWithRoyalty = await mintNfts(nft, owner.address, 3);
 
@@ -586,6 +595,7 @@ export async function royaltyFixture(): Promise<{
     collectionswap,
     otherAccount1,
     ethPoolParams,
+    royaltyRecipientOverride,
   };
 }
 
@@ -601,6 +611,7 @@ export async function royaltyWithPoolFixture(): Promise<{
   nft2981: Test721Enumerable;
   initialOwner: SignerWithAddress;
   recipients: SignerWithAddress[];
+  royaltyRecipientOverride: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
   lssvmPairFactory: LSSVMPairFactory;
   collectionswap: Collectionswap;
@@ -622,6 +633,7 @@ export async function royaltyWithPoolFixture(): Promise<{
     collectionswap,
     otherAccount1,
     ethPoolParams,
+    royaltyRecipientOverride,
   } = await royaltyFixture();
 
   const royaltyNumerator = DEFAULT_VALID_ROYALTY;
@@ -631,6 +643,7 @@ export async function royaltyWithPoolFixture(): Promise<{
       ...ethPoolParams,
       nft: nft2981.address,
       royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
+      royaltyRecipientOverride: ethers.constants.AddressZero,
       initialNFTIDs: tokenIdsWithRoyalty,
     },
     {
@@ -689,5 +702,93 @@ export async function royaltyWithPoolFixture(): Promise<{
     protocolFee: ethers.BigNumber.from(protocolFee),
     royaltyNumerator,
     enumerateTrader,
+    royaltyRecipientOverride,
+  };
+}
+
+export async function royaltyWithPoolAndOverrideFixture(): Promise<{
+  nft2981: Test721Enumerable;
+  initialOwner: SignerWithAddress;
+  recipients: SignerWithAddress[];
+  royaltyRecipientOverride: SignerWithAddress;
+  tokenIdsWithRoyalty: string[];
+  lssvmPairFactory: LSSVMPairFactory;
+  collectionswap: Collectionswap;
+  otherAccount1: SignerWithAddress;
+  ethPoolParams: EthPoolParams;
+  lssvmPairETH: LSSVMPairETH;
+  traderNfts: string[];
+  fee: BigNumber;
+  protocolFee: BigNumber;
+  royaltyNumerator: BigNumber;
+}> {
+  const {
+    nft2981,
+    initialOwner,
+    recipients,
+    tokenIdsWithRoyalty,
+    lssvmPairFactory,
+    collectionswap,
+    otherAccount1,
+    ethPoolParams,
+    royaltyRecipientOverride,
+  } = await royaltyFixture();
+
+  const royaltyNumerator = DEFAULT_VALID_ROYALTY;
+
+  const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+    {
+      ...ethPoolParams,
+      nft: nft2981.address,
+      royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
+      royaltyRecipientOverride: royaltyRecipientOverride.address,
+      initialNFTIDs: tokenIdsWithRoyalty,
+    },
+    {
+      value: ethers.BigNumber.from(`${5e18}`),
+      gasLimit: 1000000,
+    }
+  );
+  const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
+  const lssvmPairETH = await ethers.getContractAt(
+    "LSSVMPairETH",
+    newPairAddress
+  );
+
+  // Give the trader some nfts so both directions can be tested
+  const traderNfts = await mintNfts(nft2981, otherAccount1.address, 3);
+
+  // Approve all for trading with the pool
+  await nft2981
+    .connect(otherAccount1)
+    .setApprovalForAll(lssvmPairETH.address, true);
+
+  // Assign royalty recipients
+  const { royaltyRecipient3, royaltyRecipient4, royaltyRecipient5 } =
+    await getSigners();
+  const recipients2 = [royaltyRecipient3, royaltyRecipient4, royaltyRecipient5];
+  await Promise.all(
+    traderNfts.map(async (tokenId, index) =>
+      nft2981.setRoyaltyRecipient(tokenId, recipients2[index].address)
+    )
+  );
+
+  const { fee, protocolFee } = getCurveParameters();
+
+  return {
+    nft2981,
+    initialOwner,
+    recipients,
+    tokenIdsWithRoyalty,
+    lssvmPairFactory,
+    collectionswap,
+    otherAccount1,
+    ethPoolParams,
+    lssvmPairETH,
+    traderNfts,
+    fee: ethers.BigNumber.from(fee),
+    protocolFee: ethers.BigNumber.from(protocolFee),
+    royaltyNumerator,
+    royaltyRecipientOverride,
   };
 }

@@ -71,6 +71,11 @@ abstract contract LSSVMPair is
     // `royaltyNumerator / 1e18`
     uint256 public royaltyNumerator;
 
+    // An address to which all royalties will be paid to if not address(0). This
+    // overrides ERC2981 royalties set by the NFT creator, and allows sending
+    // royalties to arbitrary addresses even if a collection does not support ERC2981.
+    address payable public royaltyRecipientOverride;
+
     // Events
     event SwapNFTInPair();
     event SwapNFTOutPair();
@@ -84,12 +89,16 @@ abstract contract LSSVMPair is
     event PropsUpdate(bytes newProps);
     event StateUpdate(bytes newState);
     event RoyaltyNumeratorUpdate(uint256 newRoyaltyNumerator);
+    event RoyaltyRecipientOverrideUpdate(address payable newOverride);
 
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
 
     uint256 public tokenId;
 
+    /**
+        @dev Use this whenever modifying the value of royaltyNumerator.
+    */
     modifier validRoyaltyNumerator(
         uint256 _royaltyNumerator
     ) {
@@ -133,7 +142,11 @@ abstract contract LSSVMPair is
       @param _spotPrice The initial price to sell an asset into the pair
       @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
         being sent to the account to which the traded NFT's royalties are awardable.
-        Must be 0 if `_nft` is not IERC2981. 
+        Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
+        @param _royaltyRecipientOverride An address to which all royalties will
+        be paid to if not address(0). This overrides ERC2981 royalties set by
+        the NFT creator, and allows sending royalties to arbitrary addresses
+        even if a collection does not support ERC2981.
      */
     function initialize(
         uint256 _tokenId,
@@ -143,7 +156,8 @@ abstract contract LSSVMPair is
         uint128 _spotPrice,
         bytes calldata _props,
         bytes calldata _state,
-        uint256 _royaltyNumerator
+        uint256 _royaltyNumerator,
+        address payable _royaltyRecipientOverride
     ) external payable validRoyaltyNumerator(_royaltyNumerator) {
         require(tokenId == 0, "Initialized");
         tokenId = _tokenId;
@@ -175,6 +189,7 @@ abstract contract LSSVMPair is
         props = _props;
         state = _state;
         royaltyNumerator = _royaltyNumerator;
+        royaltyRecipientOverride = _royaltyRecipientOverride;
     }
 
     /**
@@ -1032,9 +1047,21 @@ abstract contract LSSVMPair is
     }
 
     function changeRoyaltyNumerator(uint256 newRoyaltyNumerator) external onlyOwner validRoyaltyNumerator(newRoyaltyNumerator) {
-        require(IERC165(nft()).supportsInterface(_INTERFACE_ID_ERC2981), "NFT not ERC2981");
+        require(
+            _validRoyaltyState(newRoyaltyNumerator, royaltyRecipientOverride, nft()),
+            "Invalid royaltyNumerator or royaltyRecipientOverride"
+        );
         royaltyNumerator = newRoyaltyNumerator;
         emit RoyaltyNumeratorUpdate(newRoyaltyNumerator);
+    }
+
+    function changeRoyaltyRecipientOverride(address payable newOverride) external onlyOwner {
+        require(
+            _validRoyaltyState(royaltyNumerator, newOverride, nft()),
+            "Invalid royaltyNumerator or royaltyRecipientOverride"
+        );
+        royaltyRecipientOverride = newOverride;
+        emit RoyaltyRecipientOverrideUpdate(newOverride);
     }
 
     /**
@@ -1123,5 +1150,24 @@ abstract contract LSSVMPair is
                 }
             }
         }
+    }
+
+    /**
+        @notice Returns true if it's valid to set the contract variables to the
+        variables passed to this function.
+     */
+    function _validRoyaltyState(
+        uint256 _royaltyNumerator,
+        address payable _royaltyRecipientOverride,
+        IERC721 _nft
+    ) internal view returns (bool) {
+        return (
+            // Supports 2981 interface to tell us who gets royalties or
+            IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981) || 
+            // There is an override so we always know where to send royaltiers or
+            _royaltyRecipientOverride != address(0) ||
+            // Royalties will not be paid
+            _royaltyNumerator == 0
+        );
     }
 }

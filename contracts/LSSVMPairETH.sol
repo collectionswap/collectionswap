@@ -32,20 +32,38 @@ abstract contract LSSVMPairETH is LSSVMPair {
         // Pay royalties first to obtain total amount of royalties paid
         uint256 length = royaltiesDue.length;
         uint256 totalRoyaltiesPaid;
-        for (uint256 i = 0; i < length;) {
-            RoyaltyDue memory due = royaltiesDue[i];
-            uint256 royaltyAmount = due.amount;
-            totalRoyaltiesPaid += royaltyAmount;
-            if (royaltyAmount > 0) {
-                payable(due.recipient).safeTransferETH(
-                    royaltyAmount
-                );
-            }
 
-            unchecked {
-                ++i;
+        // If there's an override, just sum and do one transfer. Else, send
+        // elementwise
+        if (royaltyRecipientOverride != address(0)) {
+            for (uint256 i = 0; i  < length; ) {
+                totalRoyaltiesPaid += royaltiesDue[i].amount;
+                unchecked {
+                    ++i;
+                }
+            }
+            
+            if (totalRoyaltiesPaid > 0) {
+                royaltyRecipientOverride.safeTransferETH(totalRoyaltiesPaid);
+            }
+        } else {
+            for (uint256 i = 0; i < length;) {
+                RoyaltyDue memory due = royaltiesDue[i];
+                uint256 royaltyAmount = due.amount;
+                totalRoyaltiesPaid += royaltyAmount;
+                if (royaltyAmount > 0) {
+                    address recipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
+                    payable(recipient).safeTransferETH(
+                        royaltyAmount
+                    );
+                }
+
+                unchecked {
+                    ++i;
+                }
             }
         }
+        
 
         // Transfer inputAmount ETH to assetRecipient if it's been set
         address payable _assetRecipient = getAssetRecipient();
@@ -100,25 +118,43 @@ abstract contract LSSVMPairETH is LSSVMPair {
         uint256 outputAmount,
         RoyaltyDue[] memory royaltiesDue
     ) internal override {
+        // Unfortunately we need to duplicate work here
+        uint256 length = royaltiesDue.length;
+        uint256 totalRoyaltiesDue;
+        for (uint256 i = 0; i  < length; ) {
+            totalRoyaltiesDue += royaltiesDue[i].amount;
+            unchecked {
+                ++i;
+            }
+        }
+
         // Send ETH to caller
         if (outputAmount > 0) {
             require(
-                address(this).balance >= outputAmount + tradeFee,
+                address(this).balance >= outputAmount + tradeFee + totalRoyaltiesDue,
                 "Too little ETH"
             );
             tokenRecipient.safeTransferETH(outputAmount);
         }
 
-        uint256 length = royaltiesDue.length;
-        for (uint256 i = 0; i < length; ) {
-            RoyaltyDue memory due = royaltiesDue[i];
-            uint256 royaltyAmount = due.amount;
-            if (royaltyAmount > 0) {
-                payable(due.recipient).safeTransferETH(royaltyAmount);
+        // If there's an override, just do one transfer. Else, send
+        // elementwise
+        if (royaltyRecipientOverride != address(0)) {
+            if (totalRoyaltiesDue > 0) {
+                royaltyRecipientOverride.safeTransferETH(totalRoyaltiesDue);
             }
+        } else {
+            for (uint256 i = 0; i < length; ) {
+                RoyaltyDue memory due = royaltiesDue[i];
+                address royaltyRecipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
+                uint256 royaltyAmount = due.amount;
+                if (royaltyAmount > 0) {
+                    payable(royaltyRecipient).safeTransferETH(royaltyAmount);
+                }
 
-            unchecked {
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
     }

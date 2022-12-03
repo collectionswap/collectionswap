@@ -1159,6 +1159,7 @@ describe("RewardPoolETH", function () {
           params.props,
           params.state,
           params.royaltyNumerator,
+          params.royaltyRecipientOverride,
           newNftTokenIds,
           { value: params.value }
         );
@@ -1200,6 +1201,7 @@ describe("RewardPoolETH", function () {
           params.props,
           params.state,
           params.royaltyNumerator,
+          params.royaltyRecipientOverride,
           newNftTokenIds,
           { value: params.value }
         );

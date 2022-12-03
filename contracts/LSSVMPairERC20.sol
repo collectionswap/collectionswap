@@ -60,33 +60,63 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             // Pay royalties first to obtain total amount of royalties paid
             uint256 length = royaltiesDue.length;
             uint256 totalRoyaltiesPaid;
-            for (uint256 i = 0; i  < length; ) {
-                // Cache state and then call router to transfer tokens from user
-                RoyaltyDue memory due = royaltiesDue[i];
-                uint256 royaltyAmount = due.amount;
-                address royaltyRecipient = due.recipient;
-                uint256 royaltyInitBalance = _token.balanceOf(royaltyRecipient);
-                if (royaltyAmount > 0) {
-                    totalRoyaltiesPaid += royaltyAmount;
 
-                    router.pairTransferERC20From(
-                        _token,
-                        routerCaller,
-                        royaltyRecipient,
-                        royaltyAmount,
-                        pairVariant()
-                    );
-
-                    // Verify token transfer (protect pair against malicious router)
-                    require(
-                        _token.balanceOf(royaltyRecipient) - royaltyInitBalance ==
-                            royaltyAmount,
-                        "ERC20 royalty not transferred in"
-                    );
+            // If there's an override, just sum and do one transfer. Else, send
+            // elementwise
+            if (royaltyRecipientOverride != address(0)) {
+                for (uint256 i = 0; i  < length; ) {
+                    totalRoyaltiesPaid += royaltiesDue[i].amount;
+                    unchecked {
+                        ++i;
+                    }
                 }
+              
+              uint256 royaltyInitBalance = _token.balanceOf(royaltyRecipientOverride);
+              if (totalRoyaltiesPaid > 0) {
+                router.pairTransferERC20From(
+                    _token,
+                    routerCaller,
+                    royaltyRecipientOverride,
+                    totalRoyaltiesPaid,
+                    pairVariant()
+                );
 
-                unchecked {
-                    ++i;
+                // Verify token transfer (protect pair against malicious router)
+                require(
+                    _token.balanceOf(royaltyRecipientOverride) - royaltyInitBalance ==
+                        totalRoyaltiesPaid,
+                    "ERC20 royalty not transferred in"
+                );
+              }
+            } else {
+                for (uint256 i = 0; i  < length; ) {
+                    // Cache state and then call router to transfer tokens from user
+                    RoyaltyDue memory due = royaltiesDue[i];
+                    uint256 royaltyAmount = due.amount;
+                    address royaltyRecipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
+                    uint256 royaltyInitBalance = _token.balanceOf(royaltyRecipient);
+                    if (royaltyAmount > 0) {
+                        totalRoyaltiesPaid += royaltyAmount;
+
+                        router.pairTransferERC20From(
+                            _token,
+                            routerCaller,
+                            royaltyRecipient,
+                            royaltyAmount,
+                            pairVariant()
+                        );
+
+                        // Verify token transfer (protect pair against malicious router)
+                        require(
+                            _token.balanceOf(royaltyRecipient) - royaltyInitBalance ==
+                                royaltyAmount,
+                            "ERC20 royalty not transferred in"
+                        );
+                    }
+
+                    unchecked {
+                        ++i;
+                    }
                 }
             }
 
@@ -122,22 +152,44 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             // Pay royalties first to obtain total amount of royalties paid
             uint256 length = royaltiesDue.length;
             uint256 totalRoyaltiesPaid;
-            for (uint256 i = 0; i < length;) {
-                RoyaltyDue memory due = royaltiesDue[i];
-                uint256 royaltyAmount = due.amount;
-                totalRoyaltiesPaid += royaltyAmount;
-                if (royaltyAmount > 0) {
+
+            // If there's an override, just sum and do one transfer. Else, send
+            // elementwise
+            if (royaltyRecipientOverride != address(0)) {
+                for (uint256 i = 0; i  < length; ) {
+                    totalRoyaltiesPaid += royaltiesDue[i].amount;
+                    unchecked {
+                        ++i;
+                    }
+                }
+              
+                if (totalRoyaltiesPaid > 0) {
                     _token.safeTransferFrom(
                         msg.sender,
-                        due.recipient,
-                        royaltyAmount
+                        royaltyRecipientOverride,
+                        totalRoyaltiesPaid
                     );
                 }
+            } else {
+                for (uint256 i = 0; i < length;) {
+                    RoyaltyDue memory due = royaltiesDue[i];
+                    uint256 royaltyAmount = due.amount;
+                    address royaltyRecipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
+                    totalRoyaltiesPaid += royaltyAmount;
+                    if (royaltyAmount > 0) {
+                        _token.safeTransferFrom(
+                            msg.sender,
+                            royaltyRecipient,
+                            royaltyAmount
+                        );
+                    }
 
-                unchecked {
-                    ++i;
+                    unchecked {
+                        ++i;
+                    }
                 }
             }
+            
 
             // Transfer tokens directly
             _token.safeTransferFrom(
@@ -188,28 +240,47 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         uint256 outputAmount,
         RoyaltyDue[] memory royaltiesDue
     ) internal override {
+        // Unfortunately we need to duplicate work here
+        uint256 length = royaltiesDue.length;
+        uint256 totalRoyaltiesDue;
+        for (uint256 i = 0; i  < length; ) {
+            totalRoyaltiesDue += royaltiesDue[i].amount;
+            unchecked {
+                ++i;
+            }
+        }
+
         // Send tokens to caller
         if (outputAmount > 0) {
             ERC20 _token = token();
             require(
-                _token.balanceOf(address(this)) >= outputAmount + tradeFee,
+                _token.balanceOf(address(this)) >= outputAmount + tradeFee + totalRoyaltiesDue,
                 "Too little ERC20"
             );
             _token.safeTransfer(tokenRecipient, outputAmount);
         }
 
-        uint256 length = royaltiesDue.length;
-        for (uint256 i = 0; i < length; ) {
-            RoyaltyDue memory due = royaltiesDue[i];
-            uint256 royaltyAmount = due.amount;
-            if (royaltyAmount > 0) {
-                token().safeTransfer(due.recipient, royaltyAmount);
+        // If there's an override, just do one transfer. Else, send
+        // elementwise
+        if (royaltyRecipientOverride != address(0)) {
+            if (totalRoyaltiesDue > 0) {
+                token().safeTransfer(royaltyRecipientOverride, totalRoyaltiesDue);
             }
+        } else {
+            for (uint256 i = 0; i < length; ) {
+                RoyaltyDue memory due = royaltiesDue[i];
+                uint256 royaltyAmount = due.amount;
+                if (royaltyAmount > 0) {
+                    address royaltyRecipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
+                    token().safeTransfer(royaltyRecipient, royaltyAmount);
+                }
 
-            unchecked {
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
+        
     }
 
     /// @inheritdoc LSSVMPair

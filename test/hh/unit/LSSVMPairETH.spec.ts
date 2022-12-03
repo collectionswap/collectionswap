@@ -70,6 +70,7 @@ describe("LSSVMPairETH", function () {
       props,
       state,
       royaltyNumerator,
+      royaltyRecipientOverride: ethers.constants.AddressZero,
       initialNFTIDs: nftTokenIds,
     });
     const receipt = await resp.wait();
@@ -121,6 +122,8 @@ describe("LSSVMPairETH", function () {
       protocolFee,
       royaltyNumerator
     );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let totalBuyRoyalties = 0;
     buyAmounts.slice(1, undefined).forEach((royalty) => {
       totalBuyRoyalties += royalty;
@@ -145,9 +148,10 @@ describe("LSSVMPairETH", function () {
         [lsSVMPairFactory, lssvmPairETH, user1],
         [
           protocolFee,
-          inputAmount
-            .sub(protocolFee)
-            .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
+          inputAmount.sub(protocolFee),
+          // This test suite does not assign royalty recipients, so they go to
+          // the pool by default.
+          // .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
           inputAmount.mul(-1),
         ]
       )
@@ -175,7 +179,7 @@ describe("LSSVMPairETH", function () {
     // Send enough ETH to the pair for it to buy the nfts
     await user.sendTransaction({
       to: lssvmPairETH.address,
-      value: outputAmount.add(tradeFee),
+      value: outputAmount.add(tradeFee).add(protocolFee),
     });
 
     const curveParams = await lssvmPairETH.curveParams();
@@ -194,6 +198,8 @@ describe("LSSVMPairETH", function () {
       protocolFee,
       royaltyNumerator
     );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let totalSellRoyalties = 0;
     sellAmounts.slice(1, undefined).forEach((royalty) => {
       totalSellRoyalties += royalty;
@@ -220,10 +226,10 @@ describe("LSSVMPairETH", function () {
         [lsSVMPairFactory, lssvmPairETH, user1],
         [
           protocolFee,
-          outputAmount
-            .mul(-1)
-            .sub(protocolFee)
-            .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
+          outputAmount.mul(-1).sub(protocolFee),
+          // // This test suite does not assign royalty recipients, so they go to
+          // the pool by default.
+          // .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
           outputAmount,
         ]
       )
@@ -264,6 +270,8 @@ describe("LSSVMPairETH", function () {
       protocolFee,
       royaltyNumerator
     );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let totalBuyRoyalties = 0;
     buyAmounts.slice(1, undefined).forEach((royalty) => {
       totalBuyRoyalties += royalty;
@@ -288,9 +296,10 @@ describe("LSSVMPairETH", function () {
         [lsSVMPairFactory, lssvmPairETH, user1],
         [
           protocolFee,
-          inputAmount
-            .sub(protocolFee)
-            .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
+          inputAmount.sub(protocolFee),
+          // This test suite does not assign royalty recipients, so they go to
+          // the pool by default.
+          // .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
           inputAmount.mul(-1),
         ]
       )
@@ -332,6 +341,8 @@ describe("LSSVMPairETH", function () {
       protocolFee,
       royaltyNumerator
     );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let totalSellRoyalties = 0;
     sellAmounts.slice(1, undefined).forEach((royalty) => {
       totalSellRoyalties += royalty;
@@ -355,10 +366,10 @@ describe("LSSVMPairETH", function () {
         [lsSVMPairFactory, lssvmPairETH, user1],
         [
           protocolFee,
-          outputAmount
-            .mul(-1)
-            .sub(protocolFee)
-            .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
+          outputAmount.mul(-1).sub(protocolFee),
+          // This test suite does not assign royalty recipients, so they go to
+          // the pool by default.
+          // .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
           outputAmount,
         ]
       )
@@ -399,6 +410,8 @@ describe("LSSVMPairETH", function () {
       protocolFee,
       royaltyNumerator
     );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let totalSellRoyalties = 0;
     sellAmounts.slice(1, undefined).forEach((royalty) => {
       totalSellRoyalties += royalty;
@@ -407,7 +420,7 @@ describe("LSSVMPairETH", function () {
     // Send enough ETH to the pair for it to buy the nfts
     await user.sendTransaction({
       to: lssvmPairETH.address,
-      value: outputAmount.add(tradeFee),
+      value: outputAmount.add(tradeFee).add(protocolFee),
     });
 
     // The seller should own the nft
@@ -425,16 +438,18 @@ describe("LSSVMPairETH", function () {
         false,
         ethers.constants.AddressZero
       );
+
+    console.log(tradeFee);
     expect(
       await changesEtherBalancesFuzzy(
         sellTx,
         [lsSVMPairFactory, lssvmPairETH, user1],
         [
           protocolFee,
-          outputAmount
-            .mul(-1)
-            .sub(protocolFee)
-            .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
+          outputAmount.mul(-1).sub(protocolFee),
+          // This test suite does not assign royalty recipients, so they go to
+          // the pool by default.
+          // .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
           outputAmount,
         ]
       )
@@ -499,6 +514,8 @@ describe("LSSVMPairETH", function () {
         protocolFee,
         royaltyNumerator
       );
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       let totalBuyRoyalties = 0;
       buyAmounts.slice(1, undefined).forEach((royalty) => {
         totalBuyRoyalties += royalty;
@@ -523,9 +540,10 @@ describe("LSSVMPairETH", function () {
           [lsSVMPairFactory, lssvmPairETH, user1],
           [
             protocolFee,
-            inputAmount
-              .sub(protocolFee)
-              .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
+            inputAmount.sub(protocolFee),
+            // This test suite does not assign royalty recipients, so they go to
+            // the pool by default.
+            // .sub(ethers.utils.parseEther(totalBuyRoyalties.toFixed(18))),
             inputAmount.mul(-1),
           ]
         )
@@ -564,6 +582,8 @@ describe("LSSVMPairETH", function () {
         protocolFee,
         royaltyNumerator
       );
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       let totalSellRoyalties = 0;
       sellAmounts.slice(1, undefined).forEach((royalty) => {
         totalSellRoyalties += royalty;
@@ -592,10 +612,10 @@ describe("LSSVMPairETH", function () {
           [lsSVMPairFactory, lssvmPairETH, user1],
           [
             protocolFee,
-            outputAmount
-              .mul(-1)
-              .sub(protocolFee)
-              .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
+            outputAmount.mul(-1).sub(protocolFee),
+            // This test suite does not assign royalty recipients, so they go to
+            // the pool by default.
+            // .sub(ethers.utils.parseEther(totalSellRoyalties.toFixed(18))),
             outputAmount,
           ]
         )

@@ -63,6 +63,7 @@ describe("integration", function () {
       props,
       state,
       royaltyNumerator,
+      royaltyRecipientOverride: ethers.constants.AddressZero,
     });
     const { lpTokenId, pairAddress } = result;
     let { dBalance } = result;

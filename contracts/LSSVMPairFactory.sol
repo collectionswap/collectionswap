@@ -115,8 +115,10 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
         );
 
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981),
-            "Nonzero royalty for non ERC2981"
+            params.royaltyNumerator == 0 || 
+            IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981) ||
+            params.royaltyRecipientOverride != address(0),
+            "Nonzero royalty for non ERC2981 without override"
         );
         
         // Check to see if the NFT supports Enumerable to determine which template to use
@@ -146,6 +148,7 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             poolAddress: payable(pair),
             fee: params.fee,
             delta: params.delta,
+            royaltyNumerator: params.royaltyNumerator,
             initialSpotPrice: params.spotPrice,
             initialPoolBalance: msg.value,
             initialNFTIDsLength: params.initialNFTIDs.length
@@ -175,6 +178,13 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             "Bonding curve not whitelisted"
         );
 
+        require(
+            params.royaltyNumerator == 0 || 
+            IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981) ||
+            params.royaltyRecipientOverride != address(0),
+            "Nonzero royalty for non ERC2981 without override"
+        );
+
         // Check to see if the NFT supports Enumerable to determine which template to use
         address template;
         try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
@@ -202,6 +212,7 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             poolAddress: payable(pair),
             fee: params.fee,
             delta: params.delta,
+            royaltyNumerator: params.royaltyNumerator,
             initialSpotPrice: params.spotPrice,
             initialPoolBalance: msg.value,
             initialNFTIDsLength: params.initialNFTIDs.length
@@ -226,8 +237,10 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
         );
 
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981),
-            "Nonzero royalty for non ERC2981"
+            params.royaltyNumerator == 0 || 
+            IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981) ||
+            params.royaltyRecipientOverride != address(0),
+            "Nonzero royalty for non ERC2981 without override"
         );
 
         // Check to see if the NFT supports Enumerable to determine which template to use
@@ -258,6 +271,7 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             poolAddress: payable(pair),
             fee: params.fee,
             delta: params.delta,
+            royaltyNumerator: params.royaltyNumerator,
             initialSpotPrice: params.spotPrice,
             initialPoolBalance: params.initialTokenBalance,
             initialNFTIDsLength: params.initialNFTIDs.length
@@ -284,6 +298,13 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             "Bonding curve not whitelisted"
         );
 
+        require(
+            params.royaltyNumerator == 0 || 
+            IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981) ||
+            params.royaltyRecipientOverride != address(0),
+            "Nonzero royalty for non ERC2981 without override"
+        );
+
         // Check to see if the NFT supports Enumerable to determine which template to use
         address template;
         try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
@@ -312,6 +333,7 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             poolAddress: payable(pair),
             fee: params.fee,
             delta: params.delta,
+            royaltyNumerator: params.royaltyNumerator,
             initialSpotPrice: params.spotPrice,
             initialPoolBalance: params.initialTokenBalance,
             initialNFTIDsLength: params.initialNFTIDs.length
@@ -526,7 +548,8 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             _params.spotPrice, 
             _params.props, 
             _params.state, 
-            _params.royaltyNumerator
+            _params.royaltyNumerator,
+            _params.royaltyRecipientOverride
         );
 
         // transfer initial ETH to pair
@@ -562,7 +585,8 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             _params.spotPrice,
             _params.props,
             _params.state,
-            _params.royaltyNumerator
+            _params.royaltyNumerator,
+            _params.royaltyRecipientOverride
         );
         _pair.setTokenIDFilter(_filterParams.merkleRoot, _filterParams.encodedTokenIDs);
 
@@ -600,7 +624,8 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             _params.spotPrice, 
             _params.props, 
             _params.state, 
-            _params.royaltyNumerator
+            _params.royaltyNumerator,
+            _params.royaltyRecipientOverride
         );
 
         // transfer initial tokens to pair
@@ -640,7 +665,8 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
             _params.spotPrice,
             _params.props,
             _params.state,
-            _params.royaltyNumerator
+            _params.royaltyNumerator,
+            _params.royaltyRecipientOverride
         );
         _pair.setTokenIDFilter(_filterParams.merkleRoot, _filterParams.encodedTokenIDs);
 
@@ -769,14 +795,16 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
         address nftAddress,
         address bondingCurveAddress,
         uint96 fee,
-        uint128 delta
+        uint128 delta,
+        uint256 royaltyNumerator
     ) public view returns (bool) {    
         LPTokenParams721 memory poolParams = viewPoolParams(tokenId);
         return (
             poolParams.nftAddress == nftAddress &&
             poolParams.bondingCurveAddress == bondingCurveAddress &&
             poolParams.fee <= fee &&
-            poolParams.delta <= delta
+            poolParams.delta <= delta &&
+            poolParams.royaltyNumerator <= royaltyNumerator
         );
     }
 
@@ -786,14 +814,16 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
         address nftAddress,
         address bondingCurveAddress,
         uint96 fee,
-        uint128 delta
+        uint128 delta,
+        uint256 royaltyNumerator
     ) public view returns (bool) {    
         LPTokenParams721 memory poolParams = viewPoolParams(tokenId);
         return (
             poolParams.nftAddress == nftAddress &&
             poolParams.bondingCurveAddress == bondingCurveAddress &&
             poolParams.fee == fee &&
-            poolParams.delta == delta
+            poolParams.delta == delta &&
+            poolParams.royaltyNumerator <= royaltyNumerator
         );
     }
 

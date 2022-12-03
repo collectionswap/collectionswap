@@ -127,6 +127,7 @@ export async function createPairEth(
     nftTokenIds,
     value,
     royaltyNumerator,
+    royaltyRecipientOverride,
   }: Params & {
     spotPrice: BigNumberish;
     nftTokenIds: BigNumberish[];
@@ -134,6 +135,7 @@ export async function createPairEth(
     props: any;
     state: any;
     royaltyNumerator: BigNumberish;
+    royaltyRecipientOverride: string;
   }
 ): Promise<{
   dBalance: BigNumberish;
@@ -156,6 +158,7 @@ export async function createPairEth(
     props,
     state,
     royaltyNumerator,
+    royaltyRecipientOverride,
     initialNFTIDs: nftTokenIds,
   };
 
@@ -704,4 +707,17 @@ export function pickRandomElements<ElemType>(
 
   // Get sub-array of first n elements after shuffled
   return shuffled.slice(0, n);
+}
+
+export async function enumerateAddress(
+  nft: Test721Enumerable,
+  address: string
+): Promise<string[]> {
+  const balance = (await nft.balanceOf(address)).toNumber();
+  const output = [];
+  for (let i = 0; i < balance; i++) {
+    output.push(await nft.tokenOfOwnerByIndex(address, i));
+  }
+
+  return output.map((bn) => bn.toString());
 }
