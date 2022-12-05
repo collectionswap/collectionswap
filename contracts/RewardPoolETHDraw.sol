@@ -3,9 +3,9 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {RewardPoolETH} from "./RewardPoolETH.sol";
 import "./ILSSVMPairFactory.sol";
-import "./ILSSVMPair.sol";
 import "./SortitionSumTreeFactory.sol";
 import "./lib/ReentrancyGuard.sol";
 import {RNGInterface} from "./rng/RNGInterface.sol";
@@ -428,12 +428,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         @dev - initializes prize set for new epoch. Callable internally only after epoch has been incremented.
     **/
     function _initPrizeSet(uint64 epoch) internal {
-        epochPrizeSets[epoch] = PrizeSet({
-            erc721RewardTokens: new IERC721[](0),
-            numERC721Prizes: 0,
-            erc20RewardTokens: new IERC20[](0),
-            prizePerWinner: 1
-        });
+        PrizeSet memory prizeSet;
+        prizeSet.prizePerWinner = 1;
+        epochPrizeSets[epoch] = prizeSet;
     }
 
     /**
@@ -459,10 +456,12 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         (, uint256 amountTimeRemainingToVaultEnd) = getTimeProgressInEpoch(block.timestamp, 0);
 
         // Recalculate sortition trees for everything in vaultInteractorList,
-        // for the new periodFinish. Use i - 1 because (0 - 1) underflows to 
+        // for the new periodFinish. Use --i because (0 - 1) underflows to
         // uintmax which causes a revert
-        for (uint256 i = totalVaultInteractorList.length; i > 0; --i) {
-            address vaultInteractor = totalVaultInteractorList[i - 1];
+        for (uint256 i = totalVaultInteractorList.length; i > 0; ) {
+            --i;
+
+            address vaultInteractor = totalVaultInteractorList[i];
             SimpleObservation storage lastObservation = lastTWAPObservation[vaultInteractor];
 
             uint256 sortitionValue;
@@ -470,7 +469,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             if (lastObservation.lastAmount == 0) {
                 // Delete the vault interactor from storage if they have 0 balance
                 // (this is why we iterate in reverse order).
-                totalVaultInteractorList[i - 1] = totalVaultInteractorList[totalVaultInteractorList.length - 1];
+                totalVaultInteractorList[i] = totalVaultInteractorList[totalVaultInteractorList.length - 1];
                 totalVaultInteractorList.pop();
 
                 // Delete vault interactor from `lastTWAPObservation`
@@ -534,10 +533,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             return (0, _drawFinish - _drawStart);
         }
 
-        // timeElapsed = min(drawFinish, eventTimestamp) - max(drawStart, lastObservationTimestamp)
-        uint256 effectiveEndPoint = eventTimestamp > _drawFinish ? _drawFinish : eventTimestamp;
-        uint256 effectiveStartPoint = lastObservationTimestamp < _drawStart ? _drawStart : lastObservationTimestamp;
-        timeElapsed = effectiveEndPoint - effectiveStartPoint;
+        timeElapsed = Math.min(_drawFinish, eventTimestamp) - Math.max(_drawStart, lastObservationTimestamp);
 
         timeRemaining = eventTimestamp > _drawFinish ? 0 : _drawFinish - eventTimestamp;
     }
@@ -589,9 +585,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         if (numPrizes == 0) {
             // assumed to be only ERC20 prize: numberOfPrizesPerWinner = number of winners
             return (false, numberOfPrizesPerWinner, numberOfPrizesPerWinner, 0);
-        } else {
-            hasNFTPrizes = true;
         }
+        hasNFTPrizes = true;
 
         // numberOfPrizesPerWinner has been checked to be <= numPrizes
         // ensuring at least 1 winner
@@ -722,7 +717,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 prizeIndex;
         for (uint256 i; i < startIndices.length; ++i) {
             prizeIndex = startIndices[i] * numberOfPrizesPerWinner;
-            for (uint256 j = 0; j < numberOfPrizesPerWinner; ++j) {
+            for (uint256 j; j < numberOfPrizesPerWinner; ++j) {
                 // starting prize index is 1-indexed, not 0-indexed
                 // hence, we use the prefix increment so that value after increment is returned and used
                 NFTData storage mytuple = epochERC721PrizeIdsData[epoch][++prizeIndex];
