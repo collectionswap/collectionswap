@@ -557,7 +557,7 @@ export async function royaltyFixture(): Promise<{
     royaltyRecipientOverride,
   } = await getSigners();
 
-  const nftsWithRoyalty = await mintNfts(nft, owner.address, 3);
+  const nftsWithRoyalty = await mintNfts(nft, owner.address, 4);
 
   const nftNon2981 = (await non2981NftFixture()).nft as unknown as IERC721;
   const nftsWithoutRoyalty = await mintNfts(
@@ -566,10 +566,11 @@ export async function royaltyFixture(): Promise<{
     3
   );
 
-  const recipients = [royaltyRecipient0, royaltyRecipient1, royaltyRecipient2];
+  // Assign royalty recipients. Exclude some to test fallback
+  const recipients = [royaltyRecipient0, royaltyRecipient1];
   await Promise.all(
-    nftsWithRoyalty.map(async (tokenId, index) =>
-      nft.setRoyaltyRecipient(tokenId, recipients[index].address)
+    recipients.map(async (recipient, index) =>
+      nft.setRoyaltyRecipient(nftsWithRoyalty[index], recipient.address)
     )
   );
 
@@ -648,7 +649,7 @@ export async function royaltyWithPoolFixture(): Promise<{
       initialNFTIDs: tokenIdsWithRoyalty,
     },
     {
-      value: ethers.BigNumber.from(`${5e18}`),
+      value: ethers.BigNumber.from(`${8e18}`),
       gasLimit: 1000000,
     }
   );
@@ -659,20 +660,19 @@ export async function royaltyWithPoolFixture(): Promise<{
   );
 
   // Give the trader some nfts so both directions can be tested
-  const traderNfts = await mintNfts(nft2981, otherAccount1.address, 3);
+  const traderNfts = await mintNfts(nft2981, otherAccount1.address, 4);
 
   // Approve all for trading with the pool
   await nft2981
     .connect(otherAccount1)
     .setApprovalForAll(lssvmPairETH.address, true);
 
-  // Assign royalty recipients
-  const { royaltyRecipient3, royaltyRecipient4, royaltyRecipient5 } =
-    await getSigners();
-  const recipients2 = [royaltyRecipient3, royaltyRecipient4, royaltyRecipient5];
+  // Assign royalty recipients. Exclude some to test fallback
+  const { royaltyRecipient3, royaltyRecipient4 } = await getSigners();
+  const recipients2 = [royaltyRecipient3, royaltyRecipient4];
   await Promise.all(
-    traderNfts.map(async (tokenId, index) =>
-      nft2981.setRoyaltyRecipient(tokenId, recipients2[index].address)
+    recipients2.map(async (recipient, index) =>
+      nft2981.setRoyaltyRecipient(traderNfts[index], recipient.address)
     )
   );
 
@@ -746,7 +746,7 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
       initialNFTIDs: tokenIdsWithRoyalty,
     },
     {
-      value: ethers.BigNumber.from(`${5e18}`),
+      value: ethers.BigNumber.from(`${8e18}`),
       gasLimit: 1000000,
     }
   );
@@ -757,20 +757,19 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
   );
 
   // Give the trader some nfts so both directions can be tested
-  const traderNfts = await mintNfts(nft2981, otherAccount1.address, 3);
+  const traderNfts = await mintNfts(nft2981, otherAccount1.address, 4);
 
   // Approve all for trading with the pool
   await nft2981
     .connect(otherAccount1)
     .setApprovalForAll(lssvmPairETH.address, true);
 
-  // Assign royalty recipients
-  const { royaltyRecipient3, royaltyRecipient4, royaltyRecipient5 } =
-    await getSigners();
-  const recipients2 = [royaltyRecipient3, royaltyRecipient4, royaltyRecipient5];
+  // Assign royalty recipients. Exclude some so we can test fallback
+  const { royaltyRecipient3, royaltyRecipient4 } = await getSigners();
+  const recipients2 = [royaltyRecipient3, royaltyRecipient4];
   await Promise.all(
-    traderNfts.map(async (tokenId, index) =>
-      nft2981.setRoyaltyRecipient(tokenId, recipients2[index].address)
+    recipients2.map(async (recipient, index) =>
+      nft2981.setRoyaltyRecipient(traderNfts[index], recipient.address)
     )
   );
 

@@ -62,62 +62,33 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             uint256 length = royaltiesDue.length;
             uint256 totalRoyaltiesPaid;
 
-            // If there's an override, just sum and do one transfer. Else, send
-            // elementwise
-            if (royaltyRecipientOverride != address(0)) {
-                for (uint256 i = 0; i  < length; ) {
-                    totalRoyaltiesPaid += royaltiesDue[i].amount;
-                    unchecked {
-                        ++i;
-                    }
-                }
-              
-              uint256 royaltyInitBalance = _token.balanceOf(royaltyRecipientOverride);
-              if (totalRoyaltiesPaid > 0) {
-                router.pairTransferERC20From(
-                    _token,
-                    routerCaller,
-                    royaltyRecipientOverride,
-                    totalRoyaltiesPaid,
-                    pairVariant()
-                );
+            for (uint256 i = 0; i  < length; ) {
+                // Cache state and then call router to transfer tokens from user
+                RoyaltyDue memory due = royaltiesDue[i];
+                uint256 royaltyAmount = due.amount;
+                address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
+                uint256 royaltyInitBalance = _token.balanceOf(royaltyRecipient);
+                if (royaltyAmount > 0) {
+                    totalRoyaltiesPaid += royaltyAmount;
 
-                // Verify token transfer (protect pair against malicious router)
-                require(
-                    _token.balanceOf(royaltyRecipientOverride) - royaltyInitBalance ==
-                        totalRoyaltiesPaid,
-                    "ERC20 royalty not transferred in"
-                );
-              }
-            } else {
-                for (uint256 i = 0; i  < length; ) {
-                    // Cache state and then call router to transfer tokens from user
-                    RoyaltyDue memory due = royaltiesDue[i];
-                    uint256 royaltyAmount = due.amount;
-                    address royaltyRecipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
-                    uint256 royaltyInitBalance = _token.balanceOf(royaltyRecipient);
-                    if (royaltyAmount > 0) {
-                        totalRoyaltiesPaid += royaltyAmount;
+                    router.pairTransferERC20From(
+                        _token,
+                        routerCaller,
+                        royaltyRecipient,
+                        royaltyAmount,
+                        pairVariant()
+                    );
 
-                        router.pairTransferERC20From(
-                            _token,
-                            routerCaller,
-                            royaltyRecipient,
+                    // Verify token transfer (protect pair against malicious router)
+                    require(
+                        _token.balanceOf(royaltyRecipient) - royaltyInitBalance ==
                             royaltyAmount,
-                            pairVariant()
-                        );
+                        "ERC20 royalty not transferred in"
+                    );
+                }
 
-                        // Verify token transfer (protect pair against malicious router)
-                        require(
-                            _token.balanceOf(royaltyRecipient) - royaltyInitBalance ==
-                                royaltyAmount,
-                            "ERC20 royalty not transferred in"
-                        );
-                    }
-
-                    unchecked {
-                        ++i;
-                    }
+                unchecked {
+                    ++i;
                 }
             }
 
@@ -154,40 +125,21 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             uint256 length = royaltiesDue.length;
             uint256 totalRoyaltiesPaid;
 
-            // If there's an override, just sum and do one transfer. Else, send
-            // elementwise
-            if (royaltyRecipientOverride != address(0)) {
-                for (uint256 i = 0; i  < length; ) {
-                    totalRoyaltiesPaid += royaltiesDue[i].amount;
-                    unchecked {
-                        ++i;
-                    }
-                }
-              
-                if (totalRoyaltiesPaid > 0) {
+            for (uint256 i = 0; i < length;) {
+                RoyaltyDue memory due = royaltiesDue[i];
+                uint256 royaltyAmount = due.amount;
+                address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
+                totalRoyaltiesPaid += royaltyAmount;
+                if (royaltyAmount > 0) {
                     _token.safeTransferFrom(
                         msg.sender,
-                        royaltyRecipientOverride,
-                        totalRoyaltiesPaid
+                        royaltyRecipient,
+                        royaltyAmount
                     );
                 }
-            } else {
-                for (uint256 i = 0; i < length;) {
-                    RoyaltyDue memory due = royaltiesDue[i];
-                    uint256 royaltyAmount = due.amount;
-                    address royaltyRecipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
-                    totalRoyaltiesPaid += royaltyAmount;
-                    if (royaltyAmount > 0) {
-                        _token.safeTransferFrom(
-                            msg.sender,
-                            royaltyRecipient,
-                            royaltyAmount
-                        );
-                    }
 
-                    unchecked {
-                        ++i;
-                    }
+                unchecked {
+                    ++i;
                 }
             }
             
@@ -261,24 +213,16 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             _token.safeTransfer(tokenRecipient, outputAmount);
         }
 
-        // If there's an override, just do one transfer. Else, send
-        // elementwise
-        if (royaltyRecipientOverride != address(0)) {
-            if (totalRoyaltiesDue > 0) {
-                token().safeTransfer(royaltyRecipientOverride, totalRoyaltiesDue);
+        for (uint256 i = 0; i < length; ) {
+            RoyaltyDue memory due = royaltiesDue[i];
+            uint256 royaltyAmount = due.amount;
+            if (royaltyAmount > 0) {
+                address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
+                token().safeTransfer(royaltyRecipient, royaltyAmount);
             }
-        } else {
-            for (uint256 i = 0; i < length; ) {
-                RoyaltyDue memory due = royaltiesDue[i];
-                uint256 royaltyAmount = due.amount;
-                if (royaltyAmount > 0) {
-                    address royaltyRecipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
-                    token().safeTransfer(royaltyRecipient, royaltyAmount);
-                }
 
-                unchecked {
-                    ++i;
-                }
+            unchecked {
+                ++i;
             }
         }
         

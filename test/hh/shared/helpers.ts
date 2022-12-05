@@ -307,7 +307,7 @@ export async function changesEtherBalancesFuzzy(
     const change = changes[index];
     if (!closeEnough(change, amounts[index])) {
       console.log(
-        `changeEtherBalancesFuzzy: Change at index ${index} was not close enough. Got ${change}. Expected ${amounts[index]}`
+        `changeEtherBalancesFuzzy: Change at index ${index} was not close enough. Got ${change}. Expected ${amounts[index]}. Address: ${addresses[index]}`
       );
       return false;
     }
@@ -345,7 +345,7 @@ export async function changesEtherBalancesFuzzyMultipleTransactions(
     const change = totalChanges[index];
     if (!closeEnough(change, amounts[index])) {
       console.log(
-        `changeEtherBalancesFuzzyMultipleTransactions: Change at index ${index} was not close enough. Got ${change}. Expected ${amounts[index]}`
+        `changeEtherBalancesFuzzyMultipleTransactions: Change at index ${index} was not close enough. Got ${change}. Expected ${amounts[index]}. Address: ${addresses[index]}`
       );
       return false;
     }

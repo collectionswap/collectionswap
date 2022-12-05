@@ -604,6 +604,33 @@ abstract contract LSSVMPair is
     }
 
     /**
+     * @notice Handles royalty recipient and fallback logic. Attempts to honor
+     * ERC2981 where possible, followed by the owner's set fallback. If neither
+     * is a valid address, then royalties go to the pool.
+     * @param erc2981Recipient The address to which royalties should be paid as
+     * returned by the IERC2981 `royaltyInfo` method. `payable(address(0))` if
+     * the nft does not implement IERC2981.
+     * @return The address to which royalties should be paid
+     */
+    function getRoyaltyRecipient(address payable erc2981Recipient) 
+        internal 
+        view 
+        returns (address payable) 
+    {
+        if (erc2981Recipient != address(0)) {
+            return erc2981Recipient;
+        }
+
+        // No recipient from ERC2981 royaltyInfo method. Check if we have a fallback
+        if (royaltyRecipientOverride != address(0)) {
+            return royaltyRecipientOverride;
+        }
+
+        // No ERC2981 recipient or recipient fallback. Default to pool. 
+        return payable(address(this));
+    }
+
+    /**
         @notice Returns the address that assets that receives assets when a swap is done with this pair
         Can be set to another address by the owner, if set to address(0), defaults to the pair's own address
      */

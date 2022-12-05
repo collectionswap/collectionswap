@@ -34,34 +34,19 @@ abstract contract LSSVMPairETH is LSSVMPair {
         uint256 length = royaltiesDue.length;
         uint256 totalRoyaltiesPaid;
 
-        // If there's an override, just sum and do one transfer. Else, send
-        // elementwise
-        if (royaltyRecipientOverride != address(0)) {
-            for (uint256 i = 0; i  < length; ) {
-                totalRoyaltiesPaid += royaltiesDue[i].amount;
-                unchecked {
-                    ++i;
-                }
+        for (uint256 i = 0; i < length;) {
+            RoyaltyDue memory due = royaltiesDue[i];
+            uint256 royaltyAmount = due.amount;
+            totalRoyaltiesPaid += royaltyAmount;
+            if (royaltyAmount > 0) {
+                address recipient = getRoyaltyRecipient(payable(due.recipient));
+                payable(recipient).safeTransferETH(
+                    royaltyAmount
+                );
             }
-            
-            if (totalRoyaltiesPaid > 0) {
-                royaltyRecipientOverride.safeTransferETH(totalRoyaltiesPaid);
-            }
-        } else {
-            for (uint256 i = 0; i < length;) {
-                RoyaltyDue memory due = royaltiesDue[i];
-                uint256 royaltyAmount = due.amount;
-                totalRoyaltiesPaid += royaltyAmount;
-                if (royaltyAmount > 0) {
-                    address recipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
-                    payable(recipient).safeTransferETH(
-                        royaltyAmount
-                    );
-                }
 
-                unchecked {
-                    ++i;
-                }
+            unchecked {
+                ++i;
             }
         }
         
@@ -138,24 +123,16 @@ abstract contract LSSVMPairETH is LSSVMPair {
             tokenRecipient.safeTransferETH(outputAmount);
         }
 
-        // If there's an override, just do one transfer. Else, send
-        // elementwise
-        if (royaltyRecipientOverride != address(0)) {
-            if (totalRoyaltiesDue > 0) {
-                royaltyRecipientOverride.safeTransferETH(totalRoyaltiesDue);
+        for (uint256 i = 0; i < length; ) {
+            RoyaltyDue memory due = royaltiesDue[i];
+            address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
+            uint256 royaltyAmount = due.amount;
+            if (royaltyAmount > 0) {
+                payable(royaltyRecipient).safeTransferETH(royaltyAmount);
             }
-        } else {
-            for (uint256 i = 0; i < length; ) {
-                RoyaltyDue memory due = royaltiesDue[i];
-                address royaltyRecipient = due.recipient == address(0) ? getAssetRecipient() : due.recipient;
-                uint256 royaltyAmount = due.amount;
-                if (royaltyAmount > 0) {
-                    payable(royaltyRecipient).safeTransferETH(royaltyAmount);
-                }
 
-                unchecked {
-                    ++i;
-                }
+            unchecked {
+                ++i;
             }
         }
     }
