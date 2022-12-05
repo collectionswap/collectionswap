@@ -264,6 +264,7 @@ export async function lsSVMFixture() {
   };
 
   return {
+    ammDeployer, 
     curve: map[CURVE_TYPE!],
     factory: lsSVMPairFactory,
   };

@@ -48,7 +48,7 @@ describe("LSSVMPairETH", function () {
 
   async function lsSVMETHFixture() {
     const { protocol, user, user1 } = await getSigners();
-    const { curve, factory } = await lsSVMFixture();
+    const { curve, factory, ammDeployer } = await lsSVMFixture();
     const { nft } = await nftFixture();
     const nftTokenIds = await mintNfts(nft, user.address);
     await nft.connect(user).setApprovalForAll(factory.address, true);
@@ -57,6 +57,9 @@ describe("LSSVMPairETH", function () {
     const fee = ethers.utils.parseEther("0.89");
     const { delta, spotPrice, props, state, royaltyNumerator, protocolFee } =
       getCurveParameters();
+
+    const baseURI = "https://collection.xyz/api/"
+    await factory.connect(ammDeployer).setBaseURI(baseURI);
 
     const resp = await factory.connect(user).createPairETH({
       nft: nft.address,
@@ -74,6 +77,15 @@ describe("LSSVMPairETH", function () {
       initialNFTIDs: nftTokenIds,
     });
     const receipt = await resp.wait();
+    // get the NewTokenId event
+    const event = (receipt.events?.filter((e) => e.event === "NewTokenId"));
+    const lpTokenId = event?.[0].args?.tokenId;
+
+    expect(await factory.tokenURI(lpTokenId)).to.equal(
+      // concatenation of baseURI and lpTokenId
+      baseURI + lpTokenId
+    );
+      
 
     return {
       lsSVMPairFactory: factory,
@@ -90,6 +102,7 @@ describe("LSSVMPairETH", function () {
       fee,
       protocolFee,
       royaltyNumerator,
+      lpTokenId
     };
   }
 
