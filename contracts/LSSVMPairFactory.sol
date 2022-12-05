@@ -82,6 +82,8 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
     }
     mapping(LSSVMRouter => RouterStatus) public override routerStatus;
 
+    string public baseURI;
+
     event NewPair(address poolAddress);
     event TokenDeposit(address poolAddress);
     event NFTDeposit(address poolAddress);
@@ -117,6 +119,14 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
     /**
      * External functions
      */
+
+    function setBaseURI(string calldata _uri) external onlyOwner {
+        baseURI = _uri;
+    }
+
+    function setTokenURI(string calldata _uri, uint256 tokenId) external onlyOwner {
+        _setTokenURI(tokenId, _uri);
+    }
 
     function createPairETH(
         CreateETHPairParams calldata params
@@ -546,6 +556,9 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
     /**
      * Internal functions
      */
+    function _baseURI() internal view override returns (string memory) {
+        return baseURI;
+    }
 
     function _initializePairETH(
         LSSVMPairETH _pair,

@@ -15,6 +15,8 @@ describe("TokenIDFilter", function () {
   const { BigNumber } = ethers;
 
   let owner, TokenIDFilterMock, tokenIDFilterMock;
+  let collection = owner;
+  let data = hash(owner);
 
   beforeEach(async function () {
     [ owner ] = await ethers.getSigners();
@@ -27,7 +29,7 @@ describe("TokenIDFilter", function () {
     it("should work for 1 item", async function () {
       let merkleRoot = hash(token(1));
 
-      await tokenIDFilterMock.setTokenIDFilter(merkleRoot);
+      await tokenIDFilterMock.setTokenIDFilter(collection, merkleRoot, data);
 
       let accepted = await tokenIDFilterMock.acceptsTokenID(token(1), []);
 
@@ -48,7 +50,7 @@ describe("TokenIDFilter", function () {
       let hashes = [ hash42, hash88 ].sort();
       let merkleRoot2 = keccak256(concat(hashes));
 
-      await tokenIDFilterMock.setTokenIDFilter(merkleRoot2);
+      await tokenIDFilterMock.setTokenIDFilter(collection, merkleRoot2, data);
 
       expect(await tokenIDFilterMock.acceptsTokenID(token(42), [ hash(token(88)) ]))
         .to.equal(true);
@@ -62,7 +64,7 @@ describe("TokenIDFilter", function () {
       const values = [ [token(42)], [token(88)] ];
       const tree = StandardMerkleTree.of(values, ["bytes32"]);
 
-      await tokenIDFilterMock.setTokenIDFilter(tree.root);
+      await tokenIDFilterMock.setTokenIDFilter(collection, tree.root, data);
 
       expect(await tokenIDFilterMock.acceptsTokenID(token(42), tree.getProof(0)))
         .to.equal(true);
@@ -90,7 +92,7 @@ describe("TokenIDFilter", function () {
 
         const { tokens, tree } = makeTree(seed, count, max);
 
-        await tokenIDFilterMock.setTokenIDFilter(tree.root);
+        await tokenIDFilterMock.setTokenIDFilter(collection, tree.root, data);
 
         expect(await tokenIDFilterMock.acceptsTokenID(tokens[0][0], tree.getProof(0)))
           .to.equal(true);
@@ -116,7 +118,7 @@ describe("TokenIDFilter", function () {
       const tree = StandardMerkleTree.of(tokens, ["bytes32"]);
       const proof = tree.getMultiProof(tokens);
 
-      await tokenIDFilterMock.setTokenIDFilter(tree.root);
+      await tokenIDFilterMock.setTokenIDFilter(collection, tree.root, data);
 
       expect(await tokenIDFilterMock.acceptsTokenID(token(42), tree.getProof(0)))
         .to.equal(true);
@@ -144,7 +146,7 @@ describe("TokenIDFilter", function () {
 
       const { tokens, tree } = makeTree(seed, 80000, 100000);
 
-      await tokenIDFilterMock.setTokenIDFilter(tree.root);
+      await tokenIDFilterMock.setTokenIDFilter(collection, tree.root, data);
 
       const { leaves, proof, proofFlags } = tree.getMultiProof([1, 3, 5, 7]);
       const subset = leaves.map(l => l[0]);

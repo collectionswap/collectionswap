@@ -499,6 +499,190 @@ describe("Collectionswap", function () {
         poolBalance = newBalance;
       }
     });
+
+    it("Should revert if trades are attempted in the same timestamp as pair creation", async function () {
+      const {
+        lssvmPairFactory,
+        nftContractCollection,
+        otherAccount4,
+        ethPoolParams,
+      } = await loadFixture(everythingFixture);
+      let atomicTraderFactory = await ethers.getContractFactory(
+        "TestAtomicTrader"
+      );
+      let atomicTestTrader = await atomicTraderFactory.deploy(lssvmPairFactory.address, ethPoolParams.bondingCurve);
+      const atomicTrader = otherAccount4;
+      const externalTraderNftsIHave = [222, 223, 224];
+      await mintTokensAndApprove(
+        externalTraderNftsIHave,
+        nftContractCollection,
+        atomicTrader,
+        atomicTestTrader
+      );
+
+      await expect(
+        atomicTestTrader
+          .connect(atomicTrader)
+          .createAndTrade(
+            nftContractCollection.address,
+            externalTraderNftsIHave
+          )
+      ).to.be.revertedWith("Trade blocked");
+    });
+
+    it("Should revert if unauthorized users attempt to set the baseURI", async function () {
+      let baseURI = "api.collectionswap.xyz";
+      const {
+        lssvmPairFactory,
+        otherAccount3,
+        otherAccount4,
+      } = await loadFixture(everythingFixture);
+
+      await expect(
+        lssvmPairFactory
+          .connect(otherAccount3)
+          .setBaseURI(
+            baseURI
+          )
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await expect(
+        lssvmPairFactory
+          .connect(otherAccount4)
+          .setBaseURI(
+            baseURI
+          )
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("Should have the baseURI set by the owner", async function () {
+      let baseURI = "api.collectionswap.xyz";
+      const {
+        lssvmPairFactory
+      } = await loadFixture(everythingFixture);
+
+      await lssvmPairFactory.setBaseURI(baseURI);
+      expect(await lssvmPairFactory.baseURI()).to.be.equal(baseURI);
+    });
+
+    it("Should revert if unauthorized users attempt to set the tokenURI", async function () {
+      let tokenURI = "api.collectionswap.xyz/tokenInfo/1";
+      const {
+        lssvmPairFactory,
+        otherAccount3,
+        otherAccount4,
+      } = await loadFixture(everythingFixture);
+
+      await expect(
+        lssvmPairFactory
+          .connect(otherAccount3)
+          .setTokenURI(
+            tokenURI,
+            1
+          )
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await expect(
+        lssvmPairFactory
+          .connect(otherAccount4)
+          .setTokenURI(
+            tokenURI,
+            1
+          )
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("Should revert setting the tokenURI if token id has not existed", async function () {
+      let tokenURI = "api.collectionswap.xyz/tokenInfo/1";
+      const {
+        lssvmPairFactory
+      } = await loadFixture(everythingFixture);
+
+      await expect(
+        lssvmPairFactory.setTokenURI(
+          tokenURI,
+          1
+        )
+      ).to.be.revertedWith("ERC721URIStorage: URI set of nonexistent token");
+    });
+
+    it("Should return an empty string if baseURI has not been set", async function () {
+      let tokenId = 1;
+      const {
+        lssvmPairFactory,
+        nftContractCollection,
+        otherAccount0,
+        ethPoolParams,
+      } = await loadFixture(everythingFixture);
+
+      const nftList = [1, 2, 3, 4, 5];
+      await mintTokensAndApprove(
+        nftList,
+        nftContractCollection,
+        otherAccount0,
+        lssvmPairFactory
+      );
+
+      await lssvmPairFactory.createPairETH(
+        { ...ethPoolParams, initialNFTIDs: nftList },
+      );
+
+      expect(await lssvmPairFactory.tokenURI(tokenId)).to.be.equal("");
+    });
+
+    it("Should return baseURI + tokenID if tokenURI has not been set by the owner", async function () {
+      let baseURI = "api.collectionswap.xyz/";
+      let tokenId = 1;
+      const {
+        lssvmPairFactory,
+        nftContractCollection,
+        otherAccount0,
+        ethPoolParams,
+      } = await loadFixture(everythingFixture);
+
+      const nftList = [1, 2, 3, 4, 5];
+      await mintTokensAndApprove(
+        nftList,
+        nftContractCollection,
+        otherAccount0,
+        lssvmPairFactory
+      );
+
+      await lssvmPairFactory.createPairETH(
+        { ...ethPoolParams, initialNFTIDs: nftList },
+      );
+
+      await lssvmPairFactory.setBaseURI(baseURI);
+
+      expect(await lssvmPairFactory.tokenURI(tokenId)).to.be.equal(baseURI.concat("1"));
+    });
+
+    it("Should have the tokenURI set by the owner", async function () {
+      let tokenURI = "api.collectionswap.xyz/tokenInfo/1";
+      let tokenId = 1;
+      const {
+        lssvmPairFactory,
+        nftContractCollection,
+        otherAccount0,
+        ethPoolParams,
+      } = await loadFixture(everythingFixture);
+
+      const nftList = [1, 2, 3, 4, 5];
+      await mintTokensAndApprove(
+        nftList,
+        nftContractCollection,
+        otherAccount0,
+        lssvmPairFactory
+      );
+
+      await lssvmPairFactory.createPairETH(
+        { ...ethPoolParams, initialNFTIDs: nftList },
+      );
+
+      await lssvmPairFactory.setTokenURI(tokenURI, tokenId);
+
+      expect(await lssvmPairFactory.tokenURI(tokenId)).to.be.equal(tokenURI);
+    });
   });
 
 });

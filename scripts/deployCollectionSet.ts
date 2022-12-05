@@ -7,11 +7,13 @@ import { configs } from "./config";
 
 import type {
   Collectionstaker__factory,
+  LSSVMPairFactory__factory,
+  MonotonicIncreasingValidator__factory,
   RNGChainlinkV2__factory,
   Collectionstaker,
-  RNGChainlinkV2,
   LSSVMPairFactory,
-  LSSVMPairFactory__factory,
+  MonotonicIncreasingValidator,
+  RNGChainlinkV2
 } from "../typechain-types";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
 
@@ -26,11 +28,12 @@ const templateNames = [
 const templateAddresses: string[] = [];
 
 // Curves
-const curveNames = ["LinearCurve", "ExponentialCurve", "XykCurve"]; // "SigmoidCurve"]
+const curveNames = ["LinearCurve", "ExponentialCurve", "XykCurve", "SigmoidCurve"]
 const curveAddresses: string[] = [];
 
 let factory: LSSVMPairFactory;
 let collectionStaker: Collectionstaker;
+let monotonicIncreasingValidator: MonotonicIncreasingValidator;
 let rng: RNGChainlinkV2;
 
 export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
@@ -103,7 +106,17 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   await collectionStaker.deployed();
   console.log(`Collectionstaker address: ${collectionStaker.address}`);
 
-  console.log(`Deploying ChainlinkRNGv2...`);
+  console.log(`Deploying Monotonically Increasing Validator`);
+  const monotonicIncreasingValidatorFactory = (await hre.ethers.getContractFactory(
+    "MonotonicIncreasingValidator",
+    deployer
+  )) as MonotonicIncreasingValidator__factory;
+
+  monotonicIncreasingValidator = await monotonicIncreasingValidatorFactory.deploy();
+  await monotonicIncreasingValidator.deployed();
+  console.log(`Monotonic Increasing Validator address: ${monotonicIncreasingValidator.address}`);
+
+  // console.log(`Deploying ChainlinkRNGv2...`);
   const rngFactory = (await hre.ethers.getContractFactory(
     "RNGChainlinkV2",
     deployer
@@ -121,6 +134,9 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   // Set RNG in staker
   await collectionStaker.setRNG(rng.address);
 
+  console.log(`Allow staker to call RNG...`);
+  await rng.setAllowedCaller(collectionStaker.address);
+
   console.log("exporting addresses...");
   const addressesToExport = {
     deployer: deployerAddress,
@@ -131,10 +147,11 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     linearCurve: curveAddresses[0],
     exponentialCurve: curveAddresses[1],
     xykCurve: curveAddresses[2],
-    // SigmoidCurve: curveAddresses[3],
+    sigmoidCurve: curveAddresses[3],
     factory: factory.address,
     collectionStaker: collectionStaker.address,
     rng: rng.address,
+    monotonicIncreasingValidator: monotonicIncreasingValidator.address
   };
   const exportJson = JSON.stringify(addressesToExport, null, 2);
   fs.writeFileSync(config.EXPORT_FILENAME, exportJson);
@@ -184,6 +201,24 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   await hre.run("verify:verify", {
     address: collectionStaker.address,
     constructorArguments: [factory.address],
+  });
+
+  console.log("verifying RewardETHLogic...");
+  await hre.run("verify:verify", {
+    address: await collectionStaker.rewardPoolETHLogic(),
+    constructorArguments: [],
+  });
+
+  console.log("verifying RewardETHDrawLogic...");
+  await hre.run("verify:verify", {
+    address: await collectionStaker.rewardPoolETHDrawLogic(),
+    constructorArguments: [],
+  });
+
+  console.log("verifying Monotonic Increasing Validator...");
+  await hre.run("verify:verify", {
+    address: monotonicIncreasingValidator.address,
+    constructorArguments: [],
   });
 
   console.log("verifying RNG...");

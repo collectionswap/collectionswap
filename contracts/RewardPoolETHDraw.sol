@@ -128,12 +128,12 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256[] prizeNftIds,
         IERC20[] prizeTokens,
         uint256[] prizeAmounts,
-        uint256 startTime,
-        uint256 endTime
+        uint256 indexed startTime,
+        uint256 indexed endTime
     );
     event PrizesPerWinnerUpdated(uint64 indexed epoch, uint256 numPrizesPerWinner);
-    event DrawResolved(uint64 epoch, address[] winners);
-    event Claimed(uint64 epoch, address user);
+    event DrawResolved(uint64 indexed epoch, address[] winners);
+    event Claimed(uint64 indexed epoch, address user);
 
     //////////////////////////////////////////
     // ERRORS
@@ -143,13 +143,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     error CallerNotDeployer();
     error IncorrectDrawStatus();
     error NoClaimableShare();
-    error NFTPrizeRequired();
     error RNGRequestIncomplete();
-
-    modifier onlyDeployer() {
-        if (msg.sender != deployer) revert CallerNotDeployer();
-        _;
-    }
 
     constructor() {
         _disableInitializers();
@@ -189,6 +183,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         address _bondingCurve,
         ICurve.Params calldata _curveParams,
         uint96 _fee,
+        bytes32 _tokenIDFilterRoot,
         IERC20[] calldata _rewardTokens,
         uint256[] calldata _rewardRates,
         uint256 _rewardStartTime,
@@ -214,6 +209,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             _bondingCurve: _bondingCurve,
             _curveParams: _curveParams,
             _fee: _fee,
+            _tokenIDFilterRoot: _tokenIDFilterRoot,
             _rewardTokens: _rewardTokens,
             _rewardRates: _rewardRates,
             _startTime: _rewardStartTime,
@@ -247,6 +243,10 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         });
     }
 
+    function _onlyDeployer() internal view {
+        if (msg.sender != deployer) revert CallerNotDeployer();
+    }
+
     /**
         @dev - add ERC721 prizes and / or ERC20 prizes to the prize set
         any mutation functions to prize sets should not permit epoch parameterization
@@ -261,7 +261,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         uint256 _prizesPerWinner,
         uint256 _drawStartTime,
         uint256 _drawPeriodFinish
-    ) external onlyDeployer {
+    ) external {
+        _onlyDeployer();
         _addNewPrizeEpoch({
             _nftCollectionsPrize: _nftCollectionsPrize,
             _nftIdsPrize: _nftIdsPrize,
@@ -306,11 +307,6 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             // ensure that current epoch has been resolved
             // excludes base case of _epoch == 0 (uninitialized)
             if (_epoch != 0) if (drawStatus != DrawStatus.Resolved) revert IncorrectDrawStatus();
-
-            // when setting new epoch, 
-            // we need numNfts > 0 to ensure the draw is workable
-            // because the distribution of the prizes depends on the number of ERC721 tokens
-            if (numNfts == 0) revert NFTPrizeRequired();
             if (_drawStartTime <= block.timestamp) revert BadStartTime();
             if (_drawPeriodFinish <= _drawStartTime) revert BadEndTime();
 
@@ -582,9 +578,21 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     /**
         @dev - get number of winners and number of prizes per winner
     **/ 
-    function getDrawDistribution(uint64 epoch) public view returns (uint256 numberOfDrawWinners, uint256 numberOfPrizesPerWinner, uint256 remainder) {
+    function getDrawDistribution(uint64 epoch) public view returns (
+        bool hasNFTPrizes,
+        uint256 numberOfDrawWinners,
+        uint256 numberOfPrizesPerWinner,
+        uint256 remainder
+    ) {
         numberOfPrizesPerWinner = epochPrizeSets[epoch].prizePerWinner;
         uint256 numPrizes = epochPrizeSets[epoch].numERC721Prizes;
+        if (numPrizes == 0) {
+            // assumed to be only ERC20 prize: numberOfPrizesPerWinner = number of winners
+            return (false, numberOfPrizesPerWinner, numberOfPrizesPerWinner, 0);
+        } else {
+            hasNFTPrizes = true;
+        }
+
         // numberOfPrizesPerWinner has been checked to be <= numPrizes
         // ensuring at least 1 winner
         numberOfDrawWinners = numPrizes / numberOfPrizesPerWinner;
@@ -593,13 +601,19 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         remainder = numPrizes % numberOfDrawWinners;
     }
 
-    function setPrizePerWinner(uint256 _prizePerWinner) external onlyDeployer {
+    /// @dev If there are no NFTs (ie. only ERC20 draw), _prizePerWinner will be treated as the number of winners
+    function setPrizePerWinner(uint256 _prizePerWinner) external {
+        _onlyDeployer();
         // not necessary to check drawStatus because winner config will be saved upon draw resolution: resolveDrawResults()
         _setPrizePerWinner(epochPrizeSets[thisEpoch], _prizePerWinner);
     }
 
     function _setPrizePerWinner(PrizeSet storage prizeSet, uint256 _prizePerWinner) internal {
-        if (_prizePerWinner > prizeSet.numERC721Prizes) revert LengthLimitExceeded();
+        // if there are ERC721 prizes, ensure that the _prizePerWinner is within limit
+        if (prizeSet.numERC721Prizes != 0) {
+            if (_prizePerWinner > prizeSet.numERC721Prizes) revert LengthLimitExceeded();
+        }
+
         if (_prizePerWinner == 0) revert ZeroRewardRate();
         prizeSet.prizePerWinner = _prizePerWinner;
         emit PrizesPerWinnerUpdated(thisEpoch, _prizePerWinner);
@@ -652,7 +666,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         epochToRandomNumber[_epoch] = randomNum;
 
         // prize Distribution
-        (uint256 numberOfDrawWinners, uint256 numberOfPrizesPerWinner, uint256 remainder) = getDrawDistribution(_epoch);
+        (bool hasNFTPrizes, uint256 numberOfDrawWinners, uint256 numberOfPrizesPerWinner, uint256 remainder) = getDrawDistribution(_epoch);
         epochWinnerConfigs[_epoch] = WinnerConfig(numberOfDrawWinners, numberOfPrizesPerWinner, remainder);
 
         // iterate through the Number of Winners
@@ -668,12 +682,15 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
             //////////////////////////////////////
             // NFT amount
             //////////////////////////////////////
-            epochUserPrizeStartIndices[_epoch][winner].push(i);
+            if (hasNFTPrizes) {
+                epochUserPrizeStartIndices[_epoch][winner].push(i);
+            }
 
             // set claimable status
             if (!isPrizeClaimable[_epoch][winner]) {
                 isPrizeClaimable[_epoch][winner] = true;
             }
+
             // save in winner list
             winnerList[i] = winner;
 
@@ -720,7 +737,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
          */
         uint256 denominator = epochWinnerConfigs[epoch].numberOfDrawWinners;
         IERC20[] memory erc20RewardTokens = epochPrizeSets[epoch].erc20RewardTokens;
-        for (uint256 i; i < erc20RewardTokens.length; i++) {
+        for (uint256 i; i < erc20RewardTokens.length; ++i) {
             IERC20 token = erc20RewardTokens[i];
             uint256 totalReward = epochERC20PrizeAmounts[epoch][token];
             uint256 userReward = (totalReward * numerator) / denominator;
@@ -746,7 +763,8 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         Eg. 10 NFT prizes, 4 winners for the draw = remainder of 2 NFTs
         Specified NFT ids should be 9 and 10
     **/
-    function sweepUnclaimedNfts(uint64 epoch, uint256[] calldata prizeIndices) external onlyDeployer {
+    function sweepUnclaimedNfts(uint64 epoch, uint256[] calldata prizeIndices) external {
+        _onlyDeployer();
         if (block.timestamp < rewardSweepTime) revert TooEarly();
         unchecked {
             for (uint256 i; i < prizeIndices.length; ++i) {

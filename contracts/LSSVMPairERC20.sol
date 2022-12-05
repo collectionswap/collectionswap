@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {ILSSVMPair} from "./ILSSVMPair.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
 import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
@@ -293,7 +294,7 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         @notice Withdraws all pair token owned by the pair to the owner address.
         @dev Only callable by the owner.
      */
-    function withdrawAllERC20() external onlyOwner {
+    function withdrawAllERC20() external onlyAuthorized {
         tradeFee = 0;
 
         ERC20 _token = token();
@@ -304,11 +305,10 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         emit TokenWithdrawal(amount);
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc ILSSVMPair
     function withdrawERC20(ERC20 a, uint256 amount)
         external
-        override
-        onlyOwner
+        onlyAuthorized
     {
         if (a == token()) {
             require(
@@ -320,7 +320,7 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             emit TokenWithdrawal(amount);
         }
 
-        a.safeTransfer(msg.sender, amount);
+        a.safeTransfer(owner(), amount);
     }
 
     /// @inheritdoc LSSVMPair

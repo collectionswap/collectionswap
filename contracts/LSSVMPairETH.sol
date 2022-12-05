@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
+import {ILSSVMPair} from "./ILSSVMPair.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
 import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
@@ -169,7 +170,7 @@ abstract contract LSSVMPairETH is LSSVMPair {
         @notice Withdraws all token owned by the pair to the owner address.
         @dev Only callable by the owner.
      */
-    function withdrawAllETH() external onlyOwner {
+    function withdrawAllETH() external onlyAuthorized {
         tradeFee = 0;
 
         _withdrawETH(address(this).balance);
@@ -181,7 +182,7 @@ abstract contract LSSVMPairETH is LSSVMPair {
         @param amount The amount of token to send to the owner. If the pair's balance is less than
         this value, the transaction will be reverted.
      */
-    function withdrawETH(uint256 amount) external onlyOwner {
+    function withdrawETH(uint256 amount) external onlyAuthorized {
         require(
             address(this).balance >= amount + tradeFee,
             "Too little ETH"
@@ -190,11 +191,10 @@ abstract contract LSSVMPairETH is LSSVMPair {
         _withdrawETH(amount);
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc ILSSVMPair
     function withdrawERC20(ERC20 a, uint256 amount)
         external
-        override
-        onlyOwner
+        onlyAuthorized
     {
         a.safeTransfer(msg.sender, amount);
     }

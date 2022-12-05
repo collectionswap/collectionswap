@@ -28,12 +28,12 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     address protocolOwner;
     address deployer;
     ILSSVMPairFactory public lpToken;
-    ILSSVMPair.PoolType public constant POOL_TYPE = ILSSVMPair.PoolType.TRADE;
     IValidator public validator;
     IERC721 nft;
     ICurve.Params curveParams;
     address bondingCurve;
     uint96 fee;
+    bytes32 tokenIDFilterRoot;
 
     uint256 public constant MAX_REWARD_TOKENS = 5;
     uint256 public LOCK_TIME;
@@ -150,6 +150,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         address _bondingCurve,
         ICurve.Params calldata _curveParams,
         uint96 _fee,
+        bytes32 _tokenIDFilterRoot,
         IERC20[] calldata _rewardTokens,
         uint256[] calldata _rewardRates,
         uint256 _startTime,
@@ -164,6 +165,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         nft = _nft;
         bondingCurve = _bondingCurve;
         curveParams = _curveParams;
+        tokenIDFilterRoot = _tokenIDFilterRoot;
         fee = _fee;
         rewardTokens = _rewardTokens;
         unchecked {
@@ -293,7 +295,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
                 bondingCurve: _bondingCurve,
                 assetRecipient: payable(0),
                 receiver: msg.sender,
-                poolType: POOL_TYPE,
+                poolType: ILSSVMPair.PoolType.TRADE,
                 delta: _delta,
                 fee: _fee,
                 spotPrice: _spotPrice,
@@ -348,7 +350,8 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
             !validator.validate(
                 _pair,
                 curveParams,
-                fee
+                fee,
+                tokenIDFilterRoot
             )
         ) revert PoolMismatch();
 
@@ -359,7 +362,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint256 amount0 = _nft.balanceOf(address(_pair));
         uint256 amount1 = address(_pair).balance;
 
-        ( , , , ,uint256 bidPrice, ) = _pair.getSellNFTQuote(1);
+        ( , , , ,uint256 bidPrice, , ) = _pair.getSellNFTQuote(1);
         if (amount1 >= bidPrice) {
             amount = Math.sqrt(amount0 * amount1);
         }

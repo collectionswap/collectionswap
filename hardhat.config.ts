@@ -33,24 +33,12 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 4999
-          },
-          viaIR: true
-        }
-      }
-    ],
-    overrides: {
-      "contracts/RewardPoolETHDraw.sol": {
-        version: "0.8.17",
-        settings: {
-          optimizer: {
-            enabled: true,
             runs: 150
           },
           viaIR: true
         }
       }
-    }
+    ],
   },
   gasReporter: {
     enabled: true,

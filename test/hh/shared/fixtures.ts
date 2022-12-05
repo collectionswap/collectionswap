@@ -452,6 +452,7 @@ export async function rewardPoolFixture() {
     curve.address,
     { spotPrice: 0, delta, props: [], state: [] },
     fee,
+    ethers.constants.HashZero,
     rewardTokens.map((rewardToken) => rewardToken.address),
     rewardRates,
     startTime,

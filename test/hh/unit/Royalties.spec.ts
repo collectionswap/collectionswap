@@ -1239,10 +1239,12 @@ describe("Royalties", function () {
       } = await royaltyWithPoolFixture();
 
       const unauthorizedAccounts = recipients.concat(otherAccount1);
+      let poolOwner = await pool.owner();
       for (const account of unauthorizedAccounts) {
+        if (poolOwner == account.address) continue;
         await expect(
           pool.connect(account).changeRoyaltyNumerator(newRoyaltyNumerator)
-        ).to.be.revertedWith("Not approved");
+        ).to.be.revertedWith("not authorized");
       }
     });
 
@@ -1352,7 +1354,7 @@ describe("Royalties", function () {
       for (const account of unauthorizedAccounts) {
         await expect(
           pool.connect(account).changeRoyaltyRecipientOverride(account.address)
-        ).to.be.revertedWith("Not approved");
+        ).to.be.revertedWith("not authorized");
       }
     });
 

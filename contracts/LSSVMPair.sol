@@ -9,6 +9,7 @@ import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
+import {ILSSVMPair} from "./ILSSVMPair.sol";
 import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 import {TokenIDFilter} from "./filter/TokenIDFilter.sol";
@@ -20,13 +21,9 @@ import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155
 abstract contract LSSVMPair is
     ReentrancyGuard,
     ERC1155Holder,
-    TokenIDFilter
+    TokenIDFilter,
+    ILSSVMPair
 {
-    enum PoolType {
-        TOKEN,
-        NFT,
-        TRADE
-    }
 
     /**
      * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps. 
@@ -109,6 +106,11 @@ abstract contract LSSVMPair is
     // overrides ERC2981 royalties set by the NFT creator, and allows sending
     // royalties to arbitrary addresses even if a collection does not support ERC2981.
     address payable public royaltyRecipientOverride;
+    // token ID assigned to the pair instance
+    uint256 public tokenId;
+
+    // creation timestamp, to prevent trades in the same time / block as pair creation
+    uint256 private creationTimestamp;
 
     // Events
     event SwapNFTInPair();
@@ -127,8 +129,6 @@ abstract contract LSSVMPair is
 
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
-
-    uint256 public tokenId;
 
     /**
         @dev Use this whenever modifying the value of royaltyNumerator.
@@ -151,6 +151,12 @@ abstract contract LSSVMPair is
 
     /// @dev Throws if called by any account other than the owner.
     modifier onlyOwner() {
+        require(msg.sender == owner(), "not authorized");
+        _;
+    }
+
+    /// @dev Throws if called by accounts that were not authorized by the owner.
+    modifier onlyAuthorized() {
         factory().requireAuthorizedForToken(msg.sender, tokenId);
         _;
     }
@@ -196,6 +202,7 @@ abstract contract LSSVMPair is
     ) external payable validRoyaltyNumerator(_royaltyNumerator) {
         require(tokenId == 0, "Initialized");
         tokenId = _tokenId;
+        creationTimestamp = block.timestamp;
         __ReentrancyGuard_init();
 
         ICurve _bondingCurve = bondingCurve();
@@ -237,8 +244,8 @@ abstract contract LSSVMPair is
         @param encodedTokenIDs Opaque encoded list of token IDs
      */
     function setTokenIDFilter(bytes32 merkleRoot, bytes calldata encodedTokenIDs) external {
-        _setTokenIDFilterRoot(merkleRoot);
-        _emitTokenIDs(address(nft()), encodedTokenIDs);
+        require(msg.sender == address(factory()) || msg.sender == owner(), "not authorized");
+        _setRootAndEmitAcceptedIDs(address(nft()), merkleRoot, encodedTokenIDs);
     }
 
     /**
@@ -279,6 +286,8 @@ abstract contract LSSVMPair is
                 "Ask for > 0 and <= balanceOf NFTs"
             );
         }
+
+        require(creationTimestamp != block.timestamp, "Trade blocked");
 
         // Call bonding curve for pricing information
         uint256 _tradeFee;
@@ -346,6 +355,8 @@ abstract contract LSSVMPair is
             );
             require((nftIds.length > 0), "Must ask for > 0 NFTs");
         }
+
+        require(creationTimestamp != block.timestamp, "Trade blocked");
 
         // Call bonding curve for pricing information
         uint256 _tradeFee;
@@ -948,23 +959,6 @@ abstract contract LSSVMPair is
      */
 
     /**
-        @notice Rescues a specified set of NFTs owned by the pair to the owner address. (onlyOwnable modifier is in the implemented function)
-        @dev If the NFT is the pair's collection, we also remove it from the id tracking (if the NFT is missing enumerable).
-        @param a The NFT to transfer
-        @param nftIds The list of IDs of the NFTs to send to the owner
-     */
-    function withdrawERC721(IERC721 a, uint256[] calldata nftIds)
-        external
-        virtual;
-
-    /**
-        @notice Rescues ERC20 tokens from the pair to the owner. Only callable by the owner (onlyOwnable modifier is in the implemented function).
-        @param a The token to transfer
-        @param amount The amount of tokens to send to the owner
-     */
-    function withdrawERC20(ERC20 a, uint256 amount) external virtual;
-
-    /**
         @notice Rescues ERC1155 tokens from the pair to the owner. Only callable by the owner.
         @param a The NFT to transfer
         @param ids The NFT ids to transfer
@@ -974,8 +968,8 @@ abstract contract LSSVMPair is
         IERC1155 a,
         uint256[] calldata ids,
         uint256[] calldata amounts
-    ) external onlyOwner {
-        a.safeBatchTransferFrom(address(this), msg.sender, ids, amounts, "");
+    ) external onlyAuthorized {
+        a.safeBatchTransferFrom(address(this), owner(), ids, amounts, "");
     }
 
     /**
@@ -1101,13 +1095,13 @@ abstract contract LSSVMPair is
 
     /**
         @notice Allows the pair to make arbitrary external calls to contracts
-        whitelisted by the protocol. Only callable by the owner.
+        whitelisted by the protocol. Only callable by authorized parties.
         @param target The contract to call
         @param data The calldata to pass to the contract
      */
     function call(address payable target, bytes calldata data)
         external
-        onlyOwner
+        onlyAuthorized
     {
         ILSSVMPairFactory _factory = factory();
         require(_factory.callAllowed(target), "Target must be whitelisted");
@@ -1123,7 +1117,7 @@ abstract contract LSSVMPair is
      */
     function multicall(bytes[] calldata calls, bool revertOnFail)
         external
-        onlyOwner
+        onlyAuthorized
     {
         for (uint256 i; i < calls.length; ) {
             (bool success, bytes memory result) = address(this).delegatecall(

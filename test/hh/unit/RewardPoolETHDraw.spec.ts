@@ -368,6 +368,7 @@ describe("RewardPoolETHDraw", function () {
         state: [],
       },
       ethers.BigNumber.from("200000000000000000"),
+      ethers.constants.HashZero,
       rewardTokens.map((rewardToken) => rewardToken.address),
       rewards,
       startTime,

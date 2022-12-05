@@ -4,12 +4,8 @@ pragma solidity ^0.8.0;
 import "../filter/TokenIDFilter.sol";
 
 contract TokenIDFilterMock is TokenIDFilter {
-    function setTokenIDFilter(bytes32 _merkleRoot) public {
-        _setTokenIDFilterRoot(_merkleRoot);
-    }
-
-    function emitTokenIDs(address collection, bytes calldata data) public {
-        _emitTokenIDs(collection, data);
+    function setTokenIDFilter(address collection, bytes32 _merkleRoot, bytes calldata data) public {
+        _setRootAndEmitAcceptedIDs(collection, _merkleRoot, data);
     }
 
     function acceptsTokenID(uint256 tokenID, bytes32[] calldata proof) public view returns (bool) {

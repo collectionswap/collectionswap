@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
+import {ITokenIDFilter} from "./filter/ITokenIDFilter.sol";
 
-interface ILSSVMPair {
+interface ILSSVMPair is ITokenIDFilter {
     enum PoolType {
         TOKEN,
         NFT,
@@ -24,11 +25,24 @@ interface ILSSVMPair {
 
     function nft() external view returns (IERC721);
 
+    function poolType() external view returns (PoolType);
+
     function spotPrice() external view returns (uint128);
 
+    /**
+        @notice Rescues a specified set of NFTs owned by the pair to the owner address. (onlyOwnable modifier is in the implemented function)
+        @dev If the NFT is the pair's collection, we also remove it from the id tracking (if the NFT is missing enumerable).
+        @param a The NFT to transfer
+        @param nftIds The list of IDs of the NFTs to send to the owner
+     */
     function withdrawERC721(IERC721 a, uint256[] calldata nftIds) external;
 
-    function withdrawERC20(IERC20 a, uint256 amount) external;
+    /**
+        @notice Rescues ERC20 tokens from the pair to the owner. Only callable by the owner (onlyOwnable modifier is in the implemented function).
+        @param a The token to transfer
+        @param amount The amount of tokens to send to the owner
+     */
+    function withdrawERC20(ERC20 a, uint256 amount) external;
 
     function withdrawERC1155(IERC1155 a, uint256[] calldata ids, uint256[] calldata amounts) external;
 
@@ -37,8 +51,9 @@ interface ILSSVMPair {
             CurveErrorCodes.Error error,
             uint256 newSpotPrice,
             uint256 newDelta,
-            bytes calldata newState,
+            bytes memory newState,
             uint256 outputAmount,
+            uint256 tradeFee,
             uint256 protocolFee
         );
 }

@@ -6,5 +6,5 @@ import "../ILSSVMPair.sol";
 
 interface IValidator {
     /// @notice Validates if a pair fulfills the conditions of a bonding curve. The conditions can be different for each type of curve.
-    function validate(ILSSVMPair pair, ICurve.Params calldata params, uint96 fee) external returns (bool);
+    function validate(ILSSVMPair pair, ICurve.Params calldata params, uint96 fee, bytes32 tokenIDFilterRoot) external returns (bool);
 }

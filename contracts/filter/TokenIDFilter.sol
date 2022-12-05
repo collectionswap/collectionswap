@@ -2,8 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "./ITokenIDFilter.sol";
 
-contract TokenIDFilter {
+contract TokenIDFilter is ITokenIDFilter {
     event AcceptsTokenIDs(address indexed _collection, bytes32 indexed _root, bytes _data);
 
     // Merkle root
@@ -11,11 +12,12 @@ contract TokenIDFilter {
 
     uint32[999] _padding;
 
-    function _setTokenIDFilterRoot(bytes32 root) internal {
+    function _setRootAndEmitAcceptedIDs(
+        address collection,
+        bytes32 root,
+        bytes calldata data
+    ) internal {
         tokenIDFilterRoot = root;
-    }
-
-    function _emitTokenIDs(address collection, bytes calldata data) internal {
         emit AcceptsTokenIDs(collection, tokenIDFilterRoot, data);
     }
 

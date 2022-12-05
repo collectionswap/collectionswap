@@ -11,9 +11,9 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 contract Collectionstaker is Ownable {
     using SafeERC20 for IERC20;
 
-    ILSSVMPairFactory immutable lpToken;
-    RewardPoolETH immutable rewardPoolETHLogic;
-    RewardPoolETHDraw immutable rewardPoolETHDrawLogic;
+    ILSSVMPairFactory immutable public lpToken;
+    RewardPoolETH immutable public rewardPoolETHLogic;
+    RewardPoolETHDraw immutable public rewardPoolETHDrawLogic;
     uint256 public constant MAX_REWARD_TOKENS = 5;
     RNGChainlinkV2Interface public rngChainlink;
 
@@ -68,6 +68,7 @@ contract Collectionstaker is Ownable {
         address bondingCurve,
         ICurve.Params calldata curveParams,
         uint96 fee,
+        bytes32 tokenIDFilterRoot,
         IERC20[] calldata rewardTokens,
         uint256[] calldata rewards,
         uint256 startTime,
@@ -101,6 +102,7 @@ contract Collectionstaker is Ownable {
             bondingCurve,
             curveParams,
             fee,
+            tokenIDFilterRoot,
             rewardTokens,
             rewardRates,
             startTime,
@@ -164,6 +166,7 @@ contract Collectionstaker is Ownable {
         address bondingCurve,
         ICurve.Params calldata curveParams,
         uint96 fee,
+        bytes32 tokenIDFilterRoot,
         IERC20[] calldata rewardTokens,
         uint256[] calldata rewards,
         uint256 rewardStartTime,
@@ -211,6 +214,7 @@ contract Collectionstaker is Ownable {
             bondingCurve,
             curveParams,
             fee,
+            tokenIDFilterRoot,
             rewardTokens,
             rewardRates,
             rewardStartTime,

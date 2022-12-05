@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {ILSSVMPair} from "./ILSSVMPair.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
 
@@ -89,19 +90,20 @@ abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
         return this.onERC721Received.selector;
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc ILSSVMPair
     function withdrawERC721(IERC721 a, uint256[] calldata nftIds)
         external
         override
-        onlyOwner
+        onlyAuthorized
     {
         IERC721 _nft = nft();
         uint256 numNFTs = nftIds.length;
+        address owner = owner();
 
         // If it's not the pair's NFT, just withdraw normally
         if (a != _nft) {
             for (uint256 i; i < numNFTs; ) {
-                a.safeTransferFrom(address(this), msg.sender, nftIds[i]);
+                a.safeTransferFrom(address(this), owner, nftIds[i]);
 
                 unchecked {
                     ++i;

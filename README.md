@@ -19,8 +19,6 @@ npx hardhat deployCollectionSet --network goerli
 npx hardhat deployCollectionSet --network mainnet
 ```
 
-4. Verify RewardPool
+4. Verification Script
 
-The pool will be unverified after deployment. The first pool should be verified. Etherscan automatically verifies subsequent pools.
-
-After pool deployment, replace the parameters in `./scripts/poolParams.json`. Then , run `npx hardhat verifyRewardPool --network rinkeby --i ./scripts/poolParams.json` in the root directory.
+Etherscan verification might fail for various reasons. Run `npx hardhat verifyCollectionSet --network goerli --i ./goerliAddresses.json` in the root directory.

@@ -9,6 +9,9 @@ import "../../../contracts/mocks/TestTokenIDFilter.sol";
 contract TokenIDFilterTest is Test {
     TokenIDFilterMock filter;
 
+    address collection = address(1);
+    bytes data = "";
+
     function setUp() public {
         filter = new TokenIDFilterMock();
     }
@@ -20,7 +23,7 @@ contract TokenIDFilterTest is Test {
     }
 
     function testFilterOneOfOne() public {
-        filter.setTokenIDFilter(hash(hash(1)));
+        filter.setTokenIDFilter(collection, hash(hash(1)), data);
 
         bytes32[] memory empty;
         assert(filter.acceptsTokenID(uint256(1), empty));
@@ -43,7 +46,7 @@ contract TokenIDFilterTest is Test {
             root = hash(token88Leaf, token42Leaf);
         }
 
-        filter.setTokenIDFilter(root);
+        filter.setTokenIDFilter(collection, root, data);
 
         bytes32[] memory proof = new bytes32[](1);
 
@@ -55,7 +58,12 @@ contract TokenIDFilterTest is Test {
     }
 
     function testFilterMulti() public {
-        filter.setTokenIDFilter(0xdf8c8da4082b4272cc9b0870e40a116efd467249794a1b9e55467ce9fec4ad08);
+        
+        filter.setTokenIDFilter(
+            collection,
+            0xdf8c8da4082b4272cc9b0870e40a116efd467249794a1b9e55467ce9fec4ad08,
+            data
+            );
 
         uint256[] memory tokens = new uint256[](3);
         tokens[0] = 0x3;
@@ -103,7 +111,11 @@ contract TokenIDFilterHugeTest is Test {
 
         Merkle tree = new Merkle();
 
-        filter.setTokenIDFilter(tree.getRoot(leaves));
+        filter.setTokenIDFilter(
+            collection,
+            tree.getRoot(leaves),
+            data
+            );
 
         assert(filter.acceptsTokenID(tokens[0], tree.getProof(leaves, 0)));
         assert(filter.acceptsTokenID(tokens[1], tree.getProof(leaves, 1)));

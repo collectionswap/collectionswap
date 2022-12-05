@@ -91,6 +91,7 @@ export async function createIncentiveEth(
     bondingCurve.address,
     { spotPrice: 0, delta, props: [], state: [] },
     fee,
+    ethers.constants.HashZero,
     rewardTokens.map((rewardToken) => rewardToken.address),
     rewards,
     startTime,
