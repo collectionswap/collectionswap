@@ -732,6 +732,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
          */
         uint256 denominator = epochWinnerConfigs[epoch].numberOfDrawWinners;
         IERC20[] memory erc20RewardTokens = epochPrizeSets[epoch].erc20RewardTokens;
+
         for (uint256 i; i < erc20RewardTokens.length; ++i) {
             IERC20 token = erc20RewardTokens[i];
             uint256 totalReward = epochERC20PrizeAmounts[epoch][token];
@@ -745,10 +746,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         @dev - Claims your share of the prize for specified epochs
     **/  
     function claimMySharesMultiple(uint64[] calldata epochs) external {
-        unchecked {
-            for (uint256 i; i < epochs.length; ++i) {
-                claimMyShare(epochs[i]);
-            }
+        for (uint256 i; i < epochs.length; ++i) {
+            claimMyShare(epochs[i]);
+
         }
     }
 
@@ -761,11 +761,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     function sweepUnclaimedNfts(uint64 epoch, uint256[] calldata prizeIndices) external {
         _onlyDeployer();
         if (block.timestamp < rewardSweepTime) revert TooEarly();
-        unchecked {
-            for (uint256 i; i < prizeIndices.length; ++i) {
-                NFTData storage nftData = epochERC721PrizeIdsData[epoch][prizeIndices[i]];
-                nftData.nftAddress.safeTransferFrom(address(this), msg.sender, nftData.nftID);
-            }
+        for (uint256 i; i < prizeIndices.length; ++i) {
+            NFTData storage nftData = epochERC721PrizeIdsData[epoch][prizeIndices[i]];
+            nftData.nftAddress.safeTransferFrom(address(this), msg.sender, nftData.nftID);
         }
     }
 
