@@ -13,7 +13,7 @@ import type {
   Collectionstaker,
   LSSVMPairFactory,
   MonotonicIncreasingValidator,
-  RNGChainlinkV2
+  RNGChainlinkV2,
 } from "../typechain-types";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
 
@@ -28,8 +28,16 @@ const templateNames = [
 const templateAddresses: string[] = [];
 
 // Curves
-const curveNames = ["LinearCurve", "ExponentialCurve", "XykCurve", "SigmoidCurve"]
+const curveNames = [
+  "LinearCurve",
+  "ExponentialCurve",
+  "XykCurve",
+  "SigmoidCurve",
+];
 const curveAddresses: string[] = [];
+
+// SortitionTree
+let treeAddress: string;
 
 let factory: LSSVMPairFactory;
 let collectionStaker: Collectionstaker;
@@ -97,26 +105,50 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
 
   console.log(`------------------------------`);
 
+  console.log(`---------------------------------------`);
+  console.log(`------- Deploying SortitionTree -------`);
+  console.log(`---------------------------------------`);
+
+  deployFactory = await hre.ethers.getContractFactory(
+    "SortitionSumTreeFactory",
+    deployer
+  );
+  const deployedTree = await deployFactory.deploy();
+  await deployedTree.deployed();
+  console.log(`${"SortitionTree"} address: ${deployedTree.address}`);
+  treeAddress = deployedTree.address;
+
+  console.log(`------------------------------`);
+
   console.log(`Deploying Collectionstaker...`);
   const collectionStakerFactory = (await hre.ethers.getContractFactory(
     "Collectionstaker",
-    deployer
+    {
+      signer: deployer,
+      libraries: {
+        SortitionSumTreeFactory: treeAddress,
+      },
+    }
   )) as Collectionstaker__factory;
   collectionStaker = await collectionStakerFactory.deploy(factory.address);
   await collectionStaker.deployed();
   console.log(`Collectionstaker address: ${collectionStaker.address}`);
 
   console.log(`Deploying Monotonically Increasing Validator`);
-  const monotonicIncreasingValidatorFactory = (await hre.ethers.getContractFactory(
-    "MonotonicIncreasingValidator",
-    deployer
-  )) as MonotonicIncreasingValidator__factory;
+  const monotonicIncreasingValidatorFactory =
+    (await hre.ethers.getContractFactory(
+      "MonotonicIncreasingValidator",
+      deployer
+    )) as MonotonicIncreasingValidator__factory;
 
-  monotonicIncreasingValidator = await monotonicIncreasingValidatorFactory.deploy();
+  monotonicIncreasingValidator =
+    await monotonicIncreasingValidatorFactory.deploy();
   await monotonicIncreasingValidator.deployed();
-  console.log(`Monotonic Increasing Validator address: ${monotonicIncreasingValidator.address}`);
+  console.log(
+    `Monotonic Increasing Validator address: ${monotonicIncreasingValidator.address}`
+  );
 
-  // console.log(`Deploying ChainlinkRNGv2...`);
+  console.log(`Deploying ChainlinkRNGv2...`);
   const rngFactory = (await hre.ethers.getContractFactory(
     "RNGChainlinkV2",
     deployer
@@ -151,7 +183,8 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     factory: factory.address,
     collectionStaker: collectionStaker.address,
     rng: rng.address,
-    monotonicIncreasingValidator: monotonicIncreasingValidator.address
+    monotonicIncreasingValidator: monotonicIncreasingValidator.address,
+    tree: treeAddress,
   };
   const exportJson = JSON.stringify(addressesToExport, null, 2);
   fs.writeFileSync(config.EXPORT_FILENAME, exportJson);
@@ -197,10 +230,19 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     });
   }
 
+  console.log(`verifying SortitionTree`);
+  await hre.run("verify:verify", {
+    address: treeAddress,
+    constructorArguments: [],
+  });
+
   console.log("verifying Collectionstaker...");
   await hre.run("verify:verify", {
     address: collectionStaker.address,
     constructorArguments: [factory.address],
+    libraries: {
+      SortitionSumTreeFactory: treeAddress,
+    },
   });
 
   console.log("verifying RewardETHLogic...");

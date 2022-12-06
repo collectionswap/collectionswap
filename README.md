@@ -1,16 +1,19 @@
 # Deployment
 
 1. Clone `.env.example` to `.env`, replace the values.
+
 ```bash
 cp .env.example .env
 ```
 
 2. Compile contracts
+
 ```bash
 yarn compile
 ```
 
 3. Run the deploy script
+
 ```bash
 # Rinkeby deployment
 npx hardhat deployCollectionSet --network goerli
