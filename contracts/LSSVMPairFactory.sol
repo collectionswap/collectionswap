@@ -14,7 +14,7 @@ import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions
 // ETH and ERC20 tokens
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
-import {ReentrancyGuard} from './lib/ReentrancyGuard.sol';
+import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 
 import {LSSVMPair} from "./LSSVMPair.sol";
 import {LSSVMRouter} from "./LSSVMRouter.sol";
@@ -102,7 +102,7 @@ contract LSSVMPairFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable,
         address payable _protocolFeeRecipient,
         uint256 _protocolFeeMultiplier,
         uint256 _carryFeeMultiplier
-    ) ERC721('Collectionswap','CollectionLP') {
+    ) ERC721("Collectionswap","CollectionLP") {
         enumerableETHTemplate = _enumerableETHTemplate;
         missingEnumerableETHTemplate = _missingEnumerableETHTemplate;
         enumerableERC20Template = _enumerableERC20Template;

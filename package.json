@@ -4,7 +4,8 @@
     "test:foundry": "forge test",
     "test:hh": "hardhat test",
     "lint": "yarn lint:ci --fix",
-    "lint:ci": "eslint scripts test --ext .ts"
+    "lint:ci": "eslint scripts test --ext .ts",
+    "solhint": "solhint 'contracts/**/*.sol'"
   },
   "devDependencies": {
     "@chainlink/contracts": "^0.5.1",
@@ -36,6 +37,7 @@
     "hardhat-gas-reporter": "^1.0.9",
     "prettier": "^2.7.1",
     "prettier-plugin-solidity": "^1.0.0-beta.24",
+    "solhint": "^3.3.7",
     "solidity-coverage": "^0.8.1",
     "ts-node": "^10.9.1",
     "typechain": "^8.1.0",
