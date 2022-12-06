@@ -1,22 +1,31 @@
-/* eslint-disable camelcase */
 import fs from "fs";
 
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 
 import { configs } from "./config";
 
-import type {
-  Collectionstaker__factory,
-  Collectionstaker,
-} from "../typechain-types";
-import type { HardhatRuntimeEnvironment } from "hardhat/types";
-
-let collectionStaker: Collectionstaker;
+import type { HardhatRuntimeEnvironment, TaskArguments } from "hardhat/types";
 
 export async function verifyCollectionSet(
   taskArgs: any,
   hre: HardhatRuntimeEnvironment
 ) {
+  async function verify(name: string, args: TaskArguments): Promise<void> {
+    try {
+      console.log(`Verifying ${name}...`);
+      await hre.run("verify:verify", args);
+    } catch (err: any) {
+      if (
+        err.message.includes("Reason: Already Verified") ||
+        err.message === "Contract source code already verified"
+      ) {
+        console.log("Contract is already verified!");
+      } else {
+        throw err;
+      }
+    }
+  }
+
   // Read file from input
   const addresses = JSON.parse(fs.readFileSync(taskArgs.i, "utf8"));
   const networkId = hre.network.config.chainId as number;
@@ -29,7 +38,6 @@ export async function verifyCollectionSet(
   const deployerAddress = await deployer.getAddress();
   console.log(`Deployer: ${deployerAddress}`);
 
-  console.log(`----- VERIFICATION ------`);
   const templateAddresses = [
     addresses.lssvmPairEnumerableETH,
     addresses.lssvmPairMissingEnumerableETH,
@@ -44,155 +52,67 @@ export async function verifyCollectionSet(
   ];
   const { factory } = addresses;
 
-  const collectionStakerFactory = (await hre.ethers.getContractFactory(
-    "Collectionstaker",
-    { signer: deployer, libraries: { SortitionSumTreeFactory: addresses.tree } }
-  )) as Collectionstaker__factory;
-  collectionStaker = collectionStakerFactory.attach(addresses.collectionStaker);
+  console.log(`----- VERIFICATION ------`);
 
   for (let i = 0; i < templateAddresses.length; i++) {
-    try {
-      console.log(`verifying template ${i}`);
-      await hre.run("verify:verify", {
-        address: templateAddresses[i],
-        constructorArguments: [],
-      });
-    } catch (err: any) {
-      if (err.message.includes("Reason: Already Verified")) {
-        console.log("Contract is already verified!");
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  try {
-    console.log("verifying factory...");
-    await hre.run("verify:verify", {
-      address: factory,
-      constructorArguments: [
-        templateAddresses[0],
-        templateAddresses[1],
-        templateAddresses[2],
-        templateAddresses[3],
-        hre.ethers.constants.AddressZero, // Payout address
-        hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
-        hre.ethers.utils.parseEther(config.CARRY_FEE_MULTIPLIER),
-      ],
-    });
-  } catch (err: any) {
-    if (err.message.includes("Reason: Already Verified")) {
-      console.log("Contract is already verified!");
-    } else {
-      throw err;
-    }
-  }
-
-  try {
-    for (let i = 0; i < curveAddresses.length; i++) {
-      console.log(`verifying curve ${i}`);
-      await hre.run("verify:verify", {
-        address: curveAddresses[i],
-        constructorArguments: [],
-      });
-    }
-  } catch (err: any) {
-    if (err.message.includes("Reason: Already Verified")) {
-      console.log("Contract is already verified!");
-    } else {
-      throw err;
-    }
-  }
-
-  try {
-    console.log("verifying SortitionTree...");
-    await hre.run("verify:verify", {
-      address: addresses.tree,
+    await verify(`template ${i}`, {
+      address: templateAddresses[i],
       constructorArguments: [],
     });
-  } catch (err: any) {
-    if (err.message.includes("Reason: Already Verified")) {
-      console.log("Contract is already verified!");
-    } else {
-      throw err;
-    }
   }
 
-  try {
-    console.log("verifying Collectionstaker...");
-    await hre.run("verify:verify", {
-      address: collectionStaker.address,
-      constructorArguments: [factory],
-      libraries: {
-        SortitionSumTreeFactory: addresses.tree,
-      },
-    });
-  } catch (err: any) {
-    if (err.message.includes("Reason: Already Verified")) {
-      console.log("Contract is already verified!");
-    } else {
-      throw err;
-    }
-  }
+  await verify("factory", {
+    address: factory,
+    constructorArguments: [
+      templateAddresses[0],
+      templateAddresses[1],
+      templateAddresses[2],
+      templateAddresses[3],
+      hre.ethers.constants.AddressZero, // Payout address
+      hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
+      hre.ethers.utils.parseEther(config.CARRY_FEE_MULTIPLIER),
+    ],
+  });
 
-  try {
-    console.log("verifying RewardETHLogic...");
-    await hre.run("verify:verify", {
-      address: await collectionStaker.rewardPoolETHLogic(),
+  for (let i = 0; i < curveAddresses.length; i++) {
+    await verify(`curve ${i}`, {
+      address: curveAddresses[i],
       constructorArguments: [],
     });
-  } catch (err: any) {
-    if (err.message.includes("Reason: Already Verified")) {
-      console.log("Contract is already verified!");
-    } else {
-      throw err;
-    }
   }
 
-  try {
-    console.log("verifying RewardETHDrawLogic...");
-    await hre.run("verify:verify", {
-      address: await collectionStaker.rewardPoolETHDrawLogic(),
-      constructorArguments: [],
-    });
-  } catch (err: any) {
-    if (err.message.includes("Reason: Already Verified")) {
-      console.log("Contract is already verified!");
-    } else {
-      throw err;
-    }
-  }
+  await verify("SortitionTree", {
+    address: addresses.tree,
+    constructorArguments: [],
+  });
 
-  try {
-    console.log("verifying Monotonic Increasing Validator...");
-    await hre.run("verify:verify", {
-      address: addresses.monotonicIncreasingValidator,
-      constructorArguments: [],
-    });
-  } catch (err: any) {
-    if (err.message.includes("Reason: Already Verified")) {
-      console.log("Contract is already verified!");
-    } else {
-      throw err;
-    }
-  }
+  await verify("Collectionstaker", {
+    address: addresses.collectionStaker,
+    constructorArguments: [factory],
+  });
 
-  try {
-    console.log("verifying RNG...");
-    await hre.run("verify:verify", {
-      address: addresses.rng,
-      constructorArguments: [
-        deployerAddress,
-        config.VRF_COORDINATOR,
-        config.SUBSCRIPTION_ID,
-        config.KEY_HASH,
-      ],
-    });
-  } catch (err: any) {
-    if (err.message.includes("Reason: Already Verified")) {
-      console.log("Contract is already verified!");
-    } else {
-      throw err;
-    }
-  }
+  await verify("RewardETHLogic", {
+    address: addresses.rewardPoolETH,
+    constructorArguments: [],
+  });
+
+  await verify("RewardETHDrawLogic", {
+    address: addresses.rewardPoolETHDraw,
+    constructorArguments: [],
+  });
+
+  await verify("Monotonic Increasing Validator", {
+    address: addresses.monotonicIncreasingValidator,
+    constructorArguments: [],
+  });
+
+  await verify("RNG", {
+    address: addresses.rng,
+    constructorArguments: [
+      deployerAddress,
+      config.VRF_COORDINATOR,
+      config.SUBSCRIPTION_ID,
+      config.KEY_HASH,
+    ],
+  });
 }
