@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "./ITokenIDFilter.sol";
+import {ITokenIDFilter} from "./ITokenIDFilter.sol";
 
 contract TokenIDFilter is ITokenIDFilter {
     event AcceptsTokenIDs(address indexed _collection, bytes32 indexed _root, bytes _data);

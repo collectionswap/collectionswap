@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import "./IValidator.sol";
+import {IValidator} from "./IValidator.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
+import {ILSSVMPair} from "../ILSSVMPair.sol";
 
 /// @notice MonotonicIncreasingValidator is suitable for all bonding curves that are monotonic increasing.
 /// i.e. the spot price is always non-decreasing when delta increases.

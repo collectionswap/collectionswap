@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import "./ILSSVMPairFactory.sol";
-import "./RewardPoolETH.sol";
-import "./RewardPoolETHDraw.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
+import {RewardPoolETH} from "./RewardPoolETH.sol";
+import {RewardPoolETHDraw} from "./RewardPoolETHDraw.sol";
+import {ICurve} from "./bonding-curves/ICurve.sol";
+import {IValidator} from "./validators/IValidator.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {RNGChainlinkV2Interface} from "./rng/RNGChainlinkV2Interface.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract Collectionstaker is Ownable {
     using SafeERC20 for IERC20;

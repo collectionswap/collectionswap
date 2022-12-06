@@ -4,11 +4,13 @@ pragma solidity ^0.8.0;
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import "./ILSSVMPairFactory.sol";
-import "./ILSSVMPair.sol";
-import "./validators/IValidator.sol";
+import {ICurve} from "./bonding-curves/ICurve.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
+import {ILSSVMPair} from "./ILSSVMPair.sol";
+import {IValidator} from "./validators/IValidator.sol";
 
 contract RewardPoolETH is IERC721Receiver, Initializable {
     using SafeERC20 for IERC20;

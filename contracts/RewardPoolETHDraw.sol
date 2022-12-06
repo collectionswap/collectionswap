@@ -4,12 +4,15 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {ICurve} from "./bonding-curves/ICurve.sol";
 import {RewardPoolETH} from "./RewardPoolETH.sol";
-import "./ILSSVMPairFactory.sol";
-import "./SortitionSumTreeFactory.sol";
-import "./lib/ReentrancyGuard.sol";
+import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
+import {ILSSVMPair} from "./ILSSVMPair.sol";
+import {SortitionSumTreeFactory} from "./SortitionSumTreeFactory.sol";
+import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 import {RNGInterface} from "./rng/RNGInterface.sol";
-import "./validators/IValidator.sol";
+import {IValidator} from "./validators/IValidator.sol";
 
 contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     using SafeERC20 for IERC20;
