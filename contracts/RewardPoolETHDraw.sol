@@ -583,7 +583,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         numberOfPrizesPerWinner = epochPrizeSets[epoch].prizePerWinner;
         uint256 numPrizes = epochPrizeSets[epoch].numERC721Prizes;
         if (numPrizes == 0) {
-            // assumed to be only ERC20 prize: numberOfPrizesPerWinner = number of winners
+            // ERC20-only-draw: assumed to be only ERC20 prize: numberOfPrizesPerWinner = number of winners
             return (false, numberOfPrizesPerWinner, numberOfPrizesPerWinner, 0);
         }
         hasNFTPrizes = true;
@@ -607,6 +607,9 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         // if there are ERC721 prizes, ensure that the _prizePerWinner is within limit
         if (prizeSet.numERC721Prizes != 0) {
             if (_prizePerWinner > prizeSet.numERC721Prizes) revert LengthLimitExceeded();
+        } else {
+            // ERC20-only-draw: uses prizePerWinner as subdivisions of total ERC20 prize and as stand-in for number of winners. Do check here.
+            if (_prizePerWinner > MAX_PRIZE_WINNERS_PER_EPOCH) revert LengthLimitExceeded();
         }
 
         if (_prizePerWinner == 0) revert ZeroRewardRate();
