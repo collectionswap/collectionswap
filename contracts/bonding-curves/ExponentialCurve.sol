@@ -138,22 +138,14 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
         tradeFee -= carryFee;
         protocolFee += carryFee;
 
-        // Royalties are fixed per pool so we can just take a fraction of the
-        // total transacted value
-        uint256 totalRoyalties;
-        totalRoyalties = inputValue.fmul(
-            feeMultipliers.royaltyNumerator,
-            FixedPointMathLib.WAD
-        );
         royaltyAmounts = new uint256[](numItems);
         uint256 totalRoyalty;
-        uint256 royaltyAmount;
         for (uint256 i = 0; i < numItems; ) {
             uint256 deltaPowI = uint256(params.delta).fpow(
                 i,
                 FixedPointMathLib.WAD
             );
-            royaltyAmount = (buySpotPrice * deltaPowI).fmul(
+            uint256 royaltyAmount = (buySpotPrice * deltaPowI).fmul(
                 feeMultipliers.royaltyNumerator,
                 FixedPointMathLib.WAD * FixedPointMathLib.WAD // (delta ^ i) is still in units of ether 
             );

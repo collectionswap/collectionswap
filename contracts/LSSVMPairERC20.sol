@@ -64,9 +64,16 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
 
             for (uint256 i = 0; i  < length; ) {
                 // Cache state and then call router to transfer tokens from user
-                RoyaltyDue memory due = royaltiesDue[i];
-                uint256 royaltyAmount = due.amount;
-                address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
+                uint256 royaltyAmount;
+                address royaltyRecipient;
+
+                // Locally scoped to avoid stack too deep
+                {
+                    RoyaltyDue memory due = royaltiesDue[i];
+                    royaltyAmount = due.amount;
+                    royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
+                }
+
                 uint256 royaltyInitBalance = _token.balanceOf(royaltyRecipient);
                 if (royaltyAmount > 0) {
                     totalRoyaltiesPaid += royaltyAmount;
@@ -129,8 +136,9 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
                 RoyaltyDue memory due = royaltiesDue[i];
                 uint256 royaltyAmount = due.amount;
                 address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
-                totalRoyaltiesPaid += royaltyAmount;
                 if (royaltyAmount > 0) {
+                    totalRoyaltiesPaid += royaltyAmount;
+
                     _token.safeTransferFrom(
                         msg.sender,
                         royaltyRecipient,
