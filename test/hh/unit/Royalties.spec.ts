@@ -453,9 +453,11 @@ describe("Royalties", function () {
 
       expect(
         lssvmPairETH.swapNFTsForToken(
-          [],
-          [],
-          [],
+          {
+            ids: [],
+            proof: [],
+            proofFlags: [],
+          },
           ethers.utils.parseEther("0"),
           trader.address,
           false,

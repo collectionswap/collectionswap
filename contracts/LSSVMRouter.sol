@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
+import {ILSSVMPair} from "./ILSSVMPair.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
 import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
@@ -615,9 +616,11 @@ contract LSSVMRouter {
             if (pairOutput >= swapList[i].minOutput) {
                 // Do the swap and update outputAmount with how many tokens we got
                 outputAmount += swapList[i].swapInfo.pair.swapNFTsForToken(
-                    swapList[i].swapInfo.nftIds,
-                    swapList[i].swapInfo.proof,
-                    swapList[i].swapInfo.proofFlags,
+                    ILSSVMPair.NFTs(
+                        swapList[i].swapInfo.nftIds,
+                        swapList[i].swapInfo.proof,
+                        swapList[i].swapInfo.proofFlags
+                    ),
                     0,
                     tokenRecipient,
                     true,
@@ -728,9 +731,11 @@ contract LSSVMRouter {
                         .swapInfo
                         .pair
                         .swapNFTsForToken(
-                            params.nftToTokenTrades[i].swapInfo.nftIds,
-                            params.nftToTokenTrades[i].swapInfo.proof,
-                            params.nftToTokenTrades[i].swapInfo.proofFlags,
+                            ILSSVMPair.NFTs(
+                                params.nftToTokenTrades[i].swapInfo.nftIds,
+                                params.nftToTokenTrades[i].swapInfo.proof,
+                                params.nftToTokenTrades[i].swapInfo.proofFlags
+                            ),
                             0,
                             params.tokenRecipient,
                             true,
@@ -835,9 +840,11 @@ contract LSSVMRouter {
                         .swapInfo
                         .pair
                         .swapNFTsForToken(
-                            params.nftToTokenTrades[i].swapInfo.nftIds,
-                            params.nftToTokenTrades[i].swapInfo.proof,
-                            params.nftToTokenTrades[i].swapInfo.proofFlags,
+                            ILSSVMPair.NFTs(
+                                params.nftToTokenTrades[i].swapInfo.nftIds,
+                                params.nftToTokenTrades[i].swapInfo.proof,
+                                params.nftToTokenTrades[i].swapInfo.proofFlags
+                            ),
                             0,
                             params.tokenRecipient,
                             true,
@@ -1125,9 +1132,11 @@ contract LSSVMRouter {
             // Do the swap for token and then update outputAmount
             // Note: minExpectedTokenOutput is set to 0 since we're doing an aggregate slippage check below
             outputAmount += swapList[i].pair.swapNFTsForToken(
-                swapList[i].nftIds,
-                swapList[i].proof,
-                swapList[i].proofFlags,
+                ILSSVMPair.NFTs(
+                    swapList[i].nftIds,
+                    swapList[i].proof,
+                    swapList[i].proofFlags
+                ),
                 0,
                 tokenRecipient,
                 true,

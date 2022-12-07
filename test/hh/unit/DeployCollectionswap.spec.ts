@@ -380,17 +380,17 @@ describe("Collectionswap", function () {
         lssvmPairETH
       );
       await expect(
-        lssvmPairETH
-          .connect(externalTrader)
-          .swapNFTsForToken(
-            externalTraderNftsIHave,
-            [],
-            [],
-            bidInputAmount,
-            externalTrader.address,
-            false,
-            ethers.constants.AddressZero
-          )
+        lssvmPairETH.connect(externalTrader).swapNFTsForToken(
+          {
+            ids: externalTraderNftsIHave,
+            proof: [],
+            proofFlags: [],
+          },
+          bidInputAmount,
+          externalTrader.address,
+          false,
+          ethers.constants.AddressZero
+        )
       ).to.be.revertedWith("Too little ETH");
 
       // Can withdraw
@@ -457,17 +457,17 @@ describe("Collectionswap", function () {
           _bidnObj,
         ] = await lssvmPairETH.getSellNFTQuote(1);
         // Console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
-        await lssvmPairETH
-          .connect(externalTrader)
-          .swapNFTsForToken(
-            [222],
-            [],
-            [],
-            bidInputAmount,
-            externalTrader.address,
-            false,
-            ethers.constants.AddressZero
-          );
+        await lssvmPairETH.connect(externalTrader).swapNFTsForToken(
+          {
+            ids: [222],
+            proof: [],
+            proofFlags: [],
+          },
+          bidInputAmount,
+          externalTrader.address,
+          false,
+          ethers.constants.AddressZero
+        );
 
         const [
           _askError,

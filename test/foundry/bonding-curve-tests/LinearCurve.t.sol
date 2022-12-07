@@ -26,12 +26,9 @@ contract LinearCurveTest is DSTest {
         uint256 royaltyNumerator = 0;
         (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            uint256 newDelta,
-            ,
+            ICurve.Params memory newParams,
             uint256 inputValue,
-            ,
-            uint256 protocolFee,
+            ICurve.Fees memory fees
         ) = curve.getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -52,10 +49,10 @@ contract LinearCurveTest is DSTest {
             uint256(CurveErrorCodes.Error.OK),
             "Error code not OK"
         );
-        assertEq(newSpotPrice, 3.5 ether, "Spot price incorrect");
-        assertEq(newDelta, 0.1 ether, "Delta incorrect");
+        assertEq(newParams.spotPrice, 3.5 ether, "Spot price incorrect");
+        assertEq(newParams.delta, 0.1 ether, "Delta incorrect");
         assertEq(inputValue, 16.632 ether, "Input value incorrect");
-        assertEq(protocolFee, 0.0495 ether, "Protocol fee incorrect");
+        assertEq(fees.protocol, 0.0495 ether, "Protocol fee incorrect");
     }
 
     function test_getBuyInfoWithoutFee(
@@ -69,12 +66,9 @@ contract LinearCurveTest is DSTest {
 
         (
             CurveErrorCodes.Error error,
-            uint128 newSpotPrice,
-            ,
-            ,
+            ICurve.Params memory newParams,
             uint256 inputValue,
-            ,
-            ,
+
         ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         if (
             uint256(spotPrice) + uint256(delta) * uint256(numItems) >
@@ -93,8 +87,8 @@ contract LinearCurveTest is DSTest {
             );
 
             assertTrue(
-                (newSpotPrice > spotPrice && delta > 0) ||
-                    (newSpotPrice == spotPrice && delta == 0),
+                (newParams.spotPrice > spotPrice && delta > 0) ||
+                    (newParams.spotPrice == spotPrice && delta == 0),
                 "Price update incorrect"
             );
 
@@ -115,12 +109,9 @@ contract LinearCurveTest is DSTest {
         uint256 royaltyNumerator = 0;
         (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            uint256 newDelta,
-            ,
+            ICurve.Params memory newParams,
             uint256 outputValue,
-            ,
-            uint256 protocolFee,
+            ICurve.Fees memory fees
         ) = curve.getSellInfo(
                 ICurve.Params(
                     spotPrice,
@@ -141,10 +132,10 @@ contract LinearCurveTest is DSTest {
             uint256(CurveErrorCodes.Error.OK),
             "Error code not OK"
         );
-        assertEq(newSpotPrice, 2.5 ether, "Spot price incorrect");
-        assertEq(newDelta, 0.1 ether, "Delta incorrect");
+        assertEq(newParams.spotPrice, 2.5 ether, "Spot price incorrect");
+        assertEq(newParams.delta, 0.1 ether, "Delta incorrect");
         assertEq(outputValue, 13.888 ether, "Output value incorrect");
-        assertEq(protocolFee, 0.042 ether, "Protocol fee incorrect");
+        assertEq(fees.protocol, 0.042 ether, "Protocol fee incorrect");
     }
 
     function test_getSellInfoWithoutFee(
@@ -158,12 +149,9 @@ contract LinearCurveTest is DSTest {
 
         (
             CurveErrorCodes.Error error,
-            uint128 newSpotPrice,
-            ,
-            ,
+            ICurve.Params memory newParams,
             uint256 outputValue,
-            ,
-            ,
+
         ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         assertEq(
             uint256(error),
@@ -174,7 +162,7 @@ contract LinearCurveTest is DSTest {
         uint256 totalPriceDecrease = uint256(delta) * numItems;
         if (spotPrice < totalPriceDecrease) {
             assertEq(
-                newSpotPrice,
+                newParams.spotPrice,
                 0,
                 "New spot price not 0 when decrease is greater than current spot price"
             );
@@ -182,8 +170,8 @@ contract LinearCurveTest is DSTest {
 
         if (spotPrice > 0) {
             assertTrue(
-                (newSpotPrice < spotPrice && delta > 0) ||
-                    (newSpotPrice == spotPrice && delta == 0),
+                (newParams.spotPrice < spotPrice && delta > 0) ||
+                    (newParams.spotPrice == spotPrice && delta == 0),
                 "Price update incorrect"
             );
         }

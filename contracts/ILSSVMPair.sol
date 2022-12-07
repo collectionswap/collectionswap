@@ -15,6 +15,17 @@ interface ILSSVMPair is ITokenIDFilter {
         TRADE
     }
 
+    /**
+        @param ids The list of IDs of the NFTs to sell to the pair
+        @param proof Merkle multiproof proving list is allowed by pair
+        @param proofFlags Merkle multiproof flags for proof
+    */
+    struct NFTs {
+        uint256[] ids;
+        bytes32[] proof;
+        bool[] proofFlags;
+    }
+
     function bondingCurve() external view returns (ICurve);
 
     function getAllHeldIds() external view returns (uint256[] memory);

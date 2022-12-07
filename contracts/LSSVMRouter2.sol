@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
+import {ILSSVMPair} from "./ILSSVMPair.sol";
 import {LSSVMPair} from "./LSSVMPair.sol";
 import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
@@ -89,15 +90,17 @@ contract LSSVMRouter2 {
         uint256[] memory prices = new uint256[](numNFTs);
         ICurve _bondingCurve = pair.bondingCurve();
         ICurve.Params memory params = pair.curveParams();
+        bytes memory props = params.props;
         uint256 fee = pair.fee();
         ICurve.FeeMultipliers memory feeMultipliers = pair.feeMultipliers();
         for (uint256 i; i < numNFTs; i++) {
             uint256 price;
-            (, params.spotPrice, params.delta, params.state, price, , , ) = _bondingCurve.getBuyInfo(
+            (, params, price, ) = _bondingCurve.getBuyInfo(
                 params,
                 1,
                 feeMultipliers
             );
+            params.props = props;
             prices[i] = price;
         }
         uint256[] memory totalPrices = new uint256[](numNFTs);
@@ -227,9 +230,11 @@ contract LSSVMRouter2 {
                 // If spot price is at least the expected spot price, go ahead and do the swap
                 if (spotPrice >= sellList[i].expectedSpotPrice) {
                     pair.swapNFTsForToken(
-                        sellList[i].swapInfo.nftIds,
-                        sellList[i].swapInfo.proof,
-                        sellList[i].swapInfo.proofFlags,
+                        ILSSVMPair.NFTs(
+                            sellList[i].swapInfo.nftIds,
+                            sellList[i].swapInfo.proof,
+                            sellList[i].swapInfo.proofFlags
+                        ),
                         sellList[i].minOutputPerNumNFTs[numNFTs - 1],
                         payable(msg.sender),
                         true,
@@ -247,9 +252,11 @@ contract LSSVMRouter2 {
                             sellList[i].minOutputPerNumNFTs
                         );
                     pair.swapNFTsForToken(
-                        sellList[i].swapInfo.nftIds[0:numItemsToFill],
-                        sellList[i].swapInfo.proof[0:numItemsToFill],
-                        sellList[i].swapInfo.proofFlags[0:numItemsToFill],
+                        ILSSVMPair.NFTs(
+                            sellList[i].swapInfo.nftIds[0:numItemsToFill],
+                            sellList[i].swapInfo.proof[0:numItemsToFill],
+                            sellList[i].swapInfo.proofFlags[0:numItemsToFill]
+                        ),
                         priceToFillAt,
                         payable(msg.sender),
                         true,
@@ -433,9 +440,11 @@ contract LSSVMRouter2 {
             for (uint256 i; i < numSwaps; ) {
                 // Do the swap for token and then update outputAmount
                 sellList[i].swapInfo.pair.swapNFTsForToken(
-                    sellList[i].swapInfo.nftIds,
-                    sellList[i].swapInfo.proof,
-                    sellList[i].swapInfo.proofFlags,
+                    ILSSVMPair.NFTs(
+                        sellList[i].swapInfo.nftIds,
+                        sellList[i].swapInfo.proof,
+                        sellList[i].swapInfo.proofFlags
+                    ),
                     sellList[i].minOutput,
                     payable(msg.sender),
                     true,
@@ -465,9 +474,11 @@ contract LSSVMRouter2 {
             for (uint256 i; i < numSwaps; ) {
                 // Do the swap for token and then update outputAmount
                 outputAmount += sellList[i].swapInfo.pair.swapNFTsForToken(
-                    sellList[i].swapInfo.nftIds,
-                    sellList[i].swapInfo.proof,
-                    sellList[i].swapInfo.proofFlags,
+                    ILSSVMPair.NFTs(
+                        sellList[i].swapInfo.nftIds,
+                        sellList[i].swapInfo.proof,
+                        sellList[i].swapInfo.proofFlags
+                    ),
                     sellList[i].minOutput,
                     payable(address(this)), // Send funds here first
                     true,
@@ -569,9 +580,11 @@ contract LSSVMRouter2 {
         for (uint256 i; i < numSwaps; ) {
             // Do the swap for token and then update outputAmount
             outputAmount += swapList[i].swapInfo.pair.swapNFTsForToken(
-                swapList[i].swapInfo.nftIds,
-                swapList[i].swapInfo.proof,
-                swapList[i].swapInfo.proofFlags,
+                ILSSVMPair.NFTs(
+                    swapList[i].swapInfo.nftIds,
+                    swapList[i].swapInfo.proof,
+                    swapList[i].swapInfo.proofFlags
+                ),
                 swapList[i].minOutput,
                 payable(msg.sender),
                 true,

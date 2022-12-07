@@ -290,26 +290,24 @@ abstract contract LSSVMPair is
         require(creationTimestamp != block.timestamp, "Trade blocked");
 
         // Call bonding curve for pricing information
-        uint256 _tradeFee;
-        uint256 protocolFee;
-        uint256[] memory royaltyAmounts;
-        (_tradeFee, protocolFee, inputAmount, royaltyAmounts) = _calculateBuyInfoAndUpdatePoolParams(
+        ICurve.Fees memory fees;
+        (inputAmount, fees) = _calculateBuyInfoAndUpdatePoolParams(
             numNFTs,
             maxExpectedTokenInput,
             _bondingCurve,
             _factory
         );
 
-        tradeFee += _tradeFee;
+        tradeFee += fees.trade;
         uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
-        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(_nft, tokenIds, royaltyAmounts);
+        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(_nft, tokenIds, fees.royalties);
         
         _pullTokenInputAndPayProtocolFee(
             inputAmount,
             isRouter,
             routerCaller,
             _factory,
-            protocolFee,
+            fees.protocol,
             royaltiesDue
         );
 
@@ -359,25 +357,23 @@ abstract contract LSSVMPair is
         require(creationTimestamp != block.timestamp, "Trade blocked");
 
         // Call bonding curve for pricing information
-        uint256 _tradeFee;
-        uint256 protocolFee;
-        uint256[] memory royaltyAmounts;
-        (_tradeFee, protocolFee, inputAmount, royaltyAmounts) = _calculateBuyInfoAndUpdatePoolParams(
+        ICurve.Fees memory fees;
+        (inputAmount, fees) = _calculateBuyInfoAndUpdatePoolParams(
             nftIds.length,
             maxExpectedTokenInput,
             _bondingCurve,
             _factory
         );
 
-        tradeFee += _tradeFee;
-        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nftIds, royaltyAmounts);
+        tradeFee += fees.trade;
+        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nftIds, fees.royalties);
 
         _pullTokenInputAndPayProtocolFee(
             inputAmount,
             isRouter,
             routerCaller,
             _factory,
-            protocolFee,
+            fees.protocol,
             royaltiesDue
         );
 
@@ -391,9 +387,7 @@ abstract contract LSSVMPair is
     /**
         @notice Sends a set of NFTs to the pair in exchange for token
         @dev To compute the amount of token to that will be received, call bondingCurve.getSellInfo.
-        @param nftIds The list of IDs of the NFTs to sell to the pair
-        @param proof Merkle multiproof proving list is allowed by pair
-        @param proofFlags Merkle multiproof flags for proof
+        @param nfts The list of IDs of the NFTs to sell to the pair along with its Merkle multiproof.
         @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
         amount is less than this value, the transaction will be reverted.
         @param tokenRecipient The recipient of the token output
@@ -404,9 +398,7 @@ abstract contract LSSVMPair is
         @return outputAmount The amount of token received
      */
     function swapNFTsForToken(
-        uint256[] calldata nftIds,
-        bytes32[] calldata proof,
-        bool[] calldata proofFlags,
+        ILSSVMPair.NFTs calldata nfts,
         uint256 minExpectedTokenOutput,
         address payable tokenRecipient,
         bool isRouter,
@@ -423,30 +415,28 @@ abstract contract LSSVMPair is
                 _poolType == PoolType.TOKEN || _poolType == PoolType.TRADE,
                 "Wrong Pool type"
             );
-            require(nftIds.length > 0, "Must ask for > 0 NFTs");
-            require(acceptsTokenIDs(nftIds, proof, proofFlags), "NFT not allowed");
+            require(nfts.ids.length > 0, "Must ask for > 0 NFTs");
+            require(acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags), "NFT not allowed");
         }
 
         // Call bonding curve for pricing information
-        uint256 _tradeFee;
-        uint256 protocolFee;
-        uint256[] memory royaltyAmounts;
-        (_tradeFee, protocolFee, outputAmount, royaltyAmounts) = _calculateSellInfoAndUpdatePoolParams(
-            nftIds.length,
+        ICurve.Fees memory fees;
+        (outputAmount, fees) = _calculateSellInfoAndUpdatePoolParams(
+            nfts.ids.length,
             minExpectedTokenOutput,
             _bondingCurve
         );
 
         // Accrue trade fees before sending token output. This ensures that the balance is always sufficient for trade fee withdrawal.
-        tradeFee += _tradeFee;
+        tradeFee += fees.trade;
 
-        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nftIds, royaltyAmounts);
+        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nfts.ids, fees.royalties);
 
         _sendTokenOutput(tokenRecipient, outputAmount, royaltiesDue);
 
-        _payProtocolFeeFromPair(_factory, protocolFee);
+        _payProtocolFeeFromPair(_factory, fees.protocol);
 
-        _takeNFTsFromSender(nft(), nftIds, _factory, isRouter, routerCaller);
+        _takeNFTsFromSender(nft(), nfts.ids, _factory, isRouter, routerCaller);
 
         emit SwapNFTInPair();
     }
@@ -491,20 +481,25 @@ abstract contract LSSVMPair is
             uint256 protocolFee
         )
     {
+        ICurve.Params memory newParams;
+        ICurve.Fees memory fees;
         (
             error,
-            newSpotPrice,
-            newDelta,
-            newState,
+            newParams,
             inputAmount,
-            _tradeFee,
-            protocolFee,
-            
+            fees
         ) = bondingCurve().getBuyInfo(
             curveParams(),
             numNFTs,
             feeMultipliers()
         );
+
+        newSpotPrice = newParams.spotPrice;
+        newDelta = newParams.delta;
+        newState = newParams.state;
+
+        _tradeFee = fees.trade;
+        protocolFee = fees.protocol;
     }
 
     /**
@@ -524,20 +519,25 @@ abstract contract LSSVMPair is
             uint256 protocolFee
         )
     {
+        ICurve.Params memory newParams;
+        ICurve.Fees memory fees;
         (
             error,
-            newSpotPrice,
-            newDelta,
-            newState,
+            newParams,
             outputAmount,
-            _tradeFee,
-            protocolFee,
-
+            fees
         ) = bondingCurve().getSellInfo(
             curveParams(),
             numNFTs,
             feeMultipliers()
         );
+
+        newSpotPrice = newParams.spotPrice;
+        newDelta = newParams.delta;
+        newState = newParams.state;
+
+        _tradeFee = fees.trade;
+        protocolFee = fees.protocol;
     }
 
     /**
@@ -692,10 +692,8 @@ abstract contract LSSVMPair is
         @param numNFTs The amount of NFTs to purchase from the pair
         @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
         amount is greater than this value, the transaction will be reverted.
-        @param protocolFee The percentage of protocol fee to be taken, as a percentage
-        @return _tradeFee The amount of tokens to send as trade fee
-        @return protocolFee The amount of tokens to send as protocol fee
         @return inputAmount The amount of tokens total tokens receive
+        @return fees The amount of tokens to send as fees
      */
     function _calculateBuyInfoAndUpdatePoolParams(
         uint256 numNFTs,
@@ -703,23 +701,17 @@ abstract contract LSSVMPair is
         ICurve _bondingCurve,
         ILSSVMPairFactory
     ) internal returns (
-        uint256 _tradeFee,
-        uint256 protocolFee, 
         uint256 inputAmount,
-        uint256[] memory royaltyAmounts
+        ICurve.Fees memory fees
     ) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
         (
             error,
-            newParams.spotPrice,
-            newParams.delta,
-            newParams.state,
+            newParams,
             inputAmount,
-            _tradeFee,
-            protocolFee,
-            royaltyAmounts
+            fees
         ) = _bondingCurve.getBuyInfo(
             params,
             numNFTs,
@@ -763,32 +755,25 @@ abstract contract LSSVMPair is
         @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
         amount is less than this value, the transaction will be reverted.
         @param _bondingCurve The bonding curve used to fetch pricing information from
-        @return _tradeFee The amount of tokens to send as trade fee
-        @return protocolFee The amount of tokens to send as protocol fee
         @return outputAmount The amount of tokens total tokens receive
+        @return fees The amount of tokens to send as fees
      */
     function _calculateSellInfoAndUpdatePoolParams(
         uint256 numNFTs,
         uint256 minExpectedTokenOutput,
         ICurve _bondingCurve
     ) internal returns (
-        uint256 _tradeFee,
-        uint256 protocolFee, 
-        uint256 outputAmount, 
-        uint256[] memory royaltyAmounts
+        uint256 outputAmount,
+        ICurve.Fees memory fees
     ) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
         (
             error,
-            newParams.spotPrice,
-            newParams.delta,
-            newParams.state,
+            newParams,
             outputAmount,
-            _tradeFee,
-            protocolFee,
-            royaltyAmounts
+            fees
         ) = _bondingCurve.getSellInfo(
             params,
             numNFTs,

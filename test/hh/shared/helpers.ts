@@ -388,17 +388,17 @@ export async function sellToPool(
     _bidnObj,
   ] = await lssvmPairETH.getSellNFTQuote(1);
   // Console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
-  await lssvmPairETH
-    .connect(externalTrader)
-    .swapNFTsForToken(
-      [nftToSell],
-      [],
-      [],
-      bidInputAmount,
-      externalTrader.address,
-      false,
-      ethers.constants.AddressZero
-    );
+  await lssvmPairETH.connect(externalTrader).swapNFTsForToken(
+    {
+      ids: [nftToSell],
+      proof: [],
+      proofFlags: [],
+    },
+    bidInputAmount,
+    externalTrader.address,
+    false,
+    ethers.constants.AddressZero
+  );
 }
 
 export async function buyFromPool(
@@ -636,17 +636,17 @@ export async function prepareQuoteValues(
 
   const tx = await (isSell
     ? // Sell to pool
-      pool
-        .connect(trader)
-        .swapNFTsForToken(
-          quantityOrIds as string[],
-          [],
-          [],
-          quote,
-          trader.address,
-          false,
-          ethers.constants.AddressZero
-        )
+      pool.connect(trader).swapNFTsForToken(
+        {
+          ids: quantityOrIds as string[],
+          proof: [],
+          proofFlags: [],
+        },
+        quote,
+        trader.address,
+        false,
+        ethers.constants.AddressZero
+      )
     : isRandom
     ? // Buy random NFTs from pool
       pool

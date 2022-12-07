@@ -65,26 +65,22 @@ contract LinearCurve is ICurve, CurveErrorCodes {
         override
         returns (
             Error error,
-            uint128 newSpotPrice,
-            uint128 newDelta,
-            bytes memory newState,
+            ICurve.Params memory newParams,
             uint256 inputValue,
-            uint256 tradeFee,
-            uint256 protocolFee,
-            uint256[] memory royaltyAmounts
+            ICurve.Fees memory fees
         )
     {
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
 
         // For a linear curve, the spot price increases by delta for each item bought
         uint256 newSpotPrice_ = params.spotPrice + params.delta * numItems;
         if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.SPOT_PRICE_OVERFLOW, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
-        newSpotPrice = uint128(newSpotPrice_);
+        newParams.spotPrice = uint128(newSpotPrice_);
 
         // Spot price is assumed to be the instant sell price. To avoid arbitraging LPs, we adjust the buy price upwards.
         // If spot price for buy and sell were the same, then someone could buy 1 NFT and then sell for immediate profit.
@@ -105,27 +101,30 @@ contract LinearCurve is ICurve, CurveErrorCodes {
             2;
 
         // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
-        protocolFee = inputValue.fmul(
+        fees.protocol = inputValue.fmul(
             feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
 
         // Account for the trade fee, only for Trade pools
-        tradeFee = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
+        fees.trade = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
 
-        // Account for the carry fee, only for Trade pools
-        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-        tradeFee -= carryFee;
-        protocolFee += carryFee;
+        // Locally scoped to avoid stack too deep
+        {
+            // Account for the carry fee, only for Trade pools
+            uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+            fees.trade -= carryFee;
+            fees.protocol += carryFee;
+        }
         
-        royaltyAmounts = new uint256[](numItems);
+        fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems; ) {
             uint256 royaltyAmount = (buySpotPrice + (params.delta * i)).fmul(
                 feeMultipliers.royaltyNumerator,
                 FixedPointMathLib.WAD
             );
-            royaltyAmounts[i] = royaltyAmount;
+            fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
 
             unchecked {
@@ -134,13 +133,13 @@ contract LinearCurve is ICurve, CurveErrorCodes {
         }
 
         // Account for the trade fee (only for Trade pools) and protocol fee
-        inputValue += tradeFee + protocolFee + totalRoyalty;
+        inputValue += fees.trade + fees.protocol + totalRoyalty;
 
         // Keep delta the same
-        newDelta = params.delta;
+        newParams.delta = params.delta;
 
         // Keep state the same
-        newState = params.state;
+        newParams.state = params.state;
 
         // If we got all the way here, no math error happened
         error = Error.OK;
@@ -159,18 +158,14 @@ contract LinearCurve is ICurve, CurveErrorCodes {
         override
         returns (
             Error error,
-            uint128 newSpotPrice,
-            uint128 newDelta,
-            bytes memory newState,
+            ICurve.Params memory newParams,
             uint256 outputValue,
-            uint256 tradeFee,
-            uint256 protocolFee,
-            uint256[] memory royaltyAmounts
+            ICurve.Fees memory fees
         )
     {
         // We only calculate changes for selling 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
 
         // We first calculate the change in spot price after selling all of the items
@@ -179,7 +174,7 @@ contract LinearCurve is ICurve, CurveErrorCodes {
         // If the current spot price is less than the total amount that the spot price should change by...
         if (params.spotPrice < totalPriceDecrease) {
             // Then we set the new spot price to be 0. (Spot price is never negative)
-            newSpotPrice = 0;
+            newParams.spotPrice = 0;
 
             // We calculate how many items we can sell into the linear curve until the spot price reaches 0, rounding up
             uint256 numItemsTillZeroPrice = params.spotPrice / params.delta + 1;
@@ -189,7 +184,7 @@ contract LinearCurve is ICurve, CurveErrorCodes {
         // Thus we don't need to calculate the maximum number of items until we reach zero spot price, so we don't modify numItems
         else {
             // The new spot price is just the change between spot price and the total price change
-            newSpotPrice = params.spotPrice - uint128(totalPriceDecrease);
+            newParams.spotPrice = params.spotPrice - uint128(totalPriceDecrease);
         }
 
         // If we sell n items, then the total sale amount is:
@@ -202,27 +197,27 @@ contract LinearCurve is ICurve, CurveErrorCodes {
             2;
 
         // Account for the protocol fee, a flat percentage of the sell amount, only for Non-Trade pools
-        protocolFee = outputValue.fmul(
+        fees.protocol = outputValue.fmul(
             feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
 
         // Account for the trade fee, only for Trade pools
-        tradeFee = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
+        fees.trade = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
 
         // Account for the carry fee, only for Trade pools
-        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-        tradeFee -= carryFee;
-        protocolFee += carryFee;
+        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        fees.trade -= carryFee;
+        fees.protocol += carryFee;
 
-        royaltyAmounts = new uint256[](numItems);
+        fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems; ) {
             uint256 royaltyAmount = (params.spotPrice - (params.delta * i)).fmul(
                 feeMultipliers.royaltyNumerator,
                 FixedPointMathLib.WAD
             );
-            royaltyAmounts[i] = royaltyAmount;
+            fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
 
             unchecked {
@@ -232,13 +227,13 @@ contract LinearCurve is ICurve, CurveErrorCodes {
 
         // Account for the trade fee (only for Trade pools), protocol fee, and
         // royalties
-        outputValue -= tradeFee + protocolFee + totalRoyalty;
+        outputValue -= fees.trade + fees.protocol + totalRoyalty;
 
         // Keep delta the same
-        newDelta = params.delta;
+        newParams.delta = params.delta;
 
         // Keep state the same
-        newState = params.state;
+        newParams.state = params.state;
 
         // If we reached here, no math errors
         error = Error.OK;

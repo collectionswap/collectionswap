@@ -275,7 +275,7 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
         // skip 1 second so that trades are not in the same timestamp as pair creation
         skip(1);
 
-        (, uint128 newSpotPrice, , , uint256 inputAmount, , , ) = bondingCurve
+        (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -297,14 +297,14 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
             false,
             address(0)
         );
-        spotPrice = uint56(newSpotPrice);
+        spotPrice = uint56(newParams.spotPrice);
     }
 
     function testFail_swapForAnyNFTsPastBalance() public {
         // skip 1 second so that trades are not in the same timestamp as pair creation
         skip(1);
 
-        (, uint128 newSpotPrice, , , uint256 inputAmount, , , ) = bondingCurve
+        (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -324,7 +324,7 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
             false,
             address(0)
         );
-        spotPrice = uint56(newSpotPrice);
+        spotPrice = uint56(newParams.spotPrice);
     }
 
     /**
@@ -350,12 +350,9 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
         {
             (
                 ,
-                uint128 newSpotPrice,
-                ,
-                ,
+                ICurve.Params memory newParams,
                 uint256 inputAmount,
-                ,
-                uint256 protocolFee,
+                ICurve.Fees memory fees
             ) = bondingCurve.getBuyInfo(
                     ICurve.Params(
                         spotPrice,
@@ -366,7 +363,7 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
                     numItems,
                     pair.feeMultipliers()
                 );
-            totalProtocolFee += protocolFee;
+            totalProtocolFee += fees.protocol;
 
             // buy NFTs
             pair.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
@@ -376,7 +373,7 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
                 false,
                 address(0)
             );
-            spotPrice = uint56(newSpotPrice);
+            spotPrice = uint56(newParams.spotPrice);
         }
 
         this.withdrawProtocolFees(factory);

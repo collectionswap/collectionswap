@@ -110,13 +110,9 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
         {
             (
                 ,
-                uint256 newSpotPrice,
-                ,
-                ,
+                ICurve.Params memory newParams,
                 uint256 outputAmount,
-                ,
-                uint256 protocolFee,
-                
+                ICurve.Fees memory fees
             ) = bondingCurve.getSellInfo(
                     ICurve.Params(
                         spotPrice,
@@ -134,26 +130,28 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
                 );
 
             // give the pair contract enough tokens to pay for the NFTs
-            sendTokens(pair, outputAmount + protocolFee);
+            sendTokens(pair, outputAmount + fees.protocol);
 
             // sell NFTs
             test721.setApprovalForAll(address(pair), true);
             startBalance = getBalance(address(this));
             pair.swapNFTsForToken(
-                idList,
-                new bytes32[](0),
-                new bool[](0),
+                ILSSVMPair.NFTs(
+                    idList,
+                    new bytes32[](0),
+                    new bool[](0)
+                ),
                 0,
                 payable(address(this)),
                 false,
                 address(0)
             );
-            spotPrice = uint56(newSpotPrice);
+            spotPrice = uint56(newParams.spotPrice);
         }
 
         // buy back the NFTs just sold to the pair
         {
-            (, , , , uint256 inputAmount, , , ) = bondingCurve.getBuyInfo(
+            (, , uint256 inputAmount, ) = bondingCurve.getBuyInfo(
                 ICurve.Params(
                     spotPrice,
                     delta,
@@ -237,7 +235,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
 
         // buy all NFTs
         {
-            (, uint256 newSpotPrice, , , uint256 inputAmount, , , ) = bondingCurve
+            (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
                 .getBuyInfo(
                     ICurve.Params(
                         spotPrice,
@@ -263,7 +261,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
                 false,
                 address(0)
             );
-            spotPrice = uint56(newSpotPrice);
+            spotPrice = uint56(newParams.spotPrice);
         }
 
         // sell back the NFTs
@@ -284,9 +282,11 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
                 )
             );
             pair.swapNFTsForToken(
-                idList,
-                new bytes32[](0),
-                new bool[](0),
+                ILSSVMPair.NFTs(
+                    idList,
+                    new bytes32[](0),
+                    new bool[](0)
+                ),
                 0,
                 payable(address(this)),
                 false,

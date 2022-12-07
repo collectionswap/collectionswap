@@ -18,8 +18,20 @@ interface ICurve {
     }
 
     /**
+        @param trade The amount of fee to send to the pair, in tokens
+        @param protocol The amount of fee to send to the protocol, in tokens
+        @param royalties The amount to pay for each item in the order they
+        are purchased. Always has length `numItems`.
+    */
+    struct Fees {
+        uint256 trade;
+        uint256 protocol;
+        uint256[] royalties;
+    }
+
+    /**
         @param feeMultiplier Determines how much fee the LP takes from this trade, 18 decimals
-        @param protocolFeeMultiplier Determines how much fee the protocol takes from this trade, 18 decimals
+        @param fees.protocolMultiplier Determines how much fee the protocol takes from this trade, 18 decimals
         @param royaltyNumerator Determines how much of the trade value is awarded as royalties. 5 decimals
         @param carryFeeMultiplier Determines how much carry fee the protocol takes from this trade, 18 decimals
     */
@@ -72,21 +84,16 @@ interface ICurve {
     /**
         @notice Given the current state of the pair and the trade, computes how much the user
         should pay to purchase an NFT from the pair, the new spot price, and other values.
-        @dev Do not try to optimize the length of royaltyAmounts; compiler 
+        @dev Do not try to optimize the length of fees.royalties; compiler
         ^0.8.0 throws a YulException if you try to use an if-guard in the sigmoid
         calculation loop due to stack depth
         @param params Parameters of the pair that affect the bonding curve.
         @param numItems The number of NFTs the user is buying from the pair
         @param feeMultipliers Determines how much fee is taken from this trade.
         @return error Any math calculation errors, only Error.OK means the returned values are valid
-        @return newSpotPrice The updated selling spot price, in tokens
-        @return newDelta The updated delta, used to parameterize the bonding curve
-        @return newState The updated state, used to parameterize the bonding curve
+        @return newParams The updated parameters of the pair that affect the bonding curve.
         @return inputValue The amount that the user should pay, in tokens
-        @return tradeFee The amount of fee to send to the pair, in tokens
-        @return protocolFee The amount of fee to send to the protocol, in tokens
-        @return royaltyAmounts The amount to pay for each item in the order they
-        are purchased. Always has length `numItems`.
+        @return fees The amount of fees
      */
     function getBuyInfo(
         ICurve.Params calldata params,
@@ -97,33 +104,24 @@ interface ICurve {
         view
         returns (
             CurveErrorCodes.Error error,
-            uint128 newSpotPrice,
-            uint128 newDelta,
-            bytes calldata newState,
+            ICurve.Params calldata newParams,
             uint256 inputValue,
-            uint256 tradeFee,
-            uint256 protocolFee,
-            uint256[] memory royaltyAmounts
+            ICurve.Fees calldata fees
         );
 
     /**
         @notice Given the current state of the pair and the trade, computes how much the user
         should receive when selling NFTs to the pair, the new spot price, and other values.
-        @dev Do not try to optimize the length of royaltyAmounts; compiler 
+        @dev Do not try to optimize the length of fees.royalties; compiler
         ^0.8.0 throws a YulException if you try to use an if-guard in the sigmoid
         calculation loop due to stack depth
         @param params Parameters of the pair that affect the bonding curve.
         @param numItems The number of NFTs the user is selling to the pair
         @param feeMultipliers Determines how much fee is taken from this trade.
         @return error Any math calculation errors, only Error.OK means the returned values are valid
-        @return newSpotPrice The updated selling spot price, in tokens
-        @return newDelta The updated delta, used to parameterize the bonding curve
-        @return newState The updated state, used to parameterize the bonding curve
+        @return newParams The updated parameters of the pair that affect the bonding curve.
         @return outputValue The amount that the user should receive, in tokens
-        @return tradeFee The amount of fee to send to the pair, in tokens
-        @return protocolFee The amount of fee to send to the protocol, in tokens
-        @return royaltyAmounts The amount to pay for each item in the order they
-        are purchased. Always has length `numItems`.
+        @return fees The amount of fees
      */
     function getSellInfo(
         ICurve.Params calldata params,
@@ -134,12 +132,8 @@ interface ICurve {
         view
         returns (
             CurveErrorCodes.Error error,
-            uint128 newSpotPrice,
-            uint128 newDelta,
-            bytes calldata newState,
+            ICurve.Params calldata newParams,
             uint256 outputValue,
-            uint256 tradeFee,
-            uint256 protocolFee,
-            uint256[] memory royaltyAmounts
+            ICurve.Fees calldata fees
         );
 }

@@ -94,7 +94,7 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         uint256 numItems = 0;
 
         // act
-        (CurveErrorCodes.Error error, , , , , , , ) = curve.getBuyInfo(
+        (CurveErrorCodes.Error error, , , ) = curve.getBuyInfo(
             ICurve.Params(
                 0,
                 0,
@@ -123,7 +123,7 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         uint256 numItems = 0;
 
         // act
-        (CurveErrorCodes.Error error, , , , , , , ) = curve.getSellInfo(
+        (CurveErrorCodes.Error error, , , ) = curve.getSellInfo(
             ICurve.Params(
                 0,
                 0,
@@ -413,9 +413,11 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
 
         // act
         uint256 outputAmount = ethPair.swapNFTsForToken(
-            idList,
-            new bytes32[](0),
-            new bool[](0),
+            ILSSVMPair.NFTs(
+                idList,
+                new bytes32[](0),
+                new bool[](0)
+            ),
             outputValue,
             payable(address(this)),
             false,

@@ -124,18 +124,14 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         override
         returns (
             Error error,
-            uint128 newSpotPrice,
-            uint128 newDelta,
-            bytes memory newState,
+            ICurve.Params memory newParams,
             uint256 inputValue,
-            uint256 tradeFee,
-            uint256 protocolFee,
-            uint256[] memory royaltyAmounts
+            ICurve.Fees memory fees
         )
     {
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
 
         // Extract information about the state of the pool
@@ -143,8 +139,8 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
 
         // First, set new spotPrice and delta equal to old spotPrice and delta
         // as neither changes for this curve
-        newSpotPrice = params.spotPrice;
-        newDelta = params.delta;
+        newParams.spotPrice = params.spotPrice;
+        newParams.delta = params.delta;
 
         // Next, it is easy to compute the new delta. Only deltaN changes as
         // it is the only stateful variable.
@@ -153,16 +149,16 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // `numItems` fits in a 64 bit unsigned int. Then we can subtract
         // unchecked and manually check if bounds are exceeded
         if (numItems > 0x7FFFFFFFFFFFFFFF) {
-            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
         
         int256 _numItems = int256(numItems);
         // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
         if (!valid64x64Int(deltaN - _numItems)) {
-            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
 
-        newState = encodeState(deltaN - _numItems);
+        newParams.state = encodeState(deltaN - _numItems);
 
         // To avoid arbitrage, buy prices are calculated with deltaN incremented by 1
         // Iterate to calculate values. No closed form expression for discrete
@@ -172,7 +168,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         uint256 itemCost; // The cost of the n-th item
         uint256 itemRoyalty; // The royalty for the n-th item
 
-        royaltyAmounts = new uint256[](numItems);
+        fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
 
         // Buying NFTs means no. of NFTs held by the pool is decreasing
@@ -191,7 +187,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
                 feeMultipliers.royaltyNumerator,
                 FixedPointMathLib.WAD
             );
-            royaltyAmounts[uint256(n) - 1] = itemRoyalty;
+            fees.royalties[uint256(n) - 1] = itemRoyalty;
             totalRoyalty += itemRoyalty;
 
             unchecked {
@@ -200,22 +196,22 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         }
 
         // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
-        protocolFee = inputValue.fmul(
+        fees.protocol = inputValue.fmul(
             feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
 
         // Account for the trade fee, only for Trade pools
-        tradeFee = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
+        fees.trade = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
 
         // Account for the carry fee, only for Trade pools
-        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-        tradeFee -= carryFee;
-        protocolFee += carryFee;
+        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        fees.trade -= carryFee;
+        fees.protocol += carryFee;
 
         // Account for the trade fee (only for Trade pools), protocol fee, and
         // royalties
-        inputValue += tradeFee + protocolFee + totalRoyalty;
+        inputValue += fees.trade + fees.protocol + totalRoyalty;
 
         // If we got all the way here, no math error happened
         // Error defaults to Error.OK, no need assignment
@@ -233,18 +229,14 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         pure
         returns (
             CurveErrorCodes.Error error,
-            uint128 newSpotPrice,
-            uint128 newDelta,
-            bytes memory newState,
+            ICurve.Params memory newParams,
             uint256 outputValue,
-            uint256 tradeFee,
-            uint256 protocolFee,
-            uint256[] memory royaltyAmounts
+            ICurve.Fees memory fees
         )
     {
         // We only calculate changes for selling 1 or more NFTs.
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
 
         // Extract information about the state of the pool
@@ -252,8 +244,8 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
 
         // First, set new spotPrice and delta equal to old spotPrice and delta
         // as neither changes for this curve
-        newSpotPrice = params.spotPrice;
-        newDelta = params.delta;
+        newParams.spotPrice = params.spotPrice;
+        newParams.delta = params.delta;
 
         // Next, it is easy to compute the new delta. Only deltaN changes as
         // it is the only stateful variable.
@@ -262,16 +254,16 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // `numItems` fits in a 64 bit unsigned int. Then we can subtract
         // unchecked and manually check if bounds are exceeded
         if (numItems > 0x7FFFFFFFFFFFFFFF) {
-            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
         
         int256 _numItems = int256(numItems);
         // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
         if (!valid64x64Int(deltaN + _numItems)) {
-            return (Error.TOO_MANY_ITEMS, 0, 0, "", 0, 0, 0, new uint256[](0));
+            return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
 
-        newState = encodeState(deltaN + _numItems);
+        newParams.state = encodeState(deltaN + _numItems);
 
         // Iterate to calculate values. No closed form expression for discrete
         // sigmoid steps
@@ -280,7 +272,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         uint256 itemCost; // The cost of the n-th item
         uint256 itemRoyalty; // The royalty for the n-th item
 
-        royaltyAmounts = new uint256[](numItems);
+        fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
 
         // Selling NFTs means no. of NFTs is increasing
@@ -299,7 +291,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
                 feeMultipliers.royaltyNumerator,
                 FixedPointMathLib.WAD
             );
-            royaltyAmounts[uint256(n) - 1] = itemRoyalty;
+            fees.royalties[uint256(n) - 1] = itemRoyalty;
             totalRoyalty += itemRoyalty;
 
             unchecked {
@@ -308,22 +300,22 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         }
 
         // Account for the protocol fee, a flat percentage of the sell amount, only for Non-Trade pools
-        protocolFee = outputValue.fmul(
+        fees.protocol = outputValue.fmul(
             feeMultipliers.protocol,
             FixedPointMathLib.WAD
         );
 
         // Account for the trade fee, only for Trade pools
-        tradeFee = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
+        fees.trade = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
 
         // Account for the carry fee, only for Trade pools
-        uint256 carryFee = tradeFee.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-        tradeFee -= carryFee;
-        protocolFee += carryFee;
+        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        fees.trade -= carryFee;
+        fees.protocol += carryFee;
         
         // Account for the trade fee (only for Trade pools), protocol fee, and
         // royalties
-        outputValue -= tradeFee + protocolFee + totalRoyalty;
+        outputValue -= fees.trade + fees.protocol + totalRoyalty;
 
         // If we reached here, no math errors
         // Error defaults to Error.OK, no need assignment

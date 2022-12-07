@@ -30,12 +30,9 @@ contract ExponentialCurveTest is DSTest {
         uint256 royaltyNumerator = 0;
         (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            uint256 newDelta,
-            ,
+            ICurve.Params memory newParams,
             uint256 inputValue,
-            ,
-            uint256 protocolFee,
+            ICurve.Fees memory fees
         ) = curve.getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -56,10 +53,10 @@ contract ExponentialCurveTest is DSTest {
             uint256(CurveErrorCodes.Error.OK),
             "Error code not OK"
         );
-        assertEq(newSpotPrice, 96 ether, "Spot price incorrect");
-        assertEq(newDelta, 2 ether, "Delta incorrect");
+        assertEq(newParams.spotPrice, 96 ether, "Spot price incorrect");
+        assertEq(newParams.delta, 2 ether, "Delta incorrect");
         assertEq(inputValue, 187.488 ether, "Input value incorrect");
-        assertEq(protocolFee, 0.558 ether, "Protocol fee incorrect");
+        assertEq(fees.protocol, 0.558 ether, "Protocol fee incorrect");
     }
 
     function test_getBuyInfoWithoutFee(
@@ -78,12 +75,9 @@ contract ExponentialCurveTest is DSTest {
 
         (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            uint256 newDelta,
-            ,
+            ICurve.Params memory newParams,
             uint256 inputValue,
-            ,
-            ,
+
         ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         uint256 deltaPowN = uint256(delta).fpow(
             numItems,
@@ -108,9 +102,9 @@ contract ExponentialCurveTest is DSTest {
 
             if (spotPrice > 0 && numItems > 0) {
                 assertTrue(
-                    (newSpotPrice > spotPrice &&
+                    (newParams.spotPrice > spotPrice &&
                         delta > FixedPointMathLib.WAD) ||
-                        (newSpotPrice == spotPrice &&
+                        (newParams.spotPrice == spotPrice &&
                             delta == FixedPointMathLib.WAD),
                     "Price update incorrect"
                 );
@@ -133,12 +127,9 @@ contract ExponentialCurveTest is DSTest {
         uint256 royaltyNumerator = 0;
         (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            uint256 newDelta,
-            ,
+            ICurve.Params memory newParams,
             uint256 outputValue,
-            ,
-            uint256 protocolFee,
+            ICurve.Fees memory fees
         ) = curve.getSellInfo(
                 ICurve.Params(
                     spotPrice,
@@ -159,10 +150,10 @@ contract ExponentialCurveTest is DSTest {
             uint256(CurveErrorCodes.Error.OK),
             "Error code not OK"
         );
-        assertEq(newSpotPrice, 0.09375 ether, "Spot price incorrect");
-        assertEq(newDelta, 2 ether, "Delta incorrect");
+        assertEq(newParams.spotPrice, 0.09375 ether, "Spot price incorrect");
+        assertEq(newParams.delta, 2 ether, "Delta incorrect");
         assertEq(outputValue, 5.766 ether, "Output value incorrect");
-        assertEq(protocolFee, 0.0174375 ether, "Protocol fee incorrect");
+        assertEq(fees.protocol, 0.0174375 ether, "Protocol fee incorrect");
     }
 
     function test_getSellInfoWithoutFee(
@@ -180,12 +171,9 @@ contract ExponentialCurveTest is DSTest {
 
         (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            ,
-            ,
+            ICurve.Params memory newParams,
             uint256 outputValue,
-            ,
-            ,
+
         ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         assertEq(
             uint256(error),
@@ -195,8 +183,8 @@ contract ExponentialCurveTest is DSTest {
 
         if (spotPrice > MIN_PRICE && numItems > 0) {
             assertTrue(
-                (newSpotPrice < spotPrice && delta > 0) ||
-                    (newSpotPrice == spotPrice && delta == 0),
+                (newParams.spotPrice < spotPrice && delta > 0) ||
+                    (newParams.spotPrice == spotPrice && delta == 0),
                 "Price update incorrect"
             );
         }

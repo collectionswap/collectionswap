@@ -222,17 +222,17 @@ describe("LSSVMPairETH", function () {
     await expectAddressToOwnNFTs(user1.address, nft, nftTokenIds);
 
     // The pair should now own the nft, and transfers ETH to the seller
-    const sellTx = lssvmPairETH
-      .connect(user1)
-      .swapNFTsForToken(
-        nftTokenIds,
-        [],
-        [],
-        outputAmount,
-        user1.address,
-        false,
-        ethers.constants.AddressZero
-      );
+    const sellTx = lssvmPairETH.connect(user1).swapNFTsForToken(
+      {
+        ids: nftTokenIds,
+        proof: [],
+        proofFlags: [],
+      },
+      outputAmount,
+      user1.address,
+      false,
+      ethers.constants.AddressZero
+    );
     expect(
       await changesEtherBalancesFuzzy(
         sellTx,
@@ -362,17 +362,17 @@ describe("LSSVMPairETH", function () {
     });
 
     // The pair should now own the nft, and transfers ETH to the seller
-    const sellTx = await lssvmPairETH
-      .connect(user1)
-      .swapNFTsForToken(
-        nftTokenIds,
-        [],
-        [],
-        outputAmount,
-        user1.address,
-        false,
-        ethers.constants.AddressZero
-      );
+    const sellTx = await lssvmPairETH.connect(user1).swapNFTsForToken(
+      {
+        ids: nftTokenIds,
+        proof: [],
+        proofFlags: [],
+      },
+      outputAmount,
+      user1.address,
+      false,
+      ethers.constants.AddressZero
+    );
     expect(
       await changesEtherBalancesFuzzy(
         sellTx,
@@ -440,17 +440,17 @@ describe("LSSVMPairETH", function () {
     expect(await nft.ownerOf(nftTokenIds[0])).to.equal(user1.address);
 
     // The pair should now own the nft, and transfers ETH to the seller
-    const sellTx = await lssvmPairETH
-      .connect(user1)
-      .swapNFTsForToken(
-        [nftTokenIds[0]],
-        [],
-        [],
-        outputAmount,
-        user1.address,
-        false,
-        ethers.constants.AddressZero
-      );
+    const sellTx = await lssvmPairETH.connect(user1).swapNFTsForToken(
+      {
+        ids: [nftTokenIds[0]],
+        proof: [],
+        proofFlags: [],
+      },
+      outputAmount,
+      user1.address,
+      false,
+      ethers.constants.AddressZero
+    );
 
     console.log(tradeFee);
     expect(
@@ -483,17 +483,17 @@ describe("LSSVMPairETH", function () {
       protocolFee,
     ] = await lssvmPairETH.getSellNFTQuote(1);
     await expect(
-      lssvmPairETH
-        .connect(user1)
-        .swapNFTsForToken(
-          [nftTokenIds[1]],
-          [],
-          [],
-          outputAmount,
-          user1.address,
-          false,
-          ethers.constants.AddressZero
-        )
+      lssvmPairETH.connect(user1).swapNFTsForToken(
+        {
+          ids: [nftTokenIds[1]],
+          proof: [],
+          proofFlags: [],
+        },
+        outputAmount,
+        user1.address,
+        false,
+        ethers.constants.AddressZero
+      )
     ).to.be.revertedWith("Too little ETH");
   });
 
@@ -608,17 +608,17 @@ describe("LSSVMPairETH", function () {
       await expectAddressToOwnNFTs(user1.address, nft, nftTokenIds);
 
       // The pair should now own the nft, and transfers ETH to the seller
-      const sellTx = await lssvmPairETH
-        .connect(user1)
-        .swapNFTsForToken(
-          nftTokenIds,
-          [],
-          [],
-          outputAmount,
-          user1.address,
-          false,
-          ethers.constants.AddressZero
-        );
+      const sellTx = await lssvmPairETH.connect(user1).swapNFTsForToken(
+        {
+          ids: nftTokenIds,
+          proof: [],
+          proofFlags: [],
+        },
+        outputAmount,
+        user1.address,
+        false,
+        ethers.constants.AddressZero
+      );
       expect(
         await changesEtherBalancesFuzzy(
           sellTx,
