@@ -93,6 +93,9 @@ contract TokenIDFilterTest is Test {
 contract TokenIDFilterHugeTest is Test {
     TokenIDFilterMock filter;
 
+    address collection = address(1);
+    bytes data = "";
+
     function setUp() public {
         filter = new TokenIDFilterMock();
     }

@@ -8,6 +8,10 @@ contract TokenIDFilterMock is TokenIDFilter {
         _setRootAndEmitAcceptedIDs(collection, _merkleRoot, data);
     }
 
+    function emitTokenIDs(address collection, bytes calldata data) public {
+        _emitTokenIDs(collection, data);
+    }
+
     function acceptsTokenID(uint256 tokenID, bytes32[] calldata proof) public view returns (bool) {
         return _acceptsTokenID(tokenID, proof);
     }

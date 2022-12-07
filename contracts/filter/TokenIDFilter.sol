@@ -34,6 +34,10 @@ contract TokenIDFilter is ITokenIDFilter {
         return MerkleProof.verifyCalldata(proof, tokenIDFilterRoot, leaf);
     }
 
+    function _emitTokenIDs(address collection, bytes calldata data) internal {
+        emit AcceptsTokenIDs(collection, tokenIDFilterRoot, data);
+    }
+
     function _acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags)
     internal view returns (bool)
     {

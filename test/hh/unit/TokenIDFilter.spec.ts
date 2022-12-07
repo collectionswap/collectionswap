@@ -14,12 +14,12 @@ const hash = data => keccak256(keccak256(data));
 describe("TokenIDFilter", function () {
   const { BigNumber } = ethers;
 
-  let owner, TokenIDFilterMock, tokenIDFilterMock;
-  let collection = owner;
-  let data = hash(owner);
+  let collection, data, owner, TokenIDFilterMock, tokenIDFilterMock;
 
   beforeEach(async function () {
     [ owner ] = await ethers.getSigners();
+    collection = owner.address;
+    data = hash(owner.address);
 
     TokenIDFilterMock = await ethers.getContractFactory("TokenIDFilterMock");
     tokenIDFilterMock = await TokenIDFilterMock.connect(owner).deploy();
