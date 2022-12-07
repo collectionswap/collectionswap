@@ -6,8 +6,10 @@ import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Hol
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {RoyaltyRegistry} from "@manifoldxyz/royalty-registry-solidity/contracts/RoyaltyRegistry.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
+import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
 import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
@@ -23,6 +25,7 @@ import {RouterCaller} from "../mixins/RouterCaller.sol";
 
 // Gives more realistic scenarios where swaps have to go through multiple pools, for more accurate gas profiling
 abstract contract RouterMultiPoolWithRoyalties is
+    StdCheats,
     DSTest,
     ERC721Holder,
     ConfigurableWithRoyalties,
@@ -90,7 +93,7 @@ abstract contract RouterMultiPoolWithRoyalties is
                 test721,
                 bondingCurve,
                 payable(address(0)),
-                LSSVMPair.PoolType.TRADE,
+                ILSSVMPair.PoolType.TRADE,
                 modifyDelta(0),
                 0,
                 uint128(i * 1 ether),
@@ -99,6 +102,9 @@ abstract contract RouterMultiPoolWithRoyalties is
                 address(router)
             );
         }
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
     }
 
     function test_swapTokenForAny5NFTs() public {
@@ -158,7 +164,9 @@ abstract contract RouterMultiPoolWithRoyalties is
             nftIds[0] = i + 1;
             swapList[i] = LSSVMRouter.PairSwapSpecific({
                 pair: pairs[i + 1],
-                nftIds: nftIds
+                nftIds: nftIds,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             });
         }
         uint256 startBalance = test721.balanceOf(address(this));
@@ -200,7 +208,9 @@ abstract contract RouterMultiPoolWithRoyalties is
             nftIds[0] = i + 6;
             swapList[i] = LSSVMRouter.PairSwapSpecific({
                 pair: pairs[i + 1],
-                nftIds: nftIds
+                nftIds: nftIds,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             });
         }
         uint256 startBalance = test721.balanceOf(address(this));

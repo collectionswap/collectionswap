@@ -9,6 +9,9 @@ typechain-types
 cache
 artifacts
 
+#Foundry files
+out
+
 .DS_Store
 .idea
 Makefile

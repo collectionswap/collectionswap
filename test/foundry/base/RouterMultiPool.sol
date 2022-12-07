@@ -4,8 +4,10 @@ pragma solidity ^0.8.0;
 import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
+import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
 import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
@@ -21,6 +23,7 @@ import {RouterCaller} from "../mixins/RouterCaller.sol";
 
 // Gives more realistic scenarios where swaps have to go through multiple pools, for more accurate gas profiling
 abstract contract RouterMultiPool is
+    StdCheats,
     DSTest,
     ERC721Holder,
     Configurable,
@@ -79,7 +82,7 @@ abstract contract RouterMultiPool is
                 test721,
                 bondingCurve,
                 payable(address(0)),
-                LSSVMPair.PoolType.TRADE,
+                ILSSVMPair.PoolType.TRADE,
                 modifyDelta(0),
                 0,
                 uint128(i * 1 ether),
@@ -88,6 +91,9 @@ abstract contract RouterMultiPool is
                 address(router)
             );
         }
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
     }
 
     function test_swapTokenForAny5NFTs() public {
@@ -130,7 +136,9 @@ abstract contract RouterMultiPool is
             nftIds[0] = i + 1;
             swapList[i] = LSSVMRouter.PairSwapSpecific({
                 pair: pairs[i + 1],
-                nftIds: nftIds
+                nftIds: nftIds,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             });
         }
         uint256 startBalance = test721.balanceOf(address(this));
@@ -162,7 +170,9 @@ abstract contract RouterMultiPool is
             nftIds[0] = i + 6;
             swapList[i] = LSSVMRouter.PairSwapSpecific({
                 pair: pairs[i + 1],
-                nftIds: nftIds
+                nftIds: nftIds,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             });
         }
         uint256 startBalance = test721.balanceOf(address(this));

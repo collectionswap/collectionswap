@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
+import {ILSSVMPairFactory} from "../../../contracts/ILSSVMPairFactory.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
 import {LSSVMRouter} from "../../../contracts/LSSVMRouter.sol";
@@ -42,10 +43,11 @@ abstract contract UsingETH is Configurable, RouterCaller {
         uint256,
         address
     ) public payable override returns (LSSVMPair) {
-        LSSVMPairFactory.CreateETHPairParams memory params = LSSVMPairFactory.CreateETHPairParams(
+        ILSSVMPairFactory.CreateETHPairParams memory params = ILSSVMPairFactory.CreateETHPairParams(
             nft,
             bondingCurve,
             assetRecipient,
+            address(this),
             poolType,
             delta,
             fee,
@@ -53,12 +55,13 @@ abstract contract UsingETH is Configurable, RouterCaller {
             "",
             "",
             0,
+            payable(0),
             _idList
         );
-        LSSVMPairETH pair = factory.createPairETH{value: msg.value}(
+        (address pairAddress, ) = factory.createPairETH{value: msg.value}(
             params
         );
-        return pair;
+        return LSSVMPairETH(payable(pairAddress));
     }
 
     function withdrawTokens(LSSVMPair pair) public override {

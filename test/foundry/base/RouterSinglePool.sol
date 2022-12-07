@@ -4,8 +4,10 @@ pragma solidity ^0.8.0;
 import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
+import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
 import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
@@ -20,6 +22,7 @@ import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
 
 abstract contract RouterSinglePool is
+    StdCheats,
     DSTest,
     ERC721Holder,
     Configurable,
@@ -74,7 +77,7 @@ abstract contract RouterSinglePool is
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             modifyDelta(uint64(delta)),
             0,
             spotPrice,
@@ -87,6 +90,9 @@ abstract contract RouterSinglePool is
         for (uint256 i = numInitialNFTs + 1; i <= 2 * numInitialNFTs; i++) {
             test721.mint(address(this), i);
         }
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
     }
 
     function test_swapTokenForSingleAnyNFT() public {
@@ -112,7 +118,9 @@ abstract contract RouterSinglePool is
             memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
         swapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: nftIds
+            nftIds: nftIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
         uint256 inputAmount;
         (, , , , inputAmount, , ) = pair.getBuyNFTQuote(1);
@@ -134,7 +142,9 @@ abstract contract RouterSinglePool is
             memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
         swapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: nftIds
+            nftIds: nftIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
         router.swapNFTsForToken(
             swapList,
@@ -153,7 +163,9 @@ abstract contract RouterSinglePool is
                 memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
             swapList[0] = LSSVMRouter.PairSwapSpecific({
                 pair: pair,
-                nftIds: nftIds
+                nftIds: nftIds,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             });
             router.swapNFTsForToken(
                 swapList,
@@ -172,7 +184,9 @@ abstract contract RouterSinglePool is
             memory nftToTokenSwapList = new LSSVMRouter.PairSwapSpecific[](1);
         nftToTokenSwapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: sellNFTIds
+            nftIds: sellNFTIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
 
         // construct Token to NFT swap list
@@ -209,7 +223,9 @@ abstract contract RouterSinglePool is
             memory nftToTokenSwapList = new LSSVMRouter.PairSwapSpecific[](1);
         nftToTokenSwapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: sellNFTIds
+            nftIds: sellNFTIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
 
         // construct token to NFT swap list
@@ -219,7 +235,9 @@ abstract contract RouterSinglePool is
             memory tokenToNFTSwapList = new LSSVMRouter.PairSwapSpecific[](1);
         tokenToNFTSwapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: buyNFTIds
+            nftIds: buyNFTIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
 
         // NOTE: We send some tokens (more than enough) to cover the protocol fee
@@ -270,7 +288,9 @@ abstract contract RouterSinglePool is
         nftIds[4] = 5;
         swapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: nftIds
+            nftIds: nftIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
@@ -297,7 +317,9 @@ abstract contract RouterSinglePool is
             memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
         swapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: nftIds
+            nftIds: nftIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
         router.swapNFTsForToken(
             swapList,
@@ -331,7 +353,9 @@ abstract contract RouterSinglePool is
             memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
         swapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: nftIds
+            nftIds: nftIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
         uint256 inputAmount;
         (, , , , inputAmount, , ) = pair.getBuyNFTQuote(1);
@@ -353,7 +377,9 @@ abstract contract RouterSinglePool is
             memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
         swapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: nftIds
+            nftIds: nftIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
         uint256 sellAmount;
         (, , , , sellAmount, , ) = pair.getSellNFTQuote(1);
@@ -396,7 +422,9 @@ abstract contract RouterSinglePool is
             memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
         swapList[0] = LSSVMRouter.PairSwapSpecific({
             pair: pair,
-            nftIds: nftIds
+            nftIds: nftIds,
+            proof: new bytes32[](0),
+            proofFlags: new bool[](0)
         });
         uint256 sellAmount;
         (, , , , sellAmount, , ) = pair.getSellNFTQuote(1);

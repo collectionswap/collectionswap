@@ -78,7 +78,7 @@ abstract contract RouterPartialFill is
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -155,7 +155,9 @@ abstract contract RouterPartialFill is
             buyList[0] = LSSVMRouter2.PairSwapSpecificPartialFill({
                 swapInfo: LSSVMRouter2.PairSwapSpecific({
                     pair: pair,
-                    nftIds: ids
+                    nftIds: ids,
+                    proof: new bytes32[](0),
+                    proofFlags: new bool[](0)
                 }),
                 expectedSpotPrice: SPOT_PRICE,
                 maxCostPerNumNFTs: partialFillPrices
@@ -233,7 +235,9 @@ abstract contract RouterPartialFill is
             buyList[0] = LSSVMRouter2.PairSwapSpecificPartialFill({
                 swapInfo: LSSVMRouter2.PairSwapSpecific({
                     pair: pair,
-                    nftIds: ids
+                    nftIds: ids,
+                    proof: new bytes32[](0),
+                    proofFlags: new bool[](0)
                 }),
                 expectedSpotPrice: SPOT_PRICE,
                 maxCostPerNumNFTs: partialFillPrices
@@ -263,7 +267,9 @@ abstract contract RouterPartialFill is
             initialBuyList[0] = LSSVMRouter2.RobustPairSwapSpecific({
                 swapInfo: LSSVMRouter2.PairSwapSpecific({
                     pair: pair,
-                    nftIds: nftIdsToBuyFirst
+                    nftIds: nftIdsToBuyFirst,
+                    proof: new bytes32[](0),
+                    proofFlags: new bool[](0)
                 }),
                 maxCost: initialQuote
             });
@@ -344,7 +350,9 @@ abstract contract RouterPartialFill is
             buyList[0] = LSSVMRouter2.PairSwapSpecificPartialFill({
                 swapInfo: LSSVMRouter2.PairSwapSpecific({
                     pair: pair,
-                    nftIds: ids
+                    nftIds: ids,
+                    proof: new bytes32[](0),
+                    proofFlags: new bool[](0)
                 }),
                 expectedSpotPrice: SPOT_PRICE,
                 maxCostPerNumNFTs: partialFillPrices
@@ -430,7 +438,9 @@ abstract contract RouterPartialFill is
             buyList[0] = LSSVMRouter2.PairSwapSpecificPartialFill({
                 swapInfo: LSSVMRouter2.PairSwapSpecific({
                     pair: pair,
-                    nftIds: ids
+                    nftIds: ids,
+                    proof: new bytes32[](0),
+                    proofFlags: new bool[](0)
                 }),
                 expectedSpotPrice: SPOT_PRICE-1,
                 maxCostPerNumNFTs: partialFillPrices

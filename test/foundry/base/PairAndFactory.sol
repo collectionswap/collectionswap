@@ -3,11 +3,13 @@ pragma solidity ^0.8.0;
 
 import {DSTest} from "../lib/ds-test/test.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
 import {Test20} from "../../../contracts/mocks/Test20.sol";
+import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
 import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
@@ -19,12 +21,11 @@ import {LSSVMPairMissingEnumerableERC20} from "../../../contracts/LSSVMPairMissi
 import {Configurable} from "../mixins/Configurable.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {Test721} from "../../../contracts/mocks/Test721.sol";
-import {TestPairManager} from "../../../contracts/mocks/TestPairManager.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {Test1155} from "../../../contracts/mocks/Test1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
-abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155Holder {
+abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurable, ERC1155Holder {
     uint128 delta = 1.1 ether;
     uint128 spotPrice = 1 ether;
     uint256 tokenAmount = 10 ether;
@@ -40,7 +41,6 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     uint256 constant carryFeeMultiplier = 3e15;
     uint256 constant royaltyNumerator = 500;
     LSSVMPair pair;
-    TestPairManager pairManager;
 
     function setUp() public {
         bondingCurve = setupCurve();
@@ -70,7 +70,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -81,7 +81,6 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
         test1155 = new Test1155();
         testERC20 = ERC20(address(new Test20()));
         IMintable(address(testERC20)).mint(address(pair), 1 ether);
-        pairManager = new TestPairManager();
     }
 
     function testGas_basicDeploy() public {
@@ -91,7 +90,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -106,22 +105,17 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
      */
 
     function test_transferOwnership() public {
-        pair.transferOwnership(payable(address(2)));
+        transferOwnership(payable(address(2)));
         assertEq(pair.owner(), address(2));
     }
 
-    function test_transferCallback() public {
-        pair.transferOwnership(address(pairManager));
-        assertEq(pairManager.prevOwner(), address(this));
-    }
-
     function testGas_transferNoCallback() public {
-        pair.transferOwnership(address(pair));
+        transferOwnership(address(pair));
     }
 
     function testFail_transferOwnership() public {
-        pair.transferOwnership(address(1000));
-        pair.transferOwnership(payable(address(2)));
+        transferOwnership(address(1000));
+        transferOwnership(payable(address(2)));
     }
 
     function test_rescueTokens() public {
@@ -141,7 +135,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
         // verify pair variables
         assertEq(address(pair.nft()), address(test721));
         assertEq(address(pair.bondingCurve()), address(bondingCurve));
-        assertEq(uint256(pair.poolType()), uint256(LSSVMPair.PoolType.TRADE));
+        assertEq(uint256(pair.poolType()), uint256(ILSSVMPair.PoolType.TRADE));
         assertEq(pair.delta(), delta);
         assertEq(pair.spotPrice(), spotPrice);
         assertEq(pair.owner(), address(this));
@@ -199,7 +193,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_withdraw() public {
-        pair.transferOwnership(address(1000));
+        transferOwnership(address(1000));
         withdrawTokens(pair);
     }
 
@@ -245,7 +239,7 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
      */
 
     function testFail_rescueTokensNotOwner() public {
-        pair.transferOwnership(address(1000));
+        transferOwnership(address(1000));
         pair.withdrawERC721(test721, idList);
         pair.withdrawERC20(testERC20, 1 ether);
     }
@@ -259,25 +253,28 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_changeSpotNotOwner() public {
-        pair.transferOwnership(address(1000));
+        transferOwnership(address(1000));
         pair.changeSpotPrice(2 ether);
     }
 
     function testFail_changeDeltaNotOwner() public {
-        pair.transferOwnership(address(1000));
+        transferOwnership(address(1000));
         pair.changeDelta(2.2 ether);
     }
 
     function testFail_changeFeeNotOwner() public {
-        pair.transferOwnership(address(1000));
+        transferOwnership(address(1000));
         pair.changeFee(0.2 ether);
     }
 
     function testFail_reInitPool() public {
-        pair.initialize(address(0), payable(address(0)), 0, 0, 0, "", "", 0);
+        pair.initialize(0, payable(address(0)), 0, 0, 0, "", "", 0, payable(address(0)));
     }
 
     function testFail_swapForNFTNotInPool() public {
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
+
         (, uint128 newSpotPrice, , , uint256 inputAmount, , , ) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
@@ -304,6 +301,9 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function testFail_swapForAnyNFTsPastBalance() public {
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
+
         (, uint128 newSpotPrice, , , uint256 inputAmount, , , ) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
@@ -337,6 +337,9 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     }
 
     function test_withdrawFees() public {
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
+
         uint256 totalProtocolFee;
         uint256 factoryEndBalance;
         uint256 factoryStartBalance = getBalance(address(69));
@@ -385,5 +388,10 @@ abstract contract PairAndFactory is DSTest, ERC721Holder, Configurable, ERC1155H
     function test_changeFeeMultiplier() public {
         factory.changeProtocolFeeMultiplier(5e15);
         assertEq(factory.protocolFeeMultiplier(), 5e15);
+    }
+
+    function transferOwnership(address newOwner) internal {
+        IERC721(address(pair.factory())).approve(address(pair), pair.tokenId());
+        pair.transferOwnership(payable(newOwner));
     }
 }

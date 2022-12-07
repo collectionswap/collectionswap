@@ -4,9 +4,11 @@ pragma solidity ^0.8.0;
 import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 
 import {LinearCurve} from "../../../contracts/bonding-curves/LinearCurve.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
+import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
 import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
@@ -22,6 +24,7 @@ import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
 
 abstract contract RouterRobustSwap is
+    StdCheats,
     DSTest,
     ERC721Holder,
     Configurable,
@@ -80,7 +83,7 @@ abstract contract RouterRobustSwap is
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             modifyDelta(0),
             0,
             0.1 ether,
@@ -99,7 +102,7 @@ abstract contract RouterRobustSwap is
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             modifyDelta(0),
             0,
             0.2 ether,
@@ -118,7 +121,7 @@ abstract contract RouterRobustSwap is
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             modifyDelta(0),
             0,
             0.3 ether,
@@ -137,6 +140,9 @@ abstract contract RouterRobustSwap is
             test721.mint(address(this), nftIndex);
             nftIndex++;
         }
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
     }
 
     // Test where pair 1 and pair 2 swap tokens for NFT succeed but pair 3 fails
@@ -209,21 +215,27 @@ abstract contract RouterRobustSwap is
         swapList[0] = LSSVMRouter.RobustPairSwapSpecific({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair1,
-                nftIds: nftIds1
+                nftIds: nftIds1,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             maxCost: pair2InputAmount
         });
         swapList[1] = LSSVMRouter.RobustPairSwapSpecific({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair2,
-                nftIds: nftIds2
+                nftIds: nftIds2,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             maxCost: pair2InputAmount
         });
         swapList[2] = LSSVMRouter.RobustPairSwapSpecific({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair3,
-                nftIds: nftIds3
+                nftIds: nftIds3,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             maxCost: pair2InputAmount
         });
@@ -278,21 +290,27 @@ abstract contract RouterRobustSwap is
         swapList[0] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair1,
-                nftIds: nftIds1
+                nftIds: nftIds1,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: pair2OutputAmount
         });
         swapList[1] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair2,
-                nftIds: nftIds2
+                nftIds: nftIds2,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: pair2OutputAmount
         });
         swapList[2] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair3,
-                nftIds: nftIds3
+                nftIds: nftIds3,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: pair2OutputAmount
         });
@@ -340,21 +358,27 @@ abstract contract RouterRobustSwap is
         swapList[0] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair1,
-                nftIds: nftIds1
+                nftIds: nftIds1,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: pair2OutputAmount
         });
         swapList[1] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair2,
-                nftIds: nftIds2
+                nftIds: nftIds2,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: pair2OutputAmount
         });
         swapList[2] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair3,
-                nftIds: nftIds3
+                nftIds: nftIds3,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: pair2OutputAmount
         });
@@ -396,7 +420,9 @@ abstract contract RouterRobustSwap is
         tokenToNFTSwapList[0] = LSSVMRouter.RobustPairSwapSpecific({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair1,
-                nftIds: nftIds1
+                nftIds: nftIds1,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             maxCost: pair1InputAmount
         });
@@ -412,7 +438,9 @@ abstract contract RouterRobustSwap is
         nftToTokenSwapList[0] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: pair2,
-                nftIds: nftIds2
+                nftIds: nftIds2,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: pair2OutputAmount
         });

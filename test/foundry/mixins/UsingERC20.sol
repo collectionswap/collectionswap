@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 
 import {NoArbBondingCurve} from "../base/NoArbBondingCurve.sol";
+import {ILSSVMPairFactory} from "../../../contracts/ILSSVMPairFactory.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
 import {LSSVMRouter} from "../../../contracts/LSSVMRouter.sol";
@@ -60,12 +61,13 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         IMintable(address(test20)).mint(address(this), 1000 ether);
 
         // initialize the pair
-        LSSVMPair pair = factory.createPairERC20(
-            LSSVMPairFactory.CreateERC20PairParams(
+        (address pairAddress, ) = factory.createPairERC20(
+            ILSSVMPairFactory.CreateERC20PairParams(
                 test20,
                 nft,
                 bondingCurve,
                 assetRecipient,
+                address(this),
                 poolType,
                 delta,
                 fee,
@@ -73,15 +75,16 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
                 "",
                 "",
                 0,
+                payable(0),
                 _idList,
                 initialTokenBalance
             )
         );
 
         // Set approvals for pair
-        test20.approve(address(pair), type(uint256).max);
+        test20.approve(pairAddress, type(uint256).max);
 
-        return pair;
+        return LSSVMPair(pairAddress);
     }
 
     function withdrawTokens(LSSVMPair pair) public override {

@@ -2,11 +2,14 @@
 pragma solidity ^0.8.0;
 
 import {DSTest} from "../lib/ds-test/test.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {XykCurve} from "../../../contracts/bonding-curves/XykCurve.sol";
 import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
+import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
+import {ILSSVMPairFactory} from "../../../contracts/ILSSVMPairFactory.sol";
 import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
 import {LSSVMPairEnumerableETH} from "../../../contracts/LSSVMPairEnumerableETH.sol";
 import {LSSVMPairMissingEnumerableETH} from "../../../contracts/LSSVMPairMissingEnumerableETH.sol";
@@ -21,7 +24,7 @@ import {Test721} from "../../../contracts/mocks/Test721.sol";
 
 import {Hevm} from "../utils/Hevm.sol";
 
-contract XykCurveTest is DSTest, ERC721Holder {
+contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
     using FixedPointMathLib for uint256;
 
     uint256 constant MIN_PRICE = 1 gwei;
@@ -66,21 +69,24 @@ contract XykCurveTest is DSTest, ERC721Holder {
             idList[i - 1] = i;
         }
 
-        ethPair = factory.createPairETH{value: value}(
-            LSSVMPairFactory.CreateETHPairParams(
+        (address ethPairAddress, ) = factory.createPairETH{value: value}(
+            ILSSVMPairFactory.CreateETHPairParams(
                 nft,
                 curve,
                 payable(0),
-                LSSVMPair.PoolType.TRADE,
+                address(this),
+                ILSSVMPair.PoolType.TRADE,
                 uint128(numNfts),
                 0,
                 uint128(value),
                 "",
                 "",
                 0,
+                payable(0),
                 idList
             )
         );
+        ethPair = LSSVMPair(ethPairAddress);
     }
 
     function test_getBuyInfoCannotHave0NumItems() public {
@@ -270,7 +276,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
         setUpEthPair(numNfts, value);
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         uint256 numItemsToBuy = 3;
-        uint256 expectedProtocolFee = ethPair.poolType() == LSSVMPair.PoolType.TRADE
+        uint256 expectedProtocolFee = ethPair.poolType() == ILSSVMPair.PoolType.TRADE
             ? 0
             : (2 * ((numItemsToBuy * value) / (numNfts - numItemsToBuy))) / 100;
 
@@ -298,7 +304,7 @@ contract XykCurveTest is DSTest, ERC721Holder {
         setUpEthPair(numNfts, value);
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         uint256 numItemsToSell = 3;
-        uint256 expectedProtocolFee = ethPair.poolType() == LSSVMPair.PoolType.TRADE
+        uint256 expectedProtocolFee = ethPair.poolType() == ILSSVMPair.PoolType.TRADE
             ? 0
             : (2 * ((numItemsToSell * value) / (numNfts + numItemsToSell))) / 100;
 
@@ -324,6 +330,10 @@ contract XykCurveTest is DSTest, ERC721Holder {
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
         setUpEthPair(numNfts, value);
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
+
         uint256 numItemsToBuy = 2;
         uint256 ethBalanceBefore = address(this).balance;
         uint256 nftBalanceBefore = nft.balanceOf(address(this));
@@ -376,6 +386,9 @@ contract XykCurveTest is DSTest, ERC721Holder {
     }
 
     function test_swapNFTsForToken() public {
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
+
         // arrange
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
@@ -401,6 +414,8 @@ contract XykCurveTest is DSTest, ERC721Holder {
         // act
         uint256 outputAmount = ethPair.swapNFTsForToken(
             idList,
+            new bytes32[](0),
+            new bool[](0),
             outputValue,
             payable(address(this)),
             false,

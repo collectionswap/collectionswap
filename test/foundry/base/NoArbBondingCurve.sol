@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {DSTest} from "../lib/ds-test/test.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 
+import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
 import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
@@ -17,8 +18,9 @@ import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes
 import {Test721} from "../../../contracts/mocks/Test721.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 
-abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
+abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configurable {
     uint256[] idList;
     uint256 startingId;
     IERC721Mintable test721;
@@ -47,6 +49,9 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
         );
         test721.setApprovalForAll(address(factory), true);
         factory.setBondingCurveAllowed(bondingCurve, true);
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
     }
 
     /**
@@ -79,7 +84,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -94,6 +99,9 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
             idList.push(startingId);
             startingId += 1;
         }
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
 
         uint256 startBalance;
         uint256 endBalance;
@@ -133,6 +141,8 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
             startBalance = getBalance(address(this));
             pair.swapNFTsForToken(
                 idList,
+                new bytes32[](0),
+                new bool[](0),
                 0,
                 payable(address(this)),
                 false,
@@ -209,7 +219,7 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
             test721,
             bondingCurve,
             payable(address(0)),
-            LSSVMPair.PoolType.TRADE,
+            ILSSVMPair.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -218,6 +228,9 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
             address(0)
         );
         test721.setApprovalForAll(address(pair), true);
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
 
         uint256 startBalance;
         uint256 endBalance;
@@ -272,6 +285,8 @@ abstract contract NoArbBondingCurve is DSTest, ERC721Holder, Configurable {
             );
             pair.swapNFTsForToken(
                 idList,
+                new bytes32[](0),
+                new bool[](0),
                 0,
                 payable(address(this)),
                 false,

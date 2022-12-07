@@ -4,9 +4,11 @@ pragma solidity ^0.8.0;
 import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
 
 import {LinearCurve} from "../../../contracts/bonding-curves/LinearCurve.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
+import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
 import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
 import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
 import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
@@ -22,6 +24,7 @@ import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
 
 abstract contract RouterRobustSwapWithAssetRecipient is
+    StdCheats,
     DSTest,
     ERC721Holder,
     Configurable,
@@ -83,7 +86,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             test721,
             bondingCurve,
             sellPairRecipient,
-            LSSVMPair.PoolType.NFT,
+            ILSSVMPair.PoolType.NFT,
             modifyDelta(0),
             0,
             spotPrice,
@@ -99,7 +102,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             test721,
             bondingCurve,
             sellPairRecipient,
-            LSSVMPair.PoolType.NFT,
+            ILSSVMPair.PoolType.NFT,
             modifyDelta(0),
             0,
             spotPrice,
@@ -115,7 +118,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             test721,
             bondingCurve,
             buyPairRecipient,
-            LSSVMPair.PoolType.TOKEN,
+            ILSSVMPair.PoolType.TOKEN,
             modifyDelta(0),
             0,
             spotPrice,
@@ -131,7 +134,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             test721,
             bondingCurve,
             buyPairRecipient,
-            LSSVMPair.PoolType.TOKEN,
+            ILSSVMPair.PoolType.TOKEN,
             modifyDelta(0),
             0,
             spotPrice,
@@ -139,6 +142,9 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             1 ether,
             address(router)
         );
+
+        // skip 1 second so that trades are not in the same timestamp as pair creation
+        skip(1);
     }
 
     // Swapping tokens for any NFT on sellPair1 works, but fails silently on sellPair2 if slippage is too tight
@@ -182,14 +188,18 @@ abstract contract RouterRobustSwapWithAssetRecipient is
         swapList[0] = LSSVMRouter.RobustPairSwapSpecific({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: sellPair1,
-                nftIds: nftIds1
+                nftIds: nftIds1,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             maxCost: 0 ether
         });
         swapList[1] = LSSVMRouter.RobustPairSwapSpecific({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: sellPair2,
-                nftIds: nftIds2
+                nftIds: nftIds2,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             maxCost: sellPair1Price
         });
@@ -222,14 +232,18 @@ abstract contract RouterRobustSwapWithAssetRecipient is
         swapList[0] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: buyPair1,
-                nftIds: nftIds1
+                nftIds: nftIds1,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: buyPair1Price
         });
         swapList[1] = LSSVMRouter.RobustPairSwapSpecificForToken({
             swapInfo: LSSVMRouter.PairSwapSpecific({
                 pair: buyPair2,
-                nftIds: nftIds2
+                nftIds: nftIds2,
+                proof: new bytes32[](0),
+                proofFlags: new bool[](0)
             }),
             minOutput: 2 ether
         });
