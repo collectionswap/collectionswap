@@ -1,4 +1,5 @@
 /* eslint-disable camelcase */
+import { execSync } from "child_process";
 import fs from "fs";
 
 import { LedgerSigner } from "@anders-t/ethers-ledger";
@@ -103,6 +104,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     rng: rng.address,
     monotonicIncreasingValidator: validatorAddresses[0],
     tree: treeAddress,
+    commit: execSync("git rev-parse HEAD").toString().trim(),
   };
   const exportJson = JSON.stringify(addressesToExport, null, 2);
   fs.writeFileSync(config.EXPORT_FILENAME, exportJson);
