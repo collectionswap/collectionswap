@@ -24,4 +24,4 @@ npx hardhat deployCollectionSet --network mainnet
 
 4. Verification Script
 
-Etherscan verification might fail for various reasons. Run `npx hardhat verifyCollectionSet --network goerli --i ./goerliAddresses.json` in the root directory.
+Etherscan verification might fail for various reasons. Run `npx hardhat verifyCollectionSet --network goerli` in the root directory.

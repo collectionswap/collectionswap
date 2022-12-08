@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 
@@ -27,7 +28,9 @@ export async function verifyCollectionSet(
   }
 
   // Read file from input
-  const addresses = JSON.parse(fs.readFileSync(taskArgs.i, "utf8"));
+  const filePath =
+    taskArgs.i || path.resolve("deploys", `${hre.network.name}.json`);
+  const addresses = JSON.parse(fs.readFileSync(filePath, "utf8"));
   const networkId = hre.network.config.chainId as number;
   console.log(`NetworkId: ${networkId}`);
   const config = configs[networkId];

@@ -1,9 +1,11 @@
-import { HardhatUserConfig } from "hardhat/config";
-import '@nomiclabs/hardhat-truffle5';
+import type { HardhatUserConfig } from "hardhat/config";
+
+import "@nomiclabs/hardhat-truffle5";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-contract-sizer";
-import * as dotenv from 'dotenv';
-import path from 'path';
+import path from "path";
+
+import * as dotenv from "dotenv";
 
 import './scripts/index';
 
@@ -47,26 +49,41 @@ const config: HardhatUserConfig = {
   contractSizer: { runOnCompile: true },
   networks: {
     hardhat: {
-      allowUnlimitedContractSize: true
+      allowUnlimitedContractSize: true,
     },
-    rinkeby: {
-      chainId: 4,
-      url: process.env.RINKEBY_URL || '',
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    },
-    goerli: {
-      chainId: 5,
-      url: process.env.GOERLI_URL || '',
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    },
-    mainnet: {
-      chainId: 1,
-      url: process.env.MAINNET_URL || '',
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
-    }
+    ...Object.fromEntries(
+      Object.entries({
+        mainnet: 1,
+        goerli: 5,
+        mumbai: 80001,
+      }).map(([networkName, chainId]) => {
+        return [
+          networkName,
+          {
+            chainId,
+            url: process.env[`${networkName.toUpperCase()}_URL`] || "",
+            accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+          },
+        ];
+      })
+    ),
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
+    // hardhat verify --list-networks
+    apiKey: {
+      ...Object.fromEntries(
+        ["mainnet", "goerli"].map((networkName) => [
+          networkName,
+          process.env.ETHERSCAN_API_KEY,
+        ])
+      ),
+      ...Object.fromEntries(
+        ["polygonMumbai"].map((networkName) => [
+          networkName,
+          process.env.POLYGONSCAN_API_KEY,
+        ])
+      ),
+    },
   },
   paths: {
     tests: "./test/hh",
