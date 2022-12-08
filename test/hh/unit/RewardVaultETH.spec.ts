@@ -21,46 +21,6 @@ import type {
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumberish, ContractTransaction } from "ethers";
 
-async function getPoolAddress(tx: ContractTransaction, showGas = false) {
-  const receipt = await tx.wait();
-  if (showGas) {
-    console.log("gas used:", receipt.cumulativeGasUsed);
-  }
-
-  // // Iterate through all events and try to find the one with a NewTokenId
-  // for (let i = 0; i < receipt.events.length; i++) {
-  //   console.log(i, receipt.events[i].args?.tokenId);
-  // }
-
-  const event = receipt.events!.find((event) => event.event === "Staked");
-  expect(event).to.exist;
-  const stakedTokenId = event!.args!.tokenId;
-
-  const newPoolEvent = receipt.events?.find(
-    (event) => event.event === "NewPool"
-  );
-  let newPoolAddress = newPoolEvent?.args?.poolAddress;
-
-  const newTokenId = receipt.events![8].args?.tokenId;
-
-  expect(stakedTokenId).to.equal(newTokenId);
-
-  if (!newPoolAddress) {
-    // Check event.topcs contains '0xf5bdc103c3e68a20d5f97d2d46792d3fdddfa4efeb6761f8141e6a7b936ca66c'
-    const thisEvent = receipt.events?.find(
-      (event) =>
-        event.topics[0] ===
-        "0xf5bdc103c3e68a20d5f97d2d46792d3fdddfa4efeb6761f8141e6a7b936ca66c"
-    );
-    expect(thisEvent).to.exist;
-    // Get last 40 characters
-    // newPoolAddress = '0x' + thisEvent?.topics[1].slice(-40)
-    newPoolAddress = "0x" + thisEvent!.data.slice(-40);
-  }
-
-  return { newPoolAddress, newTokenId };
-}
-
 describe("RewardVaultETH", function () {
   let factory: ICollectionPoolFactory;
   let monotonicIncreasingValidator: MonotonicIncreasingValidator;
@@ -107,6 +67,38 @@ describe("RewardVaultETH", function () {
       params,
     } = await loadFixture(rewardVaultFixture));
   });
+
+  async function getPoolAddress(tx: ContractTransaction, showGas = false) {
+    const receipt = await tx.wait();
+    if (showGas) {
+      console.log("gas used:", receipt.cumulativeGasUsed);
+    }
+
+    const event = receipt.events!.find((event) => event.event === "Staked");
+    expect(event).to.exist;
+    const stakedTokenId = event!.args!.tokenId;
+
+    const descriptions = receipt
+      .events!.map((event) => {
+        try {
+          return factory.interface.parseLog(event);
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter((x) => x);
+
+    const newPoolAddress = descriptions.find(
+      (description) => description.name === "NewPool"
+    ).args.poolAddress;
+    const newTokenId = descriptions.find(
+      (description) => description.name === "NewTokenId"
+    ).args.tokenId;
+
+    expect(stakedTokenId).to.equal(newTokenId);
+
+    return { newPoolAddress, newTokenId };
+  }
 
   describe("Deployment", function () {
     it("Should deploy", async function () {
