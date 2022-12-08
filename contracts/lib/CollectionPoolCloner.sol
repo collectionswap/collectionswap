@@ -7,9 +7,9 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 
 import {ICurve} from "../bonding-curves/ICurve.sol";
-import {ILSSVMPairFactory} from "../ILSSVMPairFactory.sol";
+import {ICollectionPoolFactory} from "../ICollectionPoolFactory.sol";
 
-library LSSVMPairCloner {
+library CollectionPoolCloner {
     /**
      * @dev Deploys and returns the address of a clone that mimics the behaviour of `implementation`.
      *
@@ -18,9 +18,9 @@ library LSSVMPairCloner {
      * During the delegate call, extra data is copied into the calldata which can then be
      * accessed by the implementation contract.
      */
-    function cloneETHPair(
+    function cloneETHPool(
         address implementation,
-        ILSSVMPairFactory factory,
+        ICollectionPoolFactory factory,
         ICurve bondingCurve,
         IERC721 nft,
         uint8 poolType
@@ -108,9 +108,9 @@ library LSSVMPairCloner {
      * During the delegate call, extra data is copied into the calldata which can then be
      * accessed by the implementation contract.
      */
-    function cloneERC20Pair(
+    function cloneERC20Pool(
         address implementation,
-        ILSSVMPairFactory factory,
+        ICollectionPoolFactory factory,
         ICurve bondingCurve,
         IERC721 nft,
         uint8 poolType,
@@ -193,14 +193,14 @@ library LSSVMPairCloner {
     }
 
     /**
-     * @notice Checks if a contract is a clone of a LSSVMPairETH.
+     * @notice Checks if a contract is a clone of a CollectionPoolETH.
      * @dev Only checks the runtime bytecode, does not check the extra data.
      * @param factory the factory that deployed the clone
-     * @param implementation the LSSVMPairETH implementation contract
+     * @param implementation the CollectionPoolETH implementation contract
      * @param query the contract to check
      * @return result True if the contract is a clone, false otherwise
      */
-    function isETHPairClone(
+    function isETHPoolClone(
         address factory,
         address implementation,
         address query
@@ -233,13 +233,13 @@ library LSSVMPairCloner {
     }
 
     /**
-     * @notice Checks if a contract is a clone of a LSSVMPairERC20.
+     * @notice Checks if a contract is a clone of a CollectionPoolERC20.
      * @dev Only checks the runtime bytecode, does not check the extra data.
-     * @param implementation the LSSVMPairERC20 implementation contract
+     * @param implementation the CollectionPoolERC20 implementation contract
      * @param query the contract to check
      * @return result True if the contract is a clone, false otherwise
      */
-    function isERC20PairClone(
+    function isERC20PoolClone(
         address factory,
         address implementation,
         address query

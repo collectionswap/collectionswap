@@ -8,16 +8,16 @@ import {StdCheats} from "forge-std/StdCheats.sol";
 
 import {LinearCurve} from "../../../contracts/bonding-curves/LinearCurve.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
-import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
-import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
-import {LSSVMPairEnumerableETH} from "../../../contracts/LSSVMPairEnumerableETH.sol";
-import {LSSVMPairMissingEnumerableETH} from "../../../contracts/LSSVMPairMissingEnumerableETH.sol";
-import {LSSVMPairEnumerableERC20} from "../../../contracts/LSSVMPairEnumerableERC20.sol";
-import {LSSVMPairMissingEnumerableERC20} from "../../../contracts/LSSVMPairMissingEnumerableERC20.sol";
-import {LSSVMRouter} from "../../../contracts/LSSVMRouter.sol";
+import {ICollectionPool} from "../../../contracts/ICollectionPool.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPoolETH} from "../../../contracts/CollectionPoolETH.sol";
+import {CollectionPoolERC20} from "../../../contracts/CollectionPoolERC20.sol";
+import {CollectionPoolEnumerableETH} from "../../../contracts/CollectionPoolEnumerableETH.sol";
+import {CollectionPoolMissingEnumerableETH} from "../../../contracts/CollectionPoolMissingEnumerableETH.sol";
+import {CollectionPoolEnumerableERC20} from "../../../contracts/CollectionPoolEnumerableERC20.sol";
+import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/CollectionPoolMissingEnumerableERC20.sol";
+import {CollectionRouter} from "../../../contracts/CollectionRouter.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Hevm} from "../utils/Hevm.sol";
 import {Configurable} from "../mixins/Configurable.sol";
@@ -32,20 +32,20 @@ abstract contract RouterRobustSwapWithAssetRecipient is
 {
     IERC721Mintable test721;
     ICurve bondingCurve;
-    LSSVMPairFactory factory;
-    LSSVMRouter router;
+    CollectionPoolFactory factory;
+    CollectionRouter router;
 
-    // 2 Sell Pairs
-    LSSVMPair sellPair1;
-    LSSVMPair sellPair2;
+    // 2 Sell Pools
+    CollectionPool sellPool1;
+    CollectionPool sellPool2;
 
-    // 2 Buy Pairs
-    LSSVMPair buyPair1;
-    LSSVMPair buyPair2;
+    // 2 Buy Pools
+    CollectionPool buyPool1;
+    CollectionPool buyPool2;
 
     address payable constant feeRecipient = payable(address(69));
-    address payable constant sellPairRecipient = payable(address(1));
-    address payable constant buyPairRecipient = payable(address(2));
+    address payable constant sellPoolRecipient = payable(address(1));
+    address payable constant buyPoolRecipient = payable(address(2));
     uint256 constant protocolFeeMultiplier = 0;
     uint256 constant carryFeeMultiplier = 0;
     uint256 constant numInitialNFTs = 10;
@@ -53,11 +53,11 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     function setUp() public {
         bondingCurve = setupCurve();
         test721 = setup721();
-        LSSVMPairEnumerableETH enumerableETHTemplate = new LSSVMPairEnumerableETH();
-        LSSVMPairMissingEnumerableETH missingEnumerableETHTemplate = new LSSVMPairMissingEnumerableETH();
-        LSSVMPairEnumerableERC20 enumerableERC20Template = new LSSVMPairEnumerableERC20();
-        LSSVMPairMissingEnumerableERC20 missingEnumerableERC20Template = new LSSVMPairMissingEnumerableERC20();
-        factory = new LSSVMPairFactory(
+        CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
+        CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
+        CollectionPoolEnumerableERC20 enumerableERC20Template = new CollectionPoolEnumerableERC20();
+        CollectionPoolMissingEnumerableERC20 missingEnumerableERC20Template = new CollectionPoolMissingEnumerableERC20();
+        factory = new CollectionPoolFactory(
             enumerableETHTemplate,
             missingEnumerableETHTemplate,
             enumerableERC20Template,
@@ -66,7 +66,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             protocolFeeMultiplier,
             carryFeeMultiplier
         );
-        router = new LSSVMRouter(factory);
+        router = new CollectionRouter(factory);
 
         // Set approvals
         test721.setApprovalForAll(address(factory), true);
@@ -81,12 +81,12 @@ abstract contract RouterRobustSwapWithAssetRecipient is
 
         uint256[] memory sellIDList1 = new uint256[](1);
         sellIDList1[0] = 1;
-        sellPair1 = this.setupPair{value: modifyInputAmount(1 ether)}(
+        sellPool1 = this.setupPool{value: modifyInputAmount(1 ether)}(
             factory,
             test721,
             bondingCurve,
-            sellPairRecipient,
-            ILSSVMPair.PoolType.NFT,
+            sellPoolRecipient,
+            ICollectionPool.PoolType.NFT,
             modifyDelta(0),
             0,
             spotPrice,
@@ -97,12 +97,12 @@ abstract contract RouterRobustSwapWithAssetRecipient is
 
         uint256[] memory sellIDList2 = new uint256[](1);
         sellIDList2[0] = 2;
-        sellPair2 = this.setupPair{value: modifyInputAmount(1 ether)}(
+        sellPool2 = this.setupPool{value: modifyInputAmount(1 ether)}(
             factory,
             test721,
             bondingCurve,
-            sellPairRecipient,
-            ILSSVMPair.PoolType.NFT,
+            sellPoolRecipient,
+            ICollectionPool.PoolType.NFT,
             modifyDelta(0),
             0,
             spotPrice,
@@ -113,12 +113,12 @@ abstract contract RouterRobustSwapWithAssetRecipient is
 
         uint256[] memory buyIDList1 = new uint256[](1);
         buyIDList1[0] = 3;
-        buyPair1 = this.setupPair{value: modifyInputAmount(1 ether)}(
+        buyPool1 = this.setupPool{value: modifyInputAmount(1 ether)}(
             factory,
             test721,
             bondingCurve,
-            buyPairRecipient,
-            ILSSVMPair.PoolType.TOKEN,
+            buyPoolRecipient,
+            ICollectionPool.PoolType.TOKEN,
             modifyDelta(0),
             0,
             spotPrice,
@@ -129,12 +129,12 @@ abstract contract RouterRobustSwapWithAssetRecipient is
 
         uint256[] memory buyIDList2 = new uint256[](1);
         buyIDList2[0] = 4;
-        buyPair2 = this.setupPair{value: modifyInputAmount(1 ether)}(
+        buyPool2 = this.setupPool{value: modifyInputAmount(1 ether)}(
             factory,
             test721,
             bondingCurve,
-            buyPairRecipient,
-            ILSSVMPair.PoolType.TOKEN,
+            buyPoolRecipient,
+            ICollectionPool.PoolType.TOKEN,
             modifyDelta(0),
             0,
             spotPrice,
@@ -143,22 +143,22 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             address(router)
         );
 
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
     }
 
-    // Swapping tokens for any NFT on sellPair1 works, but fails silently on sellPair2 if slippage is too tight
+    // Swapping tokens for any NFT on sellPool1 works, but fails silently on sellPool2 if slippage is too tight
     function test_robustSwapTokenForAnyNFTs() public {
-        uint256 sellPair1Price;
-        (, , , , sellPair1Price, , ) = sellPair1.getBuyNFTQuote(1);
-        LSSVMRouter.RobustPairSwapAny[]
-            memory swapList = new LSSVMRouter.RobustPairSwapAny[](2);
-        swapList[0] = LSSVMRouter.RobustPairSwapAny({
-            swapInfo: LSSVMRouter.PairSwapAny({pair: sellPair1, numItems: 1}),
-            maxCost: sellPair1Price
+        uint256 sellPool1Price;
+        (, , , , sellPool1Price, , ) = sellPool1.getBuyNFTQuote(1);
+        CollectionRouter.RobustPoolSwapAny[]
+            memory swapList = new CollectionRouter.RobustPoolSwapAny[](2);
+        swapList[0] = CollectionRouter.RobustPoolSwapAny({
+            swapInfo: CollectionRouter.PoolSwapAny({pool: sellPool1, numItems: 1}),
+            maxCost: sellPool1Price
         });
-        swapList[1] = LSSVMRouter.RobustPairSwapAny({
-            swapInfo: LSSVMRouter.PairSwapAny({pair: sellPair2, numItems: 1}),
+        swapList[1] = CollectionRouter.RobustPoolSwapAny({
+            swapInfo: CollectionRouter.PoolSwapAny({pool: sellPool2, numItems: 1}),
             maxCost: 0 ether
         });
         uint256 remainingValue = this.robustSwapTokenForAnyNFTs{
@@ -171,37 +171,37 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             block.timestamp,
             2 ether
         );
-        assertEq(remainingValue + sellPair1Price, 2 ether);
-        assertEq(getBalance(sellPairRecipient), sellPair1Price);
+        assertEq(remainingValue + sellPool1Price, 2 ether);
+        assertEq(getBalance(sellPoolRecipient), sellPool1Price);
     }
 
-    // Swapping tokens to a specific NFT with sellPair2 works, but fails silently on sellPair1 if slippage is too tight
+    // Swapping tokens to a specific NFT with sellPool2 works, but fails silently on sellPool1 if slippage is too tight
     function test_robustSwapTokenForSpecificNFTs() public {
-        uint256 sellPair1Price;
-        (, , , , sellPair1Price, , ) = sellPair2.getBuyNFTQuote(1);
-        LSSVMRouter.RobustPairSwapSpecific[]
-            memory swapList = new LSSVMRouter.RobustPairSwapSpecific[](2);
+        uint256 sellPool1Price;
+        (, , , , sellPool1Price, , ) = sellPool2.getBuyNFTQuote(1);
+        CollectionRouter.RobustPoolSwapSpecific[]
+            memory swapList = new CollectionRouter.RobustPoolSwapSpecific[](2);
         uint256[] memory nftIds1 = new uint256[](1);
         nftIds1[0] = 1;
         uint256[] memory nftIds2 = new uint256[](1);
         nftIds2[0] = 2;
-        swapList[0] = LSSVMRouter.RobustPairSwapSpecific({
-            swapInfo: LSSVMRouter.PairSwapSpecific({
-                pair: sellPair1,
+        swapList[0] = CollectionRouter.RobustPoolSwapSpecific({
+            swapInfo: CollectionRouter.PoolSwapSpecific({
+                pool: sellPool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
                 proofFlags: new bool[](0)
             }),
             maxCost: 0 ether
         });
-        swapList[1] = LSSVMRouter.RobustPairSwapSpecific({
-            swapInfo: LSSVMRouter.PairSwapSpecific({
-                pair: sellPair2,
+        swapList[1] = CollectionRouter.RobustPoolSwapSpecific({
+            swapInfo: CollectionRouter.PoolSwapSpecific({
+                pool: sellPool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
                 proofFlags: new bool[](0)
             }),
-            maxCost: sellPair1Price
+            maxCost: sellPool1Price
         });
         uint256 remainingValue = this.robustSwapTokenForSpecificNFTs{
             value: modifyInputAmount(2 ether)
@@ -213,34 +213,34 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             block.timestamp,
             2 ether
         );
-        assertEq(remainingValue + sellPair1Price, 2 ether);
-        assertEq(getBalance(sellPairRecipient), sellPair1Price);
+        assertEq(remainingValue + sellPool1Price, 2 ether);
+        assertEq(getBalance(sellPoolRecipient), sellPool1Price);
     }
 
-    // Swapping NFTs to tokens with buyPair1 works, but buyPair2 silently fails due to slippage
+    // Swapping NFTs to tokens with buyPool1 works, but buyPool2 silently fails due to slippage
     function test_robustSwapNFTsForToken() public {
-        uint256 buyPair1Price;
-        (, , , , buyPair1Price, , ) = buyPair1.getSellNFTQuote(1);
+        uint256 buyPool1Price;
+        (, , , , buyPool1Price, , ) = buyPool1.getSellNFTQuote(1);
         uint256[] memory nftIds1 = new uint256[](1);
         nftIds1[0] = 5;
         uint256[] memory nftIds2 = new uint256[](1);
         nftIds2[0] = 6;
-        LSSVMRouter.RobustPairSwapSpecificForToken[]
-            memory swapList = new LSSVMRouter.RobustPairSwapSpecificForToken[](
+        CollectionRouter.RobustPoolSwapSpecificForToken[]
+            memory swapList = new CollectionRouter.RobustPoolSwapSpecificForToken[](
                 2
             );
-        swapList[0] = LSSVMRouter.RobustPairSwapSpecificForToken({
-            swapInfo: LSSVMRouter.PairSwapSpecific({
-                pair: buyPair1,
+        swapList[0] = CollectionRouter.RobustPoolSwapSpecificForToken({
+            swapInfo: CollectionRouter.PoolSwapSpecific({
+                pool: buyPool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
                 proofFlags: new bool[](0)
             }),
-            minOutput: buyPair1Price
+            minOutput: buyPool1Price
         });
-        swapList[1] = LSSVMRouter.RobustPairSwapSpecificForToken({
-            swapInfo: LSSVMRouter.PairSwapSpecific({
-                pair: buyPair2,
+        swapList[1] = CollectionRouter.RobustPoolSwapSpecificForToken({
+            swapInfo: CollectionRouter.PoolSwapSpecific({
+                pool: buyPool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
                 proofFlags: new bool[](0)
@@ -252,6 +252,6 @@ abstract contract RouterRobustSwapWithAssetRecipient is
             payable(address(this)),
             block.timestamp
         );
-        assertEq(test721.balanceOf(buyPairRecipient), 1);
+        assertEq(test721.balanceOf(buyPoolRecipient), 1);
     }
 }

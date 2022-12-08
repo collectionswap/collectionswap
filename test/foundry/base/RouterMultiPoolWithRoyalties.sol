@@ -9,16 +9,16 @@ import {RoyaltyRegistry} from "@manifoldxyz/royalty-registry-solidity/contracts/
 import {StdCheats} from "forge-std/StdCheats.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
-import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
-import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
-import {LSSVMPairEnumerableETH} from "../../../contracts/LSSVMPairEnumerableETH.sol";
-import {LSSVMPairMissingEnumerableETH} from "../../../contracts/LSSVMPairMissingEnumerableETH.sol";
-import {LSSVMPairEnumerableERC20} from "../../../contracts/LSSVMPairEnumerableERC20.sol";
-import {LSSVMPairMissingEnumerableERC20} from "../../../contracts/LSSVMPairMissingEnumerableERC20.sol";
-import {LSSVMRouterWithRoyalties, LSSVMRouter} from "../../../contracts/LSSVMRouterWithRoyalties.sol";
+import {ICollectionPool} from "../../../contracts/ICollectionPool.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPoolETH} from "../../../contracts/CollectionPoolETH.sol";
+import {CollectionPoolERC20} from "../../../contracts/CollectionPoolERC20.sol";
+import {CollectionPoolEnumerableETH} from "../../../contracts/CollectionPoolEnumerableETH.sol";
+import {CollectionPoolMissingEnumerableETH} from "../../../contracts/CollectionPoolMissingEnumerableETH.sol";
+import {CollectionPoolEnumerableERC20} from "../../../contracts/CollectionPoolEnumerableERC20.sol";
+import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/CollectionPoolMissingEnumerableERC20.sol";
+import {CollectionRouterWithRoyalties, CollectionRouter} from "../../../contracts/CollectionRouterWithRoyalties.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {ConfigurableWithRoyalties} from "../mixins/ConfigurableWithRoyalties.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
@@ -35,9 +35,9 @@ abstract contract RouterMultiPoolWithRoyalties is
     ERC2981 test2981;
     RoyaltyRegistry royaltyRegistry;
     ICurve bondingCurve;
-    LSSVMPairFactory factory;
-    LSSVMRouter router;
-    mapping(uint256 => LSSVMPair) pairs;
+    CollectionPoolFactory factory;
+    CollectionRouter router;
+    mapping(uint256 => CollectionPool) pools;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 3e15;
     uint256 constant carryFeeMultiplier = 3e15;
@@ -53,11 +53,11 @@ abstract contract RouterMultiPoolWithRoyalties is
             address(test2981)
         );
 
-        LSSVMPairEnumerableETH enumerableETHTemplate = new LSSVMPairEnumerableETH();
-        LSSVMPairMissingEnumerableETH missingEnumerableETHTemplate = new LSSVMPairMissingEnumerableETH();
-        LSSVMPairEnumerableERC20 enumerableERC20Template = new LSSVMPairEnumerableERC20();
-        LSSVMPairMissingEnumerableERC20 missingEnumerableERC20Template = new LSSVMPairMissingEnumerableERC20();
-        factory = new LSSVMPairFactory(
+        CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
+        CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
+        CollectionPoolEnumerableERC20 enumerableERC20Template = new CollectionPoolEnumerableERC20();
+        CollectionPoolMissingEnumerableERC20 missingEnumerableERC20Template = new CollectionPoolMissingEnumerableERC20();
+        factory = new CollectionPoolFactory(
             enumerableETHTemplate,
             missingEnumerableETHTemplate,
             enumerableERC20Template,
@@ -66,7 +66,7 @@ abstract contract RouterMultiPoolWithRoyalties is
             protocolFeeMultiplier,
             carryFeeMultiplier
         );
-        router = new LSSVMRouterWithRoyalties(factory);
+        router = new CollectionRouterWithRoyalties(factory);
         factory.setBondingCurveAllowed(bondingCurve, true);
         factory.setRouterAllowed(router, true);
 
@@ -79,21 +79,21 @@ abstract contract RouterMultiPoolWithRoyalties is
             test721.mint(address(this), i);
         }
 
-        // Pair 1 has NFT#1 at 1 ETH price, willing to also buy at the same price
-        // Pair 2 has NFT#2 at 2 ETH price, willing to also buy at the same price
-        // Pair 3 has NFT#3 at 3 ETH price, willing to also buy at the same price
-        // Pair 4 has NFT#4 at 4 ETH price, willing to also buy at the same price
-        // Pair 5 has NFT#5 at 5 ETH price, willing to also buy at the same price
+        // Pool 1 has NFT#1 at 1 ETH price, willing to also buy at the same price
+        // Pool 2 has NFT#2 at 2 ETH price, willing to also buy at the same price
+        // Pool 3 has NFT#3 at 3 ETH price, willing to also buy at the same price
+        // Pool 4 has NFT#4 at 4 ETH price, willing to also buy at the same price
+        // Pool 5 has NFT#5 at 5 ETH price, willing to also buy at the same price
         // For all, assume no price changes
         for (uint256 i = 1; i <= 5; i++) {
             uint256[] memory idList = new uint256[](1);
             idList[0] = i;
-            pairs[i] = this.setupPair{value: modifyInputAmount(i * 1 ether)}(
+            pools[i] = this.setupPool{value: modifyInputAmount(i * 1 ether)}(
                 factory,
                 test721,
                 bondingCurve,
                 payable(address(0)),
-                ILSSVMPair.PoolType.TRADE,
+                ICollectionPool.PoolType.TRADE,
                 modifyDelta(0),
                 0,
                 uint128(i * 1 ether),
@@ -103,19 +103,19 @@ abstract contract RouterMultiPoolWithRoyalties is
             );
         }
 
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
     }
 
     function test_swapTokenForAny5NFTs() public {
         // Swap across all 5 pools
-        LSSVMRouter.PairSwapAny[]
-            memory swapList = new LSSVMRouter.PairSwapAny[](5);
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](5);
         uint256 totalInputAmount = 0;
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 inputAmount;
-            (, , , , inputAmount, , ) = pairs[i + 1].getBuyNFTQuote(1);
+            (, , , , inputAmount, , ) = pools[i + 1].getBuyNFTQuote(1);
 
             // calculate royalty and add it to the input amount
             uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -123,8 +123,8 @@ abstract contract RouterMultiPoolWithRoyalties is
             totalRoyaltyAmount += royaltyAmount;
 
             totalInputAmount += inputAmount;
-            swapList[i] = LSSVMRouter.PairSwapAny({
-                pair: pairs[i + 1],
+            swapList[i] = CollectionRouter.PoolSwapAny({
+                pool: pools[i + 1],
                 numItems: 1
             });
         }
@@ -146,13 +146,13 @@ abstract contract RouterMultiPoolWithRoyalties is
 
     function test_swapTokenForSpecific5NFTs() public {
         // Swap across all 5 pools
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](5);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](5);
         uint256 totalInputAmount = 0;
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 inputAmount;
-            (, , , , inputAmount, , ) = pairs[i + 1].getBuyNFTQuote(1);
+            (, , , , inputAmount, , ) = pools[i + 1].getBuyNFTQuote(1);
 
             // calculate royalty and add it to the input amount
             uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -162,8 +162,8 @@ abstract contract RouterMultiPoolWithRoyalties is
             totalInputAmount += inputAmount;
             uint256[] memory nftIds = new uint256[](1);
             nftIds[0] = i + 1;
-            swapList[i] = LSSVMRouter.PairSwapSpecific({
-                pair: pairs[i + 1],
+            swapList[i] = CollectionRouter.PoolSwapSpecific({
+                pool: pools[i + 1],
                 nftIds: nftIds,
                 proof: new bytes32[](0),
                 proofFlags: new bool[](0)
@@ -189,13 +189,13 @@ abstract contract RouterMultiPoolWithRoyalties is
 
     function test_swap5NFTsForToken() public {
         // Swap across all 5 pools
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](5);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](5);
         uint256 totalOutputAmount = 0;
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 outputAmount;
-            (, , , , outputAmount, , ) = pairs[i + 1].getSellNFTQuote(1);
+            (, , , , outputAmount, , ) = pools[i + 1].getSellNFTQuote(1);
 
             // calculate royalty and rm it from the output amount
             uint256 royaltyAmount = calcRoyalty(outputAmount);
@@ -206,8 +206,8 @@ abstract contract RouterMultiPoolWithRoyalties is
             uint256[] memory nftIds = new uint256[](1);
             // Set it to be an ID we own
             nftIds[0] = i + 6;
-            swapList[i] = LSSVMRouter.PairSwapSpecific({
-                pair: pairs[i + 1],
+            swapList[i] = CollectionRouter.PoolSwapSpecific({
+                pool: pools[i + 1],
                 nftIds: nftIds,
                 proof: new bytes32[](0),
                 proofFlags: new bool[](0)

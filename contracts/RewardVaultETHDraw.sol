@@ -6,15 +6,15 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
-import {RewardPoolETH} from "./RewardPoolETH.sol";
-import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
-import {ILSSVMPair} from "./ILSSVMPair.sol";
+import {RewardVaultETH} from "./RewardVaultETH.sol";
+import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
+import {ICollectionPool} from "./ICollectionPool.sol";
 import {SortitionSumTreeFactory} from "./SortitionSumTreeFactory.sol";
 import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 import {RNGInterface} from "./rng/RNGInterface.sol";
 import {IValidator} from "./validators/IValidator.sol";
 
-contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
+contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     using SafeERC20 for IERC20;
     using SortitionSumTreeFactory for SortitionSumTreeFactory.SortitionSumTrees;
 
@@ -180,7 +180,7 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
         address _protocolOwner,
         address _factory,
         address _deployer,
-        ILSSVMPairFactory _lpToken,
+        ICollectionPoolFactory _lpToken,
         IValidator _validator,
         IERC721 _nft,
         address _bondingCurve,
@@ -414,14 +414,14 @@ contract RewardPoolETHDraw is ReentrancyGuard, RewardPoolETH {
     /**
      * @notice as sweep time may be updated by both the draw and reward functions, we have defensive logic to ensure it is set to the maximum of the two
      **/
-    function rechargeRewardPool(
+    function rechargeRewardVault(
         IERC20[] calldata inputRewardTokens,
         uint256[] calldata inputRewardAmounts,
         uint256 _newPeriodFinish
     ) public override {
         uint256 currentRewardSweepTime = rewardSweepTime;
         // sweep time gets updated to _newPeriodFinish + LOCK_TIME
-        super.rechargeRewardPool(inputRewardTokens, inputRewardAmounts, _newPeriodFinish);
+        super.rechargeRewardVault(inputRewardTokens, inputRewardAmounts, _newPeriodFinish);
         // reset to currentRewardSweepTime if new sweep time is shorter
         // ie. rewardSweepTime should always be the maximum of its current and updated value
         if (rewardSweepTime < currentRewardSweepTime) rewardSweepTime = currentRewardSweepTime;

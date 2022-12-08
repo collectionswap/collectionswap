@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import {PairAndFactory} from "../base/PairAndFactory.sol";
+import {PoolAndFactory} from "../base/PoolAndFactory.sol";
 import {UsingExponentialCurve} from "../mixins/UsingExponentialCurve.sol";
 import {UsingMissingEnumerable} from "../mixins/UsingMissingEnumerable.sol";
 import {UsingETH} from "../mixins/UsingETH.sol";
 
 contract PAFExponentialCurveMissingEnumerableETHTest is
-    PairAndFactory,
+    PoolAndFactory,
     UsingExponentialCurve,
     UsingMissingEnumerable,
     UsingETH

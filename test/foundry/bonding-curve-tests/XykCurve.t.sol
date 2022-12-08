@@ -8,15 +8,15 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {XykCurve} from "../../../contracts/bonding-curves/XykCurve.sol";
 import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
-import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
-import {ILSSVMPairFactory} from "../../../contracts/ILSSVMPairFactory.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
-import {LSSVMPairEnumerableETH} from "../../../contracts/LSSVMPairEnumerableETH.sol";
-import {LSSVMPairMissingEnumerableETH} from "../../../contracts/LSSVMPairMissingEnumerableETH.sol";
-import {LSSVMPairEnumerableERC20} from "../../../contracts/LSSVMPairEnumerableERC20.sol";
-import {LSSVMPairMissingEnumerableERC20} from "../../../contracts/LSSVMPairMissingEnumerableERC20.sol";
-import {LSSVMPairCloner} from "../../../contracts/lib/LSSVMPairCloner.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
+import {ICollectionPool} from "../../../contracts/ICollectionPool.sol";
+import {ICollectionPoolFactory} from "../../../contracts/ICollectionPoolFactory.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
+import {CollectionPoolEnumerableETH} from "../../../contracts/CollectionPoolEnumerableETH.sol";
+import {CollectionPoolMissingEnumerableETH} from "../../../contracts/CollectionPoolMissingEnumerableETH.sol";
+import {CollectionPoolEnumerableERC20} from "../../../contracts/CollectionPoolEnumerableERC20.sol";
+import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/CollectionPoolMissingEnumerableERC20.sol";
+import {CollectionPoolCloner} from "../../../contracts/lib/CollectionPoolCloner.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
@@ -30,23 +30,23 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
     uint256 constant MIN_PRICE = 1 gwei;
 
     XykCurve curve;
-    LSSVMPairFactory factory;
-    LSSVMPairEnumerableETH enumerableETHTemplate;
-    LSSVMPairMissingEnumerableETH missingEnumerableETHTemplate;
-    LSSVMPairEnumerableERC20 enumerableERC20Template;
-    LSSVMPairMissingEnumerableERC20 missingEnumerableERC20Template;
-    LSSVMPair ethPair;
+    CollectionPoolFactory factory;
+    CollectionPoolEnumerableETH enumerableETHTemplate;
+    CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate;
+    CollectionPoolEnumerableERC20 enumerableERC20Template;
+    CollectionPoolMissingEnumerableERC20 missingEnumerableERC20Template;
+    CollectionPool ethPool;
     Test721 nft;
 
     receive() external payable {}
 
     function setUp() public {
-        enumerableETHTemplate = new LSSVMPairEnumerableETH();
-        missingEnumerableETHTemplate = new LSSVMPairMissingEnumerableETH();
-        enumerableERC20Template = new LSSVMPairEnumerableERC20();
-        missingEnumerableERC20Template = new LSSVMPairMissingEnumerableERC20();
+        enumerableETHTemplate = new CollectionPoolEnumerableETH();
+        missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
+        enumerableERC20Template = new CollectionPoolEnumerableERC20();
+        missingEnumerableERC20Template = new CollectionPoolMissingEnumerableERC20();
 
-        factory = new LSSVMPairFactory(
+        factory = new CollectionPoolFactory(
             enumerableETHTemplate,
             missingEnumerableETHTemplate,
             enumerableERC20Template,
@@ -60,7 +60,7 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         factory.setBondingCurveAllowed(curve, true);
     }
 
-    function setUpEthPair(uint256 numNfts, uint256 value) public {
+    function setUpEthPool(uint256 numNfts, uint256 value) public {
         nft = new Test721();
         nft.setApprovalForAll(address(factory), true);
         uint256[] memory idList = new uint256[](numNfts);
@@ -69,13 +69,13 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
             idList[i - 1] = i;
         }
 
-        (address ethPairAddress, ) = factory.createPairETH{value: value}(
-            ILSSVMPairFactory.CreateETHPairParams(
+        (address ethPoolAddress, ) = factory.createPoolETH{value: value}(
+            ICollectionPoolFactory.CreateETHPoolParams(
                 nft,
                 curve,
                 payable(0),
                 address(this),
-                ILSSVMPair.PoolType.TRADE,
+                ICollectionPool.PoolType.TRADE,
                 uint128(numNfts),
                 0,
                 uint128(value),
@@ -86,7 +86,7 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
                 idList
             )
         );
-        ethPair = LSSVMPair(ethPairAddress);
+        ethPool = CollectionPool(ethPoolAddress);
     }
 
     function test_getBuyInfoCannotHave0NumItems() public {
@@ -151,7 +151,7 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         // arrange
         uint256 numNfts = 5;
         uint256 value = 1 ether;
-        setUpEthPair(numNfts, value);
+        setUpEthPool(numNfts, value);
         uint256 numItemsToBuy = 2;
 
         // act
@@ -162,7 +162,7 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
             ,
             uint256 inputValue,
             ,
-        ) = ethPair.getBuyNFTQuote(numItemsToBuy);
+        ) = ethPool.getBuyNFTQuote(numItemsToBuy);
 
         // assert
         assertEq(
@@ -186,7 +186,7 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         // arrange
         uint256 numNfts = 5;
         uint256 value = 1 ether;
-        setUpEthPair(numNfts, value);
+        setUpEthPool(numNfts, value);
         uint256 numItemsToSell = 2;
 
         // act
@@ -197,7 +197,7 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
             ,
             uint256 inputValue,
             ,
-        ) = ethPair.getSellNFTQuote(numItemsToSell);
+        ) = ethPool.getSellNFTQuote(numItemsToSell);
 
         // assert
         assertEq(
@@ -221,13 +221,13 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         // arrange
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
-        setUpEthPair(numNfts, value);
+        setUpEthPool(numNfts, value);
         uint256 numItemsToBuy = 3;
         uint256 expectedInputValue = (numItemsToBuy * value) /
             (numNfts - numItemsToBuy);
 
         // act
-        (CurveErrorCodes.Error error, , , , uint256 inputValue, , ) = ethPair
+        (CurveErrorCodes.Error error, , , , uint256 inputValue, , ) = ethPool
             .getBuyNFTQuote(numItemsToBuy);
 
         // assert
@@ -247,13 +247,13 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         // arrange
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
-        setUpEthPair(numNfts, value);
+        setUpEthPool(numNfts, value);
         uint256 numItemsToSell = 3;
         uint256 expectedOutputValue = (numItemsToSell * value) /
             (numNfts + numItemsToSell);
 
         // act
-        (CurveErrorCodes.Error error, , , , uint256 outputValue, , ) = ethPair
+        (CurveErrorCodes.Error error, , , , uint256 outputValue, , ) = ethPool
             .getSellNFTQuote(numItemsToSell);
 
         // assert
@@ -273,15 +273,15 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         // arrange
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
-        setUpEthPair(numNfts, value);
+        setUpEthPool(numNfts, value);
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         uint256 numItemsToBuy = 3;
-        uint256 expectedProtocolFee = ethPair.poolType() == ILSSVMPair.PoolType.TRADE
+        uint256 expectedProtocolFee = ethPool.poolType() == ICollectionPool.PoolType.TRADE
             ? 0
             : (2 * ((numItemsToBuy * value) / (numNfts - numItemsToBuy))) / 100;
 
         // act
-        (CurveErrorCodes.Error error, , , , , , uint256 protocolFee) = ethPair
+        (CurveErrorCodes.Error error, , , , , , uint256 protocolFee) = ethPool
             .getBuyNFTQuote(numItemsToBuy);
 
         // assert
@@ -301,15 +301,15 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         // arrange
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
-        setUpEthPair(numNfts, value);
+        setUpEthPool(numNfts, value);
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         uint256 numItemsToSell = 3;
-        uint256 expectedProtocolFee = ethPair.poolType() == ILSSVMPair.PoolType.TRADE
+        uint256 expectedProtocolFee = ethPool.poolType() == ICollectionPool.PoolType.TRADE
             ? 0
             : (2 * ((numItemsToSell * value) / (numNfts + numItemsToSell))) / 100;
 
         // act
-        (CurveErrorCodes.Error error, , , , , , uint256 protocolFee) = ethPair
+        (CurveErrorCodes.Error error, , , , , , uint256 protocolFee) = ethPool
             .getSellNFTQuote(numItemsToSell);
 
         // assert
@@ -329,9 +329,9 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         // arrange
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
-        setUpEthPair(numNfts, value);
+        setUpEthPool(numNfts, value);
 
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
         uint256 numItemsToBuy = 2;
@@ -339,13 +339,13 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         uint256 nftBalanceBefore = nft.balanceOf(address(this));
 
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
-        ethPair.changeFee((1 * 1e18) / 100); // 1%
+        ethPool.changeFee((1 * 1e18) / 100); // 1%
 
-        (CurveErrorCodes.Error error, , , , uint256 inputValue, , ) = ethPair
+        (CurveErrorCodes.Error error, , , , uint256 inputValue, , ) = ethPool
             .getBuyNFTQuote(numItemsToBuy);
 
         // act
-        uint256 inputAmount = ethPair.swapTokenForAnyNFTs{value: inputValue}(
+        uint256 inputAmount = ethPool.swapTokenForAnyNFTs{value: inputValue}(
             numItemsToBuy,
             inputValue,
             address(this),
@@ -372,33 +372,33 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
 
         uint256 withoutFeeInputAmount = (inputAmount * 1e18) / 101e16;
         assertEq(
-            ethPair.spotPrice(),
-            uint128(address(ethPair).balance) -
+            ethPool.spotPrice(),
+            uint128(address(ethPool).balance) -
                 (withoutFeeInputAmount * 1e16) /
                 1e18,
             "Spot price should match eth balance - fee after swap"
         );
         assertEq(
-            ethPair.delta(),
-            nft.balanceOf(address(ethPair)),
+            ethPool.delta(),
+            nft.balanceOf(address(ethPool)),
             "Delta should match nft balance after swap"
         );
     }
 
     function test_swapNFTsForToken() public {
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
         // arrange
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
-        setUpEthPair(numNfts, value);
+        setUpEthPool(numNfts, value);
 
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
-        ethPair.changeFee((1 * 1e18) / 100); // 1%
+        ethPool.changeFee((1 * 1e18) / 100); // 1%
 
         uint256 numItemsToSell = 2;
-        (CurveErrorCodes.Error error, , , , uint256 outputValue, , ) = ethPair
+        (CurveErrorCodes.Error error, , , , uint256 outputValue, , ) = ethPool
             .getSellNFTQuote(numItemsToSell);
 
         uint256[] memory idList = new uint256[](numItemsToSell);
@@ -409,11 +409,11 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
 
         uint256 ethBalanceBefore = address(this).balance;
         uint256 nftBalanceBefore = nft.balanceOf(address(this));
-        nft.setApprovalForAll(address(ethPair), true);
+        nft.setApprovalForAll(address(ethPool), true);
 
         // act
-        uint256 outputAmount = ethPair.swapNFTsForToken(
-            ILSSVMPair.NFTs(
+        uint256 outputAmount = ethPool.swapNFTsForToken(
+            ICollectionPool.NFTs(
                 idList,
                 new bytes32[](0),
                 new bool[](0)
@@ -443,14 +443,14 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
 
         uint256 withoutFeeOutputAmount = (outputAmount * 1e18) / 0.99e18;
         assertEq(
-            ethPair.spotPrice(),
-            uint128(address(ethPair).balance) -
+            ethPool.spotPrice(),
+            uint128(address(ethPool).balance) -
                 ((withoutFeeOutputAmount * 1e16) / 1e18),
             "Spot price + fee should match eth balance after swap"
         );
         assertEq(
-            ethPair.delta(),
-            nft.balanceOf(address(ethPair)),
+            ethPool.delta(),
+            nft.balanceOf(address(ethPool)),
             "Delta should match nft balance after swap"
         );
     }

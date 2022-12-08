@@ -4,15 +4,15 @@ pragma solidity ^0.8.0;
 import {DSTest} from "../lib/ds-test/test.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 
-import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
-import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
-import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
-import {LSSVMPairEnumerableETH} from "../../../contracts/LSSVMPairEnumerableETH.sol";
-import {LSSVMPairMissingEnumerableETH} from "../../../contracts/LSSVMPairMissingEnumerableETH.sol";
-import {LSSVMPairEnumerableERC20} from "../../../contracts/LSSVMPairEnumerableERC20.sol";
-import {LSSVMPairMissingEnumerableERC20} from "../../../contracts/LSSVMPairMissingEnumerableERC20.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
+import {ICollectionPool} from "../../../contracts/ICollectionPool.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPoolETH} from "../../../contracts/CollectionPoolETH.sol";
+import {CollectionPoolERC20} from "../../../contracts/CollectionPoolERC20.sol";
+import {CollectionPoolEnumerableETH} from "../../../contracts/CollectionPoolEnumerableETH.sol";
+import {CollectionPoolMissingEnumerableETH} from "../../../contracts/CollectionPoolMissingEnumerableETH.sol";
+import {CollectionPoolEnumerableERC20} from "../../../contracts/CollectionPoolEnumerableERC20.sol";
+import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/CollectionPoolMissingEnumerableERC20.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
 import {Test721} from "../../../contracts/mocks/Test721.sol";
@@ -25,7 +25,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
     uint256 startingId;
     IERC721Mintable test721;
     ICurve bondingCurve;
-    LSSVMPairFactory factory;
+    CollectionPoolFactory factory;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 3e15;
     uint256 constant royaltyNumerator = 0;
@@ -34,11 +34,11 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
     function setUp() public {
         bondingCurve = setupCurve();
         test721 = setup721();
-        LSSVMPairEnumerableETH enumerableETHTemplate = new LSSVMPairEnumerableETH();
-        LSSVMPairMissingEnumerableETH missingEnumerableETHTemplate = new LSSVMPairMissingEnumerableETH();
-        LSSVMPairEnumerableERC20 enumerableERC20Template = new LSSVMPairEnumerableERC20();
-        LSSVMPairMissingEnumerableERC20 missingEnumerableERC20Template = new LSSVMPairMissingEnumerableERC20();
-        factory = new LSSVMPairFactory(
+        CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
+        CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
+        CollectionPoolEnumerableERC20 enumerableERC20Template = new CollectionPoolEnumerableERC20();
+        CollectionPoolMissingEnumerableERC20 missingEnumerableERC20Template = new CollectionPoolMissingEnumerableERC20();
+        factory = new CollectionPoolFactory(
             enumerableETHTemplate,
             missingEnumerableETHTemplate,
             enumerableERC20Template,
@@ -50,7 +50,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
         test721.setApprovalForAll(address(factory), true);
         factory.setBondingCurveAllowed(bondingCurve, true);
 
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
     }
 
@@ -77,14 +77,14 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
 
         delete idList;
 
-        // initialize the pair
+        // initialize the pool
         uint256[] memory empty;
-        LSSVMPair pair = setupPair(
+        CollectionPool pool = setupPool(
             factory,
             test721,
             bondingCurve,
             payable(address(0)),
-            ILSSVMPair.PoolType.TRADE,
+            ICollectionPool.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -93,20 +93,20 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
             address(0)
         );
 
-        // mint NFTs to sell to the pair
+        // mint NFTs to sell to the pool
         for (uint256 i = 0; i < numItems; i++) {
             test721.mint(address(this), startingId);
             idList.push(startingId);
             startingId += 1;
         }
 
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
         uint256 startBalance;
         uint256 endBalance;
 
-        // sell all NFTs minted to the pair
+        // sell all NFTs minted to the pool
         {
             (
                 ,
@@ -129,14 +129,14 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
                     )
                 );
 
-            // give the pair contract enough tokens to pay for the NFTs
-            sendTokens(pair, outputAmount + fees.protocol);
+            // give the pool contract enough tokens to pay for the NFTs
+            sendTokens(pool, outputAmount + fees.protocol);
 
             // sell NFTs
-            test721.setApprovalForAll(address(pair), true);
+            test721.setApprovalForAll(address(pool), true);
             startBalance = getBalance(address(this));
-            pair.swapNFTsForToken(
-                ILSSVMPair.NFTs(
+            pool.swapNFTsForToken(
+                ICollectionPool.NFTs(
                     idList,
                     new bytes32[](0),
                     new bool[](0)
@@ -149,7 +149,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
             spotPrice = uint56(newParams.spotPrice);
         }
 
-        // buy back the NFTs just sold to the pair
+        // buy back the NFTs just sold to the pool
         {
             (, , uint256 inputAmount, ) = bondingCurve.getBuyInfo(
                 ICurve.Params(
@@ -166,7 +166,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
                     0
                 )
             );
-            pair.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
+            pool.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
                 idList.length,
                 inputAmount,
                 address(this),
@@ -179,8 +179,8 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
         // ensure the caller didn't profit from the aggregate trade
         assertGeDecimal(startBalance, endBalance, 18);
 
-        // withdraw the tokens in the pair back
-        withdrawTokens(pair);
+        // withdraw the tokens in the pool back
+        withdrawTokens(pool);
     }
 
     /**
@@ -206,18 +206,18 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
 
         delete idList;
 
-        // initialize the pair
+        // initialize the pool
         for (uint256 i = 0; i < numItems; i++) {
             test721.mint(address(this), startingId);
             idList.push(startingId);
             startingId += 1;
         }
-        LSSVMPair pair = setupPair(
+        CollectionPool pool = setupPool(
             factory,
             test721,
             bondingCurve,
             payable(address(0)),
-            ILSSVMPair.PoolType.TRADE,
+            ICollectionPool.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -225,9 +225,9 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
             0,
             address(0)
         );
-        test721.setApprovalForAll(address(pair), true);
+        test721.setApprovalForAll(address(pool), true);
 
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
         uint256 startBalance;
@@ -254,7 +254,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
 
             // buy NFTs
             startBalance = getBalance(address(this));
-            pair.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
+            pool.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
                 numItems,
                 inputAmount,
                 address(this),
@@ -281,8 +281,8 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
                     0
                 )
             );
-            pair.swapNFTsForToken(
-                ILSSVMPair.NFTs(
+            pool.swapNFTsForToken(
+                ICollectionPool.NFTs(
                     idList,
                     new bytes32[](0),
                     new bool[](0)
@@ -298,7 +298,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
         // ensure the caller didn't profit from the aggregate trade
         assertGeDecimal(startBalance, endBalance, 18);
 
-        // withdraw the tokens in the pair back
-        withdrawTokens(pair);
+        // withdraw the tokens in the pool back
+        withdrawTokens(pool);
     }
 }

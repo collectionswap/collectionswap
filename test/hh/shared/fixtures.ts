@@ -2,15 +2,15 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers } from "hardhat";
 
 import { config, CURVE_TYPE, getPoolAddress } from "./constants";
-import { createPairEth, mintNfts } from "./helpers";
+import { createPoolEth, mintNfts } from "./helpers";
 import { getSigners } from "./signers";
 
 import type {
   Collectionswap,
   ICurve,
   IERC721,
-  LSSVMPairETH,
-  LSSVMPairFactory,
+  CollectionPoolETH,
+  CollectionPoolFactory,
   Test721Enumerable,
 } from "../../../typechain-types";
 import type { curveType } from "./constants";
@@ -141,7 +141,7 @@ export async function integrationFixture() {
 export async function factoryFixture() {
   const { collection } = await getSigners();
 
-  const { curve, factory } = await lsSVMFixture();
+  const { curve, factory } = await collectionFixture();
 
   return { curve, factory, collection };
 }
@@ -214,45 +214,45 @@ export async function nftFixture() {
   return { nft: myERC721 };
 }
 
-export async function lsSVMFixture() {
+export async function collectionFixture() {
   const { ammDeployer } = await getSigners();
 
-  const LSSVMPairEnumerableETH = await ethers.getContractFactory(
-    "LSSVMPairEnumerableETH"
+  const CollectionPoolEnumerableETH = await ethers.getContractFactory(
+    "CollectionPoolEnumerableETH"
   );
-  const lsSVMPairEnumerableETH = await LSSVMPairEnumerableETH.connect(
+  const collectionPoolEnumerableETH = await CollectionPoolEnumerableETH.connect(
     ammDeployer
   ).deploy();
 
-  const LSSVMPairMissingEnumerableETH = await ethers.getContractFactory(
-    "LSSVMPairMissingEnumerableETH"
+  const CollectionPoolMissingEnumerableETH = await ethers.getContractFactory(
+    "CollectionPoolMissingEnumerableETH"
   );
-  const lsSVMPairMissingEnumerableETH =
-    await LSSVMPairMissingEnumerableETH.connect(ammDeployer).deploy();
+  const collectionPoolMissingEnumerableETH =
+    await CollectionPoolMissingEnumerableETH.connect(ammDeployer).deploy();
 
-  const LSSVMPairEnumerableERC20 = await ethers.getContractFactory(
-    "LSSVMPairEnumerableERC20"
+  const CollectionPoolEnumerableERC20 = await ethers.getContractFactory(
+    "CollectionPoolEnumerableERC20"
   );
-  const lsSVMPairEnumerableERC20 = await LSSVMPairEnumerableERC20.connect(
+  const collectionPoolEnumerableERC20 = await CollectionPoolEnumerableERC20.connect(
     ammDeployer
   ).deploy();
 
-  const LSSVMPairMissingEnumerableERC20 = await ethers.getContractFactory(
-    "LSSVMPairMissingEnumerableERC20"
+  const CollectionPoolMissingEnumerableERC20 = await ethers.getContractFactory(
+    "CollectionPoolMissingEnumerableERC20"
   );
-  const lsSVMPairMissingEnumerableERC20 =
-    await LSSVMPairMissingEnumerableERC20.connect(ammDeployer).deploy();
+  const collectionPoolMissingEnumerableERC20 =
+    await CollectionPoolMissingEnumerableERC20.connect(ammDeployer).deploy();
 
   const protocolFeeRecipient = ethers.constants.AddressZero;
   const protocolFeeMultiplier = ethers.utils.parseEther("0.05");
   const carryFeeMultiplier = ethers.utils.parseEther("0.05");
 
-  const LSSVMPairFactory = await ethers.getContractFactory("LSSVMPairFactory");
-  const lsSVMPairFactory = await LSSVMPairFactory.connect(ammDeployer).deploy(
-    lsSVMPairEnumerableETH.address,
-    lsSVMPairMissingEnumerableETH.address,
-    lsSVMPairEnumerableERC20.address,
-    lsSVMPairMissingEnumerableERC20.address,
+  const CollectionPoolFactory = await ethers.getContractFactory("CollectionPoolFactory");
+  const collectionPoolFactory = await CollectionPoolFactory.connect(ammDeployer).deploy(
+    collectionPoolEnumerableETH.address,
+    collectionPoolMissingEnumerableETH.address,
+    collectionPoolEnumerableERC20.address,
+    collectionPoolMissingEnumerableERC20.address,
     protocolFeeRecipient,
     protocolFeeMultiplier,
     carryFeeMultiplier
@@ -262,15 +262,15 @@ export async function lsSVMFixture() {
   // curve
   const ExponentialCurve = await ethers.getContractFactory("ExponentialCurve");
   const exponentialCurve = await ExponentialCurve.connect(ammDeployer).deploy();
-  await lsSVMPairFactory.setBondingCurveAllowed(exponentialCurve.address, true);
+  await collectionPoolFactory.setBondingCurveAllowed(exponentialCurve.address, true);
 
   const LinearCurve = await ethers.getContractFactory("LinearCurve");
   const linearCurve = await LinearCurve.connect(ammDeployer).deploy();
-  await lsSVMPairFactory.setBondingCurveAllowed(linearCurve.address, true);
+  await collectionPoolFactory.setBondingCurveAllowed(linearCurve.address, true);
 
   const SigmoidCurve = await ethers.getContractFactory("SigmoidCurve");
   const sigmoidCurve = await SigmoidCurve.connect(ammDeployer).deploy();
-  await lsSVMPairFactory.setBondingCurveAllowed(sigmoidCurve.address, true);
+  await collectionPoolFactory.setBondingCurveAllowed(sigmoidCurve.address, true);
 
   const map: { [key in curveType]: any } = {
     linear: linearCurve,
@@ -281,7 +281,7 @@ export async function lsSVMFixture() {
   return {
     ammDeployer, 
     curve: map[CURVE_TYPE!],
-    factory: lsSVMPairFactory,
+    factory: collectionPoolFactory,
   };
 }
 
@@ -294,27 +294,27 @@ function stringToBigNumber(value: string): BigNumber {
  * time, but convenient for now.
  */
 export async function everythingFixture() {
-  const LSSVMPairEnumerableETH = await ethers.getContractFactory(
-    "LSSVMPairEnumerableETH"
+  const CollectionPoolEnumerableETH = await ethers.getContractFactory(
+    "CollectionPoolEnumerableETH"
   );
-  const lssvmPairEnumerableETH = await LSSVMPairEnumerableETH.deploy();
+  const collectionPoolEnumerableETH = await CollectionPoolEnumerableETH.deploy();
 
-  const LSSVMPairMissingEnumerableETH = await ethers.getContractFactory(
-    "LSSVMPairMissingEnumerableETH"
+  const CollectionPoolMissingEnumerableETH = await ethers.getContractFactory(
+    "CollectionPoolMissingEnumerableETH"
   );
-  const lssvmPairMissingEnumerableETH =
-    await LSSVMPairMissingEnumerableETH.deploy();
+  const collectionPoolMissingEnumerableETH =
+    await CollectionPoolMissingEnumerableETH.deploy();
 
-  const LSSVMPairEnumerableERC20 = await ethers.getContractFactory(
-    "LSSVMPairEnumerableERC20"
+  const CollectionPoolEnumerableERC20 = await ethers.getContractFactory(
+    "CollectionPoolEnumerableERC20"
   );
-  const lssvmPairEnumerableERC20 = await LSSVMPairEnumerableERC20.deploy();
+  const collectionPoolEnumerableERC20 = await CollectionPoolEnumerableERC20.deploy();
 
-  const LSSVMPairMissingEnumerableERC20 = await ethers.getContractFactory(
-    "LSSVMPairMissingEnumerableERC20"
+  const CollectionPoolMissingEnumerableERC20 = await ethers.getContractFactory(
+    "CollectionPoolMissingEnumerableERC20"
   );
-  const lssvmPairMissingEnumerableERC20 =
-    await LSSVMPairMissingEnumerableERC20.deploy();
+  const collectionPoolMissingEnumerableERC20 =
+    await CollectionPoolMissingEnumerableERC20.deploy();
   const payoutAddress = ethers.constants.AddressZero;
 
   const {
@@ -329,17 +329,17 @@ export async function everythingFixture() {
     royaltyNumerator,
   } = getCurveParameters();
 
-  const LSSVMPairFactory = await ethers.getContractFactory("LSSVMPairFactory");
-  const lssvmPairFactory = await LSSVMPairFactory.deploy(
-    lssvmPairEnumerableETH.address,
-    lssvmPairMissingEnumerableETH.address,
-    lssvmPairEnumerableERC20.address,
-    lssvmPairMissingEnumerableERC20.address,
+  const CollectionPoolFactory = await ethers.getContractFactory("CollectionPoolFactory");
+  const collectionPoolFactory = await CollectionPoolFactory.deploy(
+    collectionPoolEnumerableETH.address,
+    collectionPoolMissingEnumerableETH.address,
+    collectionPoolEnumerableERC20.address,
+    collectionPoolMissingEnumerableERC20.address,
     payoutAddress,
     stringToBigNumber(bigPctProtocolFee),
     stringToBigNumber(bigPctCarryFee)
   );
-  // Console.log(`LSSVMPairFactory deployed to ${lssvmPairFactory.address}`)
+  // Console.log(`CollectionPoolFactory deployed to ${collectionPoolFactory.address}`)
 
   const [
     otherAccount0,
@@ -380,18 +380,18 @@ export async function everythingFixture() {
   const poolType = 2; // TRADE
 
   const initialNFTIDs = [...Array(3).keys()].map((num) => num + 1234);
-  await lssvmPairFactory.setBondingCurveAllowed(curve.address, true);
+  await collectionPoolFactory.setBondingCurveAllowed(curve.address, true);
 
   const delta = stringToBigNumber(bigDelta);
   const fee = stringToBigNumber(bigPctFee);
   const spotPrice = stringToBigNumber(bigSpot);
 
   const ret = {
-    lssvmPairFactory,
-    lssvmPairEnumerableETH,
-    lssvmPairMissingEnumerableETH,
-    lssvmPairEnumerableERC20,
-    lssvmPairMissingEnumerableERC20,
+    collectionPoolFactory,
+    collectionPoolEnumerableETH,
+    collectionPoolMissingEnumerableETH,
+    collectionPoolEnumerableERC20,
+    collectionPoolMissingEnumerableERC20,
     curve,
     nftContractCollection,
     assetRecipient,
@@ -433,7 +433,7 @@ export async function everythingFixture() {
   return ret;
 }
 
-export async function rewardPoolFixture() {
+export async function rewardVaultFixture() {
   const { owner, user, user1, collection } = await getSigners();
 
   let { factory, curve } = await factoryFixture();
@@ -450,16 +450,16 @@ export async function rewardPoolFixture() {
   const { delta, fee, spotPrice, props, state, royaltyNumerator } =
     getCurveParameters();
 
-  const RewardPool = await ethers.getContractFactory("RewardPoolETH");
-  let rewardPool = await RewardPool.connect(factory.signer).deploy();
+  const RewardVault = await ethers.getContractFactory("RewardVaultETH");
+  let rewardVault = await RewardVault.connect(factory.signer).deploy();
 
   const Clones = await ethers.getContractFactory("TestClones");
   const clones = await Clones.deploy();
-  const rewardPoolAddress = await clones.callStatic.clone(rewardPool.address);
-  await clones.clone(rewardPool.address);
-  rewardPool = RewardPool.attach(rewardPoolAddress);
+  const rewardVaultAddress = await clones.callStatic.clone(rewardVault.address);
+  await clones.clone(rewardVault.address);
+  rewardVault = RewardVault.attach(rewardVaultAddress);
 
-  await rewardPool.initialize(
+  await rewardVault.initialize(
     collection.address,
     owner.address,
     factory.address,
@@ -476,7 +476,7 @@ export async function rewardPoolFixture() {
   );
 
   for (let i = 0; i < NUM_REWARD_TOKENS; i++) {
-    await rewardTokens[i].mint(rewardPool.address, REWARDS[i]);
+    await rewardTokens[i].mint(rewardVault.address, REWARDS[i]);
   }
 
   const nftTokenIds = await mintNfts(nft, user.address);
@@ -484,7 +484,7 @@ export async function rewardPoolFixture() {
 
   factory = factory.connect(user);
   nft = nft.connect(user);
-  rewardPool = rewardPool.connect(user);
+  rewardVault = rewardVault.connect(user);
 
   const params = {
     bondingCurve: curve as unknown as ICurve,
@@ -498,13 +498,13 @@ export async function rewardPoolFixture() {
     value: ethers.utils.parseEther("2"),
   };
 
-  const { lpTokenId } = await createPairEth(factory, {
+  const { lpTokenId } = await createPoolEth(factory, {
     ...params,
     nft: nft as unknown as IERC721,
     nftTokenIds,
   });
 
-  const { lpTokenId: lpTokenId1 } = await createPairEth(
+  const { lpTokenId: lpTokenId1 } = await createPoolEth(
     factory.connect(user1),
     {
       ...params,
@@ -523,7 +523,7 @@ export async function rewardPoolFixture() {
     curve,
     lpTokenId,
     lpTokenId1,
-    rewardPool,
+    rewardVault,
     owner,
     user,
     user1,
@@ -557,7 +557,7 @@ export async function royaltyFixture(): Promise<{
   royaltyRecipientOverride: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
   tokenIdsWithoutRoyalty: string[];
-  lssvmPairFactory: LSSVMPairFactory;
+  collectionPoolFactory: CollectionPoolFactory;
   collectionswap: Collectionswap;
   otherAccount1: SignerWithAddress;
   ethPoolParams: EthPoolParams;
@@ -590,16 +590,16 @@ export async function royaltyFixture(): Promise<{
     )
   );
 
-  const { lssvmPairFactory, collectionswap, otherAccount1, ethPoolParams } =
+  const { collectionPoolFactory, collectionswap, otherAccount1, ethPoolParams } =
     (await everythingFixture()) as any;
 
   // Approve all tokenids
   for (const id of nftsWithRoyalty) {
-    await nft.connect(owner).approve(lssvmPairFactory.address, id);
+    await nft.connect(owner).approve(collectionPoolFactory.address, id);
   }
 
   for (const id of nftsWithoutRoyalty) {
-    await nftNon2981.connect(owner).approve(lssvmPairFactory.address, id);
+    await nftNon2981.connect(owner).approve(collectionPoolFactory.address, id);
   }
 
   return {
@@ -609,7 +609,7 @@ export async function royaltyFixture(): Promise<{
     recipients,
     tokenIdsWithRoyalty: nftsWithRoyalty,
     tokenIdsWithoutRoyalty: nftsWithoutRoyalty,
-    lssvmPairFactory,
+    collectionPoolFactory,
     collectionswap,
     otherAccount1,
     ethPoolParams,
@@ -620,7 +620,7 @@ export async function royaltyFixture(): Promise<{
 /**
  * A royalty fixture meant for testing transactions with a successfully created
  * pool. To this end, this fixture doesn't provide the non-2981 NFT contract and
- * ids. Instead, it provides the pair which will be traded against.
+ * ids. Instead, it provides the pool which will be traded against.
  *
  * Also returns an enumerateTrader function which returns all tokenIds held by
  * the trader
@@ -631,11 +631,11 @@ export async function royaltyWithPoolFixture(): Promise<{
   recipients: SignerWithAddress[];
   royaltyRecipientOverride: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
-  lssvmPairFactory: LSSVMPairFactory;
+  collectionPoolFactory: CollectionPoolFactory;
   collectionswap: Collectionswap;
   otherAccount1: SignerWithAddress;
   ethPoolParams: EthPoolParams;
-  lssvmPairETH: LSSVMPairETH;
+  collectionPoolETH: CollectionPoolETH;
   traderNfts: string[];
   fee: BigNumber;
   protocolFee: BigNumber;
@@ -647,7 +647,7 @@ export async function royaltyWithPoolFixture(): Promise<{
     initialOwner,
     recipients,
     tokenIdsWithRoyalty,
-    lssvmPairFactory,
+    collectionPoolFactory,
     collectionswap,
     otherAccount1,
     ethPoolParams,
@@ -656,7 +656,7 @@ export async function royaltyWithPoolFixture(): Promise<{
 
   const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
-  const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+  const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
     {
       ...ethPoolParams,
       nft: nft2981.address,
@@ -669,10 +669,10 @@ export async function royaltyWithPoolFixture(): Promise<{
       gasLimit: 1000000,
     }
   );
-  const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-  const lssvmPairETH = await ethers.getContractAt(
-    "LSSVMPairETH",
-    newPairAddress
+  const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+  const collectionPoolETH = await ethers.getContractAt(
+    "CollectionPoolETH",
+    newPoolAddress
   );
 
   // Give the trader some nfts so both directions can be tested
@@ -681,7 +681,7 @@ export async function royaltyWithPoolFixture(): Promise<{
   // Approve all for trading with the pool
   await nft2981
     .connect(otherAccount1)
-    .setApprovalForAll(lssvmPairETH.address, true);
+    .setApprovalForAll(collectionPoolETH.address, true);
 
   // Assign royalty recipients. Exclude some to test fallback
   const { royaltyRecipient3, royaltyRecipient4 } = await getSigners();
@@ -709,11 +709,11 @@ export async function royaltyWithPoolFixture(): Promise<{
     initialOwner,
     recipients,
     tokenIdsWithRoyalty,
-    lssvmPairFactory,
+    collectionPoolFactory,
     collectionswap,
     otherAccount1,
     ethPoolParams,
-    lssvmPairETH,
+    collectionPoolETH,
     traderNfts,
     fee: ethers.BigNumber.from(fee),
     protocolFee: ethers.BigNumber.from(protocolFee),
@@ -729,11 +729,11 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
   recipients: SignerWithAddress[];
   royaltyRecipientOverride: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
-  lssvmPairFactory: LSSVMPairFactory;
+  collectionPoolFactory: CollectionPoolFactory;
   collectionswap: Collectionswap;
   otherAccount1: SignerWithAddress;
   ethPoolParams: EthPoolParams;
-  lssvmPairETH: LSSVMPairETH;
+  collectionPoolETH: CollectionPoolETH;
   traderNfts: string[];
   fee: BigNumber;
   protocolFee: BigNumber;
@@ -744,7 +744,7 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
     initialOwner,
     recipients,
     tokenIdsWithRoyalty,
-    lssvmPairFactory,
+    collectionPoolFactory,
     collectionswap,
     otherAccount1,
     ethPoolParams,
@@ -753,7 +753,7 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
 
   const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
-  const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+  const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
     {
       ...ethPoolParams,
       nft: nft2981.address,
@@ -766,10 +766,10 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
       gasLimit: 1000000,
     }
   );
-  const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-  const lssvmPairETH = await ethers.getContractAt(
-    "LSSVMPairETH",
-    newPairAddress
+  const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+  const collectionPoolETH = await ethers.getContractAt(
+    "CollectionPoolETH",
+    newPoolAddress
   );
 
   // Give the trader some nfts so both directions can be tested
@@ -778,7 +778,7 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
   // Approve all for trading with the pool
   await nft2981
     .connect(otherAccount1)
-    .setApprovalForAll(lssvmPairETH.address, true);
+    .setApprovalForAll(collectionPoolETH.address, true);
 
   // Assign royalty recipients. Exclude some so we can test fallback
   const { royaltyRecipient3, royaltyRecipient4 } = await getSigners();
@@ -796,11 +796,11 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
     initialOwner,
     recipients,
     tokenIdsWithRoyalty,
-    lssvmPairFactory,
+    collectionPoolFactory,
     collectionswap,
     otherAccount1,
     ethPoolParams,
-    lssvmPairETH,
+    collectionPoolETH,
     traderNfts,
     fee: ethers.BigNumber.from(fee),
     protocolFee: ethers.BigNumber.from(protocolFee),

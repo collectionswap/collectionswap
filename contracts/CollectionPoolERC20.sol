@@ -4,25 +4,25 @@ pragma solidity ^0.8.0;
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {ILSSVMPair} from "./ILSSVMPair.sol";
-import {LSSVMPair} from "./LSSVMPair.sol";
-import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
-import {LSSVMRouter} from "./LSSVMRouter.sol";
+import {ICollectionPool} from "./ICollectionPool.sol";
+import {CollectionPool} from "./CollectionPool.sol";
+import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
+import {CollectionRouter} from "./CollectionRouter.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 
 /**
-    @title An NFT/Token pair where the token is an ERC20
+    @title An NFT/Token pool where the token is an ERC20
     @author Collection
  */
-abstract contract LSSVMPairERC20 is LSSVMPair {
+abstract contract CollectionPoolERC20 is CollectionPool {
     using SafeTransferLib for ERC20;
 
     uint256 internal constant IMMUTABLE_PARAMS_LENGTH = 81;
 
     /**
-        @notice Returns the ERC20 token associated with the pair
-        @dev See LSSVMPairCloner for an explanation on how this works
+        @notice Returns the ERC20 token associated with the pool
+        @dev See CollectionPoolCloner for an explanation on how this works
      */
     function token() public pure returns (ERC20 _token) {
         uint256 paramsLength = _immutableParamsLength();
@@ -34,23 +34,23 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         }
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc CollectionPool
     function _pullTokenInputAndPayProtocolFee(
         uint256 inputAmount,
         bool isRouter,
         address routerCaller,
-        ILSSVMPairFactory _factory,
+        ICollectionPoolFactory _factory,
         uint256 protocolFee,
         RoyaltyDue[] memory royaltiesDue
     ) internal override {
-        require(msg.value == 0, "ERC20 pair");
+        require(msg.value == 0, "ERC20 pool");
 
         ERC20 _token = token();
         address _assetRecipient = getAssetRecipient();
 
         if (isRouter) {
             // Verify if router is allowed
-            LSSVMRouter router = LSSVMRouter(payable(msg.sender));
+            CollectionRouter router = CollectionRouter(payable(msg.sender));
 
             // Locally scoped to avoid stack too deep
             {
@@ -78,15 +78,15 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
                 if (royaltyAmount > 0) {
                     totalRoyaltiesPaid += royaltyAmount;
 
-                    router.pairTransferERC20From(
+                    router.poolTransferERC20From(
                         _token,
                         routerCaller,
                         royaltyRecipient,
                         royaltyAmount,
-                        pairVariant()
+                        poolVariant()
                     );
 
-                    // Verify token transfer (protect pair against malicious router)
+                    // Verify token transfer (protect pool against malicious router)
                     require(
                         _token.balanceOf(royaltyRecipient) - royaltyInitBalance ==
                             royaltyAmount,
@@ -102,27 +102,27 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             // Cache state and then call router to transfer tokens from user
             uint256 beforeBalance = _token.balanceOf(_assetRecipient);
             uint256 amountToAssetRecipient = inputAmount - protocolFee - totalRoyaltiesPaid;
-            router.pairTransferERC20From(
+            router.poolTransferERC20From(
                 _token,
                 routerCaller,
                 _assetRecipient,
                 amountToAssetRecipient,
-                pairVariant()
+                poolVariant()
             );
 
-            // Verify token transfer (protect pair against malicious router)
+            // Verify token transfer (protect pool against malicious router)
             require(
                 _token.balanceOf(_assetRecipient) - beforeBalance ==
                     amountToAssetRecipient,
                 "ERC20 not transferred in"
             );
 
-            router.pairTransferERC20From(
+            router.poolTransferERC20From(
                 _token,
                 routerCaller,
                 address(_factory),
                 protocolFee,
-                pairVariant()
+                poolVariant()
             );
 
             // Note: no check for factory balance's because router is assumed to be set by factory owner
@@ -170,14 +170,14 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         }
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc CollectionPool
     function _refundTokenToSender(uint256 inputAmount) internal override {
         // Do nothing since we transferred the exact input amount
     }
 
-    /// @inheritdoc LSSVMPair
-    function _payProtocolFeeFromPair(
-        ILSSVMPairFactory _factory,
+    /// @inheritdoc CollectionPool
+    function _payProtocolFeeFromPool(
+        ICollectionPoolFactory _factory,
         uint256 protocolFee
     ) internal override {
         // Take protocol fee (if it exists)
@@ -185,9 +185,9 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
             ERC20 _token = token();
 
             // Round down to the actual token balance if there are numerical stability issues with the bonding curve calculations
-            uint256 pairTokenBalance = _token.balanceOf(address(this));
-            if (protocolFee > pairTokenBalance) {
-                protocolFee = pairTokenBalance;
+            uint256 poolTokenBalance = _token.balanceOf(address(this));
+            if (protocolFee > poolTokenBalance) {
+                protocolFee = poolTokenBalance;
             }
             if (protocolFee > 0) {
                 _token.safeTransfer(address(_factory), protocolFee);
@@ -195,7 +195,7 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         }
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc CollectionPool
     function _sendTokenOutput(
         address payable tokenRecipient,
         uint256 outputAmount,
@@ -236,14 +236,14 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         
     }
 
-    /// @inheritdoc LSSVMPair
-    // @dev see LSSVMPairCloner for params length calculation
+    /// @inheritdoc CollectionPool
+    // @dev see CollectionPoolCloner for params length calculation
     function _immutableParamsLength() internal pure override returns (uint256) {
         return IMMUTABLE_PARAMS_LENGTH;
     }
 
     /**
-        @notice Withdraws all pair token owned by the pair to the owner address.
+        @notice Withdraws all pool token owned by the pool to the owner address.
         @dev Only callable by the owner.
      */
     function withdrawAllERC20() external onlyAuthorized {
@@ -253,11 +253,11 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
         uint256 amount = _token.balanceOf(address(this));
         _token.safeTransfer(owner(), amount);
 
-        // emit event since it is the pair token
+        // emit event since it is the pool token
         emit TokenWithdrawal(amount);
     }
 
-    /// @inheritdoc ILSSVMPair
+    /// @inheritdoc ICollectionPool
     function withdrawERC20(ERC20 a, uint256 amount)
         external
         onlyAuthorized
@@ -268,14 +268,14 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
                 "Too little ERC20"
             );
 
-            // emit event since it is the pair token
+            // emit event since it is the pool token
             emit TokenWithdrawal(amount);
         }
 
         a.safeTransfer(owner(), amount);
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc CollectionPool
     function withdrawTradeFee() external override onlyOwner {
         uint256 _tradeFee = tradeFee;
         if (_tradeFee > 0) {
@@ -283,7 +283,7 @@ abstract contract LSSVMPairERC20 is LSSVMPair {
 
             token().safeTransfer(msg.sender, _tradeFee);
 
-            // emit event since it is the pair token
+            // emit event since it is the pool token
             emit TokenWithdrawal(_tradeFee);
         }
     }

@@ -9,15 +9,15 @@ import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
 import {Test20} from "../../../contracts/mocks/Test20.sol";
-import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
-import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
-import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
-import {LSSVMPairEnumerableETH} from "../../../contracts/LSSVMPairEnumerableETH.sol";
-import {LSSVMPairMissingEnumerableETH} from "../../../contracts/LSSVMPairMissingEnumerableETH.sol";
-import {LSSVMPairEnumerableERC20} from "../../../contracts/LSSVMPairEnumerableERC20.sol";
-import {LSSVMPairMissingEnumerableERC20} from "../../../contracts/LSSVMPairMissingEnumerableERC20.sol";
+import {ICollectionPool} from "../../../contracts/ICollectionPool.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPoolETH} from "../../../contracts/CollectionPoolETH.sol";
+import {CollectionPoolERC20} from "../../../contracts/CollectionPoolERC20.sol";
+import {CollectionPoolEnumerableETH} from "../../../contracts/CollectionPoolEnumerableETH.sol";
+import {CollectionPoolMissingEnumerableETH} from "../../../contracts/CollectionPoolMissingEnumerableETH.sol";
+import {CollectionPoolEnumerableERC20} from "../../../contracts/CollectionPoolEnumerableERC20.sol";
+import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/CollectionPoolMissingEnumerableERC20.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {Test721} from "../../../contracts/mocks/Test721.sol";
@@ -25,7 +25,7 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {Test1155} from "../../../contracts/mocks/Test1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
-abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurable, ERC1155Holder {
+abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurable, ERC1155Holder {
     uint128 delta = 1.1 ether;
     uint128 spotPrice = 1 ether;
     uint256 tokenAmount = 10 ether;
@@ -35,21 +35,21 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     Test1155 test1155;
     ERC20 testERC20;
     ICurve bondingCurve;
-    LSSVMPairFactory factory;
+    CollectionPoolFactory factory;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 3e15;
     uint256 constant carryFeeMultiplier = 3e15;
     uint256 constant royaltyNumerator = 500;
-    LSSVMPair pair;
+    CollectionPool pool;
 
     function setUp() public {
         bondingCurve = setupCurve();
         test721 = setup721();
-        LSSVMPairEnumerableETH enumerableETHTemplate = new LSSVMPairEnumerableETH();
-        LSSVMPairMissingEnumerableETH missingEnumerableETHTemplate = new LSSVMPairMissingEnumerableETH();
-        LSSVMPairEnumerableERC20 enumerableERC20Template = new LSSVMPairEnumerableERC20();
-        LSSVMPairMissingEnumerableERC20 missingEnumerableERC20Template = new LSSVMPairMissingEnumerableERC20();
-        factory = new LSSVMPairFactory(
+        CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
+        CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
+        CollectionPoolEnumerableERC20 enumerableERC20Template = new CollectionPoolEnumerableERC20();
+        CollectionPoolMissingEnumerableERC20 missingEnumerableERC20Template = new CollectionPoolMissingEnumerableERC20();
+        factory = new CollectionPoolFactory(
             enumerableETHTemplate,
             missingEnumerableETHTemplate,
             enumerableERC20Template,
@@ -65,12 +65,12 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
             idList.push(i);
         }
 
-        pair = this.setupPair{value: modifyInputAmount(tokenAmount)}(
+        pool = this.setupPool{value: modifyInputAmount(tokenAmount)}(
             factory,
             test721,
             bondingCurve,
             payable(address(0)),
-            ILSSVMPair.PoolType.TRADE,
+            ICollectionPool.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -80,17 +80,17 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
         );
         test1155 = new Test1155();
         testERC20 = ERC20(address(new Test20()));
-        IMintable(address(testERC20)).mint(address(pair), 1 ether);
+        IMintable(address(testERC20)).mint(address(pool), 1 ether);
     }
 
     function testGas_basicDeploy() public {
         uint256[] memory empty;
-        this.setupPair{value: modifyInputAmount(tokenAmount)}(
+        this.setupPool{value: modifyInputAmount(tokenAmount)}(
             factory,
             test721,
             bondingCurve,
             payable(address(0)),
-            ILSSVMPair.PoolType.TRADE,
+            ICollectionPool.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -101,16 +101,16 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     /**
-     * Test LSSVMPair Owner functions
+     * Test CollectionPool Owner functions
      */
 
     function test_transferOwnership() public {
         transferOwnership(payable(address(2)));
-        assertEq(pair.owner(), address(2));
+        assertEq(pool.owner(), address(2));
     }
 
     function testGas_transferNoCallback() public {
-        transferOwnership(address(pair));
+        transferOwnership(address(pool));
     }
 
     function testFail_transferOwnership() public {
@@ -119,82 +119,82 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     function test_rescueTokens() public {
-        pair.withdrawERC721(test721, idList);
-        pair.withdrawERC20(testERC20, 1 ether);
+        pool.withdrawERC721(test721, idList);
+        pool.withdrawERC20(testERC20, 1 ether);
     }
 
     function testFail_tradePoolChangeAssetRecipient() public {
-        pair.changeAssetRecipient(payable(address(1)));
+        pool.changeAssetRecipient(payable(address(1)));
     }
 
     function testFail_tradePoolChangeFeePastMax() public {
-        pair.changeFee(100 ether);
+        pool.changeFee(100 ether);
     }
 
     function test_verifyPoolParams() public {
-        // verify pair variables
-        assertEq(address(pair.nft()), address(test721));
-        assertEq(address(pair.bondingCurve()), address(bondingCurve));
-        assertEq(uint256(pair.poolType()), uint256(ILSSVMPair.PoolType.TRADE));
-        assertEq(pair.delta(), delta);
-        assertEq(pair.spotPrice(), spotPrice);
-        assertEq(pair.owner(), address(this));
-        assertEq(pair.fee(), 0);
-        assertEq(pair.assetRecipient(), address(0));
-        assertEq(pair.getAssetRecipient(), address(pair));
-        assertEq(getBalance(address(pair)), tokenAmount);
+        // verify pool variables
+        assertEq(address(pool.nft()), address(test721));
+        assertEq(address(pool.bondingCurve()), address(bondingCurve));
+        assertEq(uint256(pool.poolType()), uint256(ICollectionPool.PoolType.TRADE));
+        assertEq(pool.delta(), delta);
+        assertEq(pool.spotPrice(), spotPrice);
+        assertEq(pool.owner(), address(this));
+        assertEq(pool.fee(), 0);
+        assertEq(pool.assetRecipient(), address(0));
+        assertEq(pool.getAssetRecipient(), address(pool));
+        assertEq(getBalance(address(pool)), tokenAmount);
 
         // verify NFT ownership
-        assertEq(test721.ownerOf(1), address(pair));
+        assertEq(test721.ownerOf(1), address(pool));
     }
 
-    function test_modifyPairParams() public {
+    function test_modifyPoolParams() public {
         // changing spot works as expected
-        pair.changeSpotPrice(2 ether);
-        assertEq(pair.spotPrice(), 2 ether);
+        pool.changeSpotPrice(2 ether);
+        assertEq(pool.spotPrice(), 2 ether);
 
         // changing delta works as expected
-        pair.changeDelta(2.2 ether);
-        assertEq(pair.delta(), 2.2 ether);
+        pool.changeDelta(2.2 ether);
+        assertEq(pool.delta(), 2.2 ether);
 
         // // changing fee works as expected
-        pair.changeFee(0.2 ether);
-        assertEq(pair.fee(), 0.2 ether);
+        pool.changeFee(0.2 ether);
+        assertEq(pool.fee(), 0.2 ether);
     }
 
-    function test_multicallModifyPairParams() public {
+    function test_multicallModifyPoolParams() public {
         bytes[] memory calls = new bytes[](3);
-        calls[0] = abi.encodeCall(pair.changeSpotPrice, (1 ether));
-        calls[1] = abi.encodeCall(pair.changeDelta, (2 ether));
-        calls[2] = abi.encodeCall(pair.changeFee, (0.3 ether));
-        pair.multicall(calls, true);
-        assertEq(pair.spotPrice(), 1 ether);
-        assertEq(pair.delta(), 2 ether);
-        assertEq(pair.fee(), 0.3 ether);
+        calls[0] = abi.encodeCall(pool.changeSpotPrice, (1 ether));
+        calls[1] = abi.encodeCall(pool.changeDelta, (2 ether));
+        calls[2] = abi.encodeCall(pool.changeFee, (0.3 ether));
+        pool.multicall(calls, true);
+        assertEq(pool.spotPrice(), 1 ether);
+        assertEq(pool.delta(), 2 ether);
+        assertEq(pool.fee(), 0.3 ether);
     }
 
     function testFail_multicallChangeOwnership() public {
         bytes[] memory calls = new bytes[](2);
-        calls[0] = abi.encodeCall(pair.transferOwnership, (address(69)));
-        calls[1] = abi.encodeCall(pair.changeDelta, (2 ether));
-        pair.multicall(calls, true);
+        calls[0] = abi.encodeCall(pool.transferOwnership, (address(69)));
+        calls[1] = abi.encodeCall(pool.changeDelta, (2 ether));
+        pool.multicall(calls, true);
     }
 
     function test_getAllHeldNFTs() public {
-        uint256[] memory allIds = pair.getAllHeldIds();
+        uint256[] memory allIds = pool.getAllHeldIds();
         for (uint256 i = 0; i < allIds.length; ++i) {
             assertEq(allIds[i], idList[i]);
         }
     }
 
     function test_withdraw() public {
-        withdrawTokens(pair);
-        assertEq(getBalance(address(pair)), 0);
+        withdrawTokens(pool);
+        assertEq(getBalance(address(pool)), 0);
     }
 
     function testFail_withdraw() public {
         transferOwnership(address(1000));
-        withdrawTokens(pair);
+        withdrawTokens(pool);
     }
 
     function testFail_callMint721() public {
@@ -203,7 +203,7 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
             address(this),
             1000
         );
-        pair.call(payable(address(test721)), data);
+        pool.call(payable(address(test721)), data);
     }
 
     function test_callMint721() public {
@@ -217,20 +217,20 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
             address(this),
             1000
         );
-        pair.call(payable(address(test721)), data);
+        pool.call(payable(address(test721)), data);
 
         // verify NFT ownership
         assertEq(test721.ownerOf(1000), address(this));
     }
 
     function test_withdraw1155() public {
-        test1155.mint(address(pair), 1, 2);
+        test1155.mint(address(pool), 1, 2);
         uint256[] memory ids = new uint256[](1);
         ids[0] = 1;
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 2;
-        pair.withdrawERC1155(IERC1155(address(test1155)), ids, amounts);
-        assertEq(IERC1155(address(test1155)).balanceOf(address(pair), 1), 0);
+        pool.withdrawERC1155(IERC1155(address(test1155)), ids, amounts);
+        assertEq(IERC1155(address(test1155)).balanceOf(address(pool), 1), 0);
         assertEq(IERC1155(address(test1155)).balanceOf(address(this), 1), 2);
     }
 
@@ -240,39 +240,39 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
 
     function testFail_rescueTokensNotOwner() public {
         transferOwnership(address(1000));
-        pair.withdrawERC721(test721, idList);
-        pair.withdrawERC20(testERC20, 1 ether);
+        pool.withdrawERC721(test721, idList);
+        pool.withdrawERC20(testERC20, 1 ether);
     }
 
     function testFail_changeAssetRecipientForTrade() public {
-        pair.changeAssetRecipient(payable(address(1)));
+        pool.changeAssetRecipient(payable(address(1)));
     }
 
     function testFail_changeFeeAboveMax() public {
-        pair.changeFee(100 ether);
+        pool.changeFee(100 ether);
     }
 
     function testFail_changeSpotNotOwner() public {
         transferOwnership(address(1000));
-        pair.changeSpotPrice(2 ether);
+        pool.changeSpotPrice(2 ether);
     }
 
     function testFail_changeDeltaNotOwner() public {
         transferOwnership(address(1000));
-        pair.changeDelta(2.2 ether);
+        pool.changeDelta(2.2 ether);
     }
 
     function testFail_changeFeeNotOwner() public {
         transferOwnership(address(1000));
-        pair.changeFee(0.2 ether);
+        pool.changeFee(0.2 ether);
     }
 
     function testFail_reInitPool() public {
-        pair.initialize(0, payable(address(0)), 0, 0, 0, "", "", 0, payable(address(0)));
+        pool.initialize(0, payable(address(0)), 0, 0, 0, "", "", 0, payable(address(0)));
     }
 
     function testFail_swapForNFTNotInPool() public {
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
         (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
@@ -284,13 +284,13 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
                     ""
                 ),
                 numItems + 1,
-                pair.feeMultipliers()
+                pool.feeMultipliers()
             );
 
         // buy specific NFT not in pool
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 69;
-        pair.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
+        pool.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
             nftIds,
             inputAmount,
             address(this),
@@ -301,7 +301,7 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     function testFail_swapForAnyNFTsPastBalance() public {
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
         (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
@@ -313,11 +313,11 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
                     ""
                 ),
                 numItems + 1,
-                pair.feeMultipliers()
+                pool.feeMultipliers()
             );
 
         // buy any NFTs past pool inventory
-        pair.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
+        pool.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
             numItems + 1,
             inputAmount,
             address(this),
@@ -337,14 +337,14 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     function test_withdrawFees() public {
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
         uint256 totalProtocolFee;
         uint256 factoryEndBalance;
         uint256 factoryStartBalance = getBalance(address(69));
 
-        test721.setApprovalForAll(address(pair), true);
+        test721.setApprovalForAll(address(pool), true);
 
         // buy all NFTs
         {
@@ -361,12 +361,12 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
                         ""
                     ),
                     numItems,
-                    pair.feeMultipliers()
+                    pool.feeMultipliers()
                 );
             totalProtocolFee += fees.protocol;
 
             // buy NFTs
-            pair.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
+            pool.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
                 numItems,
                 inputAmount,
                 address(this),
@@ -388,7 +388,7 @@ abstract contract PairAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     function transferOwnership(address newOwner) internal {
-        IERC721(address(pair.factory())).approve(address(pair), pair.tokenId());
-        pair.transferOwnership(payable(newOwner));
+        IERC721(address(pool.factory())).approve(address(pool), pool.tokenId());
+        pool.transferOwnership(payable(newOwner));
     }
 }

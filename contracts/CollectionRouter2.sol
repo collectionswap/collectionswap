@@ -4,95 +4,95 @@ pragma solidity ^0.8.0;
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
-import {ILSSVMPair} from "./ILSSVMPair.sol";
-import {LSSVMPair} from "./LSSVMPair.sol";
-import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
+import {ICollectionPool} from "./ICollectionPool.sol";
+import {CollectionPool} from "./CollectionPool.sol";
+import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 
-contract LSSVMRouter2 {
+contract CollectionRouter2 {
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
 
-    struct PairSwapSpecific {
-        LSSVMPair pair;
+    struct PoolSwapSpecific {
+        CollectionPool pool;
         uint256[] nftIds;
         bytes32[] proof;
         bool[] proofFlags;
     }
 
-    struct RobustPairSwapSpecific {
-        PairSwapSpecific swapInfo;
+    struct RobustPoolSwapSpecific {
+        PoolSwapSpecific swapInfo;
         uint256 maxCost;
     }
 
-    struct RobustPairSwapSpecificForToken {
-        PairSwapSpecific swapInfo;
+    struct RobustPoolSwapSpecificForToken {
+        PoolSwapSpecific swapInfo;
         uint256 minOutput;
     }
 
-    struct PairSwapSpecificPartialFill {
-        PairSwapSpecific swapInfo;
+    struct PoolSwapSpecificPartialFill {
+        PoolSwapSpecific swapInfo;
         uint256 expectedSpotPrice;
         uint256[] maxCostPerNumNFTs;
     }
 
-    struct PairSwapSpecificPartialFillForToken {
-        PairSwapSpecific swapInfo;
+    struct PoolSwapSpecificPartialFillForToken {
+        PoolSwapSpecific swapInfo;
         uint256 expectedSpotPrice;
         uint256[] minOutputPerNumNFTs;
     }
 
-    struct RobustPairNFTsFoTokenAndTokenforNFTsTrade {
-        RobustPairSwapSpecific[] tokenToNFTTrades;
-        RobustPairSwapSpecificForToken[] nftToTokenTrades;
+    struct RobustPoolNFTsFoTokenAndTokenforNFTsTrade {
+        RobustPoolSwapSpecific[] tokenToNFTTrades;
+        RobustPoolSwapSpecificForToken[] nftToTokenTrades;
         uint256 inputAmount;
         address payable tokenRecipient;
         address nftRecipient;
     }
 
-    ILSSVMPairFactory public immutable factory;
+    ICollectionPoolFactory public immutable factory;
 
-    constructor(ILSSVMPairFactory _factory) {
+    constructor(ICollectionPoolFactory _factory) {
         factory = _factory;
     }
 
     /**
-        @dev Allows a pair contract to transfer ERC721 NFTs directly from
-        the sender, in order to minimize the number of token transfers. Only callable by a pair.
+        @dev Allows a pool contract to transfer ERC721 NFTs directly from
+        the sender, in order to minimize the number of token transfers. Only callable by a pool.
         @param nft The ERC721 NFT to transfer
         @param from The address to transfer tokens from
         @param to The address to transfer tokens to
         @param id The ID of the NFT to transfer
-        @param variant The pair variant of the pair contract
+        @param variant The pool variant of the pool contract
      */
-    function pairTransferNFTFrom(
+    function poolTransferNFTFrom(
         IERC721 nft,
         address from,
         address to,
         uint256 id,
-        ILSSVMPairFactory.PairVariant variant
+        ICollectionPoolFactory.PoolVariant variant
     ) external {
-        // verify caller is a trusted pair contract
-        require(factory.isPair(msg.sender, variant), "Not pair");
+        // verify caller is a trusted pool contract
+        require(factory.isPool(msg.sender, variant), "Not pool");
 
-        // transfer NFTs to pair
+        // transfer NFTs to pool
         nft.safeTransferFrom(from, to, id);
     }
 
-    // Given a pair and a number of items to buy, calculate the max price paid for 1 up to numNFTs to buy
-    function getNFTQuoteForPartialFillBuy(LSSVMPair pair, uint256 numNFTs)
+    // Given a pool and a number of items to buy, calculate the max price paid for 1 up to numNFTs to buy
+    function getNFTQuoteForPartialFillBuy(CollectionPool pool, uint256 numNFTs)
         external
         view
         returns (uint256[] memory)
     {
         require(numNFTs > 0, "Nonzero");
         uint256[] memory prices = new uint256[](numNFTs);
-        ICurve _bondingCurve = pair.bondingCurve();
-        ICurve.Params memory params = pair.curveParams();
+        ICurve _bondingCurve = pool.bondingCurve();
+        ICurve.Params memory params = pool.curveParams();
         bytes memory props = params.props;
-        uint256 fee = pair.fee();
-        ICurve.FeeMultipliers memory feeMultipliers = pair.feeMultipliers();
+        uint256 fee = pool.fee();
+        ICurve.FeeMultipliers memory feeMultipliers = pool.feeMultipliers();
         for (uint256 i; i < numNFTs; i++) {
             uint256 price;
             (, params, price, ) = _bondingCurve.getBuyInfo(
@@ -116,8 +116,8 @@ contract LSSVMRouter2 {
       maxCostPerNumNFTs is 0-indexed, i.e. maxCostPerNumNFTs[0] is the max price to buy 1 NFT, and so on
      */
     function robustBuySellWithETHAndPartialFill(
-        PairSwapSpecificPartialFill[] calldata buyList,
-        PairSwapSpecificPartialFillForToken[] calldata sellList
+        PoolSwapSpecificPartialFill[] calldata buyList,
+        PoolSwapSpecificPartialFillForToken[] calldata sellList
     ) external payable returns (uint256 remainingValue) {
         // High level logic:
         // Go through each buy order
@@ -136,16 +136,16 @@ contract LSSVMRouter2 {
 
             // Try each buy swap
             for (uint256 i; i < numBuys; ) {
-                LSSVMPair pair = buyList[i].swapInfo.pair;
+                CollectionPool pool = buyList[i].swapInfo.pool;
                 uint256 numNFTs = buyList[i].swapInfo.nftIds.length;
-                uint256 spotPrice = pair.spotPrice();
+                uint256 spotPrice = pool.spotPrice();
 
                 // If the spot price is at most the expected spot price, then it's likely nothing happened since the tx was submitted
                 // We go and optimistically attempt to fill each item using the user supplied max cost
                 if (spotPrice <= buyList[i].expectedSpotPrice) {
                     // Total ETH taken from sender cannot msg.value
                     // because otherwise the deduction from remainingValue will fail
-                    remainingValue -= pair.swapTokenForSpecificNFTs{
+                    remainingValue -= pool.swapTokenForSpecificNFTs{
                         value: buyList[i].maxCostPerNumNFTs[numNFTs - 1]
                     }(
                         buyList[i].swapInfo.nftIds,
@@ -160,12 +160,12 @@ contract LSSVMRouter2 {
                     // Go through all items to figure out which ones are still buyable
                     // We do a halving search on getBuyNFTQuote() from 1 to numNFTs
                     // The goal is to find *a* number (not necessarily the largest) where the quote is still within the user specified max cost
-                    // Then, go through and find as many available items as possible (i.e. still owned by the pair) we can fill
+                    // Then, go through and find as many available items as possible (i.e. still owned by the pool) we can fill
                     (
                         uint256 numItemsToFill,
                         uint256 priceToFillAt
                     ) = _findMaxFillableAmtForBuy(
-                            pair,
+                            pool,
                             numNFTs,
                             buyList[i].maxCostPerNumNFTs
                         );
@@ -177,7 +177,7 @@ contract LSSVMRouter2 {
 
                         // Figure out which items are actually still buyable from the list
                         uint256[] memory fillableIds = _findAvailableIds(
-                            pair,
+                            pool,
                             numItemsToFill,
                             buyList[i].swapInfo.nftIds
                         );
@@ -190,11 +190,11 @@ contract LSSVMRouter2 {
                                 continue;
                             }
                             // Otherwise, adjust the max amt sent to be down
-                            (,,,,priceToFillAt,,) = pair.getBuyNFTQuote(numItemsToFill);
+                            (,,,,priceToFillAt,,) = pool.getBuyNFTQuote(numItemsToFill);
                         }
 
                         // Now, do the partial fill swap with the updated price and ids
-                        remainingValue -= pair.swapTokenForSpecificNFTs{
+                        remainingValue -= pool.swapTokenForSpecificNFTs{
                             value: priceToFillAt
                         }(
                             fillableIds,
@@ -223,14 +223,14 @@ contract LSSVMRouter2 {
             // Otherwise, find max fillable amt for sell (while being eth balance aware)
             // Then do the sells
             for (uint256 i; i < sellList.length; ) {
-                LSSVMPair pair = sellList[i].swapInfo.pair;
-                uint256 spotPrice = pair.spotPrice();
+                CollectionPool pool = sellList[i].swapInfo.pool;
+                uint256 spotPrice = pool.spotPrice();
                 uint256 numNFTs = sellList[i].swapInfo.nftIds.length;
 
                 // If spot price is at least the expected spot price, go ahead and do the swap
                 if (spotPrice >= sellList[i].expectedSpotPrice) {
-                    pair.swapNFTsForToken(
-                        ILSSVMPair.NFTs(
+                    pool.swapNFTsForToken(
+                        ICollectionPool.NFTs(
                             sellList[i].swapInfo.nftIds,
                             sellList[i].swapInfo.proof,
                             sellList[i].swapInfo.proofFlags
@@ -247,12 +247,12 @@ contract LSSVMRouter2 {
                         uint256 numItemsToFill,
                         uint256 priceToFillAt
                     ) = _findMaxFillableAmtForETHSell(
-                            pair,
+                            pool,
                             numNFTs,
                             sellList[i].minOutputPerNumNFTs
                         );
-                    pair.swapNFTsForToken(
-                        ILSSVMPair.NFTs(
+                    pool.swapNFTsForToken(
+                        ICollectionPool.NFTs(
                             sellList[i].swapInfo.nftIds[0:numItemsToFill],
                             sellList[i].swapInfo.proof[0:numItemsToFill],
                             sellList[i].swapInfo.proofFlags[0:numItemsToFill]
@@ -272,13 +272,13 @@ contract LSSVMRouter2 {
 
     /**
       @dev Performs a log(n) search to find the largest value where maxPricesPerNumNFTs is still greater than
-      the pair's getBuyNFTQuote() value. Not a true binary search, as it's biased to underfill to reduce gas / complexity.
+      the pool's getBuyNFTQuote() value. Not a true binary search, as it's biased to underfill to reduce gas / complexity.
       @param maxNumNFTs The maximum number of NFTs to fill / get a quote for
       @param maxPricesPerNumNFTs The user's specified maximum price to pay for filling a number of NFTs
       @dev Note that maxPricesPerNumNFTs is 0-indexed
      */
     function _findMaxFillableAmtForBuy(
-        LSSVMPair pair,
+        CollectionPool pool,
         uint256 maxNumNFTs,
         uint256[] memory maxPricesPerNumNFTs
     ) internal view returns (uint256 numNFTs, uint256 price) {
@@ -290,7 +290,7 @@ contract LSSVMRouter2 {
             uint256 mid = start + (end - start) / 2;
 
             // mid is the index of the max price to buy mid+1 NFTs
-            (, , , , uint256 currentPrice, , ) = pair.getBuyNFTQuote(mid + 1);
+            (, , , , uint256 currentPrice, , ) = pool.getBuyNFTQuote(mid + 1);
 
             // If we pay at least the currentPrice with our maxPrice, record the value, and recurse on the right half
             if (currentPrice <= maxPricesPerNumNFTs[mid]) {
@@ -311,20 +311,20 @@ contract LSSVMRouter2 {
     }
 
     function _findMaxFillableAmtForETHSell(
-        LSSVMPair pair,
+        CollectionPool pool,
         uint256 maxNumNFTs,
         uint256[] memory minOutputPerNumNFTs
     ) internal view returns (uint256 numNFTs, uint256 price) {
-        uint256 pairBalance = address(pair).balance;
+        uint256 poolBalance = address(pool).balance;
         // Start and end indices
         uint256 start = 0;
         uint256 end = maxNumNFTs - 1;
         // while (start <= end) {
         //     // Get price of mid number of items
         //     uint256 mid = start + (end - start + 1) / 2;
-        //     (, , , , uint256 currentPrice, , ) = pair.getSellNFTQuote(mid + 1);
+        //     (, , , , uint256 currentPrice, , ) = pool.getSellNFTQuote(mid + 1);
         //     // If it costs more than there is ETH balance for, then recurse on the left half
-        //     if (currentPrice > pairBalance) {
+        //     if (currentPrice > poolBalance) {
         //         if (mid == 1) {
         //             break;
         //         }
@@ -352,21 +352,21 @@ contract LSSVMRouter2 {
 
     /**
       @dev Checks ownership of all desired NFT IDs to see which ones are still fillable
-      @param pair The pair to check
+      @param pool The pool to check
       @param numNFTs The max number of NFTs to check
       @param potentialIds The possible NFT IDs
      */
     function _findAvailableIds(
-        LSSVMPair pair,
+        CollectionPool pool,
         uint256 numNFTs,
         uint256[] memory potentialIds
     ) internal view returns (uint256[] memory idsToBuy) {
-        IERC721 nft = pair.nft();
+        IERC721 nft = pool.nft();
         uint256[] memory ids = new uint256[](numNFTs);
         uint256 index = 0;
-        // Check to see if each potential ID is still owned by the pair, up to numNFTs items
+        // Check to see if each potential ID is still owned by the pool, up to numNFTs items
         for (uint256 i; i < potentialIds.length; ) {
-            if (nft.ownerOf(potentialIds[i]) == address(pair)) {
+            if (nft.ownerOf(potentialIds[i]) == address(pool)) {
                 ids[index] = potentialIds[i];
                 unchecked {
                     ++index;
@@ -399,8 +399,8 @@ contract LSSVMRouter2 {
       @dev Buys NFTs first, then sells them.
      */
     function buyNFTsThenSellWithETH(
-        RobustPairSwapSpecific[] calldata buyList,
-        RobustPairSwapSpecificForToken[] calldata sellList
+        RobustPoolSwapSpecific[] calldata buyList,
+        RobustPoolSwapSpecificForToken[] calldata sellList
     ) external payable {
         // Locally scope the buys
         {
@@ -414,7 +414,7 @@ contract LSSVMRouter2 {
                 // because otherwise the deduction from remainingValue will fail
                 remainingValue -= buyList[i]
                     .swapInfo
-                    .pair
+                    .pool
                     .swapTokenForSpecificNFTs{value: buyList[i].maxCost}(
                     buyList[i].swapInfo.nftIds,
                     buyList[i].maxCost,
@@ -439,8 +439,8 @@ contract LSSVMRouter2 {
             uint256 numSwaps = sellList.length;
             for (uint256 i; i < numSwaps; ) {
                 // Do the swap for token and then update outputAmount
-                sellList[i].swapInfo.pair.swapNFTsForToken(
-                    ILSSVMPair.NFTs(
+                sellList[i].swapInfo.pool.swapNFTsForToken(
+                    ICollectionPool.NFTs(
                         sellList[i].swapInfo.nftIds,
                         sellList[i].swapInfo.proof,
                         sellList[i].swapInfo.proofFlags
@@ -462,8 +462,8 @@ contract LSSVMRouter2 {
       @dev Intended for reducing upfront capital costs, e.g. swapping NFTs and then using proceeds to buy other NFTs
      */
     function sellNFTsThenBuyWithETH(
-        RobustPairSwapSpecific[] calldata buyList,
-        RobustPairSwapSpecificForToken[] calldata sellList
+        RobustPoolSwapSpecific[] calldata buyList,
+        RobustPoolSwapSpecificForToken[] calldata sellList
     ) external payable {
         uint256 outputAmount = 0;
 
@@ -473,8 +473,8 @@ contract LSSVMRouter2 {
             uint256 numSwaps = sellList.length;
             for (uint256 i; i < numSwaps; ) {
                 // Do the swap for token and then update outputAmount
-                outputAmount += sellList[i].swapInfo.pair.swapNFTsForToken(
-                    ILSSVMPair.NFTs(
+                outputAmount += sellList[i].swapInfo.pool.swapNFTsForToken(
+                    ICollectionPool.NFTs(
                         sellList[i].swapInfo.nftIds,
                         sellList[i].swapInfo.proof,
                         sellList[i].swapInfo.proofFlags
@@ -504,7 +504,7 @@ contract LSSVMRouter2 {
                 // because otherwise the deduction from remainingValue will fail
                 remainingValue -= buyList[i]
                     .swapInfo
-                    .pair
+                    .pool
                     .swapTokenForSpecificNFTs{value: buyList[i].maxCost}(
                     buyList[i].swapInfo.nftIds,
                     buyList[i].maxCost,
@@ -526,10 +526,10 @@ contract LSSVMRouter2 {
 
     /**
         @dev Does no price checking, this is assumed to be done off-chain
-        @param swapList The list of pairs and swap calldata
+        @param swapList The list of pools and swap calldata
         @return remainingValue The unspent token amount
      */
-    function swapETHForSpecificNFTs(RobustPairSwapSpecific[] calldata swapList)
+    function swapETHForSpecificNFTs(RobustPoolSwapSpecific[] calldata swapList)
         external
         payable
         returns (uint256 remainingValue)
@@ -544,7 +544,7 @@ contract LSSVMRouter2 {
             // because otherwise the deduction from remainingValue will fail
             remainingValue -= swapList[i]
                 .swapInfo
-                .pair
+                .pool
                 .swapTokenForSpecificNFTs{value: swapList[i].maxCost}(
                 swapList[i].swapInfo.nftIds,
                 remainingValue,
@@ -569,18 +569,18 @@ contract LSSVMRouter2 {
         @dev Calling with multiple tokens is permitted, BUT minOutput will be 
         far from enough of a safety check because different tokens almost certainly have different unit prices.
         @dev Does no price checking, this is assumed to be done off-chain
-        @param swapList The list of pairs and swap calldata
+        @param swapList The list of pools and swap calldata
         @return outputAmount The number of tokens to be received
      */
     function swapNFTsForToken(
-        RobustPairSwapSpecificForToken[] calldata swapList
+        RobustPoolSwapSpecificForToken[] calldata swapList
     ) external returns (uint256 outputAmount) {
         // Do swaps
         uint256 numSwaps = swapList.length;
         for (uint256 i; i < numSwaps; ) {
             // Do the swap for token and then update outputAmount
-            outputAmount += swapList[i].swapInfo.pair.swapNFTsForToken(
-                ILSSVMPair.NFTs(
+            outputAmount += swapList[i].swapInfo.pool.swapNFTsForToken(
+                ICollectionPool.NFTs(
                     swapList[i].swapInfo.nftIds,
                     swapList[i].swapInfo.proof,
                     swapList[i].swapInfo.proofFlags

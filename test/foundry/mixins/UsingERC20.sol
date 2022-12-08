@@ -7,14 +7,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 
 import {NoArbBondingCurve} from "../base/NoArbBondingCurve.sol";
-import {ILSSVMPairFactory} from "../../../contracts/ILSSVMPairFactory.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
-import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
-import {LSSVMRouter} from "../../../contracts/LSSVMRouter.sol";
-import {LSSVMRouter2} from "../../../contracts/LSSVMRouter2.sol";
+import {ICollectionPoolFactory} from "../../../contracts/ICollectionPoolFactory.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPoolERC20} from "../../../contracts/CollectionPoolERC20.sol";
+import {CollectionRouter} from "../../../contracts/CollectionRouter.sol";
+import {CollectionRouter2} from "../../../contracts/CollectionRouter2.sol";
 import {Test20} from "../../../contracts/mocks/Test20.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
@@ -31,23 +31,23 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         return test20.balanceOf(a);
     }
 
-    function sendTokens(LSSVMPair pair, uint256 amount) public override {
-        test20.safeTransfer(address(pair), amount);
+    function sendTokens(CollectionPool pool, uint256 amount) public override {
+        test20.safeTransfer(address(pool), amount);
     }
 
-    function setupPair(
-        LSSVMPairFactory factory,
+    function setupPool(
+        CollectionPoolFactory factory,
         IERC721 nft,
         ICurve bondingCurve,
         address payable assetRecipient,
-        LSSVMPair.PoolType poolType,
+        CollectionPool.PoolType poolType,
         uint128 delta,
         uint96 fee,
         uint128 spotPrice,
         uint256[] memory _idList,
         uint256 initialTokenBalance,
         address routerAddress
-    ) public payable override returns (LSSVMPair) {
+    ) public payable override returns (CollectionPool) {
         // create ERC20 token if not already deployed
         if (address(test20) == address(0)) {
             test20 = new Test20();
@@ -60,9 +60,9 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         // mint enough tokens to caller
         IMintable(address(test20)).mint(address(this), 1000 ether);
 
-        // initialize the pair
-        (address pairAddress, ) = factory.createPairERC20(
-            ILSSVMPairFactory.CreateERC20PairParams(
+        // initialize the pool
+        (address poolAddress, ) = factory.createPoolERC20(
+            ICollectionPoolFactory.CreateERC20PoolParams(
                 test20,
                 nft,
                 bondingCurve,
@@ -81,18 +81,18 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
             )
         );
 
-        // Set approvals for pair
-        test20.approve(pairAddress, type(uint256).max);
+        // Set approvals for pool
+        test20.approve(poolAddress, type(uint256).max);
 
-        return LSSVMPair(pairAddress);
+        return CollectionPool(poolAddress);
     }
 
-    function withdrawTokens(LSSVMPair pair) public override {
-        uint256 total = test20.balanceOf(address(pair));
-        LSSVMPairERC20(address(pair)).withdrawERC20(test20, total);
+    function withdrawTokens(CollectionPool pool) public override {
+        uint256 total = test20.balanceOf(address(pool));
+        CollectionPoolERC20(address(pool)).withdrawERC20(test20, total);
     }
 
-    function withdrawProtocolFees(LSSVMPairFactory factory) public override {
+    function withdrawProtocolFees(CollectionPoolFactory factory) public override {
         factory.withdrawERC20ProtocolFees(
             test20,
             test20.balanceOf(address(factory))
@@ -100,8 +100,8 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function swapTokenForAnyNFTs(
-        LSSVMRouter router,
-        LSSVMRouter.PairSwapAny[] calldata swapList,
+        CollectionRouter router,
+        CollectionRouter.PoolSwapAny[] calldata swapList,
         address payable,
         address nftRecipient,
         uint256 deadline,
@@ -117,8 +117,8 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function swapTokenForSpecificNFTs(
-        LSSVMRouter router,
-        LSSVMRouter.PairSwapSpecific[] calldata swapList,
+        CollectionRouter router,
+        CollectionRouter.PoolSwapSpecific[] calldata swapList,
         address payable,
         address nftRecipient,
         uint256 deadline,
@@ -134,8 +134,8 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function swapNFTsForAnyNFTsThroughToken(
-        LSSVMRouter router,
-        LSSVMRouter.NFTsForAnyNFTsTrade calldata trade,
+        CollectionRouter router,
+        CollectionRouter.NFTsForAnyNFTsTrade calldata trade,
         uint256 minOutput,
         address payable,
         address nftRecipient,
@@ -153,8 +153,8 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function swapNFTsForSpecificNFTsThroughToken(
-        LSSVMRouter router,
-        LSSVMRouter.NFTsForSpecificNFTsTrade calldata trade,
+        CollectionRouter router,
+        CollectionRouter.NFTsForSpecificNFTsTrade calldata trade,
         uint256 minOutput,
         address payable,
         address nftRecipient,
@@ -172,8 +172,8 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function robustSwapTokenForAnyNFTs(
-        LSSVMRouter router,
-        LSSVMRouter.RobustPairSwapAny[] calldata swapList,
+        CollectionRouter router,
+        CollectionRouter.RobustPoolSwapAny[] calldata swapList,
         address payable,
         address nftRecipient,
         uint256 deadline,
@@ -189,8 +189,8 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function robustSwapTokenForSpecificNFTs(
-        LSSVMRouter router,
-        LSSVMRouter.RobustPairSwapSpecific[] calldata swapList,
+        CollectionRouter router,
+        CollectionRouter.RobustPoolSwapSpecific[] calldata swapList,
         address payable,
         address nftRecipient,
         uint256 deadline,
@@ -206,23 +206,23 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function robustSwapTokenForSpecificNFTsAndNFTsForTokens(
-        LSSVMRouter router,
-        LSSVMRouter.RobustPairNFTsFoTokenAndTokenforNFTsTrade calldata params
+        CollectionRouter router,
+        CollectionRouter.RobustPoolNFTsFoTokenAndTokenforNFTsTrade calldata params
     ) public payable override returns (uint256, uint256) {
         return router.robustSwapERC20ForSpecificNFTsAndNFTsToToken(params);
     }
 
     function buyAndSellWithPartialFill(
-        LSSVMRouter2 router,
-        LSSVMRouter2.PairSwapSpecificPartialFill[] calldata buyList,
-        LSSVMRouter2.PairSwapSpecificPartialFillForToken[] calldata sellList
+        CollectionRouter2 router,
+        CollectionRouter2.PoolSwapSpecificPartialFill[] calldata buyList,
+        CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata sellList
     ) public payable override returns (uint256) {
         require(false, "Unimplemented");
     }
 
     function swapETHForSpecificNFTs(
-        LSSVMRouter2 router,
-        LSSVMRouter2.RobustPairSwapSpecific[] calldata buyList
+        CollectionRouter2 router,
+        CollectionRouter2.RobustPoolSwapSpecific[] calldata buyList
     ) public payable override returns (uint256) {
         require(false, "Unimplemented");
     }

@@ -9,14 +9,14 @@ function convertToBigNumber(value: number): BigNumber {
 async function getPoolAddress(tx: ContractTransaction) {
   const receipt = await tx.wait();
   const newPoolEvent = receipt.events?.find(
-    (event) => event.event === "NewPair"
+    (event) => event.event === "NewPool"
   );
-  const newPairAddress = newPoolEvent?.args?.poolAddress;
+  const newPoolAddress = newPoolEvent?.args?.poolAddress;
   const newTokenEvent = receipt.events?.find(
     (event) => event.event === "NewTokenId"
   );
   const newTokenId = newTokenEvent?.args?.tokenId;
-  return { newPairAddress, newTokenId };
+  return { newPoolAddress, newTokenId };
 }
 
 async function main() {
@@ -33,27 +33,27 @@ async function main() {
 
   // console.log(`Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`)
 
-  const LSSVMPairEnumerableETH = await ethers.getContractFactory(
-    "LSSVMPairEnumerableETH"
+  const CollectionPoolEnumerableETH = await ethers.getContractFactory(
+    "CollectionPoolEnumerableETH"
   );
-  const lssvmPairEnumerableETH = await LSSVMPairEnumerableETH.deploy();
+  const collectionPoolEnumerableETH = await CollectionPoolEnumerableETH.deploy();
 
-  const LSSVMPairMissingEnumerableETH = await ethers.getContractFactory(
-    "LSSVMPairMissingEnumerableETH"
+  const CollectionPoolMissingEnumerableETH = await ethers.getContractFactory(
+    "CollectionPoolMissingEnumerableETH"
   );
-  const lssvmPairMissingEnumerableETH =
-    await LSSVMPairMissingEnumerableETH.deploy();
+  const collectionPoolMissingEnumerableETH =
+    await CollectionPoolMissingEnumerableETH.deploy();
 
-  const LSSVMPairEnumerableERC20 = await ethers.getContractFactory(
-    "LSSVMPairEnumerableERC20"
+  const CollectionPoolEnumerableERC20 = await ethers.getContractFactory(
+    "CollectionPoolEnumerableERC20"
   );
-  const lssvmPairEnumerableERC20 = await LSSVMPairEnumerableERC20.deploy();
+  const collectionPoolEnumerableERC20 = await CollectionPoolEnumerableERC20.deploy();
 
-  const LSSVMPairMissingEnumerableERC20 = await ethers.getContractFactory(
-    "LSSVMPairMissingEnumerableERC20"
+  const CollectionPoolMissingEnumerableERC20 = await ethers.getContractFactory(
+    "CollectionPoolMissingEnumerableERC20"
   );
-  const lssvmPairMissingEnumerableERC20 =
-    await LSSVMPairMissingEnumerableERC20.deploy();
+  const collectionPoolMissingEnumerableERC20 =
+    await CollectionPoolMissingEnumerableERC20.deploy();
   const payoutAddress = ethers.constants.AddressZero;
 
   const rawPctProtocolFee = 0.005;
@@ -62,16 +62,16 @@ async function main() {
   const rawSpot = 100;
 
   const protocolFeeMultiplier = convertToBigNumber(rawPctProtocolFee);
-  const LSSVMPairFactory = await ethers.getContractFactory("LSSVMPairFactory");
-  const lssvmPairFactory = await LSSVMPairFactory.deploy(
-    lssvmPairEnumerableETH.address,
-    lssvmPairMissingEnumerableETH.address,
-    lssvmPairEnumerableERC20.address,
-    lssvmPairMissingEnumerableERC20.address,
+  const CollectionPoolFactory = await ethers.getContractFactory("CollectionPoolFactory");
+  const collectionPoolFactory = await CollectionPoolFactory.deploy(
+    collectionPoolEnumerableETH.address,
+    collectionPoolMissingEnumerableETH.address,
+    collectionPoolEnumerableERC20.address,
+    collectionPoolMissingEnumerableERC20.address,
     payoutAddress,
     protocolFeeMultiplier
   );
-  console.log(`LSSVMPairFactory deployed to ${lssvmPairFactory.address}`);
+  console.log(`CollectionPoolFactory deployed to ${collectionPoolFactory.address}`);
 
   const [owner, otherAccount, otherAccount2, otherAccount3, otherAccount4] =
     await ethers.getSigners();
@@ -101,7 +101,7 @@ async function main() {
   const spotPrice = convertToBigNumber(rawSpot);
 
   const initialNFTIDs = [nftTokenId, nftTokenId2, nftTokenId3];
-  await lssvmPairFactory.setBondingCurveAllowed(curve.address, true);
+  await collectionPoolFactory.setBondingCurveAllowed(curve.address, true);
   // Console.log(1)
   // for each nft id, approve the factory to mint the nft
 
@@ -109,7 +109,7 @@ async function main() {
   // https://ethereum.stackexchange.com/questions/4086/how-are-enums-converted-to-uint
 
   const Collectionswap = await ethers.getContractFactory("Collectionswap");
-  const collectionswap = await Collectionswap.deploy(lssvmPairFactory.address);
+  const collectionswap = await Collectionswap.deploy(collectionPoolFactory.address);
   console.log(`Collectionswap deployed to ${collectionswap.address}`);
 
   // Const theseAccounts = [otherAccount, otherAccount2]
@@ -141,7 +141,7 @@ async function main() {
       await myERC721.mint(thisAccount.address, nftId);
       await myERC721
         .connect(thisAccount)
-        .approve(lssvmPairFactory.address, nftId);
+        .approve(collectionPoolFactory.address, nftId);
       console.log(`owner of ${nftId} is '${await myERC721.ownerOf(nftId)}'`);
     }
 
@@ -152,7 +152,7 @@ async function main() {
     await myERC721
       .connect(thisAccount)
       .setApprovalForAll(collectionswap.address, true);
-    // Await myERC721.connect(thisAccount).setApprovalForAll(lssvmPairFactory.address, true)
+    // Await myERC721.connect(thisAccount).setApprovalForAll(collectionPoolFactory.address, true)
 
     console.log(
       await myERC721
@@ -162,12 +162,12 @@ async function main() {
     console.log(
       await myERC721
         .connect(thisAccount)
-        .isApprovedForAll(thisAccount.address, lssvmPairFactory.address)
+        .isApprovedForAll(thisAccount.address, collectionPoolFactory.address)
     );
 
-    const newPair = await collectionswap
+    const newPool = await collectionswap
       .connect(thisAccount)
-      .createDirectPairETH(
+      .createDirectPoolETH(
         myERC721.address,
         curve.address,
         delta,
@@ -180,7 +180,7 @@ async function main() {
         }
       );
 
-    const { newPairAddress, newTokenId } = await getPoolAddress(newPair);
+    const { newPoolAddress, newTokenId } = await getPoolAddress(newPool);
 
     console.log(`new LP token minted ${newTokenId}`);
 
@@ -197,7 +197,7 @@ async function main() {
       )}`
     );
     console.log(
-      `pool balance is ${await ethers.provider.getBalance(newPairAddress)}`
+      `pool balance is ${await ethers.provider.getBalance(newPoolAddress)}`
     );
 
     console.log(
@@ -219,7 +219,7 @@ async function main() {
       )}`
     );
 
-    // Await (collectionswap.connect(owner).destroyDirectPairETH(newPairAddress))
+    // Await (collectionswap.connect(owner).destroyDirectPoolETH(newPoolAddress))
     const totalCollectionTokensOwned = await collectionswap.balanceOf(
       thisAccount.address
     );
@@ -247,7 +247,7 @@ async function main() {
       .setApprovalForAll(collectionswap.address, true);
 
     console.log(
-      `isPoolAlive ${await collectionswap.isPoolAlive(newPairAddress)}`
+      `isPoolAlive ${await collectionswap.isPoolAlive(newPoolAddress)}`
     );
     console.log(
       `viewPoolParams ${await collectionswap.viewPoolParams(newTokenId)}`
@@ -259,13 +259,13 @@ async function main() {
       console.log(i);
       await collectionswap
         .connect(ultimateDestAccount)
-        .useLPTokenToDestroyDirectPairETH(newTokenId, {
+        .useLPTokenToDestroyDirectPoolETH(newTokenId, {
           gasLimit: 2000000,
         });
     }
 
     console.log(
-      `isPoolAlive ${await collectionswap.isPoolAlive(newPairAddress)}`
+      `isPoolAlive ${await collectionswap.isPoolAlive(newPoolAddress)}`
     );
 
     for (const nftId of thisListOfNFTIDs) {
@@ -286,7 +286,7 @@ async function main() {
       )}`
     );
     console.log(
-      `pool balance is ${await ethers.provider.getBalance(newPairAddress)}`
+      `pool balance is ${await ethers.provider.getBalance(newPoolAddress)}`
     );
 
     console.log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -297,11 +297,11 @@ async function main() {
   // }
 
   return {
-    lssvmPairFactory,
-    lssvmPairEnumerableETH,
-    lssvmPairMissingEnumerableETH,
-    lssvmPairEnumerableERC20,
-    lssvmPairMissingEnumerableERC20,
+    collectionPoolFactory,
+    collectionPoolEnumerableETH,
+    collectionPoolMissingEnumerableETH,
+    collectionPoolEnumerableERC20,
+    collectionPoolMissingEnumerableERC20,
     myERC721,
     nftTokenId,
     delta,

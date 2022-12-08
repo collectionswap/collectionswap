@@ -3,12 +3,12 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {ILSSVMPairFactory} from "../../../contracts/ILSSVMPairFactory.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
-import {LSSVMRouter} from "../../../contracts/LSSVMRouter.sol";
-import {LSSVMRouter2} from "../../../contracts/LSSVMRouter2.sol";
-import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
+import {ICollectionPoolFactory} from "../../../contracts/ICollectionPoolFactory.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
+import {CollectionRouter} from "../../../contracts/CollectionRouter.sol";
+import {CollectionRouter2} from "../../../contracts/CollectionRouter2.sol";
+import {CollectionPoolETH} from "../../../contracts/CollectionPoolETH.sol";
 import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
 
@@ -26,24 +26,24 @@ abstract contract UsingETH is Configurable, RouterCaller {
         return a.balance;
     }
 
-    function sendTokens(LSSVMPair pair, uint256 amount) public override {
-        payable(address(pair)).transfer(amount);
+    function sendTokens(CollectionPool pool, uint256 amount) public override {
+        payable(address(pool)).transfer(amount);
     }
 
-    function setupPair(
-        LSSVMPairFactory factory,
+    function setupPool(
+        CollectionPoolFactory factory,
         IERC721 nft,
         ICurve bondingCurve,
         address payable assetRecipient,
-        LSSVMPair.PoolType poolType,
+        CollectionPool.PoolType poolType,
         uint128 delta,
         uint96 fee,
         uint128 spotPrice,
         uint256[] memory _idList,
         uint256,
         address
-    ) public payable override returns (LSSVMPair) {
-        ILSSVMPairFactory.CreateETHPairParams memory params = ILSSVMPairFactory.CreateETHPairParams(
+    ) public payable override returns (CollectionPool) {
+        ICollectionPoolFactory.CreateETHPoolParams memory params = ICollectionPoolFactory.CreateETHPoolParams(
             nft,
             bondingCurve,
             assetRecipient,
@@ -58,23 +58,23 @@ abstract contract UsingETH is Configurable, RouterCaller {
             payable(0),
             _idList
         );
-        (address pairAddress, ) = factory.createPairETH{value: msg.value}(
+        (address poolAddress, ) = factory.createPoolETH{value: msg.value}(
             params
         );
-        return LSSVMPairETH(payable(pairAddress));
+        return CollectionPoolETH(payable(poolAddress));
     }
 
-    function withdrawTokens(LSSVMPair pair) public override {
-        LSSVMPairETH(payable(address(pair))).withdrawAllETH();
+    function withdrawTokens(CollectionPool pool) public override {
+        CollectionPoolETH(payable(address(pool))).withdrawAllETH();
     }
 
-    function withdrawProtocolFees(LSSVMPairFactory factory) public override {
+    function withdrawProtocolFees(CollectionPoolFactory factory) public override {
         factory.withdrawETHProtocolFees();
     }
 
     function swapTokenForAnyNFTs(
-        LSSVMRouter router,
-        LSSVMRouter.PairSwapAny[] calldata swapList,
+        CollectionRouter router,
+        CollectionRouter.PoolSwapAny[] calldata swapList,
         address payable ethRecipient,
         address nftRecipient,
         uint256 deadline,
@@ -90,8 +90,8 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function swapTokenForSpecificNFTs(
-        LSSVMRouter router,
-        LSSVMRouter.PairSwapSpecific[] calldata swapList,
+        CollectionRouter router,
+        CollectionRouter.PoolSwapSpecific[] calldata swapList,
         address payable ethRecipient,
         address nftRecipient,
         uint256 deadline,
@@ -107,8 +107,8 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function swapNFTsForAnyNFTsThroughToken(
-        LSSVMRouter router,
-        LSSVMRouter.NFTsForAnyNFTsTrade calldata trade,
+        CollectionRouter router,
+        CollectionRouter.NFTsForAnyNFTsTrade calldata trade,
         uint256 minOutput,
         address payable ethRecipient,
         address nftRecipient,
@@ -126,8 +126,8 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function swapNFTsForSpecificNFTsThroughToken(
-        LSSVMRouter router,
-        LSSVMRouter.NFTsForSpecificNFTsTrade calldata trade,
+        CollectionRouter router,
+        CollectionRouter.NFTsForSpecificNFTsTrade calldata trade,
         uint256 minOutput,
         address payable ethRecipient,
         address nftRecipient,
@@ -145,8 +145,8 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function robustSwapTokenForAnyNFTs(
-        LSSVMRouter router,
-        LSSVMRouter.RobustPairSwapAny[] calldata swapList,
+        CollectionRouter router,
+        CollectionRouter.RobustPoolSwapAny[] calldata swapList,
         address payable ethRecipient,
         address nftRecipient,
         uint256 deadline,
@@ -162,8 +162,8 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function robustSwapTokenForSpecificNFTs(
-        LSSVMRouter router,
-        LSSVMRouter.RobustPairSwapSpecific[] calldata swapList,
+        CollectionRouter router,
+        CollectionRouter.RobustPoolSwapSpecific[] calldata swapList,
         address payable ethRecipient,
         address nftRecipient,
         uint256 deadline,
@@ -179,8 +179,8 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function robustSwapTokenForSpecificNFTsAndNFTsForTokens(
-        LSSVMRouter router,
-        LSSVMRouter.RobustPairNFTsFoTokenAndTokenforNFTsTrade calldata params
+        CollectionRouter router,
+        CollectionRouter.RobustPoolNFTsFoTokenAndTokenforNFTsTrade calldata params
     ) public payable override returns (uint256, uint256) {
         return
             router.robustSwapETHForSpecificNFTsAndNFTsToToken{value: msg.value}(
@@ -189,9 +189,9 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function buyAndSellWithPartialFill(
-        LSSVMRouter2 router,
-        LSSVMRouter2.PairSwapSpecificPartialFill[] calldata buyList,
-        LSSVMRouter2.PairSwapSpecificPartialFillForToken[] calldata sellList
+        CollectionRouter2 router,
+        CollectionRouter2.PoolSwapSpecificPartialFill[] calldata buyList,
+        CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata sellList
     ) public payable override returns (uint256) {
       return router.robustBuySellWithETHAndPartialFill{value: msg.value}(
         buyList, sellList
@@ -199,8 +199,8 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function swapETHForSpecificNFTs(
-        LSSVMRouter2 router,
-        LSSVMRouter2.RobustPairSwapSpecific[] calldata buyList
+        CollectionRouter2 router,
+        CollectionRouter2.RobustPoolSwapSpecific[] calldata buyList
     ) public payable override returns (uint256) {
       return router.swapETHForSpecificNFTs{value: msg.value}(buyList);
     }

@@ -8,7 +8,7 @@ import {ICurve} from "./bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 import {ITokenIDFilter} from "./filter/ITokenIDFilter.sol";
 
-interface ILSSVMPair is ITokenIDFilter {
+interface ICollectionPool is ITokenIDFilter {
     enum PoolType {
         TOKEN,
         NFT,
@@ -16,8 +16,8 @@ interface ILSSVMPair is ITokenIDFilter {
     }
 
     /**
-        @param ids The list of IDs of the NFTs to sell to the pair
-        @param proof Merkle multiproof proving list is allowed by pair
+        @param ids The list of IDs of the NFTs to sell to the pool
+        @param proof Merkle multiproof proving list is allowed by pool
         @param proofFlags Merkle multiproof flags for proof
     */
     struct NFTs {
@@ -41,15 +41,15 @@ interface ILSSVMPair is ITokenIDFilter {
     function spotPrice() external view returns (uint128);
 
     /**
-        @notice Rescues a specified set of NFTs owned by the pair to the owner address. (onlyOwnable modifier is in the implemented function)
-        @dev If the NFT is the pair's collection, we also remove it from the id tracking (if the NFT is missing enumerable).
+        @notice Rescues a specified set of NFTs owned by the pool to the owner address. (onlyOwnable modifier is in the implemented function)
+        @dev If the NFT is the pool's collection, we also remove it from the id tracking (if the NFT is missing enumerable).
         @param a The NFT to transfer
         @param nftIds The list of IDs of the NFTs to send to the owner
      */
     function withdrawERC721(IERC721 a, uint256[] calldata nftIds) external;
 
     /**
-        @notice Rescues ERC20 tokens from the pair to the owner. Only callable by the owner (onlyOwnable modifier is in the implemented function).
+        @notice Rescues ERC20 tokens from the pool to the owner. Only callable by the owner (onlyOwnable modifier is in the implemented function).
         @param a The token to transfer
         @param amount The amount of tokens to send to the owner
      */
@@ -69,6 +69,6 @@ interface ILSSVMPair is ITokenIDFilter {
         );
 }
 
-interface ILSSVMPairETH is ILSSVMPair {
+interface ICollectionPoolETH is ICollectionPool {
     function withdrawAllETH() external;
 }

@@ -42,11 +42,11 @@ console.log(
 //   );
 // }
 
-function createDirectPairETHHelper(
+function createDirectPoolETHHelper(
   factory: any,
   thisAccount: SignerWithAddress,
   valueToSend: any,
-  ethPairParams: {
+  ethPoolParams: {
     nft: any;
     bondingCurve: any;
     assetRecipient: any;
@@ -72,11 +72,11 @@ function createDirectPairETHHelper(
     state,
     royaltyNumerator,
     initialNFTIDs: newTokenList,
-  } = ethPairParams;
+  } = ethPoolParams;
 
   return factory
     .connect(thisAccount)
-    .createPairETH(
+    .createPoolETH(
       nftContractCollection,
       curve,
       delta,
@@ -100,21 +100,21 @@ async function getPoolAddress(tx: ContractTransaction, showGas = false) {
   }
 
   const newPoolEvent = receipt.events?.find(
-    (event) => event.event === "NewPair"
+    (event) => event.event === "NewPool"
   );
-  const newPairAddress = newPoolEvent?.args?.poolAddress;
+  const newPoolAddress = newPoolEvent?.args?.poolAddress;
   const newTokenEvent = receipt.events?.find(
     (event) => event.event === "NewTokenId"
   );
   const newTokenId = newTokenEvent?.args?.tokenId;
-  return { newPairAddress, newTokenId };
+  return { newPoolAddress, newTokenId };
 }
 
 describe("Collectionswap", function () {
   describe("Direct interactions with AMM", function () {
     it("Should have a spot price", async function () {
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         nftContractCollection,
         initialNFTIDs,
         rawSpot,
@@ -125,23 +125,23 @@ describe("Collectionswap", function () {
         initialNFTIDs,
         nftContractCollection,
         otherAccount0,
-        lssvmPairFactory
+        collectionPoolFactory
       );
-      const lssvmPairETHContractTx: ContractTransaction =
-        await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx: ContractTransaction =
+        await collectionPoolFactory.createPoolETH(
           { ...ethPoolParams, initialNFTIDs },
           {
             value: ethers.BigNumber.from(`${1.2e18}`),
             gasLimit: 1000000,
           }
         );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
 
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
-      const poolSpotPrice = await lssvmPairETH.spotPrice();
+      const poolSpotPrice = await collectionPoolETH.spotPrice();
 
       expect(poolSpotPrice).to.equal(convertToBigNumber(rawSpot));
     });
@@ -155,7 +155,7 @@ describe("Collectionswap", function () {
         for (let qtyQuoted = 1; qtyQuoted <= MAX_QTY_TO_QUOTE; qtyQuoted++) {
           it(`Should have an accurate ask price quote for ${qtyQuoted} items when pool has a net gain of ${deltaItemsInPool} tokens`, async function () {
             const {
-              lssvmPairFactory,
+              collectionPoolFactory,
               nftContractCollection,
               delta,
               fee,
@@ -171,10 +171,10 @@ describe("Collectionswap", function () {
               nftList,
               nftContractCollection,
               otherAccount0,
-              lssvmPairFactory
+              collectionPoolFactory
             );
-            const lssvmPairETHContractTx: ContractTransaction =
-              await lssvmPairFactory.createPairETH(
+            const collectionPoolETHContractTx: ContractTransaction =
+              await collectionPoolFactory.createPoolETH(
                 { ...ethPoolParams, initialNFTIDs: nftList },
                 {
                   // Value: ethers.BigNumber.from(`${1.2e16}`),
@@ -182,12 +182,12 @@ describe("Collectionswap", function () {
                   gasLimit: 1000000,
                 }
               );
-            const { newPairAddress } = await getPoolAddress(
-              lssvmPairETHContractTx
+            const { newPoolAddress } = await getPoolAddress(
+              collectionPoolETHContractTx
             );
-            const lssvmPairETH = await ethers.getContractAt(
-              "LSSVMPairETH",
-              newPairAddress
+            const collectionPoolETH = await ethers.getContractAt(
+              "CollectionPoolETH",
+              newPoolAddress
             );
 
             const externalTraderNfts = [123456, 123457, 123458];
@@ -195,22 +195,22 @@ describe("Collectionswap", function () {
               externalTraderNfts,
               nftContractCollection,
               externalTrader,
-              lssvmPairFactory
+              collectionPoolFactory
             );
 
             await nftContractCollection
               .connect(externalTrader)
-              .setApprovalForAll(lssvmPairETH.address, true);
+              .setApprovalForAll(collectionPoolETH.address, true);
 
             // Start the pool with the right amount of nfts
             if (deltaItemsInPool < 0) {
               for (let k = 0; k < -deltaItemsInPool; k++) {
-                await buyFromPool(lssvmPairETH, externalTrader, nftList[k]);
+                await buyFromPool(collectionPoolETH, externalTrader, nftList[k]);
               }
             } else if (deltaItemsInPool > 0) {
               for (let k = 0; k < deltaItemsInPool; k++) {
                 await sellToPool(
-                  lssvmPairETH,
+                  collectionPoolETH,
                   externalTrader,
                   externalTraderNfts[k]
                 );
@@ -218,7 +218,7 @@ describe("Collectionswap", function () {
             }
 
             const buyPriceQuote = (
-              await lssvmPairETH.getBuyNFTQuote(qtyQuoted)
+              await collectionPoolETH.getBuyNFTQuote(qtyQuoted)
             )[4];
             const buyPriceQuoteSelfCalc = convertToBigNumber(
               await cumulativeSum(
@@ -226,7 +226,7 @@ describe("Collectionswap", function () {
                 deltaItemsInPool,
                 qtyQuoted,
                 -1, // Number of items in the pool decreases more for each additional qty in an ask
-                lssvmPairETH,
+                collectionPoolETH,
                 spotPrice,
                 delta,
                 props,
@@ -241,7 +241,7 @@ describe("Collectionswap", function () {
 
           it(`Should have an accurate bid price quote for ${qtyQuoted} items when pool has a net gain of ${deltaItemsInPool} tokens`, async function () {
             const {
-              lssvmPairFactory,
+              collectionPoolFactory,
               nftContractCollection,
               delta,
               fee,
@@ -257,10 +257,10 @@ describe("Collectionswap", function () {
               nftList,
               nftContractCollection,
               otherAccount0,
-              lssvmPairFactory
+              collectionPoolFactory
             );
-            const lssvmPairETHContractTx: ContractTransaction =
-              await lssvmPairFactory.createPairETH(
+            const collectionPoolETHContractTx: ContractTransaction =
+              await collectionPoolFactory.createPoolETH(
                 { ...ethPoolParams, initialNFTIDs: nftList },
                 {
                   // Value: ethers.BigNumber.from(`${1.2e16}`),
@@ -268,12 +268,12 @@ describe("Collectionswap", function () {
                   gasLimit: 1000000,
                 }
               );
-            const { newPairAddress } = await getPoolAddress(
-              lssvmPairETHContractTx
+            const { newPoolAddress } = await getPoolAddress(
+              collectionPoolETHContractTx
             );
-            const lssvmPairETH = await ethers.getContractAt(
-              "LSSVMPairETH",
-              newPairAddress
+            const collectionPoolETH = await ethers.getContractAt(
+              "CollectionPoolETH",
+              newPoolAddress
             );
 
             const externalTraderNfts = [123456, 123457, 123458];
@@ -281,22 +281,22 @@ describe("Collectionswap", function () {
               externalTraderNfts,
               nftContractCollection,
               externalTrader,
-              lssvmPairFactory
+              collectionPoolFactory
             );
 
             await nftContractCollection
               .connect(externalTrader)
-              .setApprovalForAll(lssvmPairETH.address, true);
+              .setApprovalForAll(collectionPoolETH.address, true);
 
             // Start the pool with the right amount of nfts
             if (deltaItemsInPool < 0) {
               for (let k = 0; k < -deltaItemsInPool; k++) {
-                await buyFromPool(lssvmPairETH, externalTrader, nftList[k]);
+                await buyFromPool(collectionPoolETH, externalTrader, nftList[k]);
               }
             } else if (deltaItemsInPool > 0) {
               for (let k = 0; k < deltaItemsInPool; k++) {
                 await sellToPool(
-                  lssvmPairETH,
+                  collectionPoolETH,
                   externalTrader,
                   externalTraderNfts[k]
                 );
@@ -304,7 +304,7 @@ describe("Collectionswap", function () {
             }
 
             const sellPriceQuote = (
-              await lssvmPairETH.getSellNFTQuote(qtyQuoted)
+              await collectionPoolETH.getSellNFTQuote(qtyQuoted)
             )[4];
             const sellPriceQuoteSelfCalc = convertToBigNumber(
               await cumulativeSum(
@@ -312,7 +312,7 @@ describe("Collectionswap", function () {
                 deltaItemsInPool,
                 qtyQuoted,
                 1, // Number of items in the pool increases more for each additional qty in a bid
-                lssvmPairETH,
+                collectionPoolETH,
                 spotPrice,
                 delta,
                 props,
@@ -330,7 +330,7 @@ describe("Collectionswap", function () {
 
     it("Should have errors if value is not enough to bid, AND is sold into", async function () {
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         nftContractCollection,
         initialNFTIDs,
         otherAccount0,
@@ -341,10 +341,10 @@ describe("Collectionswap", function () {
         initialNFTIDs,
         nftContractCollection,
         otherAccount0,
-        lssvmPairFactory
+        collectionPoolFactory
       );
-      const lssvmPairETHContractTx: ContractTransaction =
-        await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx: ContractTransaction =
+        await collectionPoolFactory.createPoolETH(
           { ...ethPoolParams, initialNFTIDs },
           {
             // Value: ethers.BigNumber.from(`${1.2e16}`),
@@ -352,10 +352,10 @@ describe("Collectionswap", function () {
             gasLimit: 1000000,
           }
         );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
       const externalTrader = otherAccount4;
@@ -369,7 +369,7 @@ describe("Collectionswap", function () {
         _bidTradeFee,
         _bidProtocolFee,
         _bidnObj,
-      ] = await lssvmPairETH.getSellNFTQuote(externalTraderNftsIHave.length);
+      ] = await collectionPoolETH.getSellNFTQuote(externalTraderNftsIHave.length);
 
       // Console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
 
@@ -377,10 +377,10 @@ describe("Collectionswap", function () {
         externalTraderNftsIHave,
         nftContractCollection,
         otherAccount4,
-        lssvmPairETH
+        collectionPoolETH
       );
       await expect(
-        lssvmPairETH.connect(externalTrader).swapNFTsForToken(
+        collectionPoolETH.connect(externalTrader).swapNFTsForToken(
           {
             ids: externalTraderNftsIHave,
             proof: [],
@@ -394,8 +394,8 @@ describe("Collectionswap", function () {
       ).to.be.revertedWith("Too little ETH");
 
       // Can withdraw
-      await lssvmPairETH.withdrawAllETH();
-      await lssvmPairETH.withdrawERC721(
+      await collectionPoolETH.withdrawAllETH();
+      await collectionPoolETH.withdrawERC721(
         nftContractCollection.address,
         initialNFTIDs
       );
@@ -403,7 +403,7 @@ describe("Collectionswap", function () {
 
     it("Should accrue ETH when repeated bought/sold into", async function () {
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         nftContractCollection,
         otherAccount0,
         otherAccount4,
@@ -414,10 +414,10 @@ describe("Collectionswap", function () {
         nftList,
         nftContractCollection,
         otherAccount0,
-        lssvmPairFactory
+        collectionPoolFactory
       );
-      const lssvmPairETHContractTx: ContractTransaction =
-        await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx: ContractTransaction =
+        await collectionPoolFactory.createPoolETH(
           { ...ethPoolParams, initialNFTIDs: nftList },
           {
             // Value: ethers.BigNumber.from(`${1.2e16}`),
@@ -425,10 +425,10 @@ describe("Collectionswap", function () {
             gasLimit: 1000000,
           }
         );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
       const externalTrader = otherAccount4;
@@ -437,15 +437,15 @@ describe("Collectionswap", function () {
         externalTraderNftsIHave,
         nftContractCollection,
         otherAccount4,
-        lssvmPairFactory
+        collectionPoolFactory
       );
 
-      let poolBalance = await ethers.provider.getBalance(lssvmPairETH.address);
+      let poolBalance = await ethers.provider.getBalance(collectionPoolETH.address);
       await nftContractCollection
         .connect(externalTrader)
-        .setApprovalForAll(lssvmPairETH.address, true);
+        .setApprovalForAll(collectionPoolETH.address, true);
       for (let i = 0; i < 20; i++) {
-        // Sell my NFT into the pair
+        // Sell my NFT into the pool
         const [
           _bidError,
           _bidNewSpotPrice,
@@ -455,9 +455,9 @@ describe("Collectionswap", function () {
           _bidTradeFee,
           _bidProtocolFee,
           _bidnObj,
-        ] = await lssvmPairETH.getSellNFTQuote(1);
+        ] = await collectionPoolETH.getSellNFTQuote(1);
         // Console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
-        await lssvmPairETH.connect(externalTrader).swapNFTsForToken(
+        await collectionPoolETH.connect(externalTrader).swapNFTsForToken(
           {
             ids: [222],
             proof: [],
@@ -478,9 +478,9 @@ describe("Collectionswap", function () {
           _askTradeFee,
           _askProtocolFee,
           _asknObj,
-        ] = await lssvmPairETH.getBuyNFTQuote(1);
+        ] = await collectionPoolETH.getBuyNFTQuote(1);
 
-        await lssvmPairETH
+        await collectionPoolETH
           .connect(externalTrader)
           .swapTokenForSpecificNFTs(
             [222],
@@ -492,7 +492,7 @@ describe("Collectionswap", function () {
           );
 
         const newBalance = await ethers.provider.getBalance(
-          lssvmPairETH.address
+          collectionPoolETH.address
         );
         expect(newBalance.gt(poolBalance)).to.be.true;
 
@@ -500,9 +500,9 @@ describe("Collectionswap", function () {
       }
     });
 
-    it("Should revert if trades are attempted in the same timestamp as pair creation", async function () {
+    it("Should revert if trades are attempted in the same timestamp as pool creation", async function () {
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         nftContractCollection,
         otherAccount4,
         ethPoolParams,
@@ -510,7 +510,7 @@ describe("Collectionswap", function () {
       let atomicTraderFactory = await ethers.getContractFactory(
         "TestAtomicTrader"
       );
-      let atomicTestTrader = await atomicTraderFactory.deploy(lssvmPairFactory.address, ethPoolParams.bondingCurve);
+      let atomicTestTrader = await atomicTraderFactory.deploy(collectionPoolFactory.address, ethPoolParams.bondingCurve);
       const atomicTrader = otherAccount4;
       const externalTraderNftsIHave = [222, 223, 224];
       await mintTokensAndApprove(
@@ -533,13 +533,13 @@ describe("Collectionswap", function () {
     it("Should revert if unauthorized users attempt to set the baseURI", async function () {
       let baseURI = "api.collectionswap.xyz";
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         otherAccount3,
         otherAccount4,
       } = await loadFixture(everythingFixture);
 
       await expect(
-        lssvmPairFactory
+        collectionPoolFactory
           .connect(otherAccount3)
           .setBaseURI(
             baseURI
@@ -547,7 +547,7 @@ describe("Collectionswap", function () {
       ).to.be.revertedWith("Ownable: caller is not the owner");
 
       await expect(
-        lssvmPairFactory
+        collectionPoolFactory
           .connect(otherAccount4)
           .setBaseURI(
             baseURI
@@ -558,23 +558,23 @@ describe("Collectionswap", function () {
     it("Should have the baseURI set by the owner", async function () {
       let baseURI = "api.collectionswap.xyz";
       const {
-        lssvmPairFactory
+        collectionPoolFactory
       } = await loadFixture(everythingFixture);
 
-      await lssvmPairFactory.setBaseURI(baseURI);
-      expect(await lssvmPairFactory.baseURI()).to.be.equal(baseURI);
+      await collectionPoolFactory.setBaseURI(baseURI);
+      expect(await collectionPoolFactory.baseURI()).to.be.equal(baseURI);
     });
 
     it("Should revert if unauthorized users attempt to set the tokenURI", async function () {
       let tokenURI = "api.collectionswap.xyz/tokenInfo/1";
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         otherAccount3,
         otherAccount4,
       } = await loadFixture(everythingFixture);
 
       await expect(
-        lssvmPairFactory
+        collectionPoolFactory
           .connect(otherAccount3)
           .setTokenURI(
             tokenURI,
@@ -583,7 +583,7 @@ describe("Collectionswap", function () {
       ).to.be.revertedWith("Ownable: caller is not the owner");
 
       await expect(
-        lssvmPairFactory
+        collectionPoolFactory
           .connect(otherAccount4)
           .setTokenURI(
             tokenURI,
@@ -595,11 +595,11 @@ describe("Collectionswap", function () {
     it("Should revert setting the tokenURI if token id has not existed", async function () {
       let tokenURI = "api.collectionswap.xyz/tokenInfo/1";
       const {
-        lssvmPairFactory
+        collectionPoolFactory
       } = await loadFixture(everythingFixture);
 
       await expect(
-        lssvmPairFactory.setTokenURI(
+        collectionPoolFactory.setTokenURI(
           tokenURI,
           1
         )
@@ -609,7 +609,7 @@ describe("Collectionswap", function () {
     it("Should return an empty string if baseURI has not been set", async function () {
       let tokenId = 1;
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         nftContractCollection,
         otherAccount0,
         ethPoolParams,
@@ -620,21 +620,21 @@ describe("Collectionswap", function () {
         nftList,
         nftContractCollection,
         otherAccount0,
-        lssvmPairFactory
+        collectionPoolFactory
       );
 
-      await lssvmPairFactory.createPairETH(
+      await collectionPoolFactory.createPoolETH(
         { ...ethPoolParams, initialNFTIDs: nftList },
       );
 
-      expect(await lssvmPairFactory.tokenURI(tokenId)).to.be.equal("");
+      expect(await collectionPoolFactory.tokenURI(tokenId)).to.be.equal("");
     });
 
     it("Should return baseURI + tokenID if tokenURI has not been set by the owner", async function () {
       let baseURI = "api.collectionswap.xyz/";
       let tokenId = 1;
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         nftContractCollection,
         otherAccount0,
         ethPoolParams,
@@ -645,23 +645,23 @@ describe("Collectionswap", function () {
         nftList,
         nftContractCollection,
         otherAccount0,
-        lssvmPairFactory
+        collectionPoolFactory
       );
 
-      await lssvmPairFactory.createPairETH(
+      await collectionPoolFactory.createPoolETH(
         { ...ethPoolParams, initialNFTIDs: nftList },
       );
 
-      await lssvmPairFactory.setBaseURI(baseURI);
+      await collectionPoolFactory.setBaseURI(baseURI);
 
-      expect(await lssvmPairFactory.tokenURI(tokenId)).to.be.equal(baseURI.concat("1"));
+      expect(await collectionPoolFactory.tokenURI(tokenId)).to.be.equal(baseURI.concat("1"));
     });
 
     it("Should have the tokenURI set by the owner", async function () {
       let tokenURI = "api.collectionswap.xyz/tokenInfo/1";
       let tokenId = 1;
       const {
-        lssvmPairFactory,
+        collectionPoolFactory,
         nftContractCollection,
         otherAccount0,
         ethPoolParams,
@@ -672,16 +672,16 @@ describe("Collectionswap", function () {
         nftList,
         nftContractCollection,
         otherAccount0,
-        lssvmPairFactory
+        collectionPoolFactory
       );
 
-      await lssvmPairFactory.createPairETH(
+      await collectionPoolFactory.createPoolETH(
         { ...ethPoolParams, initialNFTIDs: nftList },
       );
 
-      await lssvmPairFactory.setTokenURI(tokenURI, tokenId);
+      await collectionPoolFactory.setTokenURI(tokenURI, tokenId);
 
-      expect(await lssvmPairFactory.tokenURI(tokenId)).to.be.equal(tokenURI);
+      expect(await collectionPoolFactory.tokenURI(tokenId)).to.be.equal(tokenURI);
     });
   });
 

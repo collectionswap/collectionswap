@@ -7,42 +7,42 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 
-import {ILSSVMPair} from "./ILSSVMPair.sol";
-import {LSSVMPair} from "./LSSVMPair.sol";
-import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
+import {ICollectionPool} from "./ICollectionPool.sol";
+import {CollectionPool} from "./CollectionPool.sol";
+import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 
 contract MultiRouter {
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
 
-    ILSSVMPairFactory public immutable erc721factory;
+    ICollectionPoolFactory public immutable erc721factory;
 
-    constructor(ILSSVMPairFactory _erc721factory) {
+    constructor(ICollectionPoolFactory _erc721factory) {
         erc721factory = _erc721factory;
     }
 
-    struct PairSwapSpecific {
-        LSSVMPair pair;
+    struct PoolSwapSpecific {
+        CollectionPool pool;
         uint256[] nftIds;
         bytes32[] proof;
         bool[] proofFlags;
     }
 
-    struct RobustPairSwapSpecificWithToken {
-        PairSwapSpecific swapInfo;
+    struct RobustPoolSwapSpecificWithToken {
+        PoolSwapSpecific swapInfo;
         uint256 maxCost;
         bool isETHSwap;
     }
 
-    struct RobustPairSwapSpecificForToken {
-        PairSwapSpecific swapInfo;
+    struct RobustPoolSwapSpecificForToken {
+        PoolSwapSpecific swapInfo;
         uint256 minOutput;
     }
 
-    struct RobustPairNFTsForTokenAndTokenforNFTsTrade {
-        RobustPairSwapSpecificWithToken[] tokenToNFTTradesSpecific;
-        RobustPairSwapSpecificForToken[] nftToTokenTrades;
+    struct RobustPoolNFTsForTokenAndTokenforNFTsTrade {
+        RobustPoolSwapSpecificWithToken[] tokenToNFTTradesSpecific;
+        RobustPoolSwapSpecificForToken[] nftToTokenTrades;
     }
 
     /**
@@ -55,20 +55,20 @@ contract MultiRouter {
         - nftRecipient The address that receives NFTs
      */
     function robustSwapTokensForSpecificNFTsAndNFTsToToken(
-        RobustPairNFTsForTokenAndTokenforNFTsTrade calldata params
+        RobustPoolNFTsForTokenAndTokenforNFTsTrade calldata params
     ) external payable returns (uint256 remainingETHValue) {
         // Attempt to fill each buy order for specific NFTs
         {
             remainingETHValue = msg.value;
-            uint256 pairCost;
+            uint256 poolCost;
             CurveErrorCodes.Error error;
             uint256 numSwaps = params.tokenToNFTTradesSpecific.length;
             for (uint256 i; i < numSwaps; ) {
                 // Calculate actual cost per swap
-                (error, , , , pairCost, , ) = params
+                (error, , , , poolCost, , ) = params
                     .tokenToNFTTradesSpecific[i]
                     .swapInfo
-                    .pair
+                    .pool
                     .getBuyNFTQuote(
                         params
                             .tokenToNFTTradesSpecific[i]
@@ -79,7 +79,7 @@ contract MultiRouter {
 
                 // If within our maxCost and no error, proceed
                 if (
-                    pairCost <= params.tokenToNFTTradesSpecific[i].maxCost &&
+                    poolCost <= params.tokenToNFTTradesSpecific[i].maxCost &&
                     error == CurveErrorCodes.Error.OK
                 ) {
                     // We know how much ETH to send because we already did the math above
@@ -88,10 +88,10 @@ contract MultiRouter {
                         remainingETHValue -= params
                             .tokenToNFTTradesSpecific[i]
                             .swapInfo
-                            .pair
-                            .swapTokenForSpecificNFTs{value: pairCost}(
+                            .pool
+                            .swapTokenForSpecificNFTs{value: poolCost}(
                             params.tokenToNFTTradesSpecific[i].swapInfo.nftIds,
-                            pairCost,
+                            poolCost,
                             msg.sender,
                             true,
                             msg.sender
@@ -102,13 +102,13 @@ contract MultiRouter {
                         params
                             .tokenToNFTTradesSpecific[i]
                             .swapInfo
-                            .pair
+                            .pool
                             .swapTokenForSpecificNFTs(
                                 params
                                     .tokenToNFTTradesSpecific[i]
                                     .swapInfo
                                     .nftIds,
-                                pairCost,
+                                poolCost,
                                 msg.sender,
                                 true,
                                 msg.sender
@@ -129,15 +129,15 @@ contract MultiRouter {
         {
             uint256 numSwaps = params.nftToTokenTrades.length;
             for (uint256 i; i < numSwaps; ) {
-                uint256 pairOutput;
+                uint256 poolOutput;
 
                 // Locally scoped to avoid stack too deep error
                 {
                     CurveErrorCodes.Error error;
-                    (error, , , , pairOutput, , ) = params
+                    (error, , , , poolOutput, , ) = params
                         .nftToTokenTrades[i]
                         .swapInfo
-                        .pair
+                        .pool
                         .getSellNFTQuote(
                             params.nftToTokenTrades[i].swapInfo.nftIds.length
                         );
@@ -150,14 +150,14 @@ contract MultiRouter {
                 }
 
                 // If at least equal to our minOutput, proceed
-                if (pairOutput >= params.nftToTokenTrades[i].minOutput) {
+                if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
                     // Do the swap
                     params
                         .nftToTokenTrades[i]
                         .swapInfo
-                        .pair
+                        .pool
                         .swapNFTsForToken(
-                            ILSSVMPair.NFTs(
+                            ICollectionPool.NFTs(
                                 params.nftToTokenTrades[i].swapInfo.nftIds,
                                 params.nftToTokenTrades[i].swapInfo.proof,
                                 params.nftToTokenTrades[i].swapInfo.proofFlags
@@ -183,56 +183,56 @@ contract MultiRouter {
      */
 
     /**
-        @dev Allows an ERC20 pair contract to transfer ERC20 tokens directly from
-        the sender, in order to minimize the number of token transfers. Only callable by an ERC20 pair.
+        @dev Allows an ERC20 pool contract to transfer ERC20 tokens directly from
+        the sender, in order to minimize the number of token transfers. Only callable by an ERC20 pool.
         @param token The ERC20 token to transfer
         @param from The address to transfer tokens from
         @param to The address to transfer tokens to
         @param amount The amount of tokens to transfer
-        @param variant The pair variant of the pair contract
+        @param variant The pool variant of the pool contract
      */
-    function pairTransferERC20From(
+    function poolTransferERC20From(
         ERC20 token,
         address from,
         address to,
         uint256 amount,
         uint8 variant
     ) external {
-        // verify caller is an ERC20 pair contract
-        ILSSVMPairFactory.PairVariant _variant = ILSSVMPairFactory
-            .PairVariant(variant);
-        require(erc721factory.isPair(msg.sender, _variant), "Not pair");
+        // verify caller is an ERC20 pool contract
+        ICollectionPoolFactory.PoolVariant _variant = ICollectionPoolFactory
+            .PoolVariant(variant);
+        require(erc721factory.isPool(msg.sender, _variant), "Not pool");
 
-        // verify caller is an ERC20 pair
+        // verify caller is an ERC20 pool
         require(
-            _variant == ILSSVMPairFactory.PairVariant.ENUMERABLE_ERC20 ||
+            _variant == ICollectionPoolFactory.PoolVariant.ENUMERABLE_ERC20 ||
                 _variant ==
-                ILSSVMPairFactory.PairVariant.MISSING_ENUMERABLE_ERC20,
-            "Not ERC20 pair"
+                ICollectionPoolFactory.PoolVariant.MISSING_ENUMERABLE_ERC20,
+            "Not ERC20 pool"
         );
-        // transfer tokens to pair
+        // transfer tokens to pool
         token.safeTransferFrom(from, to, amount);
     }
 
     /**
-        @dev Allows a pair contract to transfer ERC721 NFTs directly from
-        the sender, in order to minimize the number of token transfers. Only callable by a pair.
+        @dev Allows a pool contract to transfer ERC721 NFTs directly from
+        the sender, in order to minimize the number of token transfers. Only callable by a pool.
         @param nft The ERC721 NFT to transfer
         @param from The address to transfer tokens from
         @param to The address to transfer tokens to
         @param id The ID of the NFT to transfer
-        @param variant The pair variant of the pair contract
+        @param variant The pool variant of the pool contract
      */
-    function pairTransferNFTFrom(
+    function poolTransferNFTFrom(
         IERC721 nft,
         address from,
         address to,
         uint256 id,
-        ILSSVMPairFactory.PairVariant variant
+        ICollectionPoolFactory.PoolVariant variant
     ) external {
-        // verify caller is a trusted pair contract
-        require(erc721factory.isPair(msg.sender, variant), "Not pair");
-        // transfer NFTs to pair
+        // verify caller is a trusted pool contract
+        require(erc721factory.isPool(msg.sender, variant), "Not pool");
+        // transfer NFTs to pool
         nft.safeTransferFrom(from, to, id);
     }
 }

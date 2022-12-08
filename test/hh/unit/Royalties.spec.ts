@@ -27,11 +27,11 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nftNon2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithoutRoyalty: tokenIds,
       } = await royaltyFixture();
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           nft: nft.address,
@@ -43,14 +43,14 @@ describe("Royalties", function () {
           gasLimit: 1000000,
         }
       );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
-      expect(await lssvmPairETH.royaltyNumerator()).to.be.equal("0");
-      expect(await lssvmPairETH.royaltyRecipientOverride()).to.be.equal(
+      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal("0");
+      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
         ethers.constants.AddressZero
       );
     });
@@ -59,12 +59,12 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nftNon2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         royaltyRecipientOverride,
         tokenIdsWithoutRoyalty: tokenIds,
       } = await royaltyFixture();
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           royaltyRecipientOverride: royaltyRecipientOverride.address,
@@ -77,14 +77,14 @@ describe("Royalties", function () {
           gasLimit: 1000000,
         }
       );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
-      expect(await lssvmPairETH.royaltyNumerator()).to.be.equal("0");
-      expect(await lssvmPairETH.royaltyRecipientOverride()).to.be.equal(
+      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal("0");
+      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
         royaltyRecipientOverride.address
       );
     });
@@ -93,11 +93,11 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nft2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithRoyalty: tokenIds,
       } = await royaltyFixture();
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           nft: nft.address,
@@ -109,14 +109,14 @@ describe("Royalties", function () {
           gasLimit: 1000000,
         }
       );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
-      expect(await lssvmPairETH.royaltyNumerator()).to.be.equal("0");
-      expect(await lssvmPairETH.royaltyRecipientOverride()).to.be.equal(
+      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal("0");
+      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
         ethers.constants.AddressZero
       );
     });
@@ -125,12 +125,12 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nft2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         royaltyRecipientOverride,
         tokenIdsWithRoyalty: tokenIds,
       } = await royaltyFixture();
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           royaltyRecipientOverride: royaltyRecipientOverride.address,
@@ -143,14 +143,14 @@ describe("Royalties", function () {
           gasLimit: 1000000,
         }
       );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
-      expect(await lssvmPairETH.royaltyNumerator()).to.be.equal("0");
-      expect(await lssvmPairETH.royaltyRecipientOverride()).to.be.equal(
+      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal("0");
+      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
         royaltyRecipientOverride.address
       );
     });
@@ -159,13 +159,13 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nft2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithRoyalty: tokenIds,
       } = await royaltyFixture();
 
       const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           nft: nft.address,
@@ -177,16 +177,16 @@ describe("Royalties", function () {
           gasLimit: 1000000,
         }
       );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
-      expect(await lssvmPairETH.royaltyNumerator()).to.be.equal(
+      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal(
         royaltyNumerator
       );
-      expect(await lssvmPairETH.royaltyRecipientOverride()).to.be.equal(
+      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
         ethers.constants.AddressZero
       );
     });
@@ -195,14 +195,14 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nft2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         royaltyRecipientOverride,
         tokenIdsWithRoyalty: tokenIds,
       } = await royaltyFixture();
 
       const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           nft: nft.address,
@@ -215,16 +215,16 @@ describe("Royalties", function () {
           gasLimit: 1000000,
         }
       );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
-      expect(await lssvmPairETH.royaltyNumerator()).to.be.equal(
+      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal(
         royaltyNumerator
       );
-      expect(await lssvmPairETH.royaltyRecipientOverride()).to.be.equal(
+      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
         royaltyRecipientOverride.address
       );
     });
@@ -233,14 +233,14 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nftNon2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithoutRoyalty: tokenIds,
       } = await royaltyFixture();
 
       const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
       await expect(
-        lssvmPairFactory.createPairETH(
+        collectionPoolFactory.createPoolETH(
           {
             ...ethPoolParams,
             nft: nft.address,
@@ -260,13 +260,13 @@ describe("Royalties", function () {
         ethPoolParams,
         nftNon2981: nft,
         royaltyRecipientOverride,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithoutRoyalty: tokenIds,
       } = await royaltyFixture();
 
       const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           royaltyRecipientOverride: royaltyRecipientOverride.address,
@@ -280,16 +280,16 @@ describe("Royalties", function () {
         }
       );
 
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const lssvmPairETH = await ethers.getContractAt(
-        "LSSVMPairETH",
-        newPairAddress
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const collectionPoolETH = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
       );
 
-      expect(await lssvmPairETH.royaltyNumerator()).to.be.equal(
+      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal(
         royaltyNumerator
       );
-      expect(await lssvmPairETH.royaltyRecipientOverride()).to.be.equal(
+      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
         royaltyRecipientOverride.address
       );
     });
@@ -298,14 +298,14 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nftNon2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithoutRoyalty: tokenIds,
       } = await royaltyFixture();
 
       const royaltyNumerator = ethers.utils.parseEther("2");
 
       await expect(
-        lssvmPairFactory.createPairETH(
+        collectionPoolFactory.createPoolETH(
           {
             ...ethPoolParams,
             nft: nft.address,
@@ -329,14 +329,14 @@ describe("Royalties", function () {
         ethPoolParams,
         royaltyRecipientOverride,
         nftNon2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithoutRoyalty: tokenIds,
       } = await royaltyFixture();
 
       const royaltyNumerator = ethers.utils.parseEther("2");
 
       await expect(
-        lssvmPairFactory.createPairETH(
+        collectionPoolFactory.createPoolETH(
           {
             ...ethPoolParams,
             royaltyRecipientOverride: royaltyRecipientOverride.address,
@@ -356,14 +356,14 @@ describe("Royalties", function () {
       const {
         ethPoolParams,
         nft2981: nft,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithRoyalty: tokenIds,
       } = await royaltyFixture();
 
       const royaltyNumerator = ethers.utils.parseEther("2");
 
       await expect(
-        lssvmPairFactory.createPairETH(
+        collectionPoolFactory.createPoolETH(
           {
             ...ethPoolParams,
             nft: nft.address,
@@ -383,14 +383,14 @@ describe("Royalties", function () {
         ethPoolParams,
         nft2981: nft,
         royaltyRecipientOverride,
-        lssvmPairFactory,
+        collectionPoolFactory,
         tokenIdsWithRoyalty: tokenIds,
       } = await royaltyFixture();
 
       const royaltyNumerator = ethers.utils.parseEther("2");
 
       await expect(
-        lssvmPairFactory.createPairETH(
+        collectionPoolFactory.createPoolETH(
           {
             ...ethPoolParams,
             royaltyRecipientOverride: royaltyRecipientOverride.address,
@@ -412,7 +412,7 @@ describe("Royalties", function () {
       const {
         recipients,
         otherAccount1: trader,
-        lssvmPairETH,
+        collectionPoolETH,
       } = await royaltyWithPoolFixture();
 
       const initialBalances = await Promise.all(
@@ -420,7 +420,7 @@ describe("Royalties", function () {
       );
 
       expect(
-        lssvmPairETH.swapTokenForSpecificNFTs(
+        collectionPoolETH.swapTokenForSpecificNFTs(
           [],
           ethers.BigNumber.from("0"),
           trader.address,
@@ -444,7 +444,7 @@ describe("Royalties", function () {
       const {
         recipients,
         otherAccount1: trader,
-        lssvmPairETH,
+        collectionPoolETH,
       } = await royaltyWithPoolFixture();
 
       const initialBalances = await Promise.all(
@@ -452,7 +452,7 @@ describe("Royalties", function () {
       );
 
       expect(
-        lssvmPairETH.swapNFTsForToken(
+        collectionPoolETH.swapNFTsForToken(
           {
             ids: [],
             proof: [],
@@ -476,7 +476,7 @@ describe("Royalties", function () {
       const {
         nft2981: nft,
         otherAccount1: trader,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
         fee,
         protocolFee,
         royaltyNumerator,
@@ -552,7 +552,7 @@ describe("Royalties", function () {
       const {
         nft2981: nft,
         otherAccount1: trader,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
         fee,
         protocolFee,
         royaltyNumerator,
@@ -629,7 +629,7 @@ describe("Royalties", function () {
       const {
         nft2981: nft,
         otherAccount1: trader,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
         fee,
         protocolFee,
         royaltyNumerator,
@@ -699,7 +699,7 @@ describe("Royalties", function () {
       const {
         nft2981: nft,
         otherAccount1: trader,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
         fee,
         protocolFee,
         royaltyNumerator,
@@ -958,7 +958,7 @@ describe("Royalties", function () {
       const {
         nft2981: nft,
         otherAccount1: trader,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
         fee,
         protocolFee,
         royaltyNumerator,
@@ -1219,7 +1219,7 @@ describe("Royalties", function () {
       const {
         recipients,
         otherAccount1,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
       } = await royaltyWithPoolFixture();
 
       const unauthorizedAccounts = recipients.concat(otherAccount1);
@@ -1233,7 +1233,7 @@ describe("Royalties", function () {
     });
 
     it("Should succeed and emit event if called by owner", async function () {
-      const { initialOwner, lssvmPairETH: pool } =
+      const { initialOwner, collectionPoolETH: pool } =
         await royaltyWithPoolFixture();
 
       await expect(
@@ -1246,7 +1246,7 @@ describe("Royalties", function () {
     it("Should result in new royalty amounts being sent after update", async function () {
       const {
         initialOwner,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
         nft2981: nft,
         otherAccount1: trader,
         fee,
@@ -1305,13 +1305,13 @@ describe("Royalties", function () {
     it("Should revert if setting nonzero but no override and not ERC2981", async function () {
       const {
         tokenIdsWithoutRoyalty,
-        lssvmPairFactory,
+        collectionPoolFactory,
         ethPoolParams,
         nftNon2981: nft,
         initialOwner,
       } = await royaltyFixture();
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           nft: nft.address,
@@ -1324,8 +1324,8 @@ describe("Royalties", function () {
           gasLimit: 1000000,
         }
       );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const pool = await ethers.getContractAt("LSSVMPairETH", newPairAddress);
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const pool = await ethers.getContractAt("CollectionPoolETH", newPoolAddress);
 
       await expect(
         pool
@@ -1342,7 +1342,7 @@ describe("Royalties", function () {
       const {
         recipients,
         otherAccount1,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
       } = await royaltyWithPoolFixture();
 
       const unauthorizedAccounts = recipients.concat(otherAccount1);
@@ -1356,7 +1356,7 @@ describe("Royalties", function () {
     it("Should succeed and emit event if called by owner", async function () {
       const {
         initialOwner,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
         otherAccount1,
       } = await royaltyWithPoolFixture();
 
@@ -1372,7 +1372,7 @@ describe("Royalties", function () {
     it("Should result in royalties being sent to the override after update", async function () {
       const {
         initialOwner,
-        lssvmPairETH: pool,
+        collectionPoolETH: pool,
         otherAccount1: trader,
         fee,
         protocolFee,
@@ -1446,14 +1446,14 @@ describe("Royalties", function () {
     it("Should revert if setting recipient override to 0 (deleting it) when token is not ERC2981 and has nonzero numerator", async function () {
       const {
         tokenIdsWithoutRoyalty,
-        lssvmPairFactory,
+        collectionPoolFactory,
         ethPoolParams,
         nftNon2981: nft,
         initialOwner,
         otherAccount1: trader,
       } = await royaltyFixture();
 
-      const lssvmPairETHContractTx = await lssvmPairFactory.createPairETH(
+      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
         {
           ...ethPoolParams,
           nft: nft.address,
@@ -1466,8 +1466,8 @@ describe("Royalties", function () {
           gasLimit: 1000000,
         }
       );
-      const { newPairAddress } = await getPoolAddress(lssvmPairETHContractTx);
-      const pool = await ethers.getContractAt("LSSVMPairETH", newPairAddress);
+      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const pool = await ethers.getContractAt("CollectionPoolETH", newPoolAddress);
 
       await expect(
         pool

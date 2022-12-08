@@ -33,13 +33,13 @@ export async function mintTokensAndApprove(
   initialNFTIDs: number[],
   myERC721: Contract,
   thisAccount: SignerWithAddress,
-  lssvmPairFactory: Contract
+  collectionPoolFactory: Contract
 ) {
   for (const nftId of initialNFTIDs) {
     await myERC721.mint(thisAccount.address, nftId);
     await myERC721
       .connect(thisAccount)
-      .approve(lssvmPairFactory.address, nftId);
+      .approve(collectionPoolFactory.address, nftId);
     // Console.log(`owner of ${nftId} is '${await myERC721.ownerOf(nftId)}'`)
   }
 }
@@ -51,12 +51,12 @@ export async function getPoolAddress(tx: ContractTransaction, showGas = false) {
   }
 
   const newPoolEvent = receipt.events?.find(
-    (event) => event.event === "NewPair"
+    (event) => event.event === "NewPool"
   );
-  const newPairAddress = newPoolEvent?.args?.poolAddress;
+  const newPoolAddress = newPoolEvent?.args?.poolAddress;
   const newTokenEvent = receipt.events?.find(
     (event) => event.event === "NewTokenId"
   );
   const newTokenId = newTokenEvent?.args?.tokenId;
-  return { newPairAddress, newTokenId };
+  return { newPoolAddress, newTokenId };
 }

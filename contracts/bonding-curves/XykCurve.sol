@@ -3,10 +3,10 @@ pragma solidity ^0.8.0;
 
 import {ICurve} from "./ICurve.sol";
 import {CurveErrorCodes} from "./CurveErrorCodes.sol";
-import {LSSVMPair} from "../LSSVMPair.sol";
+import {CollectionPool} from "../CollectionPool.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {LSSVMPairCloner} from "../lib/LSSVMPairCloner.sol";
-import {LSSVMPairERC20} from "../LSSVMPairERC20.sol";
+import {CollectionPoolCloner} from "../lib/CollectionPoolCloner.sol";
+import {CollectionPoolERC20} from "../CollectionPoolERC20.sol";
 import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 
 /*
@@ -86,7 +86,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
             return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
 
-        // get the pair's virtual nft and eth/erc20 reserves
+        // get the pool's virtual nft and eth/erc20 reserves
         uint256 tokenBalance = params.spotPrice;
         uint256 nftBalance = params.delta;
 
@@ -168,7 +168,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
             return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
 
-        // get the pair's virtual nft and eth/erc20 balance
+        // get the pool's virtual nft and eth/erc20 balance
         uint256 tokenBalance = params.spotPrice;
         uint256 nftBalance = params.delta;
 

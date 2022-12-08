@@ -7,16 +7,16 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {ILSSVMPair} from "../../../contracts/ILSSVMPair.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
-import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
-import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
-import {LSSVMPairEnumerableETH} from "../../../contracts/LSSVMPairEnumerableETH.sol";
-import {LSSVMPairMissingEnumerableETH} from "../../../contracts/LSSVMPairMissingEnumerableETH.sol";
-import {LSSVMPairEnumerableERC20} from "../../../contracts/LSSVMPairEnumerableERC20.sol";
-import {LSSVMPairMissingEnumerableERC20} from "../../../contracts/LSSVMPairMissingEnumerableERC20.sol";
-import {LSSVMRouter} from "../../../contracts/LSSVMRouter.sol";
+import {ICollectionPool} from "../../../contracts/ICollectionPool.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPoolETH} from "../../../contracts/CollectionPoolETH.sol";
+import {CollectionPoolERC20} from "../../../contracts/CollectionPoolERC20.sol";
+import {CollectionPoolEnumerableETH} from "../../../contracts/CollectionPoolEnumerableETH.sol";
+import {CollectionPoolMissingEnumerableETH} from "../../../contracts/CollectionPoolMissingEnumerableETH.sol";
+import {CollectionPoolEnumerableERC20} from "../../../contracts/CollectionPoolEnumerableERC20.sol";
+import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/CollectionPoolMissingEnumerableERC20.sol";
+import {CollectionRouter} from "../../../contracts/CollectionRouter.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
@@ -30,9 +30,9 @@ abstract contract RouterSinglePool is
 {
     IERC721Mintable test721;
     ICurve bondingCurve;
-    LSSVMPairFactory factory;
-    LSSVMRouter router;
-    LSSVMPair pair;
+    CollectionPoolFactory factory;
+    CollectionRouter router;
+    CollectionPool pool;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 3e15;
     uint256 constant carryFeeMultiplier = 3e15;
@@ -41,11 +41,11 @@ abstract contract RouterSinglePool is
     function setUp() public {
         bondingCurve = setupCurve();
         test721 = setup721();
-        LSSVMPairEnumerableETH enumerableETHTemplate = new LSSVMPairEnumerableETH();
-        LSSVMPairMissingEnumerableETH missingEnumerableETHTemplate = new LSSVMPairMissingEnumerableETH();
-        LSSVMPairEnumerableERC20 enumerableERC20Template = new LSSVMPairEnumerableERC20();
-        LSSVMPairMissingEnumerableERC20 missingEnumerableERC20Template = new LSSVMPairMissingEnumerableERC20();
-        factory = new LSSVMPairFactory(
+        CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
+        CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
+        CollectionPoolEnumerableERC20 enumerableERC20Template = new CollectionPoolEnumerableERC20();
+        CollectionPoolMissingEnumerableERC20 missingEnumerableERC20Template = new CollectionPoolMissingEnumerableERC20();
+        factory = new CollectionPoolFactory(
             enumerableETHTemplate,
             missingEnumerableETHTemplate,
             enumerableERC20Template,
@@ -54,7 +54,7 @@ abstract contract RouterSinglePool is
             protocolFeeMultiplier,
             carryFeeMultiplier
         );
-        router = new LSSVMRouter(factory);
+        router = new CollectionRouter(factory);
         factory.setBondingCurveAllowed(bondingCurve, true);
         factory.setRouterAllowed(router, true);
 
@@ -62,7 +62,7 @@ abstract contract RouterSinglePool is
         test721.setApprovalForAll(address(factory), true);
         test721.setApprovalForAll(address(router), true);
 
-        // Setup pair parameters
+        // Setup pool parameters
         uint128 delta = 0 ether;
         uint128 spotPrice = 1 ether;
         uint256[] memory idList = new uint256[](numInitialNFTs);
@@ -71,13 +71,13 @@ abstract contract RouterSinglePool is
             idList[i - 1] = i;
         }
 
-        // Create a pair with a spot price of 1 eth, 10 NFTs, and no price increases
-        pair = this.setupPair{value: modifyInputAmount(10 ether)}(
+        // Create a pool with a spot price of 1 eth, 10 NFTs, and no price increases
+        pool = this.setupPool{value: modifyInputAmount(10 ether)}(
             factory,
             test721,
             bondingCurve,
             payable(address(0)),
-            ILSSVMPair.PoolType.TRADE,
+            ICollectionPool.PoolType.TRADE,
             modifyDelta(uint64(delta)),
             0,
             spotPrice,
@@ -91,16 +91,16 @@ abstract contract RouterSinglePool is
             test721.mint(address(this), i);
         }
 
-        // skip 1 second so that trades are not in the same timestamp as pair creation
+        // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
     }
 
     function test_swapTokenForSingleAnyNFT() public {
-        LSSVMRouter.PairSwapAny[]
-            memory swapList = new LSSVMRouter.PairSwapAny[](1);
-        swapList[0] = LSSVMRouter.PairSwapAny({pair: pair, numItems: 1});
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 1});
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pair.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -114,16 +114,16 @@ abstract contract RouterSinglePool is
     function test_swapTokenForSingleSpecificNFT() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 1;
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
-        swapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        swapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pair.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -135,13 +135,13 @@ abstract contract RouterSinglePool is
     }
 
     function test_swapSingleNFTForToken() public {
-        (, , , , uint256 outputAmount, , ) = pair.getSellNFTQuote(1);
+        (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(1);
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs + 1;
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
-        swapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        swapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
@@ -156,13 +156,13 @@ abstract contract RouterSinglePool is
 
     function testGas_swapSingleNFTForToken5Times() public {
         for (uint256 i = 1; i <= 5; i++) {
-            (, , , , uint256 outputAmount, , ) = pair.getSellNFTQuote(1);
+            (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(1);
             uint256[] memory nftIds = new uint256[](1);
             nftIds[0] = numInitialNFTs + i;
-            LSSVMRouter.PairSwapSpecific[]
-                memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
-            swapList[0] = LSSVMRouter.PairSwapSpecific({
-                pair: pair,
+            CollectionRouter.PoolSwapSpecific[]
+                memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+            swapList[0] = CollectionRouter.PoolSwapSpecific({
+                pool: pool,
                 nftIds: nftIds,
                 proof: new bytes32[](0),
                 proofFlags: new bool[](0)
@@ -180,20 +180,20 @@ abstract contract RouterSinglePool is
         // construct NFT to Token swap list
         uint256[] memory sellNFTIds = new uint256[](1);
         sellNFTIds[0] = numInitialNFTs + 1;
-        LSSVMRouter.PairSwapSpecific[]
-            memory nftToTokenSwapList = new LSSVMRouter.PairSwapSpecific[](1);
-        nftToTokenSwapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        nftToTokenSwapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
         });
 
         // construct Token to NFT swap list
-        LSSVMRouter.PairSwapAny[]
-            memory tokenToNFTSwapList = new LSSVMRouter.PairSwapAny[](1);
-        tokenToNFTSwapList[0] = LSSVMRouter.PairSwapAny({
-            pair: pair,
+        CollectionRouter.PoolSwapAny[]
+            memory tokenToNFTSwapList = new CollectionRouter.PoolSwapAny[](1);
+        tokenToNFTSwapList[0] = CollectionRouter.PoolSwapAny({
+            pool: pool,
             numItems: 1
         });
 
@@ -203,7 +203,7 @@ abstract contract RouterSinglePool is
             value: modifyInputAmount(inputAmount)
         }(
             router,
-            LSSVMRouter.NFTsForAnyNFTsTrade({
+            CollectionRouter.NFTsForAnyNFTsTrade({
                 nftToTokenTrades: nftToTokenSwapList,
                 tokenToNFTTrades: tokenToNFTSwapList
             }),
@@ -219,10 +219,10 @@ abstract contract RouterSinglePool is
         // construct NFT to token swap list
         uint256[] memory sellNFTIds = new uint256[](1);
         sellNFTIds[0] = numInitialNFTs + 1;
-        LSSVMRouter.PairSwapSpecific[]
-            memory nftToTokenSwapList = new LSSVMRouter.PairSwapSpecific[](1);
-        nftToTokenSwapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        nftToTokenSwapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
@@ -231,10 +231,10 @@ abstract contract RouterSinglePool is
         // construct token to NFT swap list
         uint256[] memory buyNFTIds = new uint256[](1);
         buyNFTIds[0] = 1;
-        LSSVMRouter.PairSwapSpecific[]
-            memory tokenToNFTSwapList = new LSSVMRouter.PairSwapSpecific[](1);
-        tokenToNFTSwapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory tokenToNFTSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        tokenToNFTSwapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: buyNFTIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
@@ -246,7 +246,7 @@ abstract contract RouterSinglePool is
             value: modifyInputAmount(inputAmount)
         }(
             router,
-            LSSVMRouter.NFTsForSpecificNFTsTrade({
+            CollectionRouter.NFTsForSpecificNFTsTrade({
                 nftToTokenTrades: nftToTokenSwapList,
                 tokenToNFTTrades: tokenToNFTSwapList
             }),
@@ -259,12 +259,12 @@ abstract contract RouterSinglePool is
     }
 
     function test_swapTokenforAny5NFTs() public {
-        LSSVMRouter.PairSwapAny[]
-            memory swapList = new LSSVMRouter.PairSwapAny[](1);
-        swapList[0] = LSSVMRouter.PairSwapAny({pair: pair, numItems: 5});
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 5});
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pair.getBuyNFTQuote(5);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(5);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -278,23 +278,23 @@ abstract contract RouterSinglePool is
     }
 
     function test_swapTokenforSpecific5NFTs() public {
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         uint256[] memory nftIds = new uint256[](5);
         nftIds[0] = 1;
         nftIds[1] = 2;
         nftIds[2] = 3;
         nftIds[3] = 4;
         nftIds[4] = 5;
-        swapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        swapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
         });
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pair.getBuyNFTQuote(5);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(5);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -308,15 +308,15 @@ abstract contract RouterSinglePool is
     }
 
     function test_swap5NFTsForToken() public {
-        (, , , , uint256 outputAmount, , ) = pair.getSellNFTQuote(5);
+        (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(5);
         uint256[] memory nftIds = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
             nftIds[i] = numInitialNFTs + i + 1;
         }
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
-        swapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        swapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
@@ -330,11 +330,11 @@ abstract contract RouterSinglePool is
     }
 
     function testFail_swapTokenForSingleAnyNFTSlippage() public {
-        LSSVMRouter.PairSwapAny[]
-            memory swapList = new LSSVMRouter.PairSwapAny[](1);
-        swapList[0] = LSSVMRouter.PairSwapAny({pair: pair, numItems: 1});
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 1});
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pair.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
         inputAmount = inputAmount - 1 wei;
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
             router,
@@ -349,16 +349,16 @@ abstract contract RouterSinglePool is
     function testFail_swapTokenForSingleSpecificNFTSlippage() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 1;
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
-        swapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        swapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pair.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
         inputAmount = inputAmount - 1 wei;
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
             router,
@@ -373,16 +373,16 @@ abstract contract RouterSinglePool is
     function testFail_swapSingleNFTForNonexistentToken() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs + 1;
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
-        swapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        swapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
         });
         uint256 sellAmount;
-        (, , , , sellAmount, , ) = pair.getSellNFTQuote(1);
+        (, , , , sellAmount, , ) = pool.getSellNFTQuote(1);
         sellAmount = sellAmount + 1 wei;
         router.swapNFTsForToken(
             swapList,
@@ -395,15 +395,15 @@ abstract contract RouterSinglePool is
     function testFail_swapTokenForAnyNFTsPastBalance() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs + 1;
-        LSSVMRouter.PairSwapAny[]
-            memory swapList = new LSSVMRouter.PairSwapAny[](1);
-        swapList[0] = LSSVMRouter.PairSwapAny({
-            pair: pair,
-            numItems: test721.balanceOf(address(pair)) + 1
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        swapList[0] = CollectionRouter.PoolSwapAny({
+            pool: pool,
+            numItems: test721.balanceOf(address(pool)) + 1
         });
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pair.getBuyNFTQuote(
-            test721.balanceOf(address(pair)) + 1
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(
+            test721.balanceOf(address(pool)) + 1
         );
         inputAmount = inputAmount + 1 wei;
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
@@ -418,16 +418,16 @@ abstract contract RouterSinglePool is
 
     function testFail_swapSingleNFTForTokenWithEmptyList() public {
         uint256[] memory nftIds = new uint256[](0);
-        LSSVMRouter.PairSwapSpecific[]
-            memory swapList = new LSSVMRouter.PairSwapSpecific[](1);
-        swapList[0] = LSSVMRouter.PairSwapSpecific({
-            pair: pair,
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        swapList[0] = CollectionRouter.PoolSwapSpecific({
+            pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
         });
         uint256 sellAmount;
-        (, , , , sellAmount, , ) = pair.getSellNFTQuote(1);
+        (, , , , sellAmount, , ) = pool.getSellNFTQuote(1);
         sellAmount = sellAmount + 1 wei;
         router.swapNFTsForToken(
             swapList,

@@ -39,10 +39,10 @@ export async function verifyCollectionSet(
   console.log(`Deployer: ${deployerAddress}`);
 
   const templateAddresses = [
-    addresses.lssvmPairEnumerableETH,
-    addresses.lssvmPairMissingEnumerableETH,
-    addresses.lssvmPairEnumerableERC20,
-    addresses.lssvmPairMissingEnumerableERC20,
+    addresses.collectionPoolEnumerableETH,
+    addresses.collectionPoolMissingEnumerableETH,
+    addresses.collectionPoolEnumerableERC20,
+    addresses.collectionPoolMissingEnumerableERC20,
   ];
   const curveAddresses = [
     addresses.linearCurve,
@@ -92,12 +92,12 @@ export async function verifyCollectionSet(
   });
 
   await verify("RewardETHLogic", {
-    address: addresses.rewardPoolETH,
+    address: addresses.rewardVaultETH,
     constructorArguments: [],
   });
 
   await verify("RewardETHDrawLogic", {
-    address: addresses.rewardPoolETHDraw,
+    address: addresses.rewardVaultETHDraw,
     constructorArguments: [],
   });
 

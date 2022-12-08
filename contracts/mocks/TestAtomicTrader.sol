@@ -1,15 +1,15 @@
 pragma solidity ^0.8.0;
 
-import "../ILSSVMPairFactory.sol";
-import "../LSSVMPair.sol";
+import "../ICollectionPoolFactory.sol";
+import "../CollectionPool.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 contract TestAtomicTrader is IERC721Receiver {
-    ILSSVMPairFactory factory;
+    ICollectionPoolFactory factory;
     ICurve curve;
 
     constructor (
-        ILSSVMPairFactory _factory,
+        ICollectionPoolFactory _factory,
         ICurve _curve
     ) {
         factory = _factory;
@@ -25,14 +25,14 @@ contract TestAtomicTrader is IERC721Receiver {
             nft.setApprovalForAll(address(factory), true);
         }
 
-        // create pool pair
-        (address pair, ) = factory.createPairETH{value: msg.value}(
-            ILSSVMPairFactory.CreateETHPairParams({
+        // create pool pool
+        (address pool, ) = factory.createPoolETH{value: msg.value}(
+            ICollectionPoolFactory.CreateETHPoolParams({
                 nft: nft,
                 bondingCurve: curve,
                 assetRecipient: payable(0),
                 receiver: msg.sender,
-                poolType: ILSSVMPair.PoolType.TRADE,
+                poolType: ICollectionPool.PoolType.TRADE,
                 delta: 15e17,
                 fee: 5e16,
                 spotPrice: 1e18,
@@ -45,7 +45,7 @@ contract TestAtomicTrader is IERC721Receiver {
         );
 
         // then try to swap against it
-        LSSVMPair(pair).swapTokenForAnyNFTs(
+        CollectionPool(pool).swapTokenForAnyNFTs(
             1,
             100e18,
             address(this),

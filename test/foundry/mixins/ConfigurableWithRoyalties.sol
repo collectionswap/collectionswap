@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {Configurable, IERC721, LSSVMPair, ICurve, IERC721Mintable, LSSVMPairFactory} from "./Configurable.sol";
+import {Configurable, IERC721, CollectionPool, ICurve, IERC721Mintable, CollectionPoolFactory} from "./Configurable.sol";
 
 import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {Test2981} from "../../../contracts/mocks/Test2981.sol";

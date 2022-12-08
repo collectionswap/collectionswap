@@ -5,7 +5,7 @@
 import { ethers } from "ethers";
 
 import type {
-  LSSVMPairFactory,
+  CollectionPoolFactory,
   Alchemy,
   ExponentialCurve,
 } from "../typechain-types";
@@ -15,7 +15,7 @@ import type { BigNumber, ContractTransaction, ContractReceipt } from "ethers";
 // https://ethereum.stackexchange.com/questions/4086/how-are-enums-converted-to-uint
 async function directAMMPoolCreation(
   connectToThisAccount: SignerWithAddress,
-  lssvmPairFactory: LSSVMPairFactory,
+  collectionPoolFactory: CollectionPoolFactory,
   nftContractCollection: Alchemy,
   curve: ExponentialCurve,
   assetRecipient: string,
@@ -25,9 +25,9 @@ async function directAMMPoolCreation(
   spotPrice: BigNumber,
   initialNFTIDs: number[]
 ) {
-  const lssvmPairETHContractTx: ContractTransaction = await lssvmPairFactory
+  const collectionPoolETHContractTx: ContractTransaction = await collectionPoolFactory
     .connect(connectToThisAccount)
-    .createPairETH(
+    .createPoolETH(
       nftContractCollection.address,
       curve.address,
       assetRecipient,
@@ -42,17 +42,17 @@ async function directAMMPoolCreation(
       }
     );
   // https://stackoverflow.com/questions/68432609/contract-event-listener-is-not-firing-when-running-hardhat-tests-with-ethers-js
-  const lssvmPairETHContractReceipt: ContractReceipt =
-    await lssvmPairETHContractTx.wait();
-  const newPoolEvent = lssvmPairETHContractReceipt.events?.find(
-    (event) => event.event === "NewPair"
+  const collectionPoolETHContractReceipt: ContractReceipt =
+    await collectionPoolETHContractTx.wait();
+  const newPoolEvent = collectionPoolETHContractReceipt.events?.find(
+    (event) => event.event === "NewPool"
   );
   const newPoolAddress = newPoolEvent?.args?.poolAddress;
-  // Const lssvmPairETH = lssvmPairETHContractTx
+  // Const collectionPoolETH = collectionPoolETHContractTx
 
   return {
-    lssvmPairETHContractTx,
-    lssvmPairETHContractReceipt,
+    collectionPoolETHContractTx,
+    collectionPoolETHContractReceipt,
     newPoolEvent,
     newPoolAddress,
   };

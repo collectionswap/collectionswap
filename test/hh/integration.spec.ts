@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { integrationFixture } from "./shared/fixtures";
-import { createIncentiveEth, createPairEth, mintNfts } from "./shared/helpers";
+import { createIncentiveEth, createPoolEth, mintNfts } from "./shared/helpers";
 
 import type { IERC721 } from "../../typechain-types";
 
@@ -54,7 +54,7 @@ describe("integration", function () {
       delta,
       fee,
     };
-    const result = await createPairEth(factory, {
+    const result = await createPoolEth(factory, {
       ...params,
       spotPrice: bigSpot,
       nftTokenIds: initialNftTokenIds,
@@ -64,7 +64,7 @@ describe("integration", function () {
       royaltyNumerator,
       royaltyRecipientOverride: ethers.constants.AddressZero,
     });
-    const { lpTokenId, pairAddress } = result;
+    const { lpTokenId, poolAddress } = result;
     let { dBalance } = result;
 
     // User decrease in eth should be equal to eth deposited
@@ -73,9 +73,9 @@ describe("integration", function () {
     );
 
     // AMM should now have the eth and nfts
-    expect(await ethers.provider.getBalance(pairAddress)).to.equal(initialETH);
+    expect(await ethers.provider.getBalance(poolAddress)).to.equal(initialETH);
     for (const nftTokenId of initialNftTokenIds) {
-      expect(await nft.ownerOf(nftTokenId)).to.equal(pairAddress);
+      expect(await nft.ownerOf(nftTokenId)).to.equal(poolAddress);
     }
 
     // User should be minted an lp token
@@ -90,7 +90,7 @@ describe("integration", function () {
 
     const startTime = (await time.latest()) + 10;
     const endTime = startTime + 3600;
-    let { rewardPool } = await createIncentiveEth(collectionstaker, {
+    let { rewardVault } = await createIncentiveEth(collectionstaker, {
       ...params,
       validator: monotonicIncreasingValidator,
       rewardTokens,
@@ -101,32 +101,32 @@ describe("integration", function () {
 
     // Reward pool should now have the reward tokens
     for (let i = 0; i < numRewardTokens; i++) {
-      expect(await rewardTokens[i].balanceOf(rewardPool.address)).to.equal(
+      expect(await rewardTokens[i].balanceOf(rewardVault.address)).to.equal(
         rewards[i]
       );
       expect(await rewardTokens[i].balanceOf(protocol.address)).to.equal(0);
     }
 
-    rewardPool = rewardPool.connect(user);
+    rewardVault = rewardVault.connect(user);
 
     // User should have the lp token
     expect(await factory.ownerOf(lpTokenId)).to.equal(user.address);
 
-    await factory.approve(rewardPool.address, lpTokenId);
-    await rewardPool.stake(lpTokenId);
+    await factory.approve(rewardVault.address, lpTokenId);
+    await rewardVault.stake(lpTokenId);
 
     // Reward pool should now have the lp token
-    expect(await factory.ownerOf(lpTokenId)).to.equal(rewardPool.address);
+    expect(await factory.ownerOf(lpTokenId)).to.equal(rewardVault.address);
 
     // Time passes to halfway of incentive
     const period = endTime - startTime;
     await time.increaseTo(startTime + period / 2 - 1);
 
-    await rewardPool.getReward();
+    await rewardVault.getReward();
 
     // User should get half the rewards
     for (let i = 0; i < numRewardTokens; i++) {
-      const rewardRate = await rewardPool.rewardRates(rewardTokens[i].address);
+      const rewardRate = await rewardVault.rewardRates(rewardTokens[i].address);
       expect(await rewardTokens[i].balanceOf(user.address)).to.approximately(
         rewardRate.mul(period).div(2),
         removePrecision
@@ -136,14 +136,14 @@ describe("integration", function () {
     // Time passes to end of incentive
     await time.increaseTo(endTime);
 
-    await rewardPool.exit(lpTokenId);
+    await rewardVault.exit(lpTokenId);
 
     // User should get back lp token
     expect(await factory.ownerOf(lpTokenId)).to.equal(user.address);
 
     // User should get all the rewards
     for (let i = 0; i < numRewardTokens; i++) {
-      const rewardRate = await rewardPool.rewardRates(rewardTokens[i].address);
+      const rewardRate = await rewardVault.rewardRates(rewardTokens[i].address);
       expect(await rewardTokens[i].balanceOf(user.address)).to.approximately(
         rewardRate.mul(period),
         removePrecision

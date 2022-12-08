@@ -8,31 +8,31 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
-import {LSSVMRouter} from "./LSSVMRouter.sol";
-import {ILSSVMPair} from "./ILSSVMPair.sol";
-import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
+import {CollectionRouter} from "./CollectionRouter.sol";
+import {ICollectionPool} from "./ICollectionPool.sol";
+import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
 import {TokenIDFilter} from "./filter/TokenIDFilter.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
-/// @title The base contract for an NFT/TOKEN AMM pair
+/// @title The base contract for an NFT/TOKEN AMM pool
 /// @author Collection
 /// @notice This implements the core swap logic from NFT to TOKEN
-abstract contract LSSVMPair is
+abstract contract CollectionPool is
     ReentrancyGuard,
     ERC1155Holder,
     TokenIDFilter,
-    ILSSVMPair
+    ICollectionPool
 {
 
     /**
      * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps. 
      * It contains two fields:
      * @dev amount: The amount of the royalty payment, in the token's base units. 
-     * This value is calculated based on the price of the NFT being swapped, and the royaltyNumerator value set in the AMM pair contract.
+     * This value is calculated based on the price of the NFT being swapped, and the royaltyNumerator value set in the AMM pool contract.
      * @dev recipient: The address to which the royalty payment should be sent. 
      * This value is determined by the NFT being swapped, and it is specified in the ERC2981 metadata for the NFT.
-     * @dev When a user swaps an NFT for tokens using the AMM pair contract, a RoyaltyDue struct is created to track the amount 
+     * @dev When a user swaps an NFT for tokens using the AMM pool contract, a RoyaltyDue struct is created to track the amount
      * and recipient of the royalty payment that is due on the NFT swap. This struct is then used to facilitate the payment of 
      * the royalty to the appropriate recipient.
      */
@@ -45,27 +45,27 @@ abstract contract LSSVMPair is
      * @dev The _INTERFACE_ID_ERC2981 constant specifies the interface ID for the ERC2981 standard. This standard is used for tracking 
      * royalties on non-fungible tokens (NFTs). It defines a standard interface for NFTs that includes metadata about the royalties that 
      * are due on the NFT when it is swapped or transferred.
-     * @dev The _INTERFACE_ID_ERC2981 constant is used in the AMM pair contract to check whether an NFT being swapped implements the ERC2981 
+     * @dev The _INTERFACE_ID_ERC2981 constant is used in the AMM pool contract to check whether an NFT being swapped implements the ERC2981
      * standard. If it does, the contract can use the metadata provided by the ERC2981 interface to facilitate the payment of royalties on the 
      * NFT swap. If the NFT does not implement the ERC2981 standard, the contract will not track or pay royalties on the NFT swap.
-     * This can be overridden by the royaltyNumerator field in the AMM pair contract.
+     * This can be overridden by the royaltyNumerator field in the AMM pool contract.
      * @dev For more information about the ERC2981 standard, see https://eips.ethereum.org/EIPS/eip-2981
      */
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
     /**
-     * @dev The MAX_FEE constant specifies the maximum fee you, the user, are allowed to charge for this AMM pair. 
-     * It is used to limit the amount of fees that can be charged by the AMM pair contract on NFT/token swaps.
-     * @dev The MAX_FEE constant is used to ensure that the AMM pair does not charge excessive fees on NFT/token swaps. 
-     * It also helps to protect users from paying excessive fees when using the AMM pair contract.
-     * @dev usage: 90%, must <= 1 - MAX_PROTOCOL_FEE (set in LSSVMPairFactory)
+     * @dev The MAX_FEE constant specifies the maximum fee you, the user, are allowed to charge for this AMM pool.
+     * It is used to limit the amount of fees that can be charged by the AMM pool contract on NFT/token swaps.
+     * @dev The MAX_FEE constant is used to ensure that the AMM pool does not charge excessive fees on NFT/token swaps.
+     * It also helps to protect users from paying excessive fees when using the AMM pool contract.
+     * @dev usage: 90%, must <= 1 - MAX_PROTOCOL_FEE (set in CollectionPoolFactory)
      * @dev If the bid/ask is 9/10 and the fee is set to 1%, then the fee is calculated as follows:
      * @dev For a buy order, the fee would be the bid price multiplied by the fee rate, or 9 * 1% = 0.09
      * @dev For a sell order, the fee would be the ask price multiplied by the fee rate, or 10 * 1% = 0.1
-     * @dev The fee is charged as a percentage of the bid/ask price, and it is used to cover the costs associated with running the AMM pair 
+     * @dev The fee is charged as a percentage of the bid/ask price, and it is used to cover the costs associated with running the AMM pool
      * contract and providing liquidity to the decentralized exchange. The fee is deducted from the final price of the token or NFT swap, 
      * and it is paid to the contract owner or to a designated fee recipient. The exact fee rate and fee recipient can be configured by the 
-     * contract owner when the AMM pair contract is deployed.
+     * contract owner when the AMM pool contract is deployed.
      */
     uint256 internal constant MAX_FEE = 0.90e18;
 
@@ -75,7 +75,7 @@ abstract contract LSSVMPair is
     // Use getBuyNFTQuote and getSellNFTQuote for accurate pricing info.
     uint128 public spotPrice;
 
-    // The parameter for the pair's bonding curve.
+    // The parameter for the pool's bonding curve.
     // Units and meaning are bonding curve dependent.
     uint128 public delta;
 
@@ -84,17 +84,17 @@ abstract contract LSSVMPair is
     // Units are in base 1e18
     uint96 public fee;
 
-    // If set to 0, NFTs/tokens sent by traders during trades will be sent to the pair.
+    // If set to 0, NFTs/tokens sent by traders during trades will be sent to the pool.
     // Otherwise, assets will be sent to the set address. Not available for TRADE pools.
     address payable public assetRecipient;
 
     // The trade fee accrued from trades.
     uint256 public tradeFee;
 
-    // The properties used by the pair's bonding curve.
+    // The properties used by the pool's bonding curve.
     bytes public props;
 
-    // The state used by the pair's bonding curve.
+    // The state used by the pool's bonding curve.
     bytes public state;
 
     // For every NFT swapped, a fraction of the cost will be sent to the
@@ -106,15 +106,15 @@ abstract contract LSSVMPair is
     // overrides ERC2981 royalties set by the NFT creator, and allows sending
     // royalties to arbitrary addresses even if a collection does not support ERC2981.
     address payable public royaltyRecipientOverride;
-    // token ID assigned to the pair instance
+    // token ID assigned to the pool instance
     uint256 public tokenId;
 
-    // creation timestamp, to prevent trades in the same time / block as pair creation
+    // creation timestamp, to prevent trades in the same time / block as pool creation
     uint256 private creationTimestamp;
 
     // Events
-    event SwapNFTInPair();
-    event SwapNFTOutPair();
+    event SwapNFTInPool();
+    event SwapNFTOutPool();
     event SpotPriceUpdate(uint128 newSpotPrice);
     event TokenDeposit(uint256 amount);
     event TokenWithdrawal(uint256 amount);
@@ -170,17 +170,17 @@ abstract contract LSSVMPair is
     }
 
     /**
-      @notice Called during pair creation to set initial parameters
+      @notice Called during pool creation to set initial parameters
       @dev Only called once by factory to initialize.
       We verify this by making sure that the current owner is address(0).
       The Ownable library we use disallows setting the owner to be address(0), so this condition
       should only be valid before the first initialize call.
-      @param _tokenId The token id of the pair
-      @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pair during swaps. 
-      NOTE: If set to address(0), they will go to the pair itself.
+      @param _tokenId The token id of the pool
+      @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pool during swaps.
+      NOTE: If set to address(0), they will go to the pool itself.
       @param _delta The initial delta of the bonding curve
-      @param _fee The initial % fee taken, if this is a trade pair
-      @param _spotPrice The initial price to sell an asset into the pair
+      @param _fee The initial % fee taken, if this is a trade pool
+      @param _spotPrice The initial price to sell an asset into the pool
       @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
         being sent to the account to which the traded NFT's royalties are awardable.
         Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
@@ -239,7 +239,7 @@ abstract contract LSSVMPair is
      */
 
     /**
-        @notice Sets NFT token ID filter that is allowed in this pair
+        @notice Sets NFT token ID filter that is allowed in this pool
         @param merkleRoot Merkle root representing all allowed IDs
         @param encodedTokenIDs Opaque encoded list of token IDs
      */
@@ -249,17 +249,17 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Sends token to the pair in exchange for any `numNFTs` NFTs
+        @notice Sends token to the pool in exchange for any `numNFTs` NFTs
         @dev To compute the amount of token to send, call bondingCurve.getBuyInfo.
         This swap function is meant for users who are ID agnostic
         @param numNFTs The number of NFTs to purchase
         @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
         amount is greater than this value, the transaction will be reverted.
         @param nftRecipient The recipient of the NFTs
-        @param isRouter True if calling from LSSVMRouter, false otherwise. Not used for
-        ETH pairs.
+        @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
+        ETH pools.
         @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
-        ETH pairs.
+        ETH pools.
         @return inputAmount The amount of token used for purchase
      */
     function swapTokenForAnyNFTs(
@@ -270,7 +270,7 @@ abstract contract LSSVMPair is
         address routerCaller
     ) external payable virtual nonReentrant returns (uint256 inputAmount) {
         // Store locally to remove extra calls
-        ILSSVMPairFactory _factory = factory();
+        ICollectionPoolFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
         IERC721 _nft = nft();
 
@@ -315,11 +315,11 @@ abstract contract LSSVMPair is
 
         _refundTokenToSender(inputAmount);
 
-        emit SwapNFTOutPair();
+        emit SwapNFTOutPool();
     }
 
     /**
-        @notice Sends token to the pair in exchange for a specific set of NFTs
+        @notice Sends token to the pool in exchange for a specific set of NFTs
         @dev To compute the amount of token to send, call bondingCurve.getBuyInfo
         This swap is meant for users who want specific IDs. Also higher chance of
         reverting if some of the specified IDs leave the pool before the swap goes through.
@@ -327,10 +327,10 @@ abstract contract LSSVMPair is
         @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
         amount is greater than this value, the transaction will be reverted.
         @param nftRecipient The recipient of the NFTs
-        @param isRouter True if calling from LSSVMRouter, false otherwise. Not used for
-        ETH pairs.
+        @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
+        ETH pools.
         @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
-        ETH pairs.
+        ETH pools.
         @return inputAmount The amount of token used for purchase
      */
     function swapTokenForSpecificNFTs(
@@ -341,7 +341,7 @@ abstract contract LSSVMPair is
         address routerCaller
     ) external payable virtual nonReentrant returns (uint256 inputAmount) {
         // Store locally to remove extra calls
-        ILSSVMPairFactory _factory = factory();
+        ICollectionPoolFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
 
         // Input validation
@@ -381,31 +381,31 @@ abstract contract LSSVMPair is
 
         _refundTokenToSender(inputAmount);
 
-        emit SwapNFTOutPair();
+        emit SwapNFTOutPool();
     }
 
     /**
-        @notice Sends a set of NFTs to the pair in exchange for token
+        @notice Sends a set of NFTs to the pool in exchange for token
         @dev To compute the amount of token to that will be received, call bondingCurve.getSellInfo.
-        @param nfts The list of IDs of the NFTs to sell to the pair along with its Merkle multiproof.
+        @param nfts The list of IDs of the NFTs to sell to the pool along with its Merkle multiproof.
         @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
         amount is less than this value, the transaction will be reverted.
         @param tokenRecipient The recipient of the token output
-        @param isRouter True if calling from LSSVMRouter, false otherwise. Not used for
-        ETH pairs.
+        @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
+        ETH pools.
         @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
-        ETH pairs.
+        ETH pools.
         @return outputAmount The amount of token received
      */
     function swapNFTsForToken(
-        ILSSVMPair.NFTs calldata nfts,
+        ICollectionPool.NFTs calldata nfts,
         uint256 minExpectedTokenOutput,
         address payable tokenRecipient,
         bool isRouter,
         address routerCaller
     ) external virtual nonReentrant returns (uint256 outputAmount) {
         // Store locally to remove extra calls
-        ILSSVMPairFactory _factory = factory();
+        ICollectionPoolFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
 
         // Input validation
@@ -434,11 +434,11 @@ abstract contract LSSVMPair is
 
         _sendTokenOutput(tokenRecipient, outputAmount, royaltiesDue);
 
-        _payProtocolFeeFromPair(_factory, fees.protocol);
+        _payProtocolFeeFromPool(_factory, fees.protocol);
 
         _takeNFTsFromSender(nft(), nfts.ids, _factory, isRouter, routerCaller);
 
-        emit SwapNFTInPair();
+        emit SwapNFTInPool();
     }
 
     /**
@@ -446,7 +446,7 @@ abstract contract LSSVMPair is
      */
 
     /**
-        @notice Checks if NFTs is allowed in this pair
+        @notice Checks if NFTs is allowed in this pool
         @param tokenID NFT ID
         @param proof Merkle proof
      */
@@ -455,7 +455,7 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Checks if list of NFTs are allowed in this pair using Merkle multiproof and flags
+        @notice Checks if list of NFTs are allowed in this pool using Merkle multiproof and flags
         @param tokenIDs List of NFT IDs
         @param proof Merkle multiproof
         @param proofFlags Merkle multiproof flags
@@ -466,7 +466,7 @@ abstract contract LSSVMPair is
 
     /**
         @dev Used as read function to query the bonding curve for buy pricing info
-        @param numNFTs The number of NFTs to buy from the pair
+        @param numNFTs The number of NFTs to buy from the pool
      */
     function getBuyNFTQuote(uint256 numNFTs)
         external
@@ -504,7 +504,7 @@ abstract contract LSSVMPair is
 
     /**
         @dev Used as read function to query the bonding curve for sell pricing info
-        @param numNFTs The number of NFTs to sell to the pair
+        @param numNFTs The number of NFTs to sell to the pool
      */
     function getSellNFTQuote(uint256 numNFTs)
         external
@@ -546,15 +546,15 @@ abstract contract LSSVMPair is
     function getAllHeldIds() external view virtual returns (uint256[] memory);
 
     /**
-        @notice Returns the pair's variant (NFT is enumerable or not, pair uses ETH or ERC20)
+        @notice Returns the pool's variant (NFT is enumerable or not, pool uses ETH or ERC20)
      */
-    function pairVariant()
+    function poolVariant()
         public
         pure
         virtual
-        returns (ILSSVMPairFactory.PairVariant);
+        returns (ICollectionPoolFactory.PoolVariant);
 
-    function factory() public pure returns (ILSSVMPairFactory _factory) {
+    function factory() public pure returns (ICollectionPoolFactory _factory) {
         uint256 paramsLength = _immutableParamsLength();
         assembly {
             _factory := shr(
@@ -565,7 +565,7 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Returns the type of bonding curve that parameterizes the pair
+        @notice Returns the type of bonding curve that parameterizes the pool
      */
     function bondingCurve() public pure returns (ICurve _bondingCurve) {
         uint256 paramsLength = _immutableParamsLength();
@@ -578,7 +578,7 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Returns the NFT collection that parameterizes the pair
+        @notice Returns the NFT collection that parameterizes the pool
      */
     function nft() public pure returns (IERC721 _nft) {
         uint256 paramsLength = _immutableParamsLength();
@@ -591,7 +591,7 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Returns the pair's type (TOKEN/NFT/TRADE)
+        @notice Returns the pool's type (TOKEN/NFT/TRADE)
      */
     function poolType() public pure returns (PoolType _poolType) {
         uint256 paramsLength = _immutableParamsLength();
@@ -632,8 +632,8 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Returns the address that assets that receives assets when a swap is done with this pair
-        Can be set to another address by the owner, if set to address(0), defaults to the pair's own address
+        @notice Returns the address that assets that receives assets when a swap is done with this pool
+        Can be set to another address by the owner, if set to address(0), defaults to the pool's own address
      */
     function getAssetRecipient()
         public
@@ -688,8 +688,8 @@ abstract contract LSSVMPair is
      */
 
     /**
-        @notice Calculates the amount needed to be sent into the pair for a buy and adjusts spot price or delta if necessary
-        @param numNFTs The amount of NFTs to purchase from the pair
+        @notice Calculates the amount needed to be sent into the pool for a buy and adjusts spot price or delta if necessary
+        @param numNFTs The amount of NFTs to purchase from the pool
         @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
         amount is greater than this value, the transaction will be reverted.
         @return inputAmount The amount of tokens total tokens receive
@@ -699,7 +699,7 @@ abstract contract LSSVMPair is
         uint256 numNFTs,
         uint256 maxExpectedTokenInput,
         ICurve _bondingCurve,
-        ILSSVMPairFactory
+        ICollectionPoolFactory
     ) internal returns (
         uint256 inputAmount,
         ICurve.Fees memory fees
@@ -750,8 +750,8 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Calculates the amount needed to be sent by the pair for a sell and adjusts spot price or delta if necessary
-        @param numNFTs The amount of NFTs to send to the the pair
+        @notice Calculates the amount needed to be sent by the pool for a sell and adjusts spot price or delta if necessary
+        @param numNFTs The amount of NFTs to send to the the pool
         @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
         amount is less than this value, the transaction will be reverted.
         @param _bondingCurve The bonding curve used to fetch pricing information from
@@ -817,9 +817,9 @@ abstract contract LSSVMPair is
     /**
         @notice Pulls the token input of a trade from the trader and pays the protocol fee.
         @param inputAmount The amount of tokens to be sent
-        @param isRouter Whether or not the caller is LSSVMRouter
-        @param routerCaller If called from LSSVMRouter, store the original caller
-        @param _factory The LSSVMPairFactory which stores LSSVMRouter allowlist info
+        @param isRouter Whether or not the caller is CollectionRouter
+        @param routerCaller If called from CollectionRouter, store the original caller
+        @param _factory The CollectionPoolFactory which stores CollectionRouter allowlist info
         @param protocolFee The protocol fee to be paid
         @param royaltyAmounts An array of royalties to pay
      */
@@ -827,23 +827,23 @@ abstract contract LSSVMPair is
         uint256 inputAmount,
         bool isRouter,
         address routerCaller,
-        ILSSVMPairFactory _factory,
+        ICollectionPoolFactory _factory,
         uint256 protocolFee,
         RoyaltyDue[] memory royaltyAmounts
     ) internal virtual;
 
     /**
         @notice Sends excess tokens back to the caller (if applicable)
-        @dev We send ETH back to the caller even when called from LSSVMRouter because we do an aggregate slippage check for certain bulk swaps. (Instead of sending directly back to the router caller)
+        @dev We send ETH back to the caller even when called from CollectionRouter because we do an aggregate slippage check for certain bulk swaps. (Instead of sending directly back to the router caller)
         Excess ETH sent for one swap can then be used to help pay for the next swap.
      */
     function _refundTokenToSender(uint256 inputAmount) internal virtual;
 
     /**
-        @notice Sends protocol fee (if it exists) back to the LSSVMPairFactory from the pair
+        @notice Sends protocol fee (if it exists) back to the CollectionPoolFactory from the pool
      */
-    function _payProtocolFeeFromPair(
-        ILSSVMPairFactory _factory,
+    function _payProtocolFeeFromPool(
+        ICollectionPoolFactory _factory,
         uint256 protocolFee
     ) internal virtual;
 
@@ -884,19 +884,19 @@ abstract contract LSSVMPair is
     ) internal virtual;
 
     /**
-        @notice Takes NFTs from the caller and sends them into the pair's asset recipient
-        @dev This is used by the LSSVMPair's swapNFTForToken function.
+        @notice Takes NFTs from the caller and sends them into the pool's asset recipient
+        @dev This is used by the CollectionPool's swapNFTForToken function.
         @param _nft The NFT collection to take from
         @param nftIds The specific NFT IDs to take
-        @param isRouter True if calling from LSSVMRouter, false otherwise. Not used for
-        ETH pairs.
+        @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
+        ETH pools.
         @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
-        ETH pairs.
+        ETH pools.
      */
     function _takeNFTsFromSender(
         IERC721 _nft,
         uint256[] calldata nftIds,
-        ILSSVMPairFactory _factory,
+        ICollectionPoolFactory _factory,
         bool isRouter,
         address routerCaller
     ) internal virtual {
@@ -906,7 +906,7 @@ abstract contract LSSVMPair is
 
             if (isRouter) {
                 // Verify if router is allowed
-                LSSVMRouter router = LSSVMRouter(payable(msg.sender));
+                CollectionRouter router = CollectionRouter(payable(msg.sender));
                 (bool routerAllowed, ) = _factory.routerStatus(router);
                 require(routerAllowed, "Not router");
 
@@ -915,12 +915,12 @@ abstract contract LSSVMPair is
                 if (numNFTs > 1) {
                     uint256 beforeBalance = _nft.balanceOf(_assetRecipient);
                     for (uint256 i = 0; i < numNFTs; ) {
-                        router.pairTransferNFTFrom(
+                        router.poolTransferNFTFrom(
                             _nft,
                             routerCaller,
                             _assetRecipient,
                             nftIds[i],
-                            pairVariant()
+                            poolVariant()
                         );
 
                         unchecked {
@@ -933,12 +933,12 @@ abstract contract LSSVMPair is
                         "NFTs not transferred"
                     );
                 } else {
-                    router.pairTransferNFTFrom(
+                    router.poolTransferNFTFrom(
                         _nft,
                         routerCaller,
                         _assetRecipient,
                         nftIds[0],
-                        pairVariant()
+                        poolVariant()
                     );
                     require(
                         _nft.ownerOf(nftIds[0]) == _assetRecipient,
@@ -963,7 +963,7 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @dev Used internally to grab pair parameters from calldata, see LSSVMPairCloner for technical details
+        @dev Used internally to grab pool parameters from calldata, see CollectionPoolCloner for technical details
      */
     function _immutableParamsLength() internal pure virtual returns (uint256);
 
@@ -972,7 +972,7 @@ abstract contract LSSVMPair is
      */
 
     /**
-        @notice Rescues ERC1155 tokens from the pair to the owner. Only callable by the owner.
+        @notice Rescues ERC1155 tokens from the pool to the owner. Only callable by the owner.
         @param a The NFT to transfer
         @param ids The NFT ids to transfer
         @param amounts The amounts of each id to transfer
@@ -986,7 +986,7 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Withdraws trade fee owned by the pair to the owner address.
+        @notice Withdraws trade fee owned by the pool to the owner address.
         @dev Only callable by the owner.
      */
     function withdrawTradeFee() external virtual;
@@ -1107,7 +1107,7 @@ abstract contract LSSVMPair is
     }
 
     /**
-        @notice Allows the pair to make arbitrary external calls to contracts
+        @notice Allows the pool to make arbitrary external calls to contracts
         whitelisted by the protocol. Only callable by authorized parties.
         @param target The contract to call
         @param data The calldata to pass to the contract
@@ -1116,7 +1116,7 @@ abstract contract LSSVMPair is
         external
         onlyAuthorized
     {
-        ILSSVMPairFactory _factory = factory();
+        ICollectionPoolFactory _factory = factory();
         require(_factory.callAllowed(target), "Target must be whitelisted");
         (bool result, ) = target.call{value: 0}(data);
         require(result, "Call failed");

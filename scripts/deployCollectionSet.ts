@@ -7,7 +7,7 @@ import { configs } from "./config";
 
 import type {
   Collectionstaker__factory,
-  LSSVMPairFactory__factory,
+  CollectionPoolFactory__factory,
   RNGChainlinkV2__factory,
   RNGChainlinkV2,
 } from "../typechain-types";
@@ -31,11 +31,11 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   );
 
   console.log(`Deploying factory...`);
-  const lssvmFactory = (await hre.ethers.getContractFactory(
-    "LSSVMPairFactory",
+  const collectionFactory = (await hre.ethers.getContractFactory(
+    "CollectionPoolFactory",
     deployer
-  )) as LSSVMPairFactory__factory;
-  const factory = await lssvmFactory.deploy(
+  )) as CollectionPoolFactory__factory;
+  const factory = await collectionFactory.deploy(
     templateAddresses[0],
     templateAddresses[1],
     templateAddresses[2],
@@ -82,24 +82,24 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   await rng.setAllowedCaller(collectionStaker.address);
 
   console.log("exporting addresses...");
-  const [rewardPoolETHAddress, rewardPoolETHDrawAddress] = await Promise.all([
-    collectionStaker.rewardPoolETHLogic(),
-    collectionStaker.rewardPoolETHDrawLogic(),
+  const [rewardVaultETHAddress, rewardVaultETHDrawAddress] = await Promise.all([
+    collectionStaker.rewardVaultETHLogic(),
+    collectionStaker.rewardVaultETHDrawLogic(),
   ]);
   const addressesToExport = {
     deployer: deployerAddress,
-    lssvmPairEnumerableETH: templateAddresses[0],
-    lssvmPairMissingEnumerableETH: templateAddresses[1],
-    lssvmPairEnumerableERC20: templateAddresses[2],
-    lssvmPairMissingEnumerableERC20: templateAddresses[3],
+    collectionPoolEnumerableETH: templateAddresses[0],
+    collectionPoolMissingEnumerableETH: templateAddresses[1],
+    collectionPoolEnumerableERC20: templateAddresses[2],
+    collectionPoolMissingEnumerableERC20: templateAddresses[3],
     linearCurve: curveAddresses[0],
     exponentialCurve: curveAddresses[1],
     xykCurve: curveAddresses[2],
     sigmoidCurve: curveAddresses[3],
     factory: factory.address,
     collectionStaker: collectionStaker.address,
-    rewardPoolETH: rewardPoolETHAddress,
-    rewardPoolETHDraw: rewardPoolETHDrawAddress,
+    rewardVaultETH: rewardVaultETHAddress,
+    rewardVaultETHDraw: rewardVaultETHDrawAddress,
     rng: rng.address,
     monotonicIncreasingValidator: validatorAddresses[0],
     tree: treeAddress,
@@ -165,13 +165,13 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
 
   console.log("verifying RewardETHLogic...");
   await hre.run("verify:verify", {
-    address: rewardPoolETHAddress,
+    address: rewardVaultETHAddress,
     constructorArguments: [],
   });
 
   console.log("verifying RewardETHDrawLogic...");
   await hre.run("verify:verify", {
-    address: rewardPoolETHDrawAddress,
+    address: rewardVaultETHDrawAddress,
     constructorArguments: [],
   });
 
@@ -199,10 +199,10 @@ export async function deployTemplates(
 ): Promise<{ templateNames: string[]; templateAddresses: string[] }> {
   // Templates
   const templateNames = [
-    "LSSVMPairEnumerableETH",
-    "LSSVMPairMissingEnumerableETH",
-    "LSSVMPairEnumerableERC20",
-    "LSSVMPairMissingEnumerableERC20",
+    "CollectionPoolEnumerableETH",
+    "CollectionPoolMissingEnumerableETH",
+    "CollectionPoolEnumerableERC20",
+    "CollectionPoolMissingEnumerableERC20",
   ];
   const templateAddresses: string[] = [];
 

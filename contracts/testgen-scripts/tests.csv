@@ -1,7 +1,7 @@
 NoArbBondingCurve,NoArb
 RouterRobustSwap,RRS
 RouterSinglePool,RSP
-PairAndFactory,PAF
+PoolAndFactory,PAF
 RouterMultiPool,RMP
 RouterSinglePoolWithAssetRecipient,RSPWAR
 RouterRobustSwapWithAssetRecipient,RRSWAR

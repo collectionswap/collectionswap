@@ -6,18 +6,18 @@ import { assert, ethers } from "hardhat";
 import { CURVE_TYPE } from "./constants";
 
 import type {
-  LSSVMPairFactory,
-  ILSSVMPairFactory,
+  CollectionPoolFactory,
+  ICollectionPoolFactory,
   ICurve,
   Collectionstaker,
   IERC20,
   IERC721,
-  RewardPoolETH,
+  RewardVaultETH,
   ERC721,
   IValidator,
   Test721Enumerable,
-  LSSVMPair,
-  LSSVMPairETH,
+  CollectionPool,
+  CollectionPoolETH,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumberish, Contract, providers, Signer, Wallet } from "ethers";
@@ -72,7 +72,7 @@ export async function createIncentiveEth(
     startTime: BigNumberish;
     endTime: BigNumberish;
   }
-): Promise<{ dBalance: BigNumberish; rewardPool: RewardPoolETH }> {
+): Promise<{ dBalance: BigNumberish; rewardVault: RewardVaultETH }> {
   let dBalance = BigNumber.from(0);
   for (let i = 0; i < rewardTokens.length; i++) {
     const response = await rewardTokens[i].approve(
@@ -105,15 +105,15 @@ export async function createIncentiveEth(
   const events = receipt.events!;
   const { poolAddress } = events.at(-1)!.args!;
 
-  const rewardPool = await ethers.getContractAt("RewardPoolETH", poolAddress);
+  const rewardVault = await ethers.getContractAt("RewardVaultETH", poolAddress);
   return {
     dBalance,
-    rewardPool,
+    rewardVault,
   };
 }
 
-export async function createPairEth(
-  factory: LSSVMPairFactory,
+export async function createPoolEth(
+  factory: CollectionPoolFactory,
   {
     nft,
     bondingCurve,
@@ -137,14 +137,14 @@ export async function createPairEth(
   }
 ): Promise<{
   dBalance: BigNumberish;
-  pairAddress: string;
+  poolAddress: string;
   lpTokenId: BigNumberish;
 }> {
   let response = await nft.setApprovalForAll(factory.address, true);
   let receipt = await response.wait();
   let dBalance = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
-  const params: ILSSVMPairFactory.CreateETHPairParamsStruct = {
+  const params: ICollectionPoolFactory.CreateETHPoolParamsStruct = {
     nft: nft.address,
     bondingCurve: bondingCurve.address,
     assetRecipient: ethers.constants.AddressZero,
@@ -160,7 +160,7 @@ export async function createPairEth(
     initialNFTIDs: nftTokenIds,
   };
 
-  response = await factory.createPairETH(params, { value });
+  response = await factory.createPoolETH(params, { value });
   receipt = await response.wait();
   dBalance = dBalance.add(
     receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice)
@@ -168,7 +168,7 @@ export async function createPairEth(
   const events = receipt.events!;
   return {
     dBalance,
-    pairAddress: events[5].args!.poolAddress,
+    poolAddress: events[5].args!.poolAddress,
     lpTokenId: events[0].args!.tokenId,
   };
 }
@@ -373,7 +373,7 @@ export function parseSigmoidParams(
 }
 
 export async function sellToPool(
-  lssvmPairETH: LSSVMPairETH,
+  collectionPoolETH: CollectionPoolETH,
   externalTrader: SignerWithAddress,
   nftToSell: number
 ) {
@@ -386,9 +386,9 @@ export async function sellToPool(
     _bidTradeFee,
     _bidProtocolFee,
     _bidnObj,
-  ] = await lssvmPairETH.getSellNFTQuote(1);
+  ] = await collectionPoolETH.getSellNFTQuote(1);
   // Console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
-  await lssvmPairETH.connect(externalTrader).swapNFTsForToken(
+  await collectionPoolETH.connect(externalTrader).swapNFTsForToken(
     {
       ids: [nftToSell],
       proof: [],
@@ -402,7 +402,7 @@ export async function sellToPool(
 }
 
 export async function buyFromPool(
-  lssvmPairETH: LSSVMPairETH,
+  collectionPoolETH: CollectionPoolETH,
   externalTrader: SignerWithAddress,
   nftToBuy: number
 ) {
@@ -415,9 +415,9 @@ export async function buyFromPool(
     _askTradeFee,
     _askProtocolFee,
     _asknObj,
-  ] = await lssvmPairETH.getBuyNFTQuote(1);
+  ] = await collectionPoolETH.getBuyNFTQuote(1);
 
-  await lssvmPairETH
+  await collectionPoolETH
     .connect(externalTrader)
     .swapTokenForSpecificNFTs(
       [nftToBuy],
@@ -429,8 +429,8 @@ export async function buyFromPool(
     );
 }
 
-export async function hasProtocolFee(pair: LSSVMPair): Promise<boolean> {
-  const poolType = await pair.poolType();
+export async function hasProtocolFee(pool: CollectionPool): Promise<boolean> {
+  const poolType = await pool.poolType();
   return [PoolType.NFT, PoolType.TOKEN].includes(poolType);
 }
 
@@ -441,7 +441,7 @@ export async function hasProtocolFee(pair: LSSVMPair): Promise<boolean> {
  */
 export async function calculateAsk(
   changeInItemsInPool: number,
-  pair: LSSVMPair,
+  pool: CollectionPool,
   _spot: BigNumber,
   _delta: BigNumber,
   _props: any,
@@ -453,7 +453,7 @@ export async function calculateAsk(
     return Number(formatEther(bigNumber));
   });
 
-  const protocolFee = (await hasProtocolFee(pair))
+  const protocolFee = (await hasProtocolFee(pool))
     ? Number(formatEther(_protocolFee))
     : 0;
 
@@ -488,7 +488,7 @@ export async function calculateAsk(
  */
 export async function calculateBid(
   changeInItemsInPool: number,
-  pair: LSSVMPair,
+  pool: CollectionPool,
   _spot: BigNumber,
   _delta: BigNumber,
   _props: any,
@@ -500,7 +500,7 @@ export async function calculateBid(
     return Number(formatEther(bigNumber));
   });
 
-  const protocolFee = (await hasProtocolFee(pair))
+  const protocolFee = (await hasProtocolFee(pool))
     ? Number(formatEther(_protocolFee))
     : 0;
 
@@ -584,7 +584,7 @@ export async function cumulativeSumWithRoyalties(
  */
 export async function prepareQuoteValues(
   side: "buy" | "sell" | "ask" | "bid",
-  pool: LSSVMPairETH,
+  pool: CollectionPoolETH,
   spotPrice: BigNumber,
   delta: BigNumber,
   props: any,

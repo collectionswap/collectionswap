@@ -3,27 +3,27 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {ILSSVMPair} from "./ILSSVMPair.sol";
-import {LSSVMPair} from "./LSSVMPair.sol";
-import {LSSVMRouter} from "./LSSVMRouter.sol";
+import {ICollectionPool} from "./ICollectionPool.sol";
+import {CollectionPool} from "./CollectionPool.sol";
+import {CollectionRouter} from "./CollectionRouter.sol";
 
 /**
-    @title An NFT/Token pair for an NFT that does not implement ERC721Enumerable
+    @title An NFT/Token pool for an NFT that does not implement ERC721Enumerable
     @author Collection
  */
-abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
+abstract contract CollectionPoolMissingEnumerable is CollectionPool {
     using EnumerableSet for EnumerableSet.UintSet;
 
     // Used for internal ID tracking
     EnumerableSet.UintSet private idSet;
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc CollectionPool
     function _selectArbitraryNFTs(
         IERC721 ,
         uint256 numNFTs
     ) internal override returns (uint256[] memory tokenIds) {
         tokenIds = new uint256[](numNFTs);
-        // We're missing enumerable, so we also update the pair's own ID set
+        // We're missing enumerable, so we also update the pool's own ID set
         // NOTE: We start from last index to first index to save on gas
         uint256 lastIndex = idSet.length() - 1;
         for (uint256 i; i < numNFTs; ) {
@@ -38,7 +38,7 @@ abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
         }
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc CollectionPool
     function _sendSpecificNFTsToRecipient(
         IERC721 _nft,
         address nftRecipient,
@@ -58,7 +58,7 @@ abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
         }
     }
 
-    /// @inheritdoc LSSVMPair
+    /// @inheritdoc CollectionPool
     function getAllHeldIds() external view override returns (uint256[] memory) {
         uint256 numNFTs = idSet.length();
         uint256[] memory ids = new uint256[](numNFTs);
@@ -83,14 +83,14 @@ abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
         bytes memory
     ) public virtual returns (bytes4) {
         IERC721 _nft = nft();
-        // If it's from the pair's NFT, add the ID to ID set
+        // If it's from the pool's NFT, add the ID to ID set
         if (msg.sender == address(_nft)) {
             idSet.add(id);
         }
         return this.onERC721Received.selector;
     }
 
-    /// @inheritdoc ILSSVMPair
+    /// @inheritdoc ICollectionPool
     function withdrawERC721(IERC721 a, uint256[] calldata nftIds)
         external
         override
@@ -100,7 +100,7 @@ abstract contract LSSVMPairMissingEnumerable is LSSVMPair {
         uint256 numNFTs = nftIds.length;
         address owner = owner();
 
-        // If it's not the pair's NFT, just withdraw normally
+        // If it's not the pool's NFT, just withdraw normally
         if (a != _nft) {
             for (uint256 i; i < numNFTs; ) {
                 a.safeTransferFrom(address(this), owner, nftIds[i]);

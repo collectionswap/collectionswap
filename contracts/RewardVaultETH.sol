@@ -8,11 +8,11 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
-import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
-import {ILSSVMPair} from "./ILSSVMPair.sol";
+import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
+import {ICollectionPool} from "./ICollectionPool.sol";
 import {IValidator} from "./validators/IValidator.sol";
 
-contract RewardPoolETH is IERC721Receiver, Initializable {
+contract RewardVaultETH is IERC721Receiver, Initializable {
     using SafeERC20 for IERC20;
 
     struct LPTokenInfo {
@@ -29,7 +29,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
 
     address protocolOwner;
     address deployer;
-    ILSSVMPairFactory public lpToken;
+    ICollectionPoolFactory public lpToken;
     IValidator public validator;
     IERC721 nft;
     ICurve.Params curveParams;
@@ -72,7 +72,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         uint256 reward
     );
     event RewardSwept();
-    event RewardPoolRecharged(
+    event RewardVaultRecharged(
         IERC20[] rewardTokens,
         uint256[] rewards,
         uint256 startTime,
@@ -146,7 +146,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     function initialize(
         address _protocolOwner,
         address _deployer,
-        ILSSVMPairFactory _lpToken,
+        ICollectionPoolFactory _lpToken,
         IValidator _validator,
         IERC721 _nft,
         address _bondingCurve,
@@ -194,7 +194,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
      * recharge the pool with
      * @param _newPeriodFinish The value to update this pool's `periodFinish` variable to
      */
-    function rechargeRewardPool(
+    function rechargeRewardVault(
         IERC20[] calldata inputRewardTokens,
         uint256[] calldata inputRewardAmounts,
         uint256 _newPeriodFinish
@@ -248,7 +248,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         periodFinish = _newPeriodFinish;
         rewardSweepTime = _newPeriodFinish + LOCK_TIME;
 
-        emit RewardPoolRecharged(
+        emit RewardVaultRecharged(
             inputRewardTokens,
             inputRewardAmounts,
             block.timestamp,
@@ -289,15 +289,15 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
     ) external payable returns (uint256 currTokenId) {
         // create pool with empty NFTs first
          uint256[] memory _emptyInitialNFTIDs;
-         address pair;
+         address pool;
 
-        (pair, currTokenId) = lpToken.createPairETH{value:msg.value}(
-            ILSSVMPairFactory.CreateETHPairParams({
+        (pool, currTokenId) = lpToken.createPoolETH{value:msg.value}(
+            ICollectionPoolFactory.CreateETHPoolParams({
                 nft: _nft,
                 bondingCurve: _bondingCurve,
                 assetRecipient: payable(0),
                 receiver: msg.sender,
-                poolType: ILSSVMPair.PoolType.TRADE,
+                poolType: ICollectionPool.PoolType.TRADE,
                 delta: _delta,
                 fee: _fee,
                 spotPrice: _spotPrice,
@@ -313,7 +313,7 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         for (uint256 i; i < _initialNFTIDs.length; ) {
             _nft.safeTransferFrom(
                 msg.sender,
-                pair,
+                pool,
                 _initialNFTIDs[i]
             );
             unchecked {
@@ -339,18 +339,18 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
      * @return amount The number of tokens minted
      */
     function mint(uint256 tokenId) private returns (uint256 amount) {
-        ILSSVMPairFactory _lpToken = lpToken;
+        ICollectionPoolFactory _lpToken = lpToken;
         if (_lpToken.ownerOf(tokenId) != msg.sender) revert Unauthorized();
 
-        ILSSVMPairFactory.LPTokenParams721 memory params = _lpToken
+        ICollectionPoolFactory.LPTokenParams721 memory params = _lpToken
             .viewPoolParams(tokenId);
-        ILSSVMPair _pair = ILSSVMPair(params.poolAddress);
+        ICollectionPool _pool = ICollectionPool(params.poolAddress);
         IERC721 _nft = nft;
         if (
             params.nftAddress != address(_nft) ||
             params.bondingCurveAddress != bondingCurve ||
             !validator.validate(
-                _pair,
+                _pool,
                 curveParams,
                 fee,
                 tokenIDFilterRoot
@@ -361,10 +361,10 @@ contract RewardPoolETH is IERC721Receiver, Initializable {
         // sqrt(NFT balance * ETH balance) if there's enough ETH for the pool to
         // buy at least 1 NFT. Else 0.
         (uint128 _reserve0, uint128 _reserve1) = getReserves(); // gas savings
-        uint256 amount0 = _nft.balanceOf(address(_pair));
-        uint256 amount1 = address(_pair).balance;
+        uint256 amount0 = _nft.balanceOf(address(_pool));
+        uint256 amount1 = address(_pool).balance;
 
-        ( , , , ,uint256 bidPrice, , ) = _pair.getSellNFTQuote(1);
+        ( , , , ,uint256 bidPrice, , ) = _pool.getSellNFTQuote(1);
         if (amount1 >= bidPrice) {
             amount = Math.sqrt(amount0 * amount1);
         }

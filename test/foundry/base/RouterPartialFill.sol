@@ -5,16 +5,16 @@ import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {LSSVMPairFactory} from "../../../contracts/LSSVMPairFactory.sol";
-import {LSSVMPair} from "../../../contracts/LSSVMPair.sol";
-import {LSSVMPairETH} from "../../../contracts/LSSVMPairETH.sol";
-import {LSSVMPairERC20} from "../../../contracts/LSSVMPairERC20.sol";
-import {LSSVMPairEnumerableETH} from "../../../contracts/LSSVMPairEnumerableETH.sol";
-import {LSSVMPairMissingEnumerableETH} from "../../../contracts/LSSVMPairMissingEnumerableETH.sol";
-import {LSSVMPairEnumerableERC20} from "../../../contracts/LSSVMPairEnumerableERC20.sol";
-import {LSSVMPairMissingEnumerableERC20} from "../../../contracts/LSSVMPairMissingEnumerableERC20.sol";
-import {LSSVMRouter2} from "../../../contracts/LSSVMRouter2.sol";
-import {LSSVMRouter} from "../../../contracts/LSSVMRouter.sol";
+import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
+import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPoolETH} from "../../../contracts/CollectionPoolETH.sol";
+import {CollectionPoolERC20} from "../../../contracts/CollectionPoolERC20.sol";
+import {CollectionPoolEnumerableETH} from "../../../contracts/CollectionPoolEnumerableETH.sol";
+import {CollectionPoolMissingEnumerableETH} from "../../../contracts/CollectionPoolMissingEnumerableETH.sol";
+import {CollectionPoolEnumerableERC20} from "../../../contracts/CollectionPoolEnumerableERC20.sol";
+import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/CollectionPoolMissingEnumerableERC20.sol";
+import {CollectionRouter2} from "../../../contracts/CollectionRouter2.sol";
+import {CollectionRouter} from "../../../contracts/CollectionRouter.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
@@ -31,9 +31,9 @@ abstract contract RouterPartialFill is
 {
     IERC721Mintable test721;
     ICurve bondingCurve;
-    LSSVMPairFactory factory;
-    LSSVMRouter2 router;
-    LSSVMPair pair;
+    CollectionPoolFactory factory;
+    CollectionRouter2 router;
+    CollectionPool pool;
     address payable constant feeRecipient = payable(address(69));
     uint256 constant protocolFeeMultiplier = 0;
     uint256 constant carryFeeMultiplier = 0;
@@ -43,11 +43,11 @@ abstract contract RouterPartialFill is
     function setUp() public {
         bondingCurve = setupCurve();
         test721 = setup721();
-        LSSVMPairEnumerableETH enumerableETHTemplate = new LSSVMPairEnumerableETH();
-        LSSVMPairMissingEnumerableETH missingEnumerableETHTemplate = new LSSVMPairMissingEnumerableETH();
-        LSSVMPairEnumerableERC20 enumerableERC20Template = new LSSVMPairEnumerableERC20();
-        LSSVMPairMissingEnumerableERC20 missingEnumerableERC20Template = new LSSVMPairMissingEnumerableERC20();
-        factory = new LSSVMPairFactory(
+        CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
+        CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
+        CollectionPoolEnumerableERC20 enumerableERC20Template = new CollectionPoolEnumerableERC20();
+        CollectionPoolMissingEnumerableERC20 missingEnumerableERC20Template = new CollectionPoolMissingEnumerableERC20();
+        factory = new CollectionPoolFactory(
             enumerableETHTemplate,
             missingEnumerableETHTemplate,
             enumerableERC20Template,
@@ -56,9 +56,9 @@ abstract contract RouterPartialFill is
             protocolFeeMultiplier,
             carryFeeMultiplier
         );
-        router = new LSSVMRouter2(factory);
+        router = new CollectionRouter2(factory);
         factory.setBondingCurveAllowed(bondingCurve, true);
-        factory.setRouterAllowed(LSSVMRouter(payable(address(router))), true);
+        factory.setRouterAllowed(CollectionRouter(payable(address(router))), true);
 
         // set NFT approvals
         test721.setApprovalForAll(address(factory), true);
@@ -69,16 +69,16 @@ abstract contract RouterPartialFill is
             test721.mint(address(this), i);
         }
 
-        // create the pair
+        // create the pool
         uint256[] memory empty = new uint256[](0);
         (uint128 spotPrice, uint128 delta) = getParamsForPartialFillTest();
         SPOT_PRICE = spotPrice;
-        pair = this.setupPair{value: 10 ether}(
+        pool = this.setupPool{value: 10 ether}(
             factory,
             test721,
             bondingCurve,
             payable(address(0)),
-            ILSSVMPair.PoolType.TRADE,
+            ICollectionPool.PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -87,9 +87,9 @@ abstract contract RouterPartialFill is
             address(router)
         );
 
-        // mint NFTs #11-20 to the pair
+        // mint NFTs #11-20 to the pool
         for (uint256 i = numInitialNFTs + 1; i <= numInitialNFTs * 2; i++) {
-            test721.mint(address(pair), i);
+            test721.mint(address(pool), i);
         }
     }
 
@@ -136,8 +136,8 @@ abstract contract RouterPartialFill is
             uint256 startNFTBalance = test721.balanceOf(address(this));
 
             // Only 1 pool we're buying from
-            LSSVMRouter2.PairSwapSpecificPartialFill[]
-                memory buyList = new LSSVMRouter2.PairSwapSpecificPartialFill[](
+            CollectionRouter2.PoolSwapSpecificPartialFill[]
+                memory buyList = new CollectionRouter2.PoolSwapSpecificPartialFill[](
                     1
                 );
             uint256[] memory ids = new uint256[](NUM_NFTS);
@@ -149,12 +149,12 @@ abstract contract RouterPartialFill is
 
             // Get partial fill prices
             uint256[] memory partialFillPrices = router
-                .getNFTQuoteForPartialFillBuy(pair, NUM_NFTS);
+                .getNFTQuoteForPartialFillBuy(pool, NUM_NFTS);
 
             // Create the partial fill args
-            buyList[0] = LSSVMRouter2.PairSwapSpecificPartialFill({
-                swapInfo: LSSVMRouter2.PairSwapSpecific({
-                    pair: pair,
+            buyList[0] = CollectionRouter2.PoolSwapSpecificPartialFill({
+                swapInfo: CollectionRouter2.PoolSwapSpecific({
+                    pool: pool,
                     nftIds: ids,
                     proof: new bytes32[](0),
                     proofFlags: new bool[](0)
@@ -164,14 +164,14 @@ abstract contract RouterPartialFill is
             });
 
             // Create empty sell list
-            LSSVMRouter2.PairSwapSpecificPartialFillForToken[]
-                memory emptySellList = new LSSVMRouter2.PairSwapSpecificPartialFillForToken[](
+            CollectionRouter2.PoolSwapSpecificPartialFillForToken[]
+                memory emptySellList = new CollectionRouter2.PoolSwapSpecificPartialFillForToken[](
                     0
                 );
             string memory UNIMPLEMENTED = "Unimplemented";
 
             // See if last value of maxCost is the same as getBuyNFTQuote(NUM_NFTS) (they should be equal)
-            (, , , , uint256 correctQuote, , ) = pair.getBuyNFTQuote(NUM_NFTS);
+            (, , , , uint256 correctQuote, , ) = pool.getBuyNFTQuote(NUM_NFTS);
             require(
                 correctQuote == partialFillPrices[NUM_NFTS - 1],
                 "Incorrect quote"
@@ -202,7 +202,7 @@ abstract contract RouterPartialFill is
     // - Not all items are in price range
     function test_restrictedPartialFill(uint64 delta) public {
         // Set new delta
-        pair.changeDelta(this.modifyDelta(delta));
+        pool.changeDelta(this.modifyDelta(delta));
 
         // First buy 1-9 items (asc), then attempt to partial fill 9-1 items (desc)
         for (
@@ -214,13 +214,13 @@ abstract contract RouterPartialFill is
 
             // Set pseudorandom delta (fuzzing is broken for exp curve for some reason...)
             uint128 newDelta = uint128(
-                pair.delta() * numNFTsToBuyFirst * uint256(block.timestamp)
+                pool.delta() * numNFTsToBuyFirst * uint256(block.timestamp)
             );
-            pair.changeDelta(newDelta);
+            pool.changeDelta(newDelta);
 
             // Construct partial fill args first (below we fill some items before doing partial fill)
-            LSSVMRouter2.PairSwapSpecificPartialFill[]
-                memory buyList = new LSSVMRouter2.PairSwapSpecificPartialFill[](
+            CollectionRouter2.PoolSwapSpecificPartialFill[]
+                memory buyList = new CollectionRouter2.PoolSwapSpecificPartialFill[](
                     1
                 );
             uint256[] memory ids = new uint256[](10);
@@ -230,11 +230,11 @@ abstract contract RouterPartialFill is
             }
             // Get partial fill prices
             uint256[] memory partialFillPrices = router
-                .getNFTQuoteForPartialFillBuy(pair, 10);
+                .getNFTQuoteForPartialFillBuy(pool, 10);
             // Create the partial fill args
-            buyList[0] = LSSVMRouter2.PairSwapSpecificPartialFill({
-                swapInfo: LSSVMRouter2.PairSwapSpecific({
-                    pair: pair,
+            buyList[0] = CollectionRouter2.PoolSwapSpecificPartialFill({
+                swapInfo: CollectionRouter2.PoolSwapSpecific({
+                    pool: pool,
                     nftIds: ids,
                     proof: new bytes32[](0),
                     proofFlags: new bool[](0)
@@ -243,8 +243,8 @@ abstract contract RouterPartialFill is
                 maxCostPerNumNFTs: partialFillPrices
             });
             // Create empty sell list
-            LSSVMRouter2.PairSwapSpecificPartialFillForToken[]
-                memory emptySellList = new LSSVMRouter2.PairSwapSpecificPartialFillForToken[](
+            CollectionRouter2.PoolSwapSpecificPartialFillForToken[]
+                memory emptySellList = new CollectionRouter2.PoolSwapSpecificPartialFillForToken[](
                     0
                 );
             string memory UNIMPLEMENTED = "Unimplemented";
@@ -257,16 +257,16 @@ abstract contract RouterPartialFill is
             for (uint256 i = 1; i <= numNFTsToBuyFirst; i++) {
                 nftIdsToBuyFirst[i - 1] = 10 + i;
             }
-            (, , , , uint256 initialQuote, , ) = pair.getBuyNFTQuote(
+            (, , , , uint256 initialQuote, , ) = pool.getBuyNFTQuote(
                 numNFTsToBuyFirst
             );
-            LSSVMRouter2.RobustPairSwapSpecific[]
-                memory initialBuyList = new LSSVMRouter2.RobustPairSwapSpecific[](
+            CollectionRouter2.RobustPoolSwapSpecific[]
+                memory initialBuyList = new CollectionRouter2.RobustPoolSwapSpecific[](
                     1
                 );
-            initialBuyList[0] = LSSVMRouter2.RobustPairSwapSpecific({
-                swapInfo: LSSVMRouter2.PairSwapSpecific({
-                    pair: pair,
+            initialBuyList[0] = CollectionRouter2.RobustPoolSwapSpecific({
+                swapInfo: CollectionRouter2.PoolSwapSpecific({
+                    pool: pool,
                     nftIds: nftIdsToBuyFirst,
                     proof: new bytes32[](0),
                     proofFlags: new bool[](0)
@@ -274,7 +274,7 @@ abstract contract RouterPartialFill is
                 maxCost: initialQuote
             });
             // Buy these items first (if we can)
-            pair.swapTokenForSpecificNFTs{
+            pool.swapTokenForSpecificNFTs{
                 value: this.modifyInputAmount(initialQuote)
             }(
                 nftIdsToBuyFirst,
@@ -323,7 +323,7 @@ abstract contract RouterPartialFill is
     // All items present, not all items buyable
     function test_partialFill(uint64 delta) public {
         // Set new delta
-        pair.changeDelta(this.modifyDelta(delta));
+        pool.changeDelta(this.modifyDelta(delta));
 
         // First buy 1-9 items (asc), then attempt to partial fill 9-1 items (desc)
         for (
@@ -334,8 +334,8 @@ abstract contract RouterPartialFill is
             this.setUp();
 
             // Construct partial fill args first (below we fill some items before doing partial fill)
-            LSSVMRouter2.PairSwapSpecificPartialFill[]
-                memory buyList = new LSSVMRouter2.PairSwapSpecificPartialFill[](
+            CollectionRouter2.PoolSwapSpecificPartialFill[]
+                memory buyList = new CollectionRouter2.PoolSwapSpecificPartialFill[](
                     1
                 );
             uint256[] memory ids = new uint256[](10);
@@ -345,11 +345,11 @@ abstract contract RouterPartialFill is
             }
             // Get partial fill prices
             uint256[] memory partialFillPrices = router
-                .getNFTQuoteForPartialFillBuy(pair, 10);
+                .getNFTQuoteForPartialFillBuy(pool, 10);
             // Create the partial fill args
-            buyList[0] = LSSVMRouter2.PairSwapSpecificPartialFill({
-                swapInfo: LSSVMRouter2.PairSwapSpecific({
-                    pair: pair,
+            buyList[0] = CollectionRouter2.PoolSwapSpecificPartialFill({
+                swapInfo: CollectionRouter2.PoolSwapSpecific({
+                    pool: pool,
                     nftIds: ids,
                     proof: new bytes32[](0),
                     proofFlags: new bool[](0)
@@ -358,17 +358,17 @@ abstract contract RouterPartialFill is
                 maxCostPerNumNFTs: partialFillPrices
             });
             // Create empty sell list
-            LSSVMRouter2.PairSwapSpecificPartialFillForToken[]
-                memory emptySellList = new LSSVMRouter2.PairSwapSpecificPartialFillForToken[](
+            CollectionRouter2.PoolSwapSpecificPartialFillForToken[]
+                memory emptySellList = new CollectionRouter2.PoolSwapSpecificPartialFillForToken[](
                     0
                 );
             string memory UNIMPLEMENTED = "Unimplemented";
 
             // ** Set spor price to be updated as if numNFTSToBuyFirst got bought **
-            (, uint256 newSpotPrice, , , ) = pair.getBuyNFTQuote(
+            (, uint256 newSpotPrice, , , ) = pool.getBuyNFTQuote(
                 numNFTsToBuyFirst
             );
-            pair.changeSpotPrice(uint128(newSpotPrice));
+            pool.changeSpotPrice(uint128(newSpotPrice));
 
             // Get NFT balance now (after the partial fill)
             uint256 startNFTBalance = test721.balanceOf(address(this));
@@ -410,7 +410,7 @@ abstract contract RouterPartialFill is
     // Price is within range, not all items buyable
     function test_partialFillMissingItems(uint64 delta) public {
         // Set new delta
-        pair.changeDelta(this.modifyDelta(delta));
+        pool.changeDelta(this.modifyDelta(delta));
 
         // First buy 1-9 items (asc), then attempt to partial fill 9-1 items (desc)
         for (
@@ -421,8 +421,8 @@ abstract contract RouterPartialFill is
             this.setUp();
 
             // Construct partial fill args first (below we fill some items before doing partial fill)
-            LSSVMRouter2.PairSwapSpecificPartialFill[]
-                memory buyList = new LSSVMRouter2.PairSwapSpecificPartialFill[](
+            CollectionRouter2.PoolSwapSpecificPartialFill[]
+                memory buyList = new CollectionRouter2.PoolSwapSpecificPartialFill[](
                     1
                 );
             uint256[] memory ids = new uint256[](10);
@@ -433,11 +433,11 @@ abstract contract RouterPartialFill is
             }
             // Get partial fill prices
             uint256[] memory partialFillPrices = router
-                .getNFTQuoteForPartialFillBuy(pair, 10);
+                .getNFTQuoteForPartialFillBuy(pool, 10);
             // Create the partial fill args
-            buyList[0] = LSSVMRouter2.PairSwapSpecificPartialFill({
-                swapInfo: LSSVMRouter2.PairSwapSpecific({
-                    pair: pair,
+            buyList[0] = CollectionRouter2.PoolSwapSpecificPartialFill({
+                swapInfo: CollectionRouter2.PoolSwapSpecific({
+                    pool: pool,
                     nftIds: ids,
                     proof: new bytes32[](0),
                     proofFlags: new bool[](0)
@@ -446,8 +446,8 @@ abstract contract RouterPartialFill is
                 maxCostPerNumNFTs: partialFillPrices
             });
             // Create empty sell list
-            LSSVMRouter2.PairSwapSpecificPartialFillForToken[]
-                memory emptySellList = new LSSVMRouter2.PairSwapSpecificPartialFillForToken[](
+            CollectionRouter2.PoolSwapSpecificPartialFillForToken[]
+                memory emptySellList = new CollectionRouter2.PoolSwapSpecificPartialFillForToken[](
                     0
                 );
             string memory UNIMPLEMENTED = "Unimplemented";

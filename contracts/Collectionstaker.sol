@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {ILSSVMPairFactory} from "./ILSSVMPairFactory.sol";
-import {RewardPoolETH} from "./RewardPoolETH.sol";
-import {RewardPoolETHDraw} from "./RewardPoolETHDraw.sol";
+import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
+import {RewardVaultETH} from "./RewardVaultETH.sol";
+import {RewardVaultETHDraw} from "./RewardVaultETHDraw.sol";
 import {ICurve} from "./bonding-curves/ICurve.sol";
 import {IValidator} from "./validators/IValidator.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -16,9 +16,9 @@ import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 contract Collectionstaker is Ownable {
     using SafeERC20 for IERC20;
 
-    ILSSVMPairFactory immutable public lpToken;
-    RewardPoolETH immutable public rewardPoolETHLogic;
-    RewardPoolETHDraw immutable public rewardPoolETHDrawLogic;
+    ICollectionPoolFactory immutable public lpToken;
+    RewardVaultETH immutable public rewardVaultETHLogic;
+    RewardVaultETHDraw immutable public rewardVaultETHDrawLogic;
     uint256 public constant MAX_REWARD_TOKENS = 5;
     RNGChainlinkV2Interface public rngChainlink;
 
@@ -44,10 +44,10 @@ contract Collectionstaker is Ownable {
         uint256 endTime
     );
 
-    constructor(ILSSVMPairFactory _lpToken) {
+    constructor(ICollectionPoolFactory _lpToken) {
         lpToken = _lpToken;
-        rewardPoolETHLogic = new RewardPoolETH();
-        rewardPoolETHDrawLogic = new RewardPoolETHDraw();
+        rewardVaultETHLogic = new RewardVaultETH();
+        rewardVaultETHDrawLogic = new RewardVaultETHDraw();
     }
 
     function setRNG(RNGChainlinkV2Interface _rngChainlink) external onlyOwner {
@@ -55,12 +55,12 @@ contract Collectionstaker is Ownable {
     }
 
     /**
-     * @notice The createIncentiveETH function is used to create a new liquidity mining incentive program for a specific trading pair. The function takes the following parameters:
-     * @param validator: The address of the validator contract that will be used to verify the authenticity of the trading pair.
-     * @param nft: The address of the non-fungible token that is being traded in the trading pair.
-     * @param bondingCurve: The address of the bonding curve contract that is being used by the trading pair.
+     * @notice The createIncentiveETH function is used to create a new liquidity mining incentive program for a specific trading pool. The function takes the following parameters:
+     * @param validator: The address of the validator contract that will be used to verify the authenticity of the trading pool.
+     * @param nft: The address of the non-fungible token that is being traded in the trading pool.
+     * @param bondingCurve: The address of the bonding curve contract that is being used by the trading pool.
      * @param curveParams: The curve parameters that are being used by the bonding curve contract.
-     * @param fee: The fee that will be charged on trades made using the trading pair.
+     * @param fee: The fee that will be charged on trades made using the trading pool.
      * @param rewardTokens: An array of token addresses that will be used as rewards in the incentive program.
      * @param rewards: An array of reward amounts that will be distributed to liquidity providers. This is the whole amount, which will be divided by the duration of the incentive program as an argument to the child initialize() function
      * @param startTime: The time when the incentive program begins.
@@ -94,11 +94,11 @@ contract Collectionstaker is Ownable {
                 ++i;
             }
         }
-        RewardPoolETH rewardPool = RewardPoolETH(
-            Clones.clone(address(rewardPoolETHLogic))
+        RewardVaultETH rewardVault = RewardVaultETH(
+            Clones.clone(address(rewardVaultETHLogic))
         );
         
-        rewardPool.initialize(
+        rewardVault.initialize(
             owner(),
             msg.sender,
             lpToken,
@@ -114,11 +114,11 @@ contract Collectionstaker is Ownable {
             endTime
         );
 
-        // transfer reward tokens to RewardPool
+        // transfer reward tokens to RewardVault
         for (uint256 i; i < rewardTokensLength; ) {
             rewardTokens[i].safeTransferFrom(
                 msg.sender,
-                address(rewardPool),
+                address(rewardVault),
                 rewards[i]
             );
 
@@ -128,7 +128,7 @@ contract Collectionstaker is Ownable {
         }
 
         emit IncentiveETHCreated(
-            address(rewardPool),
+            address(rewardVault),
             rewardTokens,
             rewards,
             startTime,
@@ -146,12 +146,12 @@ contract Collectionstaker is Ownable {
     }
 
     /**
-     * @notice The createIncentiveETHDraw function is used to create a new liquidity mining incentive program for a specific trading pair. The function takes the following parameters:
-     * @param validator: The address of the validator contract that will be used to verify the authenticity of the trading pair.
-     * @param nft: The address of the non-fungible token that is being traded in the trading pair.
-     * @param bondingCurve: The address of the bonding curve contract that is being used by the trading pair.
+     * @notice The createIncentiveETHDraw function is used to create a new liquidity mining incentive program for a specific trading pool. The function takes the following parameters:
+     * @param validator: The address of the validator contract that will be used to verify the authenticity of the trading pool.
+     * @param nft: The address of the non-fungible token that is being traded in the trading pool.
+     * @param bondingCurve: The address of the bonding curve contract that is being used by the trading pool.
      * @param curveParams: The curve parameters that are being used by the bonding curve contract.
-     * @param fee: The fee that will be charged on trades made using the trading pair.
+     * @param fee: The fee that will be charged on trades made using the trading pool.
      * @param rewardTokens: An array of token addresses that will be used as rewards in the incentive program.
      * @param rewards: An array of reward amounts that will be distributed to liquidity providers. This is the whole amount, which will be divided by the duration of the incentive program as an argument to the child initialize() function
      * @param rewardStartTime: The time when the incentive program begins.
@@ -205,11 +205,11 @@ contract Collectionstaker is Ownable {
             }
         }
 
-        RewardPoolETHDraw rewardPool = RewardPoolETHDraw(
-            Clones.clone(address(rewardPoolETHDrawLogic))
+        RewardVaultETHDraw rewardVault = RewardVaultETHDraw(
+            Clones.clone(address(rewardVaultETHDrawLogic))
         );
 
-        rewardPool.initialize(
+        rewardVault.initialize(
             owner(),
             address(this),
             msg.sender,
@@ -234,13 +234,13 @@ contract Collectionstaker is Ownable {
             drawPeriodFinish
         );
 
-        rngChainlink.setAllowedCaller(address(rewardPool));
+        rngChainlink.setAllowedCaller(address(rewardVault));
 
-        // transfer erc20 drawTokens to RewardPool
+        // transfer erc20 drawTokens to RewardVault
         for (uint256 i; i < _additionalERC20DrawPrize.length; ) {
             _additionalERC20DrawPrize[i].safeTransferFrom(
                 msg.sender,
-                address(rewardPool),
+                address(rewardVault),
                 _additionalERC20DrawAmounts[i]
             );
 
@@ -249,11 +249,11 @@ contract Collectionstaker is Ownable {
             }
         }
 
-        // transfer erc721 drawTokens to RewardPool
+        // transfer erc721 drawTokens to RewardVault
         for (uint256 i; i < _nftCollectionsPrize.length; ) {
             _nftCollectionsPrize[i].safeTransferFrom(
                 msg.sender,
-                address(rewardPool),
+                address(rewardVault),
                 _nftIdsPrize[i]
             );
 
@@ -262,11 +262,11 @@ contract Collectionstaker is Ownable {
             }
         }
 
-        // transfer reward tokens to RewardPool
+        // transfer reward tokens to RewardVault
         for (uint256 i; i < rewardTokensLength; ) {
             rewardTokens[i].safeTransferFrom(
                 msg.sender,
-                address(rewardPool),
+                address(rewardVault),
                 rewards[i]
             );
 
@@ -275,6 +275,6 @@ contract Collectionstaker is Ownable {
             }
         }
 
-        emit IncentiveETHDrawCreated(address(rewardPool), rewardTokens, rewards, rewardStartTime, rewardEndTime);
+        emit IncentiveETHDrawCreated(address(rewardVault), rewardTokens, rewards, rewardStartTime, rewardEndTime);
     }
 }
