@@ -146,24 +146,9 @@ export async function factoryFixture() {
   return { curve, factory, collection };
 }
 
-export async function sortitionFixture() {
-  const deployFactory = await ethers.getContractFactory(
-    "SortitionSumTreeFactory"
-  );
-  const deployedTree = await deployFactory.deploy();
-  await deployedTree.deployed();
-
-  return { deployedTree };
-}
-
 export async function collectionstakerFixture() {
   const { factory, collection, curve } = await factoryFixture();
-  const { deployedTree } = await sortitionFixture();
-  const Collectionstaker = await ethers.getContractFactory("Collectionstaker", {
-    libraries: {
-      SortitionSumTreeFactory: deployedTree.address,
-    },
-  });
+  const Collectionstaker = await ethers.getContractFactory("Collectionstaker");
   const collectionstaker = await Collectionstaker.connect(collection).deploy(
     factory.address
   );

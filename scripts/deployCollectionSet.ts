@@ -63,9 +63,6 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     "Collectionstaker",
     {
       signer: deployer,
-      libraries: {
-        SortitionSumTreeFactory: treeAddress,
-      },
     }
   )) as Collectionstaker__factory;
   const collectionStaker = await collectionStakerFactory.deploy(factory.address);
@@ -170,9 +167,6 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   await hre.run("verify:verify", {
     address: collectionStaker.address,
     constructorArguments: [factory.address],
-    libraries: {
-      SortitionSumTreeFactory: treeAddress,
-    },
   });
 
   console.log("verifying RewardETHLogic...");

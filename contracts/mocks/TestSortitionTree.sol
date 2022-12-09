@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-import { SortitionSumTreeFactory } from "./SortitionSumTreeFactory.sol";
+import { SortitionSumTreeFactory } from "../lib/SortitionSumTreeFactory.sol";
 
 
 

@@ -12,11 +12,14 @@ import {IValidator} from "./validators/IValidator.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {RNGChainlinkV2Interface} from "./rng/RNGChainlinkV2Interface.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
+import {ISortitionTreeManager} from "./ISortitionTreeManager.sol";
+import {SortitionTreeManager} from "./SortitionTreeManager.sol";
 
 contract Collectionstaker is Ownable {
     using SafeERC20 for IERC20;
 
     ICollectionPoolFactory immutable public lpToken;
+    ISortitionTreeManager immutable public treeManager;
     RewardVaultETH immutable public rewardVaultETHLogic;
     RewardVaultETHDraw immutable public rewardVaultETHDrawLogic;
     uint256 public constant MAX_REWARD_TOKENS = 5;
@@ -46,6 +49,7 @@ contract Collectionstaker is Ownable {
 
     constructor(ICollectionPoolFactory _lpToken) {
         lpToken = _lpToken;
+        treeManager = new SortitionTreeManager();
         rewardVaultETHLogic = new RewardVaultETH();
         rewardVaultETHDrawLogic = new RewardVaultETHDraw();
     }
@@ -231,7 +235,8 @@ contract Collectionstaker is Ownable {
             _nftIdsPrize,
             _prizesPerWinner,
             drawStartTime,
-            drawPeriodFinish
+            drawPeriodFinish,
+            treeManager
         );
 
         rngChainlink.setAllowedCaller(address(rewardVault));

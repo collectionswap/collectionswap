@@ -9,14 +9,13 @@ import {ICurve} from "./bonding-curves/ICurve.sol";
 import {RewardVaultETH} from "./RewardVaultETH.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {ICollectionPool} from "./ICollectionPool.sol";
-import {SortitionSumTreeFactory} from "./SortitionSumTreeFactory.sol";
+import {ISortitionTreeManager} from "./ISortitionTreeManager.sol";
 import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
 import {RNGInterface} from "./rng/RNGInterface.sol";
 import {IValidator} from "./validators/IValidator.sol";
 
 contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     using SafeERC20 for IERC20;
-    using SortitionSumTreeFactory for SortitionSumTreeFactory.SortitionSumTrees;
 
     address public factory;
 
@@ -67,7 +66,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     uint256 public constant MAX_REWARD_NFTS = 200;
     uint256 public constant MAX_PRIZE_WINNERS_PER_EPOCH = 500;
     address private constant DUMMY_ADDRESS = address(0);
-    SortitionSumTreeFactory.SortitionSumTrees internal sortitionSumTrees;
+    ISortitionTreeManager public treeManager;
 
     /**
      * @dev This struct is used to store information about a non-fungible token (NFT) that is being awarded as a prize.
@@ -198,7 +197,8 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         uint256[] calldata _nftIdsPrize,
         uint256 _prizesPerWinner,
         uint256 _drawStartTime,
-        uint256 _drawPeriodFinish
+        uint256 _drawPeriodFinish,
+        ISortitionTreeManager _treeManager
     )  external {
         __ReentrancyGuard_init();
         factory = _factory;
@@ -223,14 +223,15 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
 
         rng = _rng;
         TREE_KEY = keccak256(abi.encodePacked(uint256(1)));
-        sortitionSumTrees.createTree(TREE_KEY, MAX_TREE_LEAVES);
+        treeManager = _treeManager;
+        treeManager.createTree(TREE_KEY, MAX_TREE_LEAVES);
         
         // Ensure that there is always a non-zero initial stake.
         // This is to prevent the sortition tree from being empty.
         // Can be anyone, have set to DUMMY_ADDRESS, soft guarantee of not zeroing out
         // draw stake midway (stake then unstake)
         bytes32 _ID = addressToBytes32(DUMMY_ADDRESS);
-        sortitionSumTrees.set(TREE_KEY, 1, _ID);
+        treeManager.set(TREE_KEY, 1, _ID);
 
         // thisEpoch is incremented in function below
         _addNewPrizeEpoch({
@@ -487,7 +488,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
             // Update the sortition tree. Sortition tree library deletes 0
             // entries for us
             bytes32 _ID = addressToBytes32(vaultInteractor);
-            sortitionSumTrees.set(TREE_KEY, sortitionValue, _ID);
+            treeManager.set(TREE_KEY, sortitionValue, _ID);
         }
     }
 
@@ -561,7 +562,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
 
         if (modifySortition) {
             bytes32 _ID = addressToBytes32(_staker);
-            sortitionSumTrees.set(TREE_KEY, lastObservation.predictedEndSum, _ID);
+            treeManager.set(TREE_KEY, lastObservation.predictedEndSum, _ID);
         }
     }
 
@@ -570,8 +571,8 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     **/ 
     function viewChanceOfDraw(address _staker) external view returns (uint256 chanceNumerator, uint256 chanceDenominator) {
         bytes32 _treeKey = TREE_KEY;
-        chanceNumerator = sortitionSumTrees.stakeOf(_treeKey, addressToBytes32(_staker));
-        chanceDenominator = sortitionSumTrees.total(_treeKey);
+        chanceNumerator = treeManager.stakeOf(_treeKey, addressToBytes32(_staker));
+        chanceDenominator = treeManager.total(_treeKey);
     }
 
     /**
@@ -644,7 +645,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         bytes32 _treeKey = TREE_KEY;
         while (true) {
             uint256 finalRandom = uint256(keccak256(abi.encodePacked(randomNumber, iteration, i)));
-            winner = bytes32ToAddress(sortitionSumTrees.draw(_treeKey, finalRandom));
+            winner = bytes32ToAddress(treeManager.draw(_treeKey, finalRandom));
             if (winner != DUMMY_ADDRESS) {
                 return winner;
             }
@@ -671,7 +672,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         epochWinnerConfigs[_epoch] = WinnerConfig(numberOfDrawWinners, numberOfPrizesPerWinner, remainder);
 
         // iterate through the Number of Winners
-        uint256 denominator = sortitionSumTrees.total(TREE_KEY);
+        uint256 denominator = treeManager.total(TREE_KEY);
         bool noDrawParticipants = (denominator == 1);
         // winner list may contain duplicate addresses
         // emitted in the WinnersDrawn event but not stored

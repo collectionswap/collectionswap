@@ -1,16 +1,9 @@
 import { ethers } from "hardhat";
-import { sortitionFixture } from "../shared/fixtures";
 
 describe("TestSortitionTree", function () {
   it("should work", async function () {
-    const { deployedTree } = await sortitionFixture();
     const TestSortitionTree = await ethers.getContractFactory(
-      "TestSortitionTree",
-      {
-        libraries: {
-          SortitionSumTreeFactory: deployedTree.address,
-        },
-      }
+      "TestSortitionTree"
     );
     const testSortitionTree = await TestSortitionTree.deploy();
     await testSortitionTree.deployed();

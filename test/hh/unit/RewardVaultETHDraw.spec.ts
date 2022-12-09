@@ -13,6 +13,7 @@ import { createPoolEth, mintNfts } from "../shared/helpers";
 import { getSigners } from "../shared/signers";
 
 import type {
+  Collectionstaker,
   ICollectionPoolFactory,
   ICurve,
   IERC20,
