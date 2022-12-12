@@ -40,6 +40,8 @@ interface ICollectionPool is ITokenIDFilter {
 
     function spotPrice() external view returns (uint128);
 
+    function royaltyNumerator() external view returns (uint256);
+
     /**
         @notice Rescues a specified set of NFTs owned by the pool to the owner address. (onlyOwnable modifier is in the implemented function)
         @dev If the NFT is the pool's collection, we also remove it from the id tracking (if the NFT is missing enumerable).

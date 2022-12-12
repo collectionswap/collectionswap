@@ -170,10 +170,7 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             poolAddress: payable(pool),
             fee: params.fee,
             delta: params.delta,
-            royaltyNumerator: params.royaltyNumerator,
-            initialSpotPrice: params.spotPrice,
-            initialPoolBalance: msg.value,
-            initialNFTIDsLength: params.initialNFTIDs.length
+            royaltyNumerator: params.royaltyNumerator
         });
 
         _initializePoolETH(
@@ -234,10 +231,7 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             poolAddress: payable(pool),
             fee: params.fee,
             delta: params.delta,
-            royaltyNumerator: params.royaltyNumerator,
-            initialSpotPrice: params.spotPrice,
-            initialPoolBalance: msg.value,
-            initialNFTIDsLength: params.initialNFTIDs.length
+            royaltyNumerator: params.royaltyNumerator
         });
 
         _initializePoolETHFiltered(
@@ -293,10 +287,7 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             poolAddress: payable(pool),
             fee: params.fee,
             delta: params.delta,
-            royaltyNumerator: params.royaltyNumerator,
-            initialSpotPrice: params.spotPrice,
-            initialPoolBalance: params.initialTokenBalance,
-            initialNFTIDsLength: params.initialNFTIDs.length
+            royaltyNumerator: params.royaltyNumerator
         });
 
         _initializePoolERC20(
@@ -355,10 +346,7 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             poolAddress: payable(pool),
             fee: params.fee,
             delta: params.delta,
-            royaltyNumerator: params.royaltyNumerator,
-            initialSpotPrice: params.spotPrice,
-            initialPoolBalance: params.initialTokenBalance,
-            initialNFTIDsLength: params.initialNFTIDs.length
+            royaltyNumerator: params.royaltyNumerator
         });
 
         _initializePoolERC20Filtered(
@@ -814,44 +802,6 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
         _safeMint(recipient, (tokenId = ++_nextTokenId));
 
         emit NewTokenId(tokenId);
-    }
-
-    /// @inheritdoc ICollectionPoolFactory
-    function validatePoolParamsLte(
-        uint256 tokenId,
-        address nftAddress,
-        address bondingCurveAddress,
-        uint96 fee,
-        uint128 delta,
-        uint256 royaltyNumerator
-    ) public view returns (bool) {    
-        LPTokenParams721 memory poolParams = viewPoolParams(tokenId);
-        return (
-            poolParams.nftAddress == nftAddress &&
-            poolParams.bondingCurveAddress == bondingCurveAddress &&
-            poolParams.fee <= fee &&
-            poolParams.delta <= delta &&
-            poolParams.royaltyNumerator <= royaltyNumerator
-        );
-    }
-
-    /// @inheritdoc ICollectionPoolFactory
-    function validatePoolParamsEq(
-        uint256 tokenId,
-        address nftAddress,
-        address bondingCurveAddress,
-        uint96 fee,
-        uint128 delta,
-        uint256 royaltyNumerator
-    ) public view returns (bool) {    
-        LPTokenParams721 memory poolParams = viewPoolParams(tokenId);
-        return (
-            poolParams.nftAddress == nftAddress &&
-            poolParams.bondingCurveAddress == bondingCurveAddress &&
-            poolParams.fee == fee &&
-            poolParams.delta == delta &&
-            poolParams.royaltyNumerator <= royaltyNumerator
-        );
     }
 
     // overrides required by Solidiity for ERC721 contract

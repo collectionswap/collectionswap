@@ -131,6 +131,7 @@ describe("RewardVaultETH", function () {
             props: [],
             state: [],
           },
+          0,
           ethers.BigNumber.from("200000000000000000"),
           ethers.constants.HashZero,
           rewardTokens.map((rewardToken) => rewardToken.address),

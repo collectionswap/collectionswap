@@ -53,6 +53,7 @@ describe("integration", function () {
       bondingCurve: curve,
       delta,
       fee,
+      royaltyNumerator,
     };
     const result = await createPoolEth(factory, {
       ...params,

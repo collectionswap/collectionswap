@@ -453,6 +453,7 @@ export async function rewardVaultFixture() {
     curve.address,
     { spotPrice: 0, delta, props: [], state: [] },
     fee,
+    royaltyNumerator,
     ethers.constants.HashZero,
     rewardTokens.map((rewardToken) => rewardToken.address),
     rewardRates,

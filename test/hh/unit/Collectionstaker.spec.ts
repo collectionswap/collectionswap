@@ -56,6 +56,7 @@ describe("Collectionstaker", function () {
           state: [],
         },
         ethers.BigNumber.from("200000000000000000"),
+        0,
         ethers.constants.HashZero,
         rewardTokens.map((rewardToken) => rewardToken.address),
         rewards,

@@ -24,9 +24,6 @@ interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
         uint96 fee;
         uint128 delta;
         uint256 royaltyNumerator;
-        uint128 initialSpotPrice;
-        uint256 initialPoolBalance;
-        uint256 initialNFTIDsLength;
     }
 
     /**
@@ -161,54 +158,4 @@ interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
         external
         view
         returns (LPTokenParams721 memory poolParams);
-
-    /**
-     * @param tokenId The tokenId of the pool to validate
-     * @param nftAddress The address of the NFT collection which the pool 
-     * should accept
-     * @param bondingCurveAddress The address of the bonding curve the pool
-     * should be using
-     * @param fee The maximum fee the pool should have
-     * @param delta The maximum delta the pool should have
-     * 
-     * @return true iff the pool specified by `tokenId` has the correct
-     * NFT address, bonding curve address, and has fee and delta == `fee` and
-     * `delta`, respectively
-     */
-    function validatePoolParamsLte(
-        uint256 tokenId,
-        address nftAddress,
-        address bondingCurveAddress,
-        uint96 fee,
-        uint128 delta,
-        uint256 royaltyNumerator
-    )
-        external
-        view
-        returns (bool);
-
-    /**
-     * @param tokenId The tokenId of the pool to validate
-     * @param nftAddress The address of the NFT collection which the pool 
-     * should accept
-     * @param bondingCurveAddress The address of the bonding curve the pool
-     * should be using
-     * @param fee The fee the pool should have
-     * @param delta The delta the pool should have
-     * 
-     * @return true iff the pool specified by `tokenId` has the correct
-     * NFT address, bonding curve address, and has fee and delta <= `fee` and
-     * `delta`, respectively
-     */
-    function validatePoolParamsEq(
-        uint256 tokenId,
-        address nftAddress,
-        address bondingCurveAddress,
-        uint96 fee,
-        uint128 delta,
-        uint256 royaltyNumerator
-    )
-        external
-        view
-        returns (bool);
 }

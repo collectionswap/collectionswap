@@ -17,8 +17,6 @@ import {IValidator} from "./validators/IValidator.sol";
 contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     using SafeERC20 for IERC20;
 
-    address public factory;
-
     /// @notice RNG contract interface
     RNGInterface public rng;
     /// @notice RNG request ID corresponding to the Chainlink interactor, so we can look up the RNG status and result.
@@ -154,7 +152,6 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     /** 
         @dev - this is called by the factory. 
         @param _protocolOwner - the owner of the protocol
-        @param _factory - the factory address
         @param _deployer - the vault deployer's address
         @param _lpToken - Collectionswap deployment address
         @param _validator - the validator contract address
@@ -162,6 +159,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         @param _bondingCurve - the bonding curve contract address
         @param _curveParams - the bonding curve parameters
         @param _fee - the fee amount to incentivize
+        @param _royaltyNumerator - the royalty numerator to incentivize
         @param _rewardTokens - the reward token addresses
         @param _rewardRates - the reward rates. Reward rates is in amount per second
         @param _rewardStartTime - the reward start time (note that this can be different from the draw start time)
@@ -177,7 +175,6 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     **/
     function initialize(
         address _protocolOwner,
-        address _factory,
         address _deployer,
         ICollectionPoolFactory _lpToken,
         IValidator _validator,
@@ -185,6 +182,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         address _bondingCurve,
         ICurve.Params calldata _curveParams,
         uint96 _fee,
+        uint256 _royaltyNumerator,
         bytes32 _tokenIDFilterRoot,
         IERC20[] calldata _rewardTokens,
         uint256[] calldata _rewardRates,
@@ -201,7 +199,6 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         ISortitionTreeManager _treeManager
     )  external {
         __ReentrancyGuard_init();
-        factory = _factory;
 
         super.initialize({
             _protocolOwner: _protocolOwner,
@@ -212,6 +209,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
             _bondingCurve: _bondingCurve,
             _curveParams: _curveParams,
             _fee: _fee,
+            _royaltyNumerator: _royaltyNumerator,
             _tokenIDFilterRoot: _tokenIDFilterRoot,
             _rewardTokens: _rewardTokens,
             _rewardRates: _rewardRates,

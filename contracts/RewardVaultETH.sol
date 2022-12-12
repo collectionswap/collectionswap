@@ -35,6 +35,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
     ICurve.Params curveParams;
     address bondingCurve;
     uint96 fee;
+    uint256 royaltyNumerator;
     bytes32 tokenIDFilterRoot;
 
     uint256 public constant MAX_REWARD_TOKENS = 5;
@@ -152,6 +153,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         address _bondingCurve,
         ICurve.Params calldata _curveParams,
         uint96 _fee,
+        uint256 _royaltyNumerator,
         bytes32 _tokenIDFilterRoot,
         IERC20[] calldata _rewardTokens,
         uint256[] calldata _rewardRates,
@@ -169,6 +171,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         curveParams = _curveParams;
         tokenIDFilterRoot = _tokenIDFilterRoot;
         fee = _fee;
+        royaltyNumerator = _royaltyNumerator;
         rewardTokens = _rewardTokens;
         unchecked {
             for (uint256 i; i < rewardTokens.length; ++i) {
@@ -353,6 +356,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
                 _pool,
                 curveParams,
                 fee,
+                royaltyNumerator,
                 tokenIDFilterRoot
             )
         ) revert PoolMismatch();
