@@ -546,6 +546,9 @@ export async function royaltyFixture(): Promise<{
   collectionswap: Collectionswap;
   otherAccount1: SignerWithAddress;
   ethPoolParams: EthPoolParams;
+  fee: BigNumber;
+  protocolFee: BigNumber;
+  royaltyNumerator: BigNumber;
 }> {
   // Generic NFT collection implementing 2981 and allowing recipient setting
   const { nft } = await nftFixture();
@@ -559,6 +562,7 @@ export async function royaltyFixture(): Promise<{
   } = await getSigners();
 
   const nftsWithRoyalty = await mintNfts(nft, owner.address, 4);
+  const { fee, protocolFee } = getCurveParameters();
 
   const nftNon2981 = (await non2981NftFixture()).nft as unknown as IERC721;
   const nftsWithoutRoyalty = await mintNfts(
@@ -575,8 +579,12 @@ export async function royaltyFixture(): Promise<{
     )
   );
 
-  const { collectionPoolFactory, collectionswap, otherAccount1, ethPoolParams } =
-    (await everythingFixture()) as any;
+  const {
+    collectionPoolFactory,
+    collectionswap,
+    otherAccount1,
+    ethPoolParams,
+  } = (await everythingFixture()) as any;
 
   // Approve all tokenids
   for (const id of nftsWithRoyalty) {
@@ -599,6 +607,9 @@ export async function royaltyFixture(): Promise<{
     otherAccount1,
     ethPoolParams,
     royaltyRecipientOverride,
+    fee: ethers.BigNumber.from(fee),
+    protocolFee: ethers.BigNumber.from(protocolFee),
+    royaltyNumerator: DEFAULT_VALID_ROYALTY,
   };
 }
 
@@ -637,9 +648,10 @@ export async function royaltyWithPoolFixture(): Promise<{
     otherAccount1,
     ethPoolParams,
     royaltyRecipientOverride,
+    fee,
+    protocolFee,
+    royaltyNumerator,
   } = await royaltyFixture();
-
-  const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
   const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
     {
@@ -677,8 +689,6 @@ export async function royaltyWithPoolFixture(): Promise<{
     )
   );
 
-  const { fee, protocolFee } = getCurveParameters();
-
   const enumerateTrader: () => Promise<string[]> = async () => {
     const balance = (await nft2981.balanceOf(otherAccount1.address)).toNumber();
     const output = [];
@@ -700,8 +710,8 @@ export async function royaltyWithPoolFixture(): Promise<{
     ethPoolParams,
     collectionPoolETH,
     traderNfts,
-    fee: ethers.BigNumber.from(fee),
-    protocolFee: ethers.BigNumber.from(protocolFee),
+    fee,
+    protocolFee,
     royaltyNumerator,
     enumerateTrader,
     royaltyRecipientOverride,

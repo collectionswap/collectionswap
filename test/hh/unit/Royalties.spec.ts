@@ -13,6 +13,7 @@ import {
   changesEtherBalancesFuzzyMultipleTransactions,
   enumerateAddress,
   getRandomInt,
+  mintNfts,
   pickRandomElements,
   prepareQuoteValues,
 } from "../shared/helpers";
@@ -1168,6 +1169,282 @@ describe("Royalties", function () {
           if (recipient === ethers.constants.AddressZero.toString()) {
             recipient = royaltyRecipientOverride.address;
           }
+          const amount = ethers.utils.parseEther(
+            expectedRoyalties[i].toFixed(18)
+          );
+
+          const oldValue =
+            amountsDue.get(recipient) ?? ethers.BigNumber.from("0");
+          amountsDue.set(recipient, oldValue.add(amount));
+        }
+      };
+
+      // For loop to pick a random buy or sell function, random amount/id set,
+      // update the change in tokenIds in pool, and maintain the royalties due.
+      const ACTIONS = [
+        // Double weight to sell routine so average number in pool is stable
+        sellRoutine,
+        sellRoutine,
+        buyRandomRoutine,
+        buySpecificRoutine,
+      ];
+      let i = 0;
+      while (i < NUM_ITERS) {
+        const routine = pickRandomElements(ACTIONS, 1)[0];
+        const numNftsInPool = (await pool.getAllHeldIds()).length;
+        if (
+          [buyRandomRoutine, buySpecificRoutine].includes(routine) &&
+          numNftsInPool === 0
+        ) {
+          // Not possible to buy cause pool is empty
+          continue;
+        }
+
+        if (
+          routine === sellRoutine &&
+          (await nft.balanceOf(trader.address)).eq(ethers.BigNumber.from("0"))
+        ) {
+          // Not possible to sell cause trader has no nfts
+          continue;
+        }
+
+        await routine();
+        await checkState(i);
+        i++;
+      }
+    });
+
+    it("Should award royalties when repeatedly buying and selling one/multiple items with fallback for non ERC2981", async function () {
+      const {
+        nftNon2981,
+        otherAccount1: trader,
+        fee,
+        protocolFee,
+        royaltyNumerator,
+        royaltyRecipientOverride,
+        collectionPoolFactory,
+        ethPoolParams,
+        tokenIdsWithoutRoyalty,
+      } = await royaltyFixture();
+
+      const nft = nftNon2981 as unknown as any;
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            nft: nft.address,
+            royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
+            royaltyRecipientOverride: royaltyRecipientOverride.address,
+            initialNFTIDs: tokenIdsWithoutRoyalty,
+          },
+          {
+            value: ethers.BigNumber.from(`${8e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
+      );
+      const pool = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
+      );
+
+      // Give the trader some nfts so both directions can be tested
+      await mintNfts(nft as unknown as any, trader.address, 4);
+
+      // Approve all for trading with the pool
+      await nft.connect(trader).setApprovalForAll(pool.address, true);
+
+      const initialNftsInPool = (await pool.getAllHeldIds()).length;
+      const amountsDue = new Map<string, BigNumber>();
+      const allTransactions:
+        | providers.TransactionResponse[]
+        | Promise<providers.TransactionResponse[]> = [];
+      const NUM_ITERS = 15;
+      const { spotPrice, delta, props } = await pool.curveParams();
+
+      const checkState = async (iteration: number) => {
+        console.log(
+          `Checking royalties are awarded correctly after interaction #${iteration} (0-indexed)`
+        );
+        const recipients: string[] = [];
+        const amounts: BigNumber[] = [];
+
+        Array.from(amountsDue).forEach(([address, amount]) => {
+          recipients.push(address);
+          amounts.push(amount);
+        });
+
+        expect(
+          await changesEtherBalancesFuzzyMultipleTransactions(
+            allTransactions,
+            recipients,
+            amounts
+          )
+        ).to.be.true;
+      };
+
+      const sellRoutine = async () => {
+        // Select a random number of NFTs to sell
+        const nftsHeld = await enumerateAddress(nft, trader.address);
+        const numNftsToSell = getRandomInt(1, nftsHeld.length);
+        const nftsToSell = pickRandomElements(nftsHeld, numNftsToSell);
+        const currentNumNftsInPool = (await pool.getAllHeldIds()).length;
+
+        // Create the transaction and get expected values
+        const {
+          tx,
+          expectedRoyalties,
+          quote,
+          totalRoyalties,
+          protocolFeeAmount,
+        } = await prepareQuoteValues(
+          "sell",
+          pool,
+          spotPrice,
+          delta,
+          props,
+          fee,
+          protocolFee,
+          royaltyNumerator,
+          trader,
+          nftsToSell,
+          currentNumNftsInPool - initialNftsInPool
+        );
+
+        // Record the transaction
+        allTransactions.push(tx);
+
+        // Maintain the main value changes
+        const royaltyPaid = ethers.utils.parseEther(totalRoyalties.toFixed(18));
+        const oldTraderAmount =
+          amountsDue.get(trader.address) ?? ethers.BigNumber.from("0");
+        amountsDue.set(trader.address, oldTraderAmount.add(quote));
+        const oldPoolAmount =
+          amountsDue.get(pool.address) ?? ethers.BigNumber.from("0");
+        amountsDue.set(
+          pool.address,
+          oldPoolAmount.add(
+            quote.mul(-1).sub(royaltyPaid).sub(protocolFeeAmount)
+          )
+        );
+
+        // Maintain royalties due
+        for (let i = 0; i < nftsToSell.length; i++) {
+          let recipient = royaltyRecipientOverride.address;
+          const amount = ethers.utils.parseEther(
+            expectedRoyalties[i].toFixed(18)
+          );
+
+          const oldValue =
+            amountsDue.get(recipient) ?? ethers.BigNumber.from("0");
+          amountsDue.set(recipient, oldValue.add(amount));
+        }
+      };
+
+      const buyRandomRoutine = async () => {
+        // Unfortunately there's no way to retrieve the random order in which
+        // the NFTs were selected so we can only test with quantity 1
+        const numNftsToBuy = 1;
+        const traderInitialNfts = await enumerateAddress(nft, trader.address);
+        const currentNumNftsInPool = (await pool.getAllHeldIds()).length;
+
+        // Create the transaction and get expected values
+        const {
+          tx,
+          expectedRoyalties,
+          quote,
+          totalRoyalties,
+          protocolFeeAmount,
+        } = await prepareQuoteValues(
+          "buy",
+          pool,
+          spotPrice,
+          delta,
+          props,
+          fee,
+          protocolFee,
+          royaltyNumerator,
+          trader,
+          numNftsToBuy,
+          currentNumNftsInPool - initialNftsInPool
+        );
+
+        // Record the transaction
+        allTransactions.push(tx);
+
+        // Maintain the main value changes
+        const royaltyPaid = ethers.utils.parseEther(totalRoyalties.toFixed(18));
+        const oldTraderAmount =
+          amountsDue.get(trader.address) ?? ethers.BigNumber.from("0");
+        amountsDue.set(trader.address, oldTraderAmount.add(quote.mul(-1)));
+        const oldPoolAmount =
+          amountsDue.get(pool.address) ?? ethers.BigNumber.from("0");
+        amountsDue.set(
+          pool.address,
+          oldPoolAmount.add(quote.sub(royaltyPaid).sub(protocolFeeAmount))
+        );
+
+        // Maintain royalties due
+        for (let i = 0; i < numNftsToBuy; i++) {
+          let recipient = royaltyRecipientOverride.address;
+          const amount = ethers.utils.parseEther(
+            expectedRoyalties[i].toFixed(18)
+          );
+
+          const oldValue =
+            amountsDue.get(recipient) ?? ethers.BigNumber.from("0");
+          amountsDue.set(recipient, oldValue.add(amount));
+        }
+      };
+
+      const buySpecificRoutine = async () => {
+        // Select a random number of NFTs to buy
+        const nftsInPool = await pool.getAllHeldIds();
+        const numNftsToBuy = getRandomInt(1, nftsInPool.length);
+        const nftsToBuy = pickRandomElements(nftsInPool, numNftsToBuy);
+        const currentNumNftsInPool = (await pool.getAllHeldIds()).length;
+
+        // Create the transaction and get expected values
+        const {
+          tx,
+          expectedRoyalties,
+          quote,
+          totalRoyalties,
+          protocolFeeAmount,
+        } = await prepareQuoteValues(
+          "buy",
+          pool,
+          spotPrice,
+          delta,
+          props,
+          fee,
+          protocolFee,
+          royaltyNumerator,
+          trader,
+          nftsToBuy,
+          currentNumNftsInPool - initialNftsInPool
+        );
+
+        // Record the transaction
+        allTransactions.push(tx);
+
+        // Maintain the main value changes
+        const royaltyPaid = ethers.utils.parseEther(totalRoyalties.toFixed(18));
+        const oldTraderAmount =
+          amountsDue.get(trader.address) ?? ethers.BigNumber.from("0");
+        amountsDue.set(trader.address, oldTraderAmount.add(quote.mul(-1)));
+        const oldPoolAmount =
+          amountsDue.get(pool.address) ?? ethers.BigNumber.from("0");
+        amountsDue.set(
+          pool.address,
+          oldPoolAmount.add(quote.sub(royaltyPaid).sub(protocolFeeAmount))
+        );
+
+        // Maintain royalties due
+        for (let i = 0; i < nftsToBuy.length; i++) {
+          let recipient = royaltyRecipientOverride.address;
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );

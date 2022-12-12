@@ -1178,11 +1178,16 @@ abstract contract CollectionPool is
     ) private view returns (RoyaltyDue[] memory royaltiesDue) {
         uint256 length = royaltyAmounts.length;
         royaltiesDue = new RoyaltyDue[](length);
+        bool is2981 = IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981);
         if (royaltyNumerator != 0) {
-            /// Implies that the token supports IERC2981
             for (uint256 i = 0; i < length; ) {
-                address recipient;
-                (recipient, ) = IERC2981(address(_nft)).royaltyInfo(nftIds[i], 0);
+                // 2981 recipient, if nft is 2981 and recipient is set.
+                address recipient2981;
+                if (is2981) {
+                    (recipient2981, ) = IERC2981(address(_nft)).royaltyInfo(nftIds[i], 0);
+                }
+
+                address recipient = getRoyaltyRecipient(payable(recipient2981));
                 royaltiesDue[i] = RoyaltyDue({
                     amount: royaltyAmounts[i], recipient: recipient
                 });
