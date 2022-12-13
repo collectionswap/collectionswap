@@ -6,7 +6,6 @@ import { createPoolEth, mintNfts } from "./helpers";
 import { getSigners } from "./signers";
 
 import type {
-  Collectionswap,
   ICurve,
   IERC721,
   CollectionPoolETH,
@@ -218,9 +217,8 @@ export async function collectionFixture() {
   const CollectionPoolEnumerableERC20 = await ethers.getContractFactory(
     "CollectionPoolEnumerableERC20"
   );
-  const collectionPoolEnumerableERC20 = await CollectionPoolEnumerableERC20.connect(
-    ammDeployer
-  ).deploy();
+  const collectionPoolEnumerableERC20 =
+    await CollectionPoolEnumerableERC20.connect(ammDeployer).deploy();
 
   const CollectionPoolMissingEnumerableERC20 = await ethers.getContractFactory(
     "CollectionPoolMissingEnumerableERC20"
@@ -232,8 +230,12 @@ export async function collectionFixture() {
   const protocolFeeMultiplier = ethers.utils.parseEther("0.05");
   const carryFeeMultiplier = ethers.utils.parseEther("0.05");
 
-  const CollectionPoolFactory = await ethers.getContractFactory("CollectionPoolFactory");
-  const collectionPoolFactory = await CollectionPoolFactory.connect(ammDeployer).deploy(
+  const CollectionPoolFactory = await ethers.getContractFactory(
+    "CollectionPoolFactory"
+  );
+  const collectionPoolFactory = await CollectionPoolFactory.connect(
+    ammDeployer
+  ).deploy(
     collectionPoolEnumerableETH.address,
     collectionPoolMissingEnumerableETH.address,
     collectionPoolEnumerableERC20.address,
@@ -247,7 +249,10 @@ export async function collectionFixture() {
   // curve
   const ExponentialCurve = await ethers.getContractFactory("ExponentialCurve");
   const exponentialCurve = await ExponentialCurve.connect(ammDeployer).deploy();
-  await collectionPoolFactory.setBondingCurveAllowed(exponentialCurve.address, true);
+  await collectionPoolFactory.setBondingCurveAllowed(
+    exponentialCurve.address,
+    true
+  );
 
   const LinearCurve = await ethers.getContractFactory("LinearCurve");
   const linearCurve = await LinearCurve.connect(ammDeployer).deploy();
@@ -255,7 +260,10 @@ export async function collectionFixture() {
 
   const SigmoidCurve = await ethers.getContractFactory("SigmoidCurve");
   const sigmoidCurve = await SigmoidCurve.connect(ammDeployer).deploy();
-  await collectionPoolFactory.setBondingCurveAllowed(sigmoidCurve.address, true);
+  await collectionPoolFactory.setBondingCurveAllowed(
+    sigmoidCurve.address,
+    true
+  );
 
   const map: { [key in curveType]: any } = {
     linear: linearCurve,
@@ -264,7 +272,7 @@ export async function collectionFixture() {
   };
 
   return {
-    ammDeployer, 
+    ammDeployer,
     curve: map[CURVE_TYPE!],
     factory: collectionPoolFactory,
   };
@@ -282,7 +290,8 @@ export async function everythingFixture() {
   const CollectionPoolEnumerableETH = await ethers.getContractFactory(
     "CollectionPoolEnumerableETH"
   );
-  const collectionPoolEnumerableETH = await CollectionPoolEnumerableETH.deploy();
+  const collectionPoolEnumerableETH =
+    await CollectionPoolEnumerableETH.deploy();
 
   const CollectionPoolMissingEnumerableETH = await ethers.getContractFactory(
     "CollectionPoolMissingEnumerableETH"
@@ -293,7 +302,8 @@ export async function everythingFixture() {
   const CollectionPoolEnumerableERC20 = await ethers.getContractFactory(
     "CollectionPoolEnumerableERC20"
   );
-  const collectionPoolEnumerableERC20 = await CollectionPoolEnumerableERC20.deploy();
+  const collectionPoolEnumerableERC20 =
+    await CollectionPoolEnumerableERC20.deploy();
 
   const CollectionPoolMissingEnumerableERC20 = await ethers.getContractFactory(
     "CollectionPoolMissingEnumerableERC20"
@@ -314,7 +324,9 @@ export async function everythingFixture() {
     royaltyNumerator,
   } = getCurveParameters();
 
-  const CollectionPoolFactory = await ethers.getContractFactory("CollectionPoolFactory");
+  const CollectionPoolFactory = await ethers.getContractFactory(
+    "CollectionPoolFactory"
+  );
   const collectionPoolFactory = await CollectionPoolFactory.deploy(
     collectionPoolEnumerableETH.address,
     collectionPoolMissingEnumerableETH.address,
@@ -544,7 +556,6 @@ export async function royaltyFixture(): Promise<{
   tokenIdsWithRoyalty: string[];
   tokenIdsWithoutRoyalty: string[];
   collectionPoolFactory: CollectionPoolFactory;
-  collectionswap: Collectionswap;
   otherAccount1: SignerWithAddress;
   ethPoolParams: EthPoolParams;
   fee: BigNumber;
@@ -558,7 +569,6 @@ export async function royaltyFixture(): Promise<{
     owner,
     royaltyRecipient0,
     royaltyRecipient1,
-    royaltyRecipient2,
     royaltyRecipientOverride,
   } = await getSigners();
 
@@ -580,12 +590,8 @@ export async function royaltyFixture(): Promise<{
     )
   );
 
-  const {
-    collectionPoolFactory,
-    collectionswap,
-    otherAccount1,
-    ethPoolParams,
-  } = (await everythingFixture()) as any;
+  const { collectionPoolFactory, otherAccount1, ethPoolParams } =
+    (await everythingFixture()) as any;
 
   // Approve all tokenids
   for (const id of nftsWithRoyalty) {
@@ -604,7 +610,6 @@ export async function royaltyFixture(): Promise<{
     tokenIdsWithRoyalty: nftsWithRoyalty,
     tokenIdsWithoutRoyalty: nftsWithoutRoyalty,
     collectionPoolFactory,
-    collectionswap,
     otherAccount1,
     ethPoolParams,
     royaltyRecipientOverride,
@@ -629,7 +634,6 @@ export async function royaltyWithPoolFixture(): Promise<{
   royaltyRecipientOverride: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
   collectionPoolFactory: CollectionPoolFactory;
-  collectionswap: Collectionswap;
   otherAccount1: SignerWithAddress;
   ethPoolParams: EthPoolParams;
   collectionPoolETH: CollectionPoolETH;
@@ -645,7 +649,6 @@ export async function royaltyWithPoolFixture(): Promise<{
     recipients,
     tokenIdsWithRoyalty,
     collectionPoolFactory,
-    collectionswap,
     otherAccount1,
     ethPoolParams,
     royaltyRecipientOverride,
@@ -706,7 +709,6 @@ export async function royaltyWithPoolFixture(): Promise<{
     recipients,
     tokenIdsWithRoyalty,
     collectionPoolFactory,
-    collectionswap,
     otherAccount1,
     ethPoolParams,
     collectionPoolETH,
@@ -726,7 +728,6 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
   royaltyRecipientOverride: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
   collectionPoolFactory: CollectionPoolFactory;
-  collectionswap: Collectionswap;
   otherAccount1: SignerWithAddress;
   ethPoolParams: EthPoolParams;
   collectionPoolETH: CollectionPoolETH;
@@ -741,7 +742,6 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
     recipients,
     tokenIdsWithRoyalty,
     collectionPoolFactory,
-    collectionswap,
     otherAccount1,
     ethPoolParams,
     royaltyRecipientOverride,
@@ -793,7 +793,6 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
     recipients,
     tokenIdsWithRoyalty,
     collectionPoolFactory,
-    collectionswap,
     otherAccount1,
     ethPoolParams,
     collectionPoolETH,

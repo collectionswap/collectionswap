@@ -12,18 +12,12 @@ contract TokenIDFilter is ITokenIDFilter {
 
     uint32[999] _padding;
 
-    function _setRootAndEmitAcceptedIDs(
-        address collection,
-        bytes32 root,
-        bytes calldata data
-    ) internal {
+    function _setRootAndEmitAcceptedIDs(address collection, bytes32 root, bytes calldata data) internal {
         tokenIDFilterRoot = root;
         emit AcceptsTokenIDs(collection, tokenIDFilterRoot, data);
     }
 
-    function _acceptsTokenID(uint256 tokenID, bytes32[] calldata proof)
-    internal view returns (bool)
-    {
+    function _acceptsTokenID(uint256 tokenID, bytes32[] calldata proof) internal view returns (bool) {
         if (tokenIDFilterRoot == 0) {
             return true;
         }
@@ -39,19 +33,23 @@ contract TokenIDFilter is ITokenIDFilter {
     }
 
     function _acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags)
-    internal view returns (bool)
+        internal
+        view
+        returns (bool)
     {
         if (tokenIDFilterRoot == 0) {
             return true;
         }
 
-        uint length = tokenIDs.length;
+        uint256 length = tokenIDs.length;
         bytes32[] memory leaves = new bytes32[](length);
 
-        for (uint i; i < length;) {
+        for (uint256 i; i < length;) {
             // double hash to prevent second preimage attack
             leaves[i] = keccak256(abi.encodePacked(keccak256(abi.encodePacked((tokenIDs[i])))));
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         return MerkleProof.multiProofVerify(proof, proofFlags, tokenIDFilterRoot, leaves);

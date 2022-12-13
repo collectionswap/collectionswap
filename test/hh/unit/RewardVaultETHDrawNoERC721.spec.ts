@@ -9,15 +9,18 @@ import {
   getCurveParameters,
   validatorFixture,
 } from "../shared/fixtures";
-import { createPoolEth, mintNfts } from "../shared/helpers";
+import {
+  checkOwnershipERC721List,
+  checkSufficiencyERC20List,
+  createPoolEth,
+  mintNfts,
+} from "../shared/helpers";
 import { getSigners } from "../shared/signers";
 
 import type {
-  ICollectionPoolFactory,
+  CollectionPoolFactory,
   ICurve,
-  IERC20,
   IERC721,
-  RewardVaultETH,
   RewardVaultETHDraw,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -36,43 +39,17 @@ async function getVaultAddress(tx: ContractTransaction, showGas = false) {
   return { poolAddress };
 }
 
-async function checkOwnershipERC721List(
-  nftAddressList,
-  nftIdList,
-  ownerAddress
-) {
-  for (let i = 0; i < nftAddressList.length; i++) {
-    const nftAddress = nftAddressList[i];
-    const nftId = nftIdList[i];
-    const nft = await ethers.getContractAt("IERC721", nftAddress);
-    expect(await nft.ownerOf(nftId)).to.equal(ownerAddress);
-  }
-}
-
-async function checkSufficiencyERC20List(
-  tokenAddressList,
-  tokenAmountList,
-  ownerAddress
-) {
-  for (let i = 0; i < tokenAddressList.length; i++) {
-    const tokenAddress = tokenAddressList[i];
-    const tokenAmount = tokenAmountList[i];
-    const token = await ethers.getContractAt("IERC20", tokenAddress);
-    expect(await token.balanceOf(ownerAddress)).to.be.at.least(tokenAmount);
-  }
-}
-
-async function getPrizesPerWinnerFromSet(tx: ContractTransaction) {
-  const receipt = await tx.wait();
-  // console.log(receipt)
-  const event = receipt.events?.find(
-    (e) => e.event === "PrizesPerWinnerUpdated"
-  );
-  console.log(event?.args)
-  const epoch = event?.args?.epoch;
-  const numPrizesPerWinner = event?.args?.numPrizesPerWinner;
-  return { numPrizesPerWinner, epoch };
-}
+// Async function getPrizesPerWinnerFromSet(tx: ContractTransaction) {
+//   const receipt = await tx.wait();
+//   // Console.log(receipt)
+//   const event = receipt.events?.find(
+//     (e) => e.event === "PrizesPerWinnerUpdated"
+//   );
+//   console.log(event?.args);
+//   const epoch = event?.args?.epoch;
+//   const numPrizesPerWinner = event?.args?.numPrizesPerWinner;
+//   return { numPrizesPerWinner, epoch };
+// }
 
 async function getDrawWinnersFromResolve(tx: ContractTransaction) {
   const receipt = await tx.wait();
@@ -85,7 +62,7 @@ async function getDrawWinnersFromResolve(tx: ContractTransaction) {
 // Two participant draw
 // NB: both tokens are staked, but user's token is not staked for the full duration.
 async function runTwoParticipantDraw(
-  factory: ICollectionPoolFactory,
+  factory: CollectionPoolFactory,
   user: SignerWithAddress,
   user1: SignerWithAddress,
   rewardVault: RewardVaultETHDraw,
@@ -203,25 +180,9 @@ async function setUpNewPrizeNFT(
 }
 
 describe("RewardVaultETHDraw", function () {
-  let factory: ICollectionPoolFactory;
-  let collectionstaker: Collectionstaker;
-  let allRewardTokens: IERC20[];
-  let rewardTokens: IERC20[];
-  let rewards: BigNumberish[];
-  let lpTokenId: BigNumberish;
-  let lpTokenId1: BigNumberish;
-  let rewardVault: RewardVaultETH;
+  let factory: CollectionPoolFactory;
   let owner: SignerWithAddress;
-  let user: SignerWithAddress;
-  let user1: SignerWithAddress;
-  let user2: SignerWithAddress;
-  let collection: SignerWithAddress;
-  let rng: any;
   let protocolFactorySigner: SignerWithAddress;
-  let startTime: number;
-  let endTime: number;
-  let distinctNFTs: IERC721[];
-  //   Let rewardDuration: number;
 
   const prizesPerWinner = 1;
   const numRewardTokens = 2;
@@ -240,25 +201,9 @@ describe("RewardVaultETHDraw", function () {
   const rewardDuration = dayDuration;
 
   beforeEach(async function () {
-    ({
-      factory,
-      collectionstaker,
-      allRewardTokens,
-      rewardTokens,
-      rewards,
-      lpTokenId,
-      lpTokenId1,
-      owner,
-      user,
-      user1,
-      user2,
-      collection,
-      protocolFactorySigner,
-      startTime,
-      endTime,
-      rng,
-      //   RewardDuration,
-    } = await loadFixture(rewardVaultDrawFixture));
+    ({ factory, owner, protocolFactorySigner } = await loadFixture(
+      rewardVaultDrawFixture
+    ));
   });
 
   async function rewardVaultDrawFixture() {
@@ -347,15 +292,6 @@ describe("RewardVaultETHDraw", function () {
       }
     }
 
-    // Shuffle possibleShuffledNFTTuples
-    const shuffledNFTTuples = possibleShuffledNFTTuples.sort(
-      () => Math.random() - 0.5
-    );
-
-    // Unzip shuffledNFTTuples
-    const shuffledNFTAddresses = shuffledNFTTuples.map((tuple) => tuple[0]);
-    const shuffledNFTTokenIds = shuffledNFTTuples.map((tuple) => tuple[1]);
-
     // For the ERC721s, let protocol approve collectionstaker
     for (let i = 0; i < numDistinctERC721Tokens; i++) {
       const distinctNFT = distinctNFTs[i];
@@ -383,8 +319,8 @@ describe("RewardVaultETHDraw", function () {
       endTime,
       drawERC20Tokens,
       drawERC20TokenAmounts,
-      [], //shuffledNFTAddresses,
-      [], //shuffledNFTTokenIds,
+      [], // ShuffledNFTAddresses,
+      [], // ShuffledNFTTokenIds,
       prizesPerWinner,
       startTime,
       endTime
@@ -490,7 +426,7 @@ describe("RewardVaultETHDraw", function () {
       const prizeSet = await rewardVault.epochPrizeSets(epoch);
       expect(prizeSet.numERC721Prizes).to.equal(
         0
-        // numPerERC721Token * numDistinctERC721Tokens
+        // NumPerERC721Token * numDistinctERC721Tokens
       );
 
       const chances = await rewardVault.viewChanceOfDraw(user.address);
@@ -665,7 +601,6 @@ describe("RewardVaultETHDraw", function () {
         lpTokenId1,
         user,
         user1,
-        user2,
         startTime,
         rng,
         distinctNFTs,
@@ -684,15 +619,13 @@ describe("RewardVaultETHDraw", function () {
 
       const thisPrizePerWinner = 7;
       await rewardVault.connect(owner).setPrizePerWinner(thisPrizePerWinner); // 30 % 7 == 2
-      const thisRemainder =
-        (numPerERC721Token * numDistinctERC721Tokens) % thisPrizePerWinner;
 
       await time.increase(rewardDuration);
 
       await rewardVault.connect(user1).closeDraw();
       await rng.setRandomNumber(999);
       const tx = await rewardVault.connect(user1).resolveDrawResults();
-      const { winners, epoch } = await getDrawWinnersFromResolve(tx);
+      const { epoch } = await getDrawWinnersFromResolve(tx);
       // Loop through distinctNFTs
       let beforeBalance = ethers.utils.parseEther("0");
       for (let i = 0; i < distinctNFTs.length; i++) {
@@ -702,21 +635,17 @@ describe("RewardVaultETHDraw", function () {
         );
       }
 
-      // can only sweep after reward sweep time
-      let rewardSweepTime = await rewardVault.rewardSweepTime();
+      // Can only sweep after reward sweep time
+      const rewardSweepTime = await rewardVault.rewardSweepTime();
       await time.increaseTo(rewardSweepTime);
 
-      // get numPrizes
-      const {
-        hasNFTPrizes,
-        numberOfDrawWinners,
-        numberOfPrizesPerWinner,
-        remainder,
-      } = await rewardVault.getDrawDistribution(epoch);
-      let numNFTPrizes = (await rewardVault.epochPrizeSets(epoch)).numERC721Prizes;
+      // Get numPrizes
+      const { remainder } = await rewardVault.getDrawDistribution(epoch);
+      const numNFTPrizes = (await rewardVault.epochPrizeSets(epoch))
+        .numERC721Prizes;
       // NFTs are swept from the back
-      let remainderNfts = [];
-      for (let i = 0; i < remainder; ++i) {
+      const remainderNfts = [];
+      for (let i = 0; i < remainder.toNumber(); ++i) {
         remainderNfts.push(numNFTPrizes.sub(i));
       }
 
@@ -733,7 +662,7 @@ describe("RewardVaultETHDraw", function () {
       expect(afterBalance.sub(beforeBalance)).to.equal(remainder);
 
       // Cannot call it again for the same epoch
-      if (numNFTPrizes>0) {
+      if (numNFTPrizes.toNumber() > 0) {
         await expect(
           rewardVault.connect(owner).sweepUnclaimedNfts(epoch, remainderNfts)
         ).to.be.revertedWith("ERC721: caller is not token owner nor approved");
@@ -751,7 +680,7 @@ describe("RewardVaultETHDraw", function () {
         startTime,
         rng,
         distinctNFTs,
-        owner
+        owner,
       } = await loadFixture(rewardVaultDrawFixture);
 
       await runTwoParticipantDraw(
@@ -766,14 +695,14 @@ describe("RewardVaultETHDraw", function () {
       );
 
       await time.increase(rewardDuration);
-      await rewardVault.connect(owner).setPrizePerWinner(40) // this sets the divisbility of the prize
+      await rewardVault.connect(owner).setPrizePerWinner(40); // This sets the divisbility of the prize
 
       await rewardVault.connect(user1).closeDraw();
       await rng.setRandomNumber(999);
       const tx = await rewardVault.connect(user1).resolveDrawResults();
       const { winners, epoch } = await getDrawWinnersFromResolve(tx);
 
-      // console.log(winners, epoch);
+      // Console.log(winners, epoch);
       console.log(await rewardVault.getDrawDistribution(epoch));
 
       // Probabilistic if RNG were not set, which it is. = 999
@@ -785,7 +714,8 @@ describe("RewardVaultETHDraw", function () {
       expect(winners).to.include(user1.address);
       expect(epoch).to.equal(1);
 
-      expect(await rewardVault.isPrizeClaimable(epoch, user.address)).to.be.true;
+      expect(await rewardVault.isPrizeClaimable(epoch, user.address)).to.be
+        .true;
       await rewardVault.connect(user).claimMyShare(epoch);
       expect(await rewardVault.isPrizeClaimable(epoch, user.address)).to.be
         .false;
@@ -806,7 +736,9 @@ describe("RewardVaultETHDraw", function () {
       let totalNFTs = ethers.utils.parseEther("0");
       for (let i = 0; i < distinctNFTs.length; i++) {
         // RewardVault should have 0
-        expect(await distinctNFTs[i].balanceOf(rewardVault.address)).to.equal(0);
+        expect(await distinctNFTs[i].balanceOf(rewardVault.address)).to.equal(
+          0
+        );
         // Add the balances of user and user1 to totalNFTs
         totalNFTs = totalNFTs.add(
           await distinctNFTs[i].balanceOf(user.address)
@@ -922,8 +854,7 @@ describe("RewardVaultETHDraw", function () {
       await rng.setRandomNumber(999);
 
       const tx2 = await rewardVault.connect(user1).resolveDrawResults(); // Any tom dick or harry can resolve the draw
-      const { epoch: epoch2 } =
-        await getDrawWinnersFromResolve(tx2);
+      const { epoch: epoch2 } = await getDrawWinnersFromResolve(tx2);
 
       await rewardVault.connect(user).claimMyShare(epoch2);
       await checkOwnershipERC721List(
@@ -969,8 +900,7 @@ describe("RewardVaultETHDraw", function () {
         // Close the draw
         await time.increase(rewardDuration);
         if (expectedEpoch === 1) {
-          const settx = await rewardVault.connect(owner).setPrizePerWinner(40) // this sets the divisbility of the prize
-          // console.log(await getPrizesPerWinnerFromSet(settx))
+          await rewardVault.connect(owner).setPrizePerWinner(40); // This sets the divisbility of the prize
         }
 
         await rewardVault.connect(user1).closeDraw();
@@ -983,14 +913,12 @@ describe("RewardVaultETHDraw", function () {
         // Resolve the draw
         const tx = await rewardVault.connect(user1).resolveDrawResults();
         const { winners, epoch } = await getDrawWinnersFromResolve(tx);
-        // console.log(winners,epoch)
         expect(await rewardVault.drawStatus()).to.equal(drawStatusResolved);
-        
+
         // Expect winners to be ok
         const numberWinners = (
           await rewardVault.connect(user).epochWinnerConfigs(epoch)
-          ).numberOfDrawWinners;
-        // console.log(11)
+        ).numberOfDrawWinners;
         expect(winners.length).to.equal(numberWinners);
         expect(winners).to.include(user.address);
         expect(winners).to.include(user1.address);
@@ -1000,7 +928,6 @@ describe("RewardVaultETHDraw", function () {
         const numNewPrizesThisEpoch = 50;
         const { newPrizeNFTAddresses, newPrizeTokenIds } =
           await setUpNewPrizeNFT(numNewPrizesThisEpoch, owner, rewardVault);
-        // console.log(newPrizeNFTAddresses, newPrizeTokenIds,newPrizeTokenIds.length);
         const rewardTokenAmount = ethers.utils.parseEther("1000");
         const { rewardTokensNew, rewardTokenAmountList } =
           await setUpNewPrizeERC20(owner, rewardVault, rewardTokenAmount);
@@ -1014,10 +941,7 @@ describe("RewardVaultETHDraw", function () {
           thisStartTime,
           thisStartTime + rewardDuration
         );
-        // console.log(12)
-        let empiricalEpoch = await rewardVault.thisEpoch();
-        // console.log('empirical',empiricalEpoch,expectedEpoch)
-        // console.log('def',await rewardVault.epochPrizeSets(empiricalEpoch));
+        await rewardVault.thisEpoch();
       }
     }).timeout(100000);
 
@@ -1066,9 +990,10 @@ describe("RewardVaultETHDraw", function () {
         // Close the draw
         await time.increase(rewardDuration);
         if (expectedEpoch === 1) {
-          const settx = await rewardVault.connect(owner).setPrizePerWinner(40) // this sets the divisbility of the prize
+          await rewardVault.connect(owner).setPrizePerWinner(40); // This sets the divisbility of the prize
           // console.log(await getPrizesPerWinnerFromSet(settx))
         }
+
         await rewardVault.connect(user1).closeDraw();
         expect(await rewardVault.drawStatus()).to.equal(drawStatusClosed);
 
@@ -1123,7 +1048,6 @@ describe("RewardVaultETHDraw", function () {
 
         if (epoch > 1) {
           for (let i = 0; i < rewardTokens.length; i++) {
-            const rewardToken = rewardTokens[i];
             const prevBalance = prevBalanceTracking[i];
             const balance = balanceTracking[i];
             // Const reward = newRewardAmount
@@ -1191,9 +1115,7 @@ describe("RewardVaultETHDraw", function () {
 
       const epoch = await rewardVault.thisEpoch();
       const prizeSet = await rewardVault.epochPrizeSets(epoch);
-      expect(prizeSet.numERC721Prizes).to.equal(
-        numNewPrizes + 0
-      );
+      expect(prizeSet.numERC721Prizes).to.equal(numNewPrizes + 0);
     });
 
     it("Should not be able to add new prizes by any other person", async function () {

@@ -15,13 +15,13 @@ yarn compile
 3. Run the deploy script
 
 ```bash
-# Rinkeby deployment
-npx hardhat deployCollectionSet --network goerli
+# Goerli deployment
+yarn deploy --network goerli
 
 # Mainnet deployment
-npx hardhat deployCollectionSet --network mainnet
+yarn deploy --network mainnet
 ```
 
 4. Verification Script
 
-Etherscan verification might fail for various reasons. Run `npx hardhat verifyCollectionSet --network goerli` in the root directory.
+Etherscan verification might fail for various reasons. Run `yarn verify --network <network>` in the root directory.

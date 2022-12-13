@@ -58,7 +58,7 @@ describe("CollectionPoolETH", function () {
     const { delta, spotPrice, props, state, royaltyNumerator, protocolFee } =
       getCurveParameters();
 
-    const baseURI = "https://collection.xyz/api/"
+    const baseURI = "https://collection.xyz/api/";
     await factory.connect(ammDeployer).setBaseURI(baseURI);
 
     const resp = await factory.connect(user).createPoolETH({
@@ -77,15 +77,14 @@ describe("CollectionPoolETH", function () {
       initialNFTIDs: nftTokenIds,
     });
     const receipt = await resp.wait();
-    // get the NewTokenId event
-    const event = (receipt.events?.filter((e) => e.event === "NewTokenId"));
+    // Get the NewTokenId event
+    const event = receipt.events?.filter((e) => e.event === "NewTokenId");
     const lpTokenId = event?.[0].args?.tokenId;
 
     expect(await factory.tokenURI(lpTokenId)).to.equal(
-      // concatenation of baseURI and lpTokenId
+      // Concatenation of baseURI and lpTokenId
       baseURI + lpTokenId
     );
-      
 
     return {
       collectionPoolFactory: factory,
@@ -102,7 +101,7 @@ describe("CollectionPoolETH", function () {
       fee,
       protocolFee,
       royaltyNumerator,
-      lpTokenId
+      lpTokenId,
     };
   }
 
@@ -391,7 +390,9 @@ describe("CollectionPoolETH", function () {
     await expectAddressToOwnNFTs(collectionPoolETH.address, nft, nftTokenIds);
 
     // The pool should accrue trade fees
-    expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee1.add(tradeFee2));
+    expect(await collectionPoolETH.tradeFee()).to.equal(
+      tradeFee1.add(tradeFee2)
+    );
   });
 
   it("Should not be able to use trade fee when selling", async function () {
@@ -468,7 +469,9 @@ describe("CollectionPoolETH", function () {
       )
     ).to.be.true;
 
-    expect(await nft.ownerOf(nftTokenIds[0])).to.equal(collectionPoolETH.address);
+    expect(await nft.ownerOf(nftTokenIds[0])).to.equal(
+      collectionPoolETH.address
+    );
 
     // The pool should accrue the trade fees
     expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee);
@@ -602,7 +605,9 @@ describe("CollectionPoolETH", function () {
         totalSellRoyalties += royalty;
       });
 
-      await nft.connect(user1).setApprovalForAll(collectionPoolETH.address, true);
+      await nft
+        .connect(user1)
+        .setApprovalForAll(collectionPoolETH.address, true);
 
       // The seller should own the nfts
       await expectAddressToOwnNFTs(user1.address, nft, nftTokenIds);
@@ -637,7 +642,9 @@ describe("CollectionPoolETH", function () {
       await expectAddressToOwnNFTs(collectionPoolETH.address, nft, nftTokenIds);
 
       // The pool should accrue the trade fees
-      expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee1.add(tradeFee2));
+      expect(await collectionPoolETH.tradeFee()).to.equal(
+        tradeFee1.add(tradeFee2)
+      );
     });
 
     it("Should be able to withdraw trade fees", async function () {
@@ -659,7 +666,9 @@ describe("CollectionPoolETH", function () {
       expect(tradeFee).to.not.equal(0);
 
       // The user should receive everything
-      const balance = await ethers.provider.getBalance(collectionPoolETH.address);
+      const balance = await ethers.provider.getBalance(
+        collectionPoolETH.address
+      );
       await expect(collectionPoolETH.withdrawAllETH()).to.changeEtherBalances(
         [collectionPoolETH, user],
         [balance.mul(-1), balance]

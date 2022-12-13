@@ -1,11 +1,14 @@
 {
   "scripts": {
     "compile": "hardhat compile",
+    "format": "bash -c 'forge fmt contracts/{bonding-curves,filter,pools,rng,routers,tree,validators,vaults} $(find contracts -maxdepth 1 -type f)'",
     "test:foundry": "forge test",
-    "test:hh": "hardhat test",
+    "test:hh": "TESTING=true hardhat test",
     "lint": "yarn lint:ci --fix",
-    "lint:ci": "eslint scripts test --ext .ts",
-    "solhint": "solhint 'contracts/**/*.sol'"
+    "lint:ci": "eslint scripts test hardhat.config.ts --ext .ts",
+    "solhint": "solhint 'contracts/**/*.sol'",
+    "deploy": "hardhat clean && hardhat compile && hardhat deployCollectionSet",
+    "verify": "hardhat verifyCollectionSet"
   },
   "devDependencies": {
     "@chainlink/contracts": "^0.5.1",

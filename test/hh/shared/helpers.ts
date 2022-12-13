@@ -150,7 +150,7 @@ export async function createPoolEth(
     nft: nft.address,
     bondingCurve: bondingCurve.address,
     assetRecipient: ethers.constants.AddressZero,
-    receiver: factory.signer.address,
+    receiver: await factory.signer.getAddress(),
     poolType: 2, // TRADE
     delta,
     fee,
@@ -720,4 +720,30 @@ export async function enumerateAddress(
   }
 
   return output.map((bn) => bn.toString());
+}
+
+export async function checkOwnershipERC721List(
+  nftAddressList: string[],
+  nftIdList: string[],
+  ownerAddress: string
+) {
+  for (let i = 0; i < nftAddressList.length; i++) {
+    const nftAddress = nftAddressList[i];
+    const nftId = nftIdList[i];
+    const nft = await ethers.getContractAt("IERC721", nftAddress);
+    expect(await nft.ownerOf(nftId)).to.equal(ownerAddress);
+  }
+}
+
+export async function checkSufficiencyERC20List(
+  tokenAddressList: string[],
+  tokenAmountList: BigNumber[],
+  ownerAddress: string
+) {
+  for (let i = 0; i < tokenAddressList.length; i++) {
+    const tokenAddress = tokenAddressList[i];
+    const tokenAmount = tokenAmountList[i];
+    const token = await ethers.getContractAt("IERC20", tokenAddress);
+    expect(await token.balanceOf(ownerAddress)).to.be.at.least(tokenAmount);
+  }
 }

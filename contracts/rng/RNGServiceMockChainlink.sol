@@ -23,12 +23,7 @@ contract RNGServiceMockChainlink is RNGChainlinkV2Interface {
 
     /// @return _feeToken
     /// @return _requestFee
-    function getRequestFee()
-        external
-        view
-        override
-        returns (address _feeToken, uint256 _requestFee)
-    {
+    function getRequestFee() external view override returns (address _feeToken, uint256 _requestFee) {
         return (feeToken, requestFee);
     }
 
@@ -57,17 +52,11 @@ contract RNGServiceMockChainlink is RNGChainlinkV2Interface {
         return 0;
     }
 
-    function getVrfCoordinator()
-        external
-        view
-        override
-        returns (VRFCoordinatorV2Interface)
-    {
+    function getVrfCoordinator() external view override returns (VRFCoordinatorV2Interface) {
         return VRFCoordinatorV2Interface(address(0));
     }
 
-    function setKeyhash(bytes32 keyHash) external override {
-    }
+    function setKeyhash(bytes32 keyHash) external override {}
 
     function setSubscriptionId(uint64 subscriptionId) external override {}
 

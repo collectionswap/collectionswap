@@ -336,7 +336,9 @@ describe("RewardVaultETH", function () {
     const phase2 = periodFinish - user1StakeTime;
 
     // Make sure the time has passed
-    expect(await time.latest()).to.greaterThan(await rewardVault.periodFinish());
+    expect(await time.latest()).to.greaterThan(
+      await rewardVault.periodFinish()
+    );
 
     // The only user should get most rewards
     // there will be some dust in the contract
@@ -681,7 +683,10 @@ describe("RewardVaultETH", function () {
 
         // @ts-ignore
         await rewardToken.mint(owner.address, additionalRewards[i]);
-        await rewardTokens[i].approve(rewardVault.address, additionalRewards[i]);
+        await rewardTokens[i].approve(
+          rewardVault.address,
+          additionalRewards[i]
+        );
       }
 
       // Get rewardRates

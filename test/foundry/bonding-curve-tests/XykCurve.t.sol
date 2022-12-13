@@ -8,19 +8,19 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {XykCurve} from "../../../contracts/bonding-curves/XykCurve.sol";
 import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
-import {ICollectionPool} from "../../../contracts/ICollectionPool.sol";
-import {ICollectionPoolFactory} from "../../../contracts/ICollectionPoolFactory.sol";
-import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
-import {CollectionPoolEnumerableETH} from "../../../contracts/CollectionPoolEnumerableETH.sol";
-import {CollectionPoolMissingEnumerableETH} from "../../../contracts/CollectionPoolMissingEnumerableETH.sol";
-import {CollectionPoolEnumerableERC20} from "../../../contracts/CollectionPoolEnumerableERC20.sol";
-import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/CollectionPoolMissingEnumerableERC20.sol";
+import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
+import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
+import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
+import {CollectionPoolEnumerableETH} from "../../../contracts/pools/CollectionPoolEnumerableETH.sol";
+import {CollectionPoolMissingEnumerableETH} from "../../../contracts/pools/CollectionPoolMissingEnumerableETH.sol";
+import {CollectionPoolEnumerableERC20} from "../../../contracts/pools/CollectionPoolEnumerableERC20.sol";
+import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/pools/CollectionPoolMissingEnumerableERC20.sol";
 import {CollectionPoolCloner} from "../../../contracts/lib/CollectionPoolCloner.sol";
-import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
-import {Test721} from "../../../contracts/mocks/Test721.sol";
+import {Test721} from "../../../contracts/test/mocks/Test721.sol";
 
 import {Hevm} from "../utils/Hevm.sol";
 

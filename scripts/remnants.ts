@@ -25,22 +25,23 @@ async function directAMMPoolCreation(
   spotPrice: BigNumber,
   initialNFTIDs: number[]
 ) {
-  const collectionPoolETHContractTx: ContractTransaction = await collectionPoolFactory
-    .connect(connectToThisAccount)
-    .createPoolETH(
-      nftContractCollection.address,
-      curve.address,
-      assetRecipient,
-      poolType,
-      delta,
-      fee,
-      spotPrice,
-      initialNFTIDs,
-      {
-        value: ethers.BigNumber.from(`${1.2e18}`),
-        gasLimit: 1000000,
-      }
-    );
+  const collectionPoolETHContractTx: ContractTransaction =
+    await collectionPoolFactory
+      .connect(connectToThisAccount)
+      .createPoolETH(
+        nftContractCollection.address,
+        curve.address,
+        assetRecipient,
+        poolType,
+        delta,
+        fee,
+        spotPrice,
+        initialNFTIDs,
+        {
+          value: ethers.BigNumber.from(`${1.2e18}`),
+          gasLimit: 1000000,
+        }
+      );
   // https://stackoverflow.com/questions/68432609/contract-event-listener-is-not-firing-when-running-hardhat-tests-with-ethers-js
   const collectionPoolETHContractReceipt: ContractReceipt =
     await collectionPoolETHContractTx.wait();

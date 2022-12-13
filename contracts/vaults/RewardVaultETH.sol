@@ -7,10 +7,10 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {ICurve} from "./bonding-curves/ICurve.sol";
-import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
-import {ICollectionPool} from "./ICollectionPool.sol";
-import {IValidator} from "./validators/IValidator.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
+import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
+import {ICollectionPool} from "../pools/ICollectionPool.sol";
+import {IValidator} from "../validators/IValidator.sol";
 
 contract RewardVaultETH is IERC721Receiver, Initializable {
     using SafeERC20 for IERC20;
@@ -60,25 +60,15 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
      * reward token
      */
     mapping(IERC20 => uint256) public rewardPerTokenStored;
-    mapping(IERC20 => mapping(address => uint256))
-        public userRewardPerTokenPaid;
+    mapping(IERC20 => mapping(address => uint256)) public userRewardPerTokenPaid;
     mapping(IERC20 => mapping(address => uint256)) public rewards;
 
     event RewardAdded(uint256 reward);
     event Staked(address indexed user, uint256 tokenId, uint256 amount);
     event Withdrawn(address indexed user, uint256 tokenId, uint256 amount);
-    event RewardPaid(
-        IERC20 indexed rewardToken,
-        address indexed user,
-        uint256 reward
-    );
+    event RewardPaid(IERC20 indexed rewardToken, address indexed user, uint256 reward);
     event RewardSwept();
-    event RewardVaultRecharged(
-        IERC20[] rewardTokens,
-        uint256[] rewards,
-        uint256 startTime,
-        uint256 endTime
-    );
+    event RewardVaultRecharged(IERC20[] rewardTokens, uint256[] rewards, uint256 startTime, uint256 endTime);
 
     //////////////////////////////////////////
     // ERRORS
@@ -117,7 +107,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         uint256 rewardTokensLength = rewardTokens.length;
         // lastUpdateTime is set to startTime in constructor
         if (block.timestamp > lastUpdateTime) {
-            for (uint256 i; i < rewardTokensLength; ) {
+            for (uint256 i; i < rewardTokensLength;) {
                 IERC20 rewardToken = rewardTokens[i];
                 rewardPerTokenStored[rewardToken] = rewardPerToken(rewardToken);
                 unchecked {
@@ -127,12 +117,10 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
             lastUpdateTime = lastTimeRewardApplicable();
         }
         if (account != address(0)) {
-            for (uint256 i; i < rewardTokensLength; ) {
+            for (uint256 i; i < rewardTokensLength;) {
                 IERC20 rewardToken = rewardTokens[i];
                 rewards[rewardToken][account] = earned(account, rewardToken);
-                userRewardPerTokenPaid[rewardToken][
-                    account
-                ] = rewardPerTokenStored[rewardToken];
+                userRewardPerTokenPaid[rewardToken][account] = rewardPerTokenStored[rewardToken];
                 unchecked {
                     ++i;
                 }
@@ -214,7 +202,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         // Mark each ERC20 in the input as used by this pool, and ensure no
         // duplicates within the input
         uint256 newReward;
-        for (uint256 i; i < newRewardTokensLength; ) {
+        for (uint256 i; i < newRewardTokensLength;) {
             IERC20 inputRewardToken = inputRewardTokens[i];
             // ensure same ordering for existing tokens
             if (i < oldRewardTokensLength) {
@@ -229,11 +217,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
             newReward = inputRewardAmounts[i];
             // pull tokens
             if (newReward > 0) {
-                inputRewardToken.safeTransferFrom(
-                    msg.sender,
-                    address(this),
-                    newReward
-                );
+                inputRewardToken.safeTransferFrom(msg.sender, address(this), newReward);
 
                 // newReward = new reward rate
                 newReward /= (_newPeriodFinish - block.timestamp);
@@ -251,12 +235,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         periodFinish = _newPeriodFinish;
         rewardSweepTime = _newPeriodFinish + LOCK_TIME;
 
-        emit RewardVaultRecharged(
-            inputRewardTokens,
-            inputRewardAmounts,
-            block.timestamp,
-            _newPeriodFinish
-        );
+        emit RewardVaultRecharged(inputRewardTokens, inputRewardAmounts, block.timestamp, _newPeriodFinish);
     }
 
     /**
@@ -270,10 +249,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         unchecked {
             for (uint256 i; i < rewardTokensLength; ++i) {
                 IERC20 rewardToken = rewardTokens[i];
-                rewardToken.safeTransfer(
-                    _deployer,
-                    rewardToken.balanceOf(address(this))
-                );
+                rewardToken.safeTransfer(_deployer, rewardToken.balanceOf(address(this)));
             }
         }
     }
@@ -291,10 +267,10 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         uint256[] calldata _initialNFTIDs
     ) external payable returns (uint256 currTokenId) {
         // create pool with empty NFTs first
-         uint256[] memory _emptyInitialNFTIDs;
-         address pool;
+        uint256[] memory _emptyInitialNFTIDs;
+        address pool;
 
-        (pool, currTokenId) = lpToken.createPoolETH{value:msg.value}(
+        (pool, currTokenId) = lpToken.createPoolETH{value: msg.value}(
             ICollectionPoolFactory.CreateETHPoolParams({
                 nft: _nft,
                 bondingCurve: _bondingCurve,
@@ -313,12 +289,8 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         );
 
         // transfer NFTs into pool
-        for (uint256 i; i < _initialNFTIDs.length; ) {
-            _nft.safeTransferFrom(
-                msg.sender,
-                pool,
-                _initialNFTIDs[i]
-            );
+        for (uint256 i; i < _initialNFTIDs.length;) {
+            _nft.safeTransferFrom(msg.sender, pool, _initialNFTIDs[i]);
             unchecked {
                 ++i;
             }
@@ -327,9 +299,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         stake(currTokenId);
     }
 
-    function atomicExitAndUnpool(
-        uint256 _tokenId
-    ) external {
+    function atomicExitAndUnpool(uint256 _tokenId) external {
         exit(_tokenId);
         lpToken.burn(_tokenId);
     }
@@ -345,20 +315,12 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         ICollectionPoolFactory _lpToken = lpToken;
         if (_lpToken.ownerOf(tokenId) != msg.sender) revert Unauthorized();
 
-        ICollectionPoolFactory.LPTokenParams721 memory params = _lpToken
-            .viewPoolParams(tokenId);
+        ICollectionPoolFactory.LPTokenParams721 memory params = _lpToken.viewPoolParams(tokenId);
         ICollectionPool _pool = ICollectionPool(params.poolAddress);
         IERC721 _nft = nft;
         if (
-            params.nftAddress != address(_nft) ||
-            params.bondingCurveAddress != bondingCurve ||
-            !validator.validate(
-                _pool,
-                curveParams,
-                fee,
-                royaltyNumerator,
-                tokenIDFilterRoot
-            )
+            params.nftAddress != address(_nft) || params.bondingCurveAddress != bondingCurve
+                || !validator.validate(_pool, curveParams, fee, royaltyNumerator, tokenIDFilterRoot)
         ) revert PoolMismatch();
 
         // Calculate the number of tokens to mint. Equal to
@@ -368,26 +330,18 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         uint256 amount0 = _nft.balanceOf(address(_pool));
         uint256 amount1 = address(_pool).balance;
 
-        ( , , , ,uint256 bidPrice, , ) = _pool.getSellNFTQuote(1);
+        (,,,, uint256 bidPrice,,) = _pool.getSellNFTQuote(1);
         if (amount1 >= bidPrice) {
             amount = Math.sqrt(amount0 * amount1);
         }
 
         uint256 balance0 = _reserve0 + amount0;
         uint256 balance1 = _reserve1 + amount1;
-        if (
-            balance0 > type(uint128).max ||
-            balance1 > type(uint128).max
-        ) revert BalanceOverflow();
+        if (balance0 > type(uint128).max || balance1 > type(uint128).max) revert BalanceOverflow();
 
         reserve0 = uint128(balance0);
         reserve1 = uint128(balance1);
-        lpTokenInfo[tokenId] = LPTokenInfo({
-            amount0: amount0,
-            amount1: amount1,
-            amount: amount,
-            owner: msg.sender
-        });
+        lpTokenInfo[tokenId] = LPTokenInfo({amount0: amount0, amount1: amount1, amount: amount, owner: msg.sender});
     }
 
     /**
@@ -410,12 +364,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         delete lpTokenInfo[tokenId];
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) external pure returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
@@ -448,11 +397,8 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         if (totalSupply() == 0 || lastRewardTime <= lastUpdateTime) {
             return rewardPerTokenStored[_rewardToken];
         }
-        return
-            rewardPerTokenStored[_rewardToken] +
-            (((lastRewardTime - lastUpdateTime) *
-                rewardRates[_rewardToken] *
-                1e18) / totalSupply());
+        return rewardPerTokenStored[_rewardToken]
+            + (((lastRewardTime - lastUpdateTime) * rewardRates[_rewardToken] * 1e18) / totalSupply());
     }
 
     /**
@@ -464,10 +410,8 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
      * @return The amount of ERC20 token earned
      */
     function earned(address account, IERC20 _rewardToken) public view virtual returns (uint256) {
-        return balanceOf(account)
-                * (rewardPerToken(_rewardToken) - userRewardPerTokenPaid[_rewardToken][account])
-                / (1e18)
-                + rewards[_rewardToken][account];
+        return balanceOf(account) * (rewardPerToken(_rewardToken) - userRewardPerTokenPaid[_rewardToken][account])
+            / (1e18) + rewards[_rewardToken][account];
     }
 
     /**
@@ -502,7 +446,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
 
     function getReward() public updateReward(msg.sender) {
         uint256 rewardTokensLength = rewardTokens.length;
-        for (uint256 i; i < rewardTokensLength; ) {
+        for (uint256 i; i < rewardTokensLength;) {
             IERC20 rewardToken = rewardTokens[i];
             uint256 reward = earned(msg.sender, rewardToken);
             if (reward > 0) {
@@ -516,11 +460,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         }
     }
 
-    function getReserves()
-        public
-        view
-        returns (uint128 _reserve0, uint128 _reserve1)
-    {
+    function getReserves() public view returns (uint128 _reserve0, uint128 _reserve1) {
         _reserve0 = reserve0;
         _reserve1 = reserve1;
     }

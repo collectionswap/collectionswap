@@ -1,30 +1,59 @@
+import path from "path";
+
+import * as dotenv from "dotenv";
+import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/task-names";
+import { subtask } from "hardhat/config";
+
 import type { HardhatUserConfig } from "hardhat/config";
 
 import "@nomiclabs/hardhat-truffle5";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-contract-sizer";
-import path from "path";
 
-import * as dotenv from "dotenv";
-
-import './scripts/index';
+import "./scripts/index";
 
 dotenv.config();
 
-import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/task-names";
+const UNUSED_CONTRACTS = [
+  "CollectionRouter2",
+  "CollectionRouterWithRoyalties",
+].map((contractName: string) => {
+  return path.resolve(`./contracts/routers/${contractName}.sol`).toString();
+});
 
- subtask(
-   TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS,
-   async (_, { config }, runSuper) => {
-     const paths = await runSuper();
+const TESTING_DIRS = ["./contracts/test"].map((relPath: string) => {
+  return path.resolve(relPath).toString();
+});
 
-     return paths
-       .filter(solidityFilePath => {
-         const relativePath = path.relative(config.paths.sources, solidityFilePath)
+subtask(
+  TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS,
+  async (_, { config: _config }, runSuper) => {
+    const shouldCompileTestFiles =
+      process.env.TESTING?.toLowerCase() === "true";
+    const paths: any = await runSuper();
 
-         return !relativePath.endsWith(".t.sol");
-       })
-   }
+    const excludedFiles = UNUSED_CONTRACTS;
+    const excludedDirs = shouldCompileTestFiles ? [] : TESTING_DIRS;
+
+    const filteredPaths = paths.filter((solidityFilePath: string) => {
+      // First check if it's in an excluded directory
+      for (const excludedDir of excludedDirs) {
+        if (solidityFilePath.startsWith(excludedDir)) {
+          return false;
+        }
+      }
+
+      // Then check if it's an excluded file
+      for (const excludedFile of excludedFiles) {
+        if (excludedFile === solidityFilePath) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+    return filteredPaths;
+  }
 );
 
 const config: HardhatUserConfig = {
@@ -35,16 +64,16 @@ const config: HardhatUserConfig = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 150
+            runs: 150,
           },
-          viaIR: true
-        }
-      }
+          viaIR: true,
+        },
+      },
     ],
   },
   gasReporter: {
     enabled: true,
-    coinmarketcap: process.env.COINMARKETCAP_API_KEY
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
   },
   contractSizer: { runOnCompile: true },
   networks: {
@@ -83,11 +112,11 @@ const config: HardhatUserConfig = {
           process.env.POLYGONSCAN_API_KEY,
         ])
       ),
-    },
+    } as Record<string, string> | undefined,
   },
   paths: {
     tests: "./test/hh",
-  }
+  },
 };
 
 export default config;

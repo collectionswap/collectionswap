@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {ICurve} from "../bonding-curves/ICurve.sol";
-import {ICollectionPool} from "../ICollectionPool.sol";
+import {ICollectionPool} from "../pools/ICollectionPool.sol";
 
 interface IValidator {
     /// @notice Validates if a pool fulfills the conditions of a bonding curve. The conditions can be different for each type of curve.

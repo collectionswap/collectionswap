@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 import "murky/Merkle.sol";
 
-import "../../../contracts/mocks/TestTokenIDFilter.sol";
+import "../../../contracts/test/mocks/TestTokenIDFilter.sol";
 
 contract TokenIDFilterTest is Test {
     TokenIDFilterMock filter;

@@ -56,8 +56,6 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     await factory.setBondingCurveAllowed(curveAddresses[i], true);
   }
 
-  const treeAddress = await deploySortitionTree(hre, deployer);
-
   console.log(`Deploying Collectionstaker...`);
   const collectionStakerFactory = (await hre.ethers.getContractFactory(
     "Collectionstaker",
@@ -65,7 +63,9 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
       signer: deployer,
     }
   )) as Collectionstaker__factory;
-  const collectionStaker = await collectionStakerFactory.deploy(factory.address);
+  const collectionStaker = await collectionStakerFactory.deploy(
+    factory.address
+  );
   await collectionStaker.deployed();
   console.log(`Collectionstaker address: ${collectionStaker.address}`);
 
@@ -101,7 +101,6 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     rewardVaultETHDraw: rewardVaultETHDrawAddress,
     rng: rng.address,
     monotonicIncreasingValidator: validatorAddresses[0],
-    tree: treeAddress,
   };
   const exportJson = JSON.stringify(
     {
@@ -156,12 +155,6 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
       constructorArguments: [],
     });
   }
-
-  console.log(`verifying SortitionTree`);
-  await hre.run("verify:verify", {
-    address: treeAddress,
-    constructorArguments: [],
-  });
 
   console.log("verifying Collectionstaker...");
   await hre.run("verify:verify", {
@@ -294,27 +287,6 @@ export async function deployValidators(
   console.log(`------------------------------`);
 
   return { validatorNames, validatorAddresses };
-}
-
-export async function deploySortitionTree(
-  hre: HardhatRuntimeEnvironment,
-  deployer: LedgerSigner | SignerWithAddress
-): Promise<string> {
-  console.log(`---------------------------------------`);
-  console.log(`------- Deploying SortitionTree -------`);
-  console.log(`---------------------------------------`);
-
-  const deployFactory = await hre.ethers.getContractFactory(
-    "SortitionSumTreeFactory",
-    deployer
-  );
-  const deployedTree = await deployFactory.deploy();
-  await deployedTree.deployed();
-  console.log(`SortitionTree address: ${deployedTree.address}`);
-
-  console.log(`------------------------------`);
-
-  return deployedTree.address;
 }
 
 export async function deployChainlink(

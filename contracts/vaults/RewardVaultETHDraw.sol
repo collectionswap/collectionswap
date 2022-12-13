@@ -5,14 +5,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {ICurve} from "./bonding-curves/ICurve.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
 import {RewardVaultETH} from "./RewardVaultETH.sol";
-import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
-import {ICollectionPool} from "./ICollectionPool.sol";
-import {ISortitionTreeManager} from "./ISortitionTreeManager.sol";
-import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
-import {RNGInterface} from "./rng/RNGInterface.sol";
-import {IValidator} from "./validators/IValidator.sol";
+import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
+import {ICollectionPool} from "../pools/ICollectionPool.sol";
+import {ISortitionTreeManager} from "../tree/ISortitionTreeManager.sol";
+import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
+import {RNGInterface} from "../rng/RNGInterface.sol";
+import {IValidator} from "../validators/IValidator.sol";
 
 contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     using SafeERC20 for IERC20;
@@ -26,7 +26,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     mapping(uint64 => uint256) public epochToStartTime;
     mapping(uint64 => uint256) public epochToFinishTime;
     mapping(uint64 => uint256) public epochToRandomNumber;
-    
+
     /**
      * @dev This struct is used to track the last observed amount and the time-weighted average price (TWAP) for a user's balance.
      */
@@ -54,7 +54,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     DrawStatus public drawStatus;
-    
+
     //////////////////////////////////////////
     // DRAW AMOUNTS
     //////////////////////////////////////////
@@ -73,10 +73,10 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         IERC721 nftAddress;
         uint256 nftID;
     }
+
     struct PrizeSet {
         // ERC20 tokens to reward
         IERC20[] erc20RewardTokens;
-
         // ERC721 tokens to reward
         IERC721[] erc721RewardTokens;
         uint256 numERC721Prizes;
@@ -92,6 +92,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         uint256 remainder;
     }
     // Mappings of epoch to prize data
+
     mapping(uint64 => PrizeSet) public epochPrizeSets;
     mapping(uint64 => mapping(IERC20 => uint256)) public epochERC20PrizeAmounts;
     mapping(uint64 => mapping(IERC721 => bool)) public epochERC721Collections;
@@ -104,14 +105,14 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     mapping(uint64 => mapping(address => uint256)) public epochUserERC20NumWinnerEntries; // denominator is epochWinnerConfigs[epoch].numberOfDrawWinners
 
     // NFT prizes
-    /** 
+    /**
      * @dev epoch => user => `index_arr`, where `address` is awardable
      * `epochERC721PrizeIdsData[index * numberOfPrizesPerWinner + 1]`
-     * to 
+     * to
      * `epochERC721PrizeIdsData[(index + 1) * numberOfPrizesPerWinner]`
      * for all `index` in `index_arr`
      */
-    mapping(uint64 => mapping(address => uint256[])) public epochUserPrizeStartIndices; 
+    mapping(uint64 => mapping(address => uint256[])) public epochUserPrizeStartIndices;
 
     // Both ERC20 and ERC721 prizes
     mapping(uint64 => mapping(address => bool)) public isPrizeClaimable;
@@ -149,30 +150,30 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         _disableInitializers();
     }
 
-    /** 
-        @dev - this is called by the factory. 
-        @param _protocolOwner - the owner of the protocol
-        @param _deployer - the vault deployer's address
-        @param _lpToken - Collectionswap deployment address
-        @param _validator - the validator contract address
-        @param _nft - the NFT contract address
-        @param _bondingCurve - the bonding curve contract address
-        @param _curveParams - the bonding curve parameters
-        @param _fee - the fee amount to incentivize
-        @param _royaltyNumerator - the royalty numerator to incentivize
-        @param _rewardTokens - the reward token addresses
-        @param _rewardRates - the reward rates. Reward rates is in amount per second
-        @param _rewardStartTime - the reward start time (note that this can be different from the draw start time)
-        @param _rewardPeriodFinish - the reward period finish time
-        @param _rng - RNG contract address
-        @param _additionalERC20DrawPrize - additional ERC20 prize to add to the draw, list
-        @param _additionalERC20DrawPrizeAmounts - additional ERC20 prize amount to add to the draw, list. NB: Note that this is NOT divided per second, unlike the _rewardRates
-        @param _nftCollectionsPrize - additional ERC721 prize to add to the draw, list
-        @param _nftIdsPrize - additional ERC721 prize ID to add to the draw, list
-        @param _prizesPerWinner - number of ERC721 prizes per winner
-        @param _drawStartTime - the start time of draw
-        @param _drawPeriodFinish - the end time of draw
-    **/
+    /**
+     * @dev - this is called by the factory.
+     * @param _protocolOwner - the owner of the protocol
+     * @param _deployer - the vault deployer's address
+     * @param _lpToken - Collectionswap deployment address
+     * @param _validator - the validator contract address
+     * @param _nft - the NFT contract address
+     * @param _bondingCurve - the bonding curve contract address
+     * @param _curveParams - the bonding curve parameters
+     * @param _fee - the fee amount to incentivize
+     * @param _rewardTokens - the reward token addresses
+     * @param _rewardRates - the reward rates. Reward rates is in amount per second
+     * @param _rewardStartTime - the reward start time (note that this can be different from the draw start time)
+     * @param _rewardPeriodFinish - the reward period finish time
+     * @param _rng - RNG contract address
+     * @param _additionalERC20DrawPrize - additional ERC20 prize to add to the draw, list
+     * @param _additionalERC20DrawPrizeAmounts - additional ERC20 prize amount to add to the draw, list. NB: Note that this is NOT divided per second, unlike the _rewardRates
+     * @param _nftCollectionsPrize - additional ERC721 prize to add to the draw, list
+     * @param _nftIdsPrize - additional ERC721 prize ID to add to the draw, list
+     * @param _prizesPerWinner - number of ERC721 prizes per winner
+     * @param _drawStartTime - the start time of draw
+     * @param _drawPeriodFinish - the end time of draw
+     *
+     */
     function initialize(
         address _protocolOwner,
         address _deployer,
@@ -197,7 +198,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         uint256 _drawStartTime,
         uint256 _drawPeriodFinish,
         ISortitionTreeManager _treeManager
-    )  external {
+    ) external {
         __ReentrancyGuard_init();
 
         super.initialize({
@@ -223,7 +224,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         TREE_KEY = keccak256(abi.encodePacked(uint256(1)));
         treeManager = _treeManager;
         treeManager.createTree(TREE_KEY, MAX_TREE_LEAVES);
-        
+
         // Ensure that there is always a non-zero initial stake.
         // This is to prevent the sortition tree from being empty.
         // Can be anyone, have set to DUMMY_ADDRESS, soft guarantee of not zeroing out
@@ -250,11 +251,11 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - add ERC721 prizes and / or ERC20 prizes to the prize set
-        any mutation functions to prize sets should not permit epoch parameterization
-        @dev - Only callable by deployer
-        @dev - Specify zero drawStartTime to add during an epoch, else adding after an epoch
-    **/
+     * @dev - add ERC721 prizes and / or ERC20 prizes to the prize set
+     * any mutation functions to prize sets should not permit epoch parameterization
+     * @dev - Only callable by deployer
+     * @dev - Specify zero drawStartTime to add during an epoch, else adding after an epoch
+     */
     function addNewPrizes(
         IERC721[] calldata _nftCollectionsPrize,
         uint256[] calldata _nftIdsPrize,
@@ -288,7 +289,8 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
      * @dev - workflow 1: call with non-zero drawStartTime to add a new epoch.
      * @dev - workflow 2: call with zero drawStartTime to add prizes during the current epoch.
      * @dev - NB: _drawStartTime and _drawPeriodFinish are potentially different from the rewards start and end time. (draw and rewards can potentially run on different timers)
-    **/
+     *
+     */
     function _addNewPrizeEpoch(
         IERC721[] calldata _nftCollectionsPrize,
         uint256[] calldata _nftIdsPrize,
@@ -326,12 +328,12 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
             // update reward sweep time if it will exceed current reward sweep time
             uint256 newRewardSweepTime = _drawPeriodFinish + LOCK_TIME;
             if (rewardSweepTime < newRewardSweepTime) rewardSweepTime = newRewardSweepTime;
-            
+
             drawStatus = DrawStatus.Open;
             emit DrawOpen(_epoch);
         } else {
             if (_epoch != 0) {
-                // when adding to an existing epoch, 
+                // when adding to an existing epoch,
                 // require that the draw is not resolved
                 if (drawStatus == DrawStatus.Resolved) revert IncorrectDrawStatus();
             } else {
@@ -355,7 +357,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         // iterate through each nft in prizePool.nftCollections and transfer to this contract if caller is deployer
         for (uint256 i; i < numNfts; ++i) {
             IERC721 myCollAdd = (_nftCollectionsPrize[i]);
-            
+
             if (!epochERC721Collections[_epoch][myCollAdd]) {
                 // new collection for this epoch
                 // check if it supports ERC721
@@ -407,12 +409,12 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
             _erc20PrizeAmounts,
             _drawStartTime,
             _drawPeriodFinish
-        );
+            );
     }
 
     /**
      * @notice as sweep time may be updated by both the draw and reward functions, we have defensive logic to ensure it is set to the maximum of the two
-     **/
+     */
     function rechargeRewardVault(
         IERC20[] calldata inputRewardTokens,
         uint256[] calldata inputRewardAmounts,
@@ -427,8 +429,9 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - initializes prize set for new epoch. Callable internally only after epoch has been incremented.
-    **/
+     * @dev - initializes prize set for new epoch. Callable internally only after epoch has been incremented.
+     *
+     */
     function _initPrizeSet(uint64 epoch) internal {
         PrizeSet memory prizeSet;
         prizeSet.prizePerWinner = 1;
@@ -436,8 +439,9 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - O(1) lookup for previous interaction
-    **/
+     * @dev - O(1) lookup for previous interaction
+     *
+     */
     function firstTimeUser(address user) public view returns (bool) {
         return lastTWAPObservation[user].timestamp == 0;
     }
@@ -460,7 +464,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         // Recalculate sortition trees for everything in vaultInteractorList,
         // for the new periodFinish. Use --i because (0 - 1) underflows to
         // uintmax which causes a revert
-        for (uint256 i = totalVaultInteractorList.length; i > 0; ) {
+        for (uint256 i = totalVaultInteractorList.length; i > 0;) {
             --i;
 
             address vaultInteractor = totalVaultInteractorList[i];
@@ -482,7 +486,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
                 lastObservation.predictedEndSum = lastObservation.lastAmount * amountTimeRemainingToVaultEnd;
                 sortitionValue = lastObservation.predictedEndSum;
             }
-            
+
             // Update the sortition tree. Sortition tree library deletes 0
             // entries for us
             bytes32 _ID = addressToBytes32(vaultInteractor);
@@ -495,7 +499,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
      * @param tokenId The tokenId of the LP token to stake
      * @return amount The amount of reward token minted as a result
      * @dev - Maintain the new expected TWAP balance for the user.
-     */    
+     */
     function stake(uint256 tokenId) public override returns (uint256 amount) {
         if (firstTimeUser(msg.sender)) totalVaultInteractorList.push(msg.sender);
         amount = super.stake(tokenId);
@@ -503,27 +507,28 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - if draw is open, directly calculate the expected TWAP balance for the user.
-    **/    
+     * @dev - if draw is open, directly calculate the expected TWAP balance for the user.
+     */
     function burn(uint256 tokenId) internal override returns (uint256 amount) {
         amount = super.burn(tokenId);
         updateSortitionStake(msg.sender, amount, false, (drawStatus == DrawStatus.Open));
     }
 
     /**
-       @param eventTimestamp specified timestamp of when to calculate progress from
-       @param lastObservationTimestamp timestamp at which the last observation for the user was made
-       @return timeElapsed the effective time elapsed during thisEpoch
-       @return timeRemaining the remaining amount of usable time to extend on the current TWAP cumsum. 
-       This is to calculate the expected TWAP at drawFinish so that 
-       we don't have to iterate through all addresses to get the right epoch-end weighted stake.
-       We check that (A) eventTimestamp is less than drawFinish.
-       And it is always bounded by the drawFinish - start time, even if the vault hasn't started.
-    **/
-    function getTimeProgressInEpoch(
-        uint256 eventTimestamp,
-        uint256 lastObservationTimestamp
-    ) public view returns (uint256 timeElapsed, uint256 timeRemaining) {
+     * @param eventTimestamp specified timestamp of when to calculate progress from
+     * @param lastObservationTimestamp timestamp at which the last observation for the user was made
+     * @return timeElapsed the effective time elapsed during thisEpoch
+     * @return timeRemaining the remaining amount of usable time to extend on the current TWAP cumsum.
+     * This is to calculate the expected TWAP at drawFinish so that
+     * we don't have to iterate through all addresses to get the right epoch-end weighted stake.
+     * We check that (A) eventTimestamp is less than drawFinish.
+     * And it is always bounded by the drawFinish - start time, even if the vault hasn't started.
+     */
+    function getTimeProgressInEpoch(uint256 eventTimestamp, uint256 lastObservationTimestamp)
+        public
+        view
+        returns (uint256 timeElapsed, uint256 timeRemaining)
+    {
         uint64 _epoch = thisEpoch;
         uint256 _drawStart = epochToStartTime[_epoch];
         uint256 _drawFinish = epochToFinishTime[_epoch];
@@ -541,22 +546,23 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - updateSortitionStake (updates Sortition stake and TWAP). This is called either when a user stakes/burns, but sortition tree is modified only when draw is open
-    **/ 
+     * @dev - updateSortitionStake (updates Sortition stake and TWAP). This is called either when a user stakes/burns, but sortition tree is modified only when draw is open
+     */
     function updateSortitionStake(address _staker, uint256 _amount, bool isIncrement, bool modifySortition) internal {
         SimpleObservation storage lastObservation = lastTWAPObservation[_staker];
-        (uint256 timeElapsed, uint256 amountTimeRemainingToVaultEnd) = getTimeProgressInEpoch(block.timestamp, lastObservation.timestamp);
-        
+        (uint256 timeElapsed, uint256 amountTimeRemainingToVaultEnd) =
+            getTimeProgressInEpoch(block.timestamp, lastObservation.timestamp);
+
         // update lastObservation parameters
         // increment cumulative sum given effective time elapsed
         lastObservation.twapCumSum += timeElapsed * lastObservation.lastAmount;
 
-        lastObservation.lastAmount = isIncrement ?
-            lastObservation.lastAmount + _amount :
-            lastObservation.lastAmount - _amount;
+        lastObservation.lastAmount =
+            isIncrement ? lastObservation.lastAmount + _amount : lastObservation.lastAmount - _amount;
 
         lastObservation.timestamp = block.timestamp;
-        lastObservation.predictedEndSum = lastObservation.twapCumSum + (amountTimeRemainingToVaultEnd * lastObservation.lastAmount);
+        lastObservation.predictedEndSum =
+            lastObservation.twapCumSum + (amountTimeRemainingToVaultEnd * lastObservation.lastAmount);
 
         if (modifySortition) {
             bytes32 _ID = addressToBytes32(_staker);
@@ -565,23 +571,26 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - get numerator/denominator for chances of winning
-    **/ 
-    function viewChanceOfDraw(address _staker) external view returns (uint256 chanceNumerator, uint256 chanceDenominator) {
+     * @dev - get numerator/denominator for chances of winning
+     */
+    function viewChanceOfDraw(address _staker)
+        external
+        view
+        returns (uint256 chanceNumerator, uint256 chanceDenominator)
+    {
         bytes32 _treeKey = TREE_KEY;
         chanceNumerator = treeManager.stakeOf(_treeKey, addressToBytes32(_staker));
         chanceDenominator = treeManager.total(_treeKey);
     }
 
     /**
-        @dev - get number of winners and number of prizes per winner
-    **/ 
-    function getDrawDistribution(uint64 epoch) public view returns (
-        bool hasNFTPrizes,
-        uint256 numberOfDrawWinners,
-        uint256 numberOfPrizesPerWinner,
-        uint256 remainder
-    ) {
+     * @dev - get number of winners and number of prizes per winner
+     */
+    function getDrawDistribution(uint64 epoch)
+        public
+        view
+        returns (bool hasNFTPrizes, uint256 numberOfDrawWinners, uint256 numberOfPrizesPerWinner, uint256 remainder)
+    {
         numberOfPrizesPerWinner = epochPrizeSets[epoch].prizePerWinner;
         uint256 numPrizes = epochPrizeSets[epoch].numERC721Prizes;
         if (numPrizes == 0) {
@@ -620,11 +629,9 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - allows draw to be closed once the periodFinish has passed. Can be called by anyone (not just deployer) - in case deployer goes missing
-    **/ 
-    function closeDraw() external
-        returns (uint32 requestId, uint32 lockBlock)
-    {
+     * @dev - allows draw to be closed once the periodFinish has passed. Can be called by anyone (not just deployer) - in case deployer goes missing
+     */
+    function closeDraw() external returns (uint32 requestId, uint32 lockBlock) {
         if (drawStatus != DrawStatus.Open) revert IncorrectDrawStatus();
         if (block.timestamp < epochToFinishTime[thisEpoch]) revert TooEarly();
         drawStatus = DrawStatus.Closed;
@@ -635,11 +642,11 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - pseudorandom number generation from a verifiably random starting point. 
-    **/ 
+     * @dev - pseudorandom number generation from a verifiably random starting point.
+     */
     function getWinner(uint256 randomNumber, uint256 iteration) private view returns (address winner) {
         // uint256 randomNumber = epochToRandomNumber[thisEpoch];
-        uint i;
+        uint256 i;
         bytes32 _treeKey = TREE_KEY;
         while (true) {
             uint256 finalRandom = uint256(keccak256(abi.encodePacked(randomNumber, iteration, i)));
@@ -652,8 +659,8 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - resolvesDrawResults. This can be called by anyone (not just deployer) - in case deployer goes missing. Sets the winners and their start indices, taking reference from NFT address x ID tuples
-    **/ 
+     * @dev - resolvesDrawResults. This can be called by anyone (not just deployer) - in case deployer goes missing. Sets the winners and their start indices, taking reference from NFT address x ID tuples
+     */
     function resolveDrawResults() external {
         // cache storage read
         uint32 _myRNGRequestId = myRNGRequestId;
@@ -666,7 +673,8 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         epochToRandomNumber[_epoch] = randomNum;
 
         // prize Distribution
-        (bool hasNFTPrizes, uint256 numberOfDrawWinners, uint256 numberOfPrizesPerWinner, uint256 remainder) = getDrawDistribution(_epoch);
+        (bool hasNFTPrizes, uint256 numberOfDrawWinners, uint256 numberOfPrizesPerWinner, uint256 remainder) =
+            getDrawDistribution(_epoch);
         epochWinnerConfigs[_epoch] = WinnerConfig(numberOfDrawWinners, numberOfPrizesPerWinner, remainder);
 
         // iterate through the Number of Winners
@@ -698,14 +706,14 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
             // ERC20 amount
             //////////////////////////////////////
             epochUserERC20NumWinnerEntries[_epoch][winner] += 1;
-        } 
+        }
 
         emit DrawResolved(_epoch, winnerList);
     }
 
     /**
-        @dev - Claims your share of the prize per epoch. Takes cue from the number of ERC721 tokens, first-class prizes. ERC20 tokens distribution are determined from ERC-721 tokens
-    **/
+     * @dev - Claims your share of the prize per epoch. Takes cue from the number of ERC721 tokens, first-class prizes. ERC20 tokens distribution are determined from ERC-721 tokens
+     */
     function claimMyShare(uint64 epoch) public {
         if (!isPrizeClaimable[epoch][msg.sender]) revert NoClaimableShare();
         // blocks re-entrancy for the same epoch
@@ -748,21 +756,20 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - Claims your share of the prize for specified epochs
-    **/  
+     * @dev - Claims your share of the prize for specified epochs
+     */
     function claimMySharesMultiple(uint64[] calldata epochs) external {
         for (uint256 i; i < epochs.length; ++i) {
             claimMyShare(epochs[i]);
-
         }
     }
 
     /**
-        @dev - Sweeps specified unclaimed NFTs, but only after rewardSweepTime
-        Note that remainder NFTs count from the last index, and that prizeData is 1-indexed
-        Eg. 10 NFT prizes, 4 winners for the draw = remainder of 2 NFTs
-        Specified NFT ids should be 9 and 10
-    **/
+     * @dev - Sweeps specified unclaimed NFTs, but only after rewardSweepTime
+     * Note that remainder NFTs count from the last index, and that prizeData is 1-indexed
+     * Eg. 10 NFT prizes, 4 winners for the draw = remainder of 2 NFTs
+     * Specified NFT ids should be 9 and 10
+     */
     function sweepUnclaimedNfts(uint64 epoch, uint256[] calldata prizeIndices) external {
         _onlyDeployer();
         if (block.timestamp < rewardSweepTime) revert TooEarly();
@@ -773,8 +780,8 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
     }
 
     /**
-        @dev - Helper functions
-    **/      
+     * @dev - Helper functions
+     */
 
     function addressToBytes32(address _address) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(_address)));

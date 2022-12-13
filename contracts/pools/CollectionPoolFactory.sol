@@ -14,14 +14,14 @@ import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions
 // ETH and ERC20 tokens
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
-import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
 
-import {CollectionPool} from "./CollectionPool.sol";
-import {CollectionRouter} from "./CollectionRouter.sol";
+import {CollectionPool} from ".//CollectionPool.sol";
+import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {CollectionPoolETH} from "./CollectionPoolETH.sol";
-import {ICurve} from "./bonding-curves/ICurve.sol";
-import {CollectionPoolERC20} from "./CollectionPoolERC20.sol";
-import {CollectionPoolCloner} from "./lib/CollectionPoolCloner.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
+import {CollectionPoolERC20} from ".//CollectionPoolERC20.sol";
+import {CollectionPoolCloner} from "../lib/CollectionPoolCloner.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CollectionPoolEnumerableETH} from "./CollectionPoolEnumerableETH.sol";
 import {CollectionPoolEnumerableERC20} from "./CollectionPoolEnumerableERC20.sol";
@@ -29,30 +29,36 @@ import {CollectionPoolMissingEnumerableETH} from "./CollectionPoolMissingEnumera
 import {CollectionPoolMissingEnumerableERC20} from "./CollectionPoolMissingEnumerableERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumerable, ERC721URIStorage, ICollectionPoolFactory {
+contract CollectionPoolFactory is
+    Ownable,
+    ReentrancyGuard,
+    ERC721,
+    ERC721Enumerable,
+    ERC721URIStorage,
+    ICollectionPoolFactory
+{
     using CollectionPoolCloner for address;
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
-    bytes4 private constant INTERFACE_ID_ERC721_ENUMERABLE =
-        type(IERC721Enumerable).interfaceId;
+    bytes4 private constant INTERFACE_ID_ERC721_ENUMERABLE = type(IERC721Enumerable).interfaceId;
 
     /**
      * @dev The MAX_PROTOCOL_FEE constant specifies the maximum fee that can be charged by the AMM pool contract
-     * for facilitating token or NFT swaps on the decentralized exchange. 
-     * This fee is charged as a flat percentage of the final traded price for each swap, 
+     * for facilitating token or NFT swaps on the decentralized exchange.
+     * This fee is charged as a flat percentage of the final traded price for each swap,
      * and it is used to cover the costs associated with running the AMM pool contract and providing liquidity to the decentralized exchange.
      * This is used for NFT/TOKEN trading pools, that have a limited amount of dry powder
      */
-    uint256 internal constant MAX_PROTOCOL_FEE = 0.10e18; // 10%, must <= 1 - MAX_FEE
+    uint256 internal constant MAX_PROTOCOL_FEE = 0.1e18; // 10%, must <= 1 - MAX_FEE
     /**
      * @dev The MAX_CARRY_FEE constant specifies the maximum fee that can be charged by the AMM pool contract for facilitating token
      * or NFT swaps on the decentralized exchange. This fee is charged as a percentage of the fee set by the trading pool creator,
      * which is itself a percentage of the final traded price. This is used for TRADE pools, that form a continuous liquidity pool
      */
-    uint256 internal constant MAX_CARRY_FEE = 0.50e18; // 50%
-    
+    uint256 internal constant MAX_CARRY_FEE = 0.5e18; // 50%
+
     /// @dev maps the tokenID to the pool address created
     mapping(uint256 => LPTokenParams721) internal _tokenIdToPoolParams;
     /// @dev The ID of the next token that will be minted. Skips 0
@@ -64,8 +70,7 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
     CollectionPoolEnumerableETH public immutable enumerableETHTemplate;
     CollectionPoolMissingEnumerableETH public immutable missingEnumerableETHTemplate;
     CollectionPoolEnumerableERC20 public immutable enumerableERC20Template;
-    CollectionPoolMissingEnumerableERC20
-        public immutable missingEnumerableERC20Template;
+    CollectionPoolMissingEnumerableERC20 public immutable missingEnumerableERC20Template;
     address payable public override protocolFeeRecipient;
 
     // Units are in base 1e18
@@ -76,10 +81,12 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
 
     mapping(ICurve => bool) public bondingCurveAllowed;
     mapping(address => bool) public override callAllowed;
+
     struct RouterStatus {
         bool allowed;
         bool wasEverAllowed;
     }
+
     mapping(CollectionRouter => RouterStatus) public override routerStatus;
 
     string public baseURI;
@@ -102,7 +109,7 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
         address payable _protocolFeeRecipient,
         uint256 _protocolFeeMultiplier,
         uint256 _carryFeeMultiplier
-    ) ERC721("Collectionswap","CollectionLP") {
+    ) ERC721("Collectionswap", "CollectionLP") {
         enumerableETHTemplate = _enumerableETHTemplate;
         missingEnumerableETHTemplate = _missingEnumerableETHTemplate;
         enumerableERC20Template = _enumerableERC20Template;
@@ -128,36 +135,28 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
         _setTokenURI(tokenId, _uri);
     }
 
-    function createPoolETH(
-        CreateETHPoolParams calldata params
-    ) external payable returns (address pool, uint256 tokenId) {
-        require(
-            bondingCurveAllowed[params.bondingCurve],
-            "Bonding curve not whitelisted"
-        );
+    function createPoolETH(CreateETHPoolParams calldata params)
+        external
+        payable
+        returns (address pool, uint256 tokenId)
+    {
+        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || 
-            IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981) ||
-            params.royaltyRecipientOverride != address(0),
+            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
+                || params.royaltyRecipientOverride != address(0),
             "Nonzero royalty for non ERC2981 without override"
         );
-        
+
         // Check to see if the NFT supports Enumerable to determine which template to use
         address template;
         try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
-          template = isEnumerable ? address(enumerableETHTemplate)
-            : address(missingEnumerableETHTemplate);
+            template = isEnumerable ? address(enumerableETHTemplate) : address(missingEnumerableETHTemplate);
         } catch {
-          template = address(missingEnumerableETHTemplate);
+            template = address(missingEnumerableETHTemplate);
         }
 
-        pool = template.cloneETHPool(
-            this,
-            params.bondingCurve,
-            params.nft,
-            uint8(params.poolType)
-        );
+        pool = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
 
         // issue new token
         tokenId = mint(params.receiver);
@@ -173,52 +172,39 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             royaltyNumerator: params.royaltyNumerator
         });
 
-        _initializePoolETH(
-            CollectionPoolETH(payable(pool)),
-            params,
-            tokenId
-        );
+        _initializePoolETH(CollectionPoolETH(payable(pool)), params, tokenId);
 
         emit NewPool(pool);
     }
 
     /**
-        @notice Creates a filtered pool contract using EIP-1167.
-        @param params The parameters to create ETH pool
-        @param filterParams The parameters needed for the filtering functionality
-        @return pool The new pool
+     * @notice Creates a filtered pool contract using EIP-1167.
+     * @param params The parameters to create ETH pool
+     * @param filterParams The parameters needed for the filtering functionality
+     * @return pool The new pool
      */
-    function createPoolETHFiltered(
-        CreateETHPoolParams calldata params,
-        NFTFilterParams calldata filterParams
-    ) external payable returns (address pool, uint256 tokenId) {
-        require(
-            bondingCurveAllowed[params.bondingCurve],
-            "Bonding curve not whitelisted"
-        );
+    function createPoolETHFiltered(CreateETHPoolParams calldata params, NFTFilterParams calldata filterParams)
+        external
+        payable
+        returns (address pool, uint256 tokenId)
+    {
+        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || 
-            IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981) ||
-            params.royaltyRecipientOverride != address(0),
+            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
+                || params.royaltyRecipientOverride != address(0),
             "Nonzero royalty for non ERC2981 without override"
         );
 
         // Check to see if the NFT supports Enumerable to determine which template to use
         address template;
         try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
-          template = isEnumerable ? address(enumerableETHTemplate)
-            : address(missingEnumerableETHTemplate);
+            template = isEnumerable ? address(enumerableETHTemplate) : address(missingEnumerableETHTemplate);
         } catch {
-          template = address(missingEnumerableETHTemplate);
+            template = address(missingEnumerableETHTemplate);
         }
 
-        pool = template.cloneETHPool(
-            this,
-            params.bondingCurve,
-            params.nft,
-            uint8(params.poolType)
-        );
+        pool = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
 
         // issue new token
         tokenId = mint(params.receiver);
@@ -234,47 +220,28 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             royaltyNumerator: params.royaltyNumerator
         });
 
-        _initializePoolETHFiltered(
-            CollectionPoolETH(payable(pool)),
-            params,
-            filterParams,
-            tokenId
-        );
+        _initializePoolETHFiltered(CollectionPoolETH(payable(pool)), params, filterParams, tokenId);
         emit NewPool(pool);
     }
 
-    function createPoolERC20(CreateERC20PoolParams calldata params)
-        external
-        returns (address pool, uint256 tokenId)
-    {
-        require(
-            bondingCurveAllowed[params.bondingCurve],
-            "Bonding curve not whitelisted"
-        );
+    function createPoolERC20(CreateERC20PoolParams calldata params) external returns (address pool, uint256 tokenId) {
+        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || 
-            IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981) ||
-            params.royaltyRecipientOverride != address(0),
+            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
+                || params.royaltyRecipientOverride != address(0),
             "Nonzero royalty for non ERC2981 without override"
         );
 
         // Check to see if the NFT supports Enumerable to determine which template to use
         address template;
         try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
-          template = isEnumerable ? address(enumerableERC20Template)
-            : address(missingEnumerableERC20Template);
+            template = isEnumerable ? address(enumerableERC20Template) : address(missingEnumerableERC20Template);
         } catch {
-          template = address(missingEnumerableERC20Template);
+            template = address(missingEnumerableERC20Template);
         }
 
-        pool = template.cloneERC20Pool(
-            this,
-            params.bondingCurve,
-            params.nft,
-            uint8(params.poolType),
-            params.token
-        );
+        pool = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
 
         // issue new token
         tokenId = mint(params.receiver);
@@ -290,50 +257,32 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             royaltyNumerator: params.royaltyNumerator
         });
 
-        _initializePoolERC20(
-            CollectionPoolERC20(payable(pool)),
-            params,
-            tokenId
-        );
+        _initializePoolERC20(CollectionPoolERC20(payable(pool)), params, tokenId);
 
         emit NewPool(pool);
     }
 
-    function createPoolERC20Filtered(
-        CreateERC20PoolParams calldata params,
-        NFTFilterParams calldata filterParams
-    )
+    function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams)
         external
         returns (address pool, uint256 tokenId)
     {
-        require(
-            bondingCurveAllowed[params.bondingCurve],
-            "Bonding curve not whitelisted"
-        );
+        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || 
-            IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981) ||
-            params.royaltyRecipientOverride != address(0),
+            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
+                || params.royaltyRecipientOverride != address(0),
             "Nonzero royalty for non ERC2981 without override"
         );
 
         // Check to see if the NFT supports Enumerable to determine which template to use
         address template;
         try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
-          template = isEnumerable ? address(enumerableERC20Template)
-            : address(missingEnumerableERC20Template);
+            template = isEnumerable ? address(enumerableERC20Template) : address(missingEnumerableERC20Template);
         } catch {
-          template = address(missingEnumerableERC20Template);
+            template = address(missingEnumerableERC20Template);
         }
 
-        pool = template.cloneERC20Pool(
-            this,
-            params.bondingCurve,
-            params.nft,
-            uint8(params.poolType),
-            params.token
-        );
+        pool = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
 
         // issue new token
         tokenId = mint(params.receiver);
@@ -349,12 +298,7 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             royaltyNumerator: params.royaltyNumerator
         });
 
-        _initializePoolERC20Filtered(
-            CollectionPoolERC20(payable(pool)),
-            params,
-            filterParams,
-            tokenId
-        );
+        _initializePoolERC20Filtered(CollectionPoolERC20(payable(pool)), params, filterParams, tokenId);
 
         emit NewPool(address(pool));
     }
@@ -362,55 +306,29 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
     /**
      * @return poolParams the parameters of the pool matching `tokenId`.
      */
-    function viewPoolParams(uint256 tokenId)
-        public
-        view
-        returns (LPTokenParams721 memory poolParams)
-    {
+    function viewPoolParams(uint256 tokenId) public view returns (LPTokenParams721 memory poolParams) {
         poolParams = _tokenIdToPoolParams[tokenId];
     }
 
     /**
-        @notice Checks if an address is a CollectionPool. Uses the fact that the pools are EIP-1167 minimal proxies.
-        @param potentialPool The address to check
-        @param variant The pool variant (NFT is enumerable or not, pool uses ETH or ERC20)
-        @dev The PoolCloner contract is a utility contract that is used by the PoolFactory contract to create new instances of automated market maker (AMM) pools.
-        @return True if the address is the specified pool variant, false otherwise
+     * @notice Checks if an address is a CollectionPool. Uses the fact that the pools are EIP-1167 minimal proxies.
+     * @param potentialPool The address to check
+     * @param variant The pool variant (NFT is enumerable or not, pool uses ETH or ERC20)
+     * @dev The PoolCloner contract is a utility contract that is used by the PoolFactory contract to create new instances of automated market maker (AMM) pools.
+     * @return True if the address is the specified pool variant, false otherwise
      */
-    function isPool(address potentialPool, PoolVariant variant)
-        public
-        view
-        override
-        returns (bool)
-    {
+    function isPool(address potentialPool, PoolVariant variant) public view override returns (bool) {
         if (variant == PoolVariant.ENUMERABLE_ERC20) {
-            return
-                CollectionPoolCloner.isERC20PoolClone(
-                    address(this),
-                    address(enumerableERC20Template),
-                    potentialPool
-                );
+            return CollectionPoolCloner.isERC20PoolClone(address(this), address(enumerableERC20Template), potentialPool);
         } else if (variant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
-            return
-                CollectionPoolCloner.isERC20PoolClone(
-                    address(this),
-                    address(missingEnumerableERC20Template),
-                    potentialPool
-                );
+            return CollectionPoolCloner.isERC20PoolClone(
+                address(this), address(missingEnumerableERC20Template), potentialPool
+            );
         } else if (variant == PoolVariant.ENUMERABLE_ETH) {
-            return
-                CollectionPoolCloner.isETHPoolClone(
-                    address(this),
-                    address(enumerableETHTemplate),
-                    potentialPool
-                );
+            return CollectionPoolCloner.isETHPoolClone(address(this), address(enumerableETHTemplate), potentialPool);
         } else if (variant == PoolVariant.MISSING_ENUMERABLE_ETH) {
             return
-                CollectionPoolCloner.isETHPoolClone(
-                    address(this),
-                    address(missingEnumerableETHTemplate),
-                    potentialPool
-                );
+                CollectionPoolCloner.isETHPoolClone(address(this), address(missingEnumerableETHTemplate), potentialPool);
         } else {
             // invalid input
             return false;
@@ -418,7 +336,7 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
     }
 
     /**
-        @notice Allows receiving ETH in order to receive protocol fees
+     * @notice Allows receiving ETH in order to receive protocol fees
      */
     receive() external payable {}
 
@@ -427,93 +345,72 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
      */
 
     /**
-        @notice Withdraws the ETH balance to the protocol fee recipient.
-        Only callable by the owner.
+     * @notice Withdraws the ETH balance to the protocol fee recipient.
+     * Only callable by the owner.
      */
     function withdrawETHProtocolFees() external onlyOwner {
         protocolFeeRecipient.safeTransferETH(address(this).balance);
     }
 
     /**
-        @notice Withdraws ERC20 tokens to the protocol fee recipient. Only callable by the owner.
-        @param token The token to transfer
-        @param amount The amount of tokens to transfer
+     * @notice Withdraws ERC20 tokens to the protocol fee recipient. Only callable by the owner.
+     * @param token The token to transfer
+     * @param amount The amount of tokens to transfer
      */
-    function withdrawERC20ProtocolFees(ERC20 token, uint256 amount)
-        external
-        onlyOwner
-    {
+    function withdrawERC20ProtocolFees(ERC20 token, uint256 amount) external onlyOwner {
         token.safeTransfer(protocolFeeRecipient, amount);
     }
 
     /**
-        @notice Changes the protocol fee recipient address. Only callable by the owner.
-        @param _protocolFeeRecipient The new fee recipient
+     * @notice Changes the protocol fee recipient address. Only callable by the owner.
+     * @param _protocolFeeRecipient The new fee recipient
      */
-    function changeProtocolFeeRecipient(address payable _protocolFeeRecipient)
-        external
-        onlyOwner
-    {
+    function changeProtocolFeeRecipient(address payable _protocolFeeRecipient) external onlyOwner {
         require(_protocolFeeRecipient != address(0), "0 address");
         protocolFeeRecipient = _protocolFeeRecipient;
         emit ProtocolFeeRecipientUpdate(_protocolFeeRecipient);
     }
 
     /**
-        @notice Changes the protocol fee multiplier. Only callable by the owner.
-        @param _protocolFeeMultiplier The new fee multiplier, 18 decimals
+     * @notice Changes the protocol fee multiplier. Only callable by the owner.
+     * @param _protocolFeeMultiplier The new fee multiplier, 18 decimals
      */
-    function changeProtocolFeeMultiplier(uint256 _protocolFeeMultiplier)
-        external
-        onlyOwner
-    {
+    function changeProtocolFeeMultiplier(uint256 _protocolFeeMultiplier) external onlyOwner {
         require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Fee too large");
         protocolFeeMultiplier = _protocolFeeMultiplier;
         emit ProtocolFeeMultiplierUpdate(_protocolFeeMultiplier);
     }
 
     /**
-        @notice Changes the carry fee multiplier. Only callable by the owner.
-        @param _carryFeeMultiplier The new fee multiplier, 18 decimals
+     * @notice Changes the carry fee multiplier. Only callable by the owner.
+     * @param _carryFeeMultiplier The new fee multiplier, 18 decimals
      */
-    function changeCarryFeeMultiplier(uint256 _carryFeeMultiplier)
-        external
-        onlyOwner
-    {
+    function changeCarryFeeMultiplier(uint256 _carryFeeMultiplier) external onlyOwner {
         require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Fee too large");
         carryFeeMultiplier = _carryFeeMultiplier;
         emit CarryFeeMultiplierUpdate(_carryFeeMultiplier);
     }
 
     /**
-        @notice Sets the whitelist status of a bonding curve contract. Only callable by the owner.
-        @param bondingCurve The bonding curve contract
-        @param isAllowed True to whitelist, false to remove from whitelist
+     * @notice Sets the whitelist status of a bonding curve contract. Only callable by the owner.
+     * @param bondingCurve The bonding curve contract
+     * @param isAllowed True to whitelist, false to remove from whitelist
      */
-    function setBondingCurveAllowed(ICurve bondingCurve, bool isAllowed)
-        external
-        onlyOwner
-    {
+    function setBondingCurveAllowed(ICurve bondingCurve, bool isAllowed) external onlyOwner {
         bondingCurveAllowed[bondingCurve] = isAllowed;
         emit BondingCurveStatusUpdate(bondingCurve, isAllowed);
     }
 
     /**
-        @notice Sets the whitelist status of a contract to be called arbitrarily by a pool.
-        Only callable by the owner.
-        @param target The target contract
-        @param isAllowed True to whitelist, false to remove from whitelist
+     * @notice Sets the whitelist status of a contract to be called arbitrarily by a pool.
+     * Only callable by the owner.
+     * @param target The target contract
+     * @param isAllowed True to whitelist, false to remove from whitelist
      */
-    function setCallAllowed(address payable target, bool isAllowed)
-        external
-        onlyOwner
-    {
+    function setCallAllowed(address payable target, bool isAllowed) external onlyOwner {
         // ensure target is not / was not ever a router
         if (isAllowed) {
-            require(
-                !routerStatus[CollectionRouter(target)].wasEverAllowed,
-                "Can't call router"
-            );
+            require(!routerStatus[CollectionRouter(target)].wasEverAllowed, "Can't call router");
         }
 
         callAllowed[target] = isAllowed;
@@ -521,22 +418,16 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
     }
 
     /**
-        @notice Updates the router whitelist. Only callable by the owner.
-        @param _router The router
-        @param isAllowed True to whitelist, false to remove from whitelist
+     * @notice Updates the router whitelist. Only callable by the owner.
+     * @param _router The router
+     * @param isAllowed True to whitelist, false to remove from whitelist
      */
-    function setRouterAllowed(CollectionRouter _router, bool isAllowed)
-        external
-        onlyOwner
-    {
+    function setRouterAllowed(CollectionRouter _router, bool isAllowed) external onlyOwner {
         // ensure target is not arbitrarily callable by pools
         if (isAllowed) {
             require(!callAllowed[address(_router)], "Can't call router");
         }
-        routerStatus[_router] = RouterStatus({
-            allowed: isAllowed,
-            wasEverAllowed: true
-        });
+        routerStatus[_router] = RouterStatus({allowed: isAllowed, wasEverAllowed: true});
 
         emit RouterStatusUpdate(_router, isAllowed);
     }
@@ -548,20 +439,18 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
         return baseURI;
     }
 
-    function _initializePoolETH(
-        CollectionPoolETH _pool,
-        CreateETHPoolParams calldata _params,
-        uint256 tokenId
-    ) internal {
+    function _initializePoolETH(CollectionPoolETH _pool, CreateETHPoolParams calldata _params, uint256 tokenId)
+        internal
+    {
         // initialize pool
         _pool.initialize(
-            tokenId, 
-            _params.assetRecipient, 
-            _params.delta, 
-            _params.fee, 
-            _params.spotPrice, 
-            _params.props, 
-            _params.state, 
+            tokenId,
+            _params.assetRecipient,
+            _params.delta,
+            _params.fee,
+            _params.spotPrice,
+            _params.props,
+            _params.state,
             _params.royaltyNumerator,
             _params.royaltyRecipientOverride
         );
@@ -571,12 +460,8 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
 
         // transfer initial NFTs from sender to pool
         uint256 numNFTs = _params.initialNFTIDs.length;
-        for (uint256 i; i < numNFTs; ) {
-            _params.nft.safeTransferFrom(
-                msg.sender,
-                address(_pool),
-                _params.initialNFTIDs[i]
-            );
+        for (uint256 i; i < numNFTs;) {
+            _params.nft.safeTransferFrom(msg.sender, address(_pool), _params.initialNFTIDs[i]);
 
             unchecked {
                 ++i;
@@ -604,19 +489,18 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
         );
         _pool.setTokenIDFilter(_filterParams.merkleRoot, _filterParams.encodedTokenIDs);
 
-        require(_pool.acceptsTokenIDs(_params.initialNFTIDs, _filterParams.initialProof, _filterParams.initialProofFlags), "NFT not allowed");
+        require(
+            _pool.acceptsTokenIDs(_params.initialNFTIDs, _filterParams.initialProof, _filterParams.initialProofFlags),
+            "NFT not allowed"
+        );
 
         // transfer initial ETH to pool
         payable(address(_pool)).safeTransferETH(msg.value);
 
         // transfer initial NFTs from sender to pool
         uint256 numNFTs = _params.initialNFTIDs.length;
-        for (uint256 i; i < numNFTs; ) {
-            _params.nft.safeTransferFrom(
-                msg.sender,
-                address(_pool),
-                _params.initialNFTIDs[i]
-            );
+        for (uint256 i; i < numNFTs;) {
+            _params.nft.safeTransferFrom(msg.sender, address(_pool), _params.initialNFTIDs[i]);
 
             unchecked {
                 ++i;
@@ -624,39 +508,29 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
         }
     }
 
-    function _initializePoolERC20(
-        CollectionPoolERC20 _pool,
-        CreateERC20PoolParams calldata _params,
-        uint256 tokenId
-    ) internal {
+    function _initializePoolERC20(CollectionPoolERC20 _pool, CreateERC20PoolParams calldata _params, uint256 tokenId)
+        internal
+    {
         // initialize pool
         _pool.initialize(
-            tokenId, 
-            _params.assetRecipient, 
-            _params.delta, 
-            _params.fee, 
-            _params.spotPrice, 
-            _params.props, 
-            _params.state, 
+            tokenId,
+            _params.assetRecipient,
+            _params.delta,
+            _params.fee,
+            _params.spotPrice,
+            _params.props,
+            _params.state,
             _params.royaltyNumerator,
             _params.royaltyRecipientOverride
         );
 
         // transfer initial tokens to pool
-        _params.token.safeTransferFrom(
-            msg.sender,
-            address(_pool),
-                _params.initialTokenBalance
-        );
+        _params.token.safeTransferFrom(msg.sender, address(_pool), _params.initialTokenBalance);
 
         // transfer initial NFTs from sender to pool
         uint256 numNFTs = _params.initialNFTIDs.length;
-        for (uint256 i; i < numNFTs; ) {
-            _params.nft.safeTransferFrom(
-                msg.sender,
-                address(_pool),
-                _params.initialNFTIDs[i]
-            );
+        for (uint256 i; i < numNFTs;) {
+            _params.nft.safeTransferFrom(msg.sender, address(_pool), _params.initialNFTIDs[i]);
 
             unchecked {
                 ++i;
@@ -684,23 +558,18 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
         );
         _pool.setTokenIDFilter(_filterParams.merkleRoot, _filterParams.encodedTokenIDs);
 
-        require(_pool.acceptsTokenIDs(_params.initialNFTIDs, _filterParams.initialProof, _filterParams.initialProofFlags), "NFT not allowed");
+        require(
+            _pool.acceptsTokenIDs(_params.initialNFTIDs, _filterParams.initialProof, _filterParams.initialProofFlags),
+            "NFT not allowed"
+        );
 
         // transfer initial tokens to pool
-        _params.token.safeTransferFrom(
-            msg.sender,
-            address(_pool),
-            _params.initialTokenBalance
-        );
+        _params.token.safeTransferFrom(msg.sender, address(_pool), _params.initialTokenBalance);
 
         // transfer initial NFTs from sender to pool
         uint256 numNFTs = _params.initialNFTIDs.length;
-        for (uint256 i; i < numNFTs; ) {
-            _params.nft.safeTransferFrom(
-                msg.sender,
-                address(_pool),
-                _params.initialNFTIDs[i]
-            );
+        for (uint256 i; i < numNFTs;) {
+            _params.nft.safeTransferFrom(msg.sender, address(_pool), _params.initialNFTIDs[i]);
 
             unchecked {
                 ++i;
@@ -709,8 +578,8 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
     }
 
     /**
-      @dev Used to deposit NFTs into a pool after creation and emit an event for indexing (if recipient is indeed a pool)
-    */
+     * @dev Used to deposit NFTs into a pool after creation and emit an event for indexing (if recipient is indeed a pool)
+     */
     function depositNFTs(
         IERC721 _nft,
         uint256[] calldata ids,
@@ -718,11 +587,9 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
         bool[] calldata proofFlags,
         address recipient
     ) external {
-        bool _isPool =
-            isPool(recipient, PoolVariant.ENUMERABLE_ERC20) ||
-            isPool(recipient, PoolVariant.ENUMERABLE_ETH) ||
-            isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20) ||
-            isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ETH);
+        bool _isPool = isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.ENUMERABLE_ETH)
+            || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20)
+            || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ETH);
 
         if (_isPool) {
             require(CollectionPool(recipient).acceptsTokenIDs(ids, proof, proofFlags), "NFT not allowed");
@@ -730,10 +597,12 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
 
         // transfer NFTs from caller to recipient
         uint256 numNFTs = ids.length;
-        for (uint256 i; i < numNFTs; ) {
+        for (uint256 i; i < numNFTs;) {
             _nft.safeTransferFrom(msg.sender, recipient, ids[i]);
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         if (_isPool) {
@@ -742,19 +611,13 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
     }
 
     /**
-      @dev Used to deposit ERC20s into a pool after creation and emit an event for indexing (if recipient is indeed an ERC20 pool
-      and the token matches)
+     * @dev Used to deposit ERC20s into a pool after creation and emit an event for indexing (if recipient is indeed an ERC20 pool
+     * and the token matches)
      */
-    function depositERC20(
-        ERC20 token,
-        address recipient,
-        uint256 amount
-    ) external {
+    function depositERC20(ERC20 token, address recipient, uint256 amount) external {
         token.safeTransferFrom(msg.sender, recipient, amount);
-        if (
-            isPool(recipient, PoolVariant.ENUMERABLE_ERC20) ||
-            isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20)
-        ) {
+        if (isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20))
+        {
             if (token == CollectionPoolERC20(recipient).token()) {
                 emit TokenDeposit(recipient);
             }
@@ -782,7 +645,6 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721Enumer
             // then withdraw NFTs
             heldNftIds = pool.getAllHeldIds();
             pool.withdrawERC721(IERC721(poolParams.nftAddress), heldNftIds);
-            
         } else {
             // withdraw ERC20
             CollectionPoolERC20 pool = CollectionPoolERC20(poolParams.poolAddress);

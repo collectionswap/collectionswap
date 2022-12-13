@@ -7,13 +7,13 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ICollectionPool} from "./ICollectionPool.sol";
 import {CollectionPool} from "./CollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
-import {CollectionRouter} from "./CollectionRouter.sol";
-import {ICurve} from "./bonding-curves/ICurve.sol";
-import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
+import {CollectionRouter} from "../routers/CollectionRouter.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
+import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 
 /**
-    @title An NFT/Token pool where the token is an ERC20
-    @author Collection
+ * @title An NFT/Token pool where the token is an ERC20
+ * @author Collection
  */
 abstract contract CollectionPoolERC20 is CollectionPool {
     using SafeTransferLib for ERC20;
@@ -21,16 +21,13 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     uint256 internal constant IMMUTABLE_PARAMS_LENGTH = 81;
 
     /**
-        @notice Returns the ERC20 token associated with the pool
-        @dev See CollectionPoolCloner for an explanation on how this works
+     * @notice Returns the ERC20 token associated with the pool
+     * @dev See CollectionPoolCloner for an explanation on how this works
      */
     function token() public pure returns (ERC20 _token) {
         uint256 paramsLength = _immutableParamsLength();
         assembly {
-            _token := shr(
-                0x60,
-                calldataload(add(sub(calldatasize(), paramsLength), 61))
-            )
+            _token := shr(0x60, calldataload(add(sub(calldatasize(), paramsLength), 61)))
         }
     }
 
@@ -54,7 +51,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
 
             // Locally scoped to avoid stack too deep
             {
-                (bool routerAllowed, ) = _factory.routerStatus(router);
+                (bool routerAllowed,) = _factory.routerStatus(router);
                 require(routerAllowed, "Not router");
             }
 
@@ -62,7 +59,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
             uint256 length = royaltiesDue.length;
             uint256 totalRoyaltiesPaid;
 
-            for (uint256 i = 0; i  < length; ) {
+            for (uint256 i = 0; i < length;) {
                 // Cache state and then call router to transfer tokens from user
                 uint256 royaltyAmount;
                 address royaltyRecipient;
@@ -78,18 +75,11 @@ abstract contract CollectionPoolERC20 is CollectionPool {
                 if (royaltyAmount > 0) {
                     totalRoyaltiesPaid += royaltyAmount;
 
-                    router.poolTransferERC20From(
-                        _token,
-                        routerCaller,
-                        royaltyRecipient,
-                        royaltyAmount,
-                        poolVariant()
-                    );
+                    router.poolTransferERC20From(_token, routerCaller, royaltyRecipient, royaltyAmount, poolVariant());
 
                     // Verify token transfer (protect pool against malicious router)
                     require(
-                        _token.balanceOf(royaltyRecipient) - royaltyInitBalance ==
-                            royaltyAmount,
+                        _token.balanceOf(royaltyRecipient) - royaltyInitBalance == royaltyAmount,
                         "ERC20 royalty not transferred in"
                     );
                 }
@@ -102,28 +92,14 @@ abstract contract CollectionPoolERC20 is CollectionPool {
             // Cache state and then call router to transfer tokens from user
             uint256 beforeBalance = _token.balanceOf(_assetRecipient);
             uint256 amountToAssetRecipient = inputAmount - protocolFee - totalRoyaltiesPaid;
-            router.poolTransferERC20From(
-                _token,
-                routerCaller,
-                _assetRecipient,
-                amountToAssetRecipient,
-                poolVariant()
-            );
+            router.poolTransferERC20From(_token, routerCaller, _assetRecipient, amountToAssetRecipient, poolVariant());
 
             // Verify token transfer (protect pool against malicious router)
             require(
-                _token.balanceOf(_assetRecipient) - beforeBalance ==
-                    amountToAssetRecipient,
-                "ERC20 not transferred in"
+                _token.balanceOf(_assetRecipient) - beforeBalance == amountToAssetRecipient, "ERC20 not transferred in"
             );
 
-            router.poolTransferERC20From(
-                _token,
-                routerCaller,
-                address(_factory),
-                protocolFee,
-                poolVariant()
-            );
+            router.poolTransferERC20From(_token, routerCaller, address(_factory), protocolFee, poolVariant());
 
             // Note: no check for factory balance's because router is assumed to be set by factory owner
             // so there is no incentive to *not* pay protocol fee
@@ -139,33 +115,20 @@ abstract contract CollectionPoolERC20 is CollectionPool {
                 if (royaltyAmount > 0) {
                     totalRoyaltiesPaid += royaltyAmount;
 
-                    _token.safeTransferFrom(
-                        msg.sender,
-                        royaltyRecipient,
-                        royaltyAmount
-                    );
+                    _token.safeTransferFrom(msg.sender, royaltyRecipient, royaltyAmount);
                 }
 
                 unchecked {
                     ++i;
                 }
             }
-            
 
             // Transfer tokens directly
-            _token.safeTransferFrom(
-                msg.sender,
-                _assetRecipient,
-                inputAmount - protocolFee - totalRoyaltiesPaid
-            );
+            _token.safeTransferFrom(msg.sender, _assetRecipient, inputAmount - protocolFee - totalRoyaltiesPaid);
 
             // Take protocol fee (if it exists)
             if (protocolFee > 0) {
-                _token.safeTransferFrom(
-                    msg.sender,
-                    address(_factory),
-                    protocolFee
-                );
+                _token.safeTransferFrom(msg.sender, address(_factory), protocolFee);
             }
         }
     }
@@ -176,10 +139,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function _payProtocolFeeFromPool(
-        ICollectionPoolFactory _factory,
-        uint256 protocolFee
-    ) internal override {
+    function _payProtocolFeeFromPool(ICollectionPoolFactory _factory, uint256 protocolFee) internal override {
         // Take protocol fee (if it exists)
         if (protocolFee > 0) {
             ERC20 _token = token();
@@ -196,15 +156,14 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function _sendTokenOutput(
-        address payable tokenRecipient,
-        uint256 outputAmount,
-        RoyaltyDue[] memory royaltiesDue
-    ) internal override {
+    function _sendTokenOutput(address payable tokenRecipient, uint256 outputAmount, RoyaltyDue[] memory royaltiesDue)
+        internal
+        override
+    {
         // Unfortunately we need to duplicate work here
         uint256 length = royaltiesDue.length;
         uint256 totalRoyaltiesDue;
-        for (uint256 i = 0; i  < length; ) {
+        for (uint256 i = 0; i < length;) {
             totalRoyaltiesDue += royaltiesDue[i].amount;
             unchecked {
                 ++i;
@@ -214,14 +173,11 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         // Send tokens to caller
         if (outputAmount > 0) {
             ERC20 _token = token();
-            require(
-                _token.balanceOf(address(this)) >= outputAmount + tradeFee + totalRoyaltiesDue,
-                "Too little ERC20"
-            );
+            require(_token.balanceOf(address(this)) >= outputAmount + tradeFee + totalRoyaltiesDue, "Too little ERC20");
             _token.safeTransfer(tokenRecipient, outputAmount);
         }
 
-        for (uint256 i = 0; i < length; ) {
+        for (uint256 i = 0; i < length;) {
             RoyaltyDue memory due = royaltiesDue[i];
             uint256 royaltyAmount = due.amount;
             if (royaltyAmount > 0) {
@@ -233,7 +189,6 @@ abstract contract CollectionPoolERC20 is CollectionPool {
                 ++i;
             }
         }
-        
     }
 
     /// @inheritdoc CollectionPool
@@ -243,8 +198,8 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     }
 
     /**
-        @notice Withdraws all pool token owned by the pool to the owner address.
-        @dev Only callable by the owner.
+     * @notice Withdraws all pool token owned by the pool to the owner address.
+     * @dev Only callable by the owner.
      */
     function withdrawAllERC20() external onlyAuthorized {
         tradeFee = 0;
@@ -258,15 +213,9 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     }
 
     /// @inheritdoc ICollectionPool
-    function withdrawERC20(ERC20 a, uint256 amount)
-        external
-        onlyAuthorized
-    {
+    function withdrawERC20(ERC20 a, uint256 amount) external onlyAuthorized {
         if (a == token()) {
-            require(
-                a.balanceOf(address(this)) >= amount + tradeFee,
-                "Too little ERC20"
-            );
+            require(a.balanceOf(address(this)) >= amount + tradeFee, "Too little ERC20");
 
             // emit event since it is the pool token
             emit TokenWithdrawal(amount);

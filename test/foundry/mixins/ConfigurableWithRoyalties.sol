@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 import {Configurable, IERC721, CollectionPool, ICurve, IERC721Mintable, CollectionPoolFactory} from "./Configurable.sol";
 
 import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
-import {Test2981} from "../../../contracts/mocks/Test2981.sol";
+import {Test2981} from "../../../contracts/test/mocks/Test2981.sol";
 import {RoyaltyRegistry} from "@manifoldxyz/royalty-registry-solidity/contracts/RoyaltyRegistry.sol";
-import {TestRoyaltyRegistry} from "../../../contracts/mocks/TestRoyaltyRegistry.sol";
+import {TestRoyaltyRegistry} from "../../../contracts/test/mocks/TestRoyaltyRegistry.sol";
 import {DSTest} from "../lib/ds-test/test.sol";
 
 interface IVM {

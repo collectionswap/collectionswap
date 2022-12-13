@@ -32,19 +32,22 @@ describe("Royalties", function () {
         tokenIdsWithoutRoyalty: tokenIds,
       } = await royaltyFixture();
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          nft: nft.address,
-          royaltyNumerator: ethers.BigNumber.from("0"),
-          initialNFTIDs: tokenIds,
-        },
-        {
-          value: ethers.BigNumber.from(`${1.2e18}`),
-          gasLimit: 1000000,
-        }
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            nft: nft.address,
+            royaltyNumerator: ethers.BigNumber.from("0"),
+            initialNFTIDs: tokenIds,
+          },
+          {
+            value: ethers.BigNumber.from(`${1.2e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
       );
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
       const collectionPoolETH = await ethers.getContractAt(
         "CollectionPoolETH",
         newPoolAddress
@@ -65,20 +68,23 @@ describe("Royalties", function () {
         tokenIdsWithoutRoyalty: tokenIds,
       } = await royaltyFixture();
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          royaltyRecipientOverride: royaltyRecipientOverride.address,
-          nft: nft.address,
-          royaltyNumerator: ethers.BigNumber.from("0"),
-          initialNFTIDs: tokenIds,
-        },
-        {
-          value: ethers.BigNumber.from(`${1.2e18}`),
-          gasLimit: 1000000,
-        }
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            royaltyRecipientOverride: royaltyRecipientOverride.address,
+            nft: nft.address,
+            royaltyNumerator: ethers.BigNumber.from("0"),
+            initialNFTIDs: tokenIds,
+          },
+          {
+            value: ethers.BigNumber.from(`${1.2e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
       );
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
       const collectionPoolETH = await ethers.getContractAt(
         "CollectionPoolETH",
         newPoolAddress
@@ -98,19 +104,22 @@ describe("Royalties", function () {
         tokenIdsWithRoyalty: tokenIds,
       } = await royaltyFixture();
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          nft: nft.address,
-          royaltyNumerator: ethers.BigNumber.from("0"),
-          initialNFTIDs: tokenIds,
-        },
-        {
-          value: ethers.BigNumber.from(`${1.2e18}`),
-          gasLimit: 1000000,
-        }
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            nft: nft.address,
+            royaltyNumerator: ethers.BigNumber.from("0"),
+            initialNFTIDs: tokenIds,
+          },
+          {
+            value: ethers.BigNumber.from(`${1.2e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
       );
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
       const collectionPoolETH = await ethers.getContractAt(
         "CollectionPoolETH",
         newPoolAddress
@@ -131,20 +140,23 @@ describe("Royalties", function () {
         tokenIdsWithRoyalty: tokenIds,
       } = await royaltyFixture();
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          royaltyRecipientOverride: royaltyRecipientOverride.address,
-          nft: nft.address,
-          royaltyNumerator: ethers.BigNumber.from("0"),
-          initialNFTIDs: tokenIds,
-        },
-        {
-          value: ethers.BigNumber.from(`${1.2e18}`),
-          gasLimit: 1000000,
-        }
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            royaltyRecipientOverride: royaltyRecipientOverride.address,
+            nft: nft.address,
+            royaltyNumerator: ethers.BigNumber.from("0"),
+            initialNFTIDs: tokenIds,
+          },
+          {
+            value: ethers.BigNumber.from(`${1.2e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
       );
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
       const collectionPoolETH = await ethers.getContractAt(
         "CollectionPoolETH",
         newPoolAddress
@@ -166,19 +178,22 @@ describe("Royalties", function () {
 
       const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          nft: nft.address,
-          royaltyNumerator,
-          initialNFTIDs: tokenIds,
-        },
-        {
-          value: ethers.BigNumber.from(`${1.2e18}`),
-          gasLimit: 1000000,
-        }
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            nft: nft.address,
+            royaltyNumerator,
+            initialNFTIDs: tokenIds,
+          },
+          {
+            value: ethers.BigNumber.from(`${1.2e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
       );
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
       const collectionPoolETH = await ethers.getContractAt(
         "CollectionPoolETH",
         newPoolAddress
@@ -203,20 +218,23 @@ describe("Royalties", function () {
 
       const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          nft: nft.address,
-          royaltyRecipientOverride: royaltyRecipientOverride.address,
-          royaltyNumerator,
-          initialNFTIDs: tokenIds,
-        },
-        {
-          value: ethers.BigNumber.from(`${1.2e18}`),
-          gasLimit: 1000000,
-        }
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            nft: nft.address,
+            royaltyRecipientOverride: royaltyRecipientOverride.address,
+            royaltyNumerator,
+            initialNFTIDs: tokenIds,
+          },
+          {
+            value: ethers.BigNumber.from(`${1.2e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
       );
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
       const collectionPoolETH = await ethers.getContractAt(
         "CollectionPoolETH",
         newPoolAddress
@@ -267,21 +285,24 @@ describe("Royalties", function () {
 
       const royaltyNumerator = DEFAULT_VALID_ROYALTY;
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          royaltyRecipientOverride: royaltyRecipientOverride.address,
-          nft: nft.address,
-          royaltyNumerator,
-          initialNFTIDs: tokenIds,
-        },
-        {
-          value: ethers.BigNumber.from(`${1.2e18}`),
-          gasLimit: 1000000,
-        }
-      );
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            royaltyRecipientOverride: royaltyRecipientOverride.address,
+            nft: nft.address,
+            royaltyNumerator,
+            initialNFTIDs: tokenIds,
+          },
+          {
+            value: ethers.BigNumber.from(`${1.2e18}`),
+            gasLimit: 1000000,
+          }
+        );
 
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
+      );
       const collectionPoolETH = await ethers.getContractAt(
         "CollectionPoolETH",
         newPoolAddress
@@ -788,6 +809,7 @@ describe("Royalties", function () {
           if (recipient === ethers.constants.AddressZero.toString()) {
             recipient = pool.address;
           }
+
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -850,6 +872,7 @@ describe("Royalties", function () {
           if (recipient === ethers.constants.AddressZero.toString()) {
             recipient = pool.address;
           }
+
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -910,6 +933,7 @@ describe("Royalties", function () {
           if (recipient === ethers.constants.AddressZero.toString()) {
             recipient = pool.address;
           }
+
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1047,6 +1071,7 @@ describe("Royalties", function () {
           if (recipient === ethers.constants.AddressZero.toString()) {
             recipient = royaltyRecipientOverride.address;
           }
+
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1109,6 +1134,7 @@ describe("Royalties", function () {
           if (recipient === ethers.constants.AddressZero.toString()) {
             recipient = royaltyRecipientOverride.address;
           }
+
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1169,6 +1195,7 @@ describe("Royalties", function () {
           if (recipient === ethers.constants.AddressZero.toString()) {
             recipient = royaltyRecipientOverride.address;
           }
+
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1332,7 +1359,7 @@ describe("Royalties", function () {
 
         // Maintain royalties due
         for (let i = 0; i < nftsToSell.length; i++) {
-          let recipient = royaltyRecipientOverride.address;
+          const recipient = royaltyRecipientOverride.address;
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1347,7 +1374,6 @@ describe("Royalties", function () {
         // Unfortunately there's no way to retrieve the random order in which
         // the NFTs were selected so we can only test with quantity 1
         const numNftsToBuy = 1;
-        const traderInitialNfts = await enumerateAddress(nft, trader.address);
         const currentNumNftsInPool = (await pool.getAllHeldIds()).length;
 
         // Create the transaction and get expected values
@@ -1388,7 +1414,7 @@ describe("Royalties", function () {
 
         // Maintain royalties due
         for (let i = 0; i < numNftsToBuy; i++) {
-          let recipient = royaltyRecipientOverride.address;
+          const recipient = royaltyRecipientOverride.address;
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1444,7 +1470,7 @@ describe("Royalties", function () {
 
         // Maintain royalties due
         for (let i = 0; i < nftsToBuy.length; i++) {
-          let recipient = royaltyRecipientOverride.address;
+          const recipient = royaltyRecipientOverride.address;
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1500,9 +1526,9 @@ describe("Royalties", function () {
       } = await royaltyWithPoolFixture();
 
       const unauthorizedAccounts = recipients.concat(otherAccount1);
-      let poolOwner = await pool.owner();
+      const poolOwner = await pool.owner();
       for (const account of unauthorizedAccounts) {
-        if (poolOwner == account.address) continue;
+        if (poolOwner === account.address) continue;
         await expect(
           pool.connect(account).changeRoyaltyNumerator(newRoyaltyNumerator)
         ).to.be.revertedWith("not authorized");
@@ -1588,21 +1614,27 @@ describe("Royalties", function () {
         initialOwner,
       } = await royaltyFixture();
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          nft: nft.address,
-          royaltyNumerator: ethers.BigNumber.from("0"),
-          royaltyRecipientOverride: ethers.constants.AddressZero,
-          initialNFTIDs: tokenIdsWithoutRoyalty,
-        },
-        {
-          value: ethers.BigNumber.from(`${5e18}`),
-          gasLimit: 1000000,
-        }
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            nft: nft.address,
+            royaltyNumerator: ethers.BigNumber.from("0"),
+            royaltyRecipientOverride: ethers.constants.AddressZero,
+            initialNFTIDs: tokenIdsWithoutRoyalty,
+          },
+          {
+            value: ethers.BigNumber.from(`${5e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
       );
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
-      const pool = await ethers.getContractAt("CollectionPoolETH", newPoolAddress);
+      const pool = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
+      );
 
       await expect(
         pool
@@ -1730,21 +1762,27 @@ describe("Royalties", function () {
         otherAccount1: trader,
       } = await royaltyFixture();
 
-      const collectionPoolETHContractTx = await collectionPoolFactory.createPoolETH(
-        {
-          ...ethPoolParams,
-          nft: nft.address,
-          royaltyNumerator: ethers.BigNumber.from("1"),
-          royaltyRecipientOverride: trader.address,
-          initialNFTIDs: tokenIdsWithoutRoyalty,
-        },
-        {
-          value: ethers.BigNumber.from(`${5e18}`),
-          gasLimit: 1000000,
-        }
+      const collectionPoolETHContractTx =
+        await collectionPoolFactory.createPoolETH(
+          {
+            ...ethPoolParams,
+            nft: nft.address,
+            royaltyNumerator: ethers.BigNumber.from("1"),
+            royaltyRecipientOverride: trader.address,
+            initialNFTIDs: tokenIdsWithoutRoyalty,
+          },
+          {
+            value: ethers.BigNumber.from(`${5e18}`),
+            gasLimit: 1000000,
+          }
+        );
+      const { newPoolAddress } = await getPoolAddress(
+        collectionPoolETHContractTx
       );
-      const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
-      const pool = await ethers.getContractAt("CollectionPoolETH", newPoolAddress);
+      const pool = await ethers.getContractAt(
+        "CollectionPoolETH",
+        newPoolAddress
+      );
 
       await expect(
         pool

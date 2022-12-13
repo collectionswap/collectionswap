@@ -7,7 +7,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 
 import {ICurve} from "../bonding-curves/ICurve.sol";
-import {ICollectionPoolFactory} from "../ICollectionPoolFactory.sol";
+import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
 
 library CollectionPoolCloner {
     /**

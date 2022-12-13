@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {XykCurve} from "../../../contracts/bonding-curves/XykCurve.sol";
-import {Test721Enumerable} from "../../../contracts/mocks/Test721Enumerable.sol";
+import {Test721Enumerable} from "../../../contracts/test/mocks/Test721Enumerable.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";

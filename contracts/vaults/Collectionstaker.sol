@@ -4,24 +4,24 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
+import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
 import {RewardVaultETH} from "./RewardVaultETH.sol";
 import {RewardVaultETHDraw} from "./RewardVaultETHDraw.sol";
-import {ICurve} from "./bonding-curves/ICurve.sol";
-import {IValidator} from "./validators/IValidator.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
+import {IValidator} from "../validators/IValidator.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {RNGChainlinkV2Interface} from "./rng/RNGChainlinkV2Interface.sol";
+import {RNGChainlinkV2Interface} from "../rng/RNGChainlinkV2Interface.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
-import {ISortitionTreeManager} from "./ISortitionTreeManager.sol";
-import {SortitionTreeManager} from "./SortitionTreeManager.sol";
+import {ISortitionTreeManager} from "../tree/ISortitionTreeManager.sol";
+import {SortitionTreeManager} from "../tree/SortitionTreeManager.sol";
 
 contract Collectionstaker is Ownable {
     using SafeERC20 for IERC20;
 
-    ICollectionPoolFactory immutable public lpToken;
-    ISortitionTreeManager immutable public treeManager;
-    RewardVaultETH immutable public rewardVaultETHLogic;
-    RewardVaultETHDraw immutable public rewardVaultETHDrawLogic;
+    ICollectionPoolFactory public immutable lpToken;
+    ISortitionTreeManager public immutable treeManager;
+    RewardVaultETH public immutable rewardVaultETHLogic;
+    RewardVaultETHDraw public immutable rewardVaultETHDrawLogic;
     uint256 public constant MAX_REWARD_TOKENS = 5;
     RNGChainlinkV2Interface public rngChainlink;
 
@@ -32,19 +32,11 @@ contract Collectionstaker is Ownable {
     /// @param startTime The time when the incentive program begins
     /// @param endTime The time when rewards stop accruing
     event IncentiveETHCreated(
-        address poolAddress,
-        IERC20[] rewardTokens,
-        uint256[] rewards,
-        uint256 startTime,
-        uint256 endTime
+        address poolAddress, IERC20[] rewardTokens, uint256[] rewards, uint256 startTime, uint256 endTime
     );
 
     event IncentiveETHDrawCreated(
-        address poolAddress,
-        IERC20[] rewardTokens,
-        uint256[] rewards,
-        uint256 startTime,
-        uint256 endTime
+        address poolAddress, IERC20[] rewardTokens, uint256[] rewards, uint256 startTime, uint256 endTime
     );
 
     constructor(ICollectionPoolFactory _lpToken) {
@@ -69,7 +61,6 @@ contract Collectionstaker is Ownable {
      * @param rewards: An array of reward amounts that will be distributed to liquidity providers. This is the whole amount, which will be divided by the duration of the incentive program as an argument to the child initialize() function
      * @param startTime: The time when the incentive program begins.
      * @param endTime: The time at which the incentive program will end and rewards will no longer be distributed.
-     * @dev  
      */
     function createIncentiveETH(
         IValidator validator,
@@ -86,23 +77,18 @@ contract Collectionstaker is Ownable {
     ) external {
         require(startTime > block.timestamp, "cannot backdate");
         uint256 rewardTokensLength = rewardTokens.length;
-        require(
-            rewardTokensLength <= MAX_REWARD_TOKENS,
-            "too many reward tokens"
-        );
+        require(rewardTokensLength <= MAX_REWARD_TOKENS, "too many reward tokens");
         require(rewardTokensLength == rewards.length, "unequal lengths");
         uint256[] memory rewardRates = new uint256[](rewardTokensLength);
-        for (uint256 i; i < rewardTokensLength; ) {
+        for (uint256 i; i < rewardTokensLength;) {
             rewardRates[i] = rewards[i] / (endTime - startTime); // guaranteed endTime > startTime
             require(rewardRates[i] != 0, "0 rate");
             unchecked {
                 ++i;
             }
         }
-        RewardVaultETH rewardVault = RewardVaultETH(
-            Clones.clone(address(rewardVaultETHLogic))
-        );
-        
+        RewardVaultETH rewardVault = RewardVaultETH(Clones.clone(address(rewardVaultETHLogic)));
+
         rewardVault.initialize(
             owner(),
             msg.sender,
@@ -121,25 +107,15 @@ contract Collectionstaker is Ownable {
         );
 
         // transfer reward tokens to RewardVault
-        for (uint256 i; i < rewardTokensLength; ) {
-            rewardTokens[i].safeTransferFrom(
-                msg.sender,
-                address(rewardVault),
-                rewards[i]
-            );
+        for (uint256 i; i < rewardTokensLength;) {
+            rewardTokens[i].safeTransferFrom(msg.sender, address(rewardVault), rewards[i]);
 
             unchecked {
                 ++i;
             }
         }
 
-        emit IncentiveETHCreated(
-            address(rewardVault),
-            rewardTokens,
-            rewards,
-            startTime,
-            endTime
-        );
+        emit IncentiveETHCreated(address(rewardVault), rewardTokens, rewards, startTime, endTime);
     }
 
     /**
@@ -169,7 +145,6 @@ contract Collectionstaker is Ownable {
      * @param _prizesPerWinner The number of prizes that will be awarded to each winner.
      * @param drawStartTime The time when the prize draw will begin. Not necessarily the same as the rewards programme
      * @param drawPeriodFinish The time when the prize draw will end. Not necessarily the same as the rewards programme
-     * @dev  
      */
     function createIncentiveETHDraw(
         IValidator validator,
@@ -204,7 +179,7 @@ contract Collectionstaker is Ownable {
         }
 
         uint256[] memory rewardRates = new uint256[](rewardTokensLength);
-        for (uint256 i; i < rewardTokensLength; ) {
+        for (uint256 i; i < rewardTokensLength;) {
             rewardRates[i] = rewards[i] / (rewardEndTime - rewardStartTime); // guaranteed endTime > startTime
             require(rewardRates[i] != 0, "0 rate");
             unchecked {
@@ -212,9 +187,7 @@ contract Collectionstaker is Ownable {
             }
         }
 
-        RewardVaultETHDraw rewardVault = RewardVaultETHDraw(
-            Clones.clone(address(rewardVaultETHDrawLogic))
-        );
+        RewardVaultETHDraw rewardVault = RewardVaultETHDraw(Clones.clone(address(rewardVaultETHDrawLogic)));
 
         rewardVault.initialize(
             owner(),
@@ -245,11 +218,9 @@ contract Collectionstaker is Ownable {
         rngChainlink.setAllowedCaller(address(rewardVault));
 
         // transfer erc20 drawTokens to RewardVault
-        for (uint256 i; i < _additionalERC20DrawPrize.length; ) {
+        for (uint256 i; i < _additionalERC20DrawPrize.length;) {
             _additionalERC20DrawPrize[i].safeTransferFrom(
-                msg.sender,
-                address(rewardVault),
-                _additionalERC20DrawAmounts[i]
+                msg.sender, address(rewardVault), _additionalERC20DrawAmounts[i]
             );
 
             unchecked {
@@ -258,12 +229,8 @@ contract Collectionstaker is Ownable {
         }
 
         // transfer erc721 drawTokens to RewardVault
-        for (uint256 i; i < _nftCollectionsPrize.length; ) {
-            _nftCollectionsPrize[i].safeTransferFrom(
-                msg.sender,
-                address(rewardVault),
-                _nftIdsPrize[i]
-            );
+        for (uint256 i; i < _nftCollectionsPrize.length;) {
+            _nftCollectionsPrize[i].safeTransferFrom(msg.sender, address(rewardVault), _nftIdsPrize[i]);
 
             unchecked {
                 ++i;
@@ -271,12 +238,8 @@ contract Collectionstaker is Ownable {
         }
 
         // transfer reward tokens to RewardVault
-        for (uint256 i; i < rewardTokensLength; ) {
-            rewardTokens[i].safeTransferFrom(
-                msg.sender,
-                address(rewardVault),
-                rewards[i]
-            );
+        for (uint256 i; i < rewardTokensLength;) {
+            rewardTokens[i].safeTransferFrom(msg.sender, address(rewardVault), rewards[i]);
 
             unchecked {
                 ++i;

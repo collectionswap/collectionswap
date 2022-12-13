@@ -3,27 +3,28 @@ pragma solidity ^0.8.0;
 
 import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {CollectionRouter} from "./CollectionRouter.sol";
+import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICollectionPool} from "./ICollectionPool.sol";
 import {CollectionPool} from "./CollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 
 /**
-    @title An NFT/Token pool for an NFT that implements ERC721Enumerable
-    @author Collection
+ * @title An NFT/Token pool for an NFT that implements ERC721Enumerable
+ * @author Collection
  */
 abstract contract CollectionPoolEnumerable is CollectionPool {
     /// @inheritdoc CollectionPool
-    function _selectArbitraryNFTs(
-        IERC721 _nft,
-        uint256 numNFTs
-    ) internal view override returns (uint256[] memory tokenIds) {
+    function _selectArbitraryNFTs(IERC721 _nft, uint256 numNFTs)
+        internal
+        view
+        override
+        returns (uint256[] memory tokenIds)
+    {
         tokenIds = new uint256[](numNFTs);
         // (we know NFT implements IERC721Enumerable so we just iterate)
         uint256 lastIndex = _nft.balanceOf(address(this)) - 1;
-        for (uint256 i = 0; i < numNFTs; ) {
-            uint256 nftId = IERC721Enumerable(address(_nft))
-                .tokenOfOwnerByIndex(address(this), lastIndex);
+        for (uint256 i = 0; i < numNFTs;) {
+            uint256 nftId = IERC721Enumerable(address(_nft)).tokenOfOwnerByIndex(address(this), lastIndex);
             tokenIds[i] = nftId;
 
             unchecked {
@@ -34,14 +35,13 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function _sendSpecificNFTsToRecipient(
-        IERC721 _nft,
-        address nftRecipient,
-        uint256[] memory nftIds
-    ) internal override {
+    function _sendSpecificNFTsToRecipient(IERC721 _nft, address nftRecipient, uint256[] memory nftIds)
+        internal
+        override
+    {
         // Send NFTs to recipient
         uint256 numNFTs = nftIds.length;
-        for (uint256 i; i < numNFTs; ) {
+        for (uint256 i; i < numNFTs;) {
             _nft.safeTransferFrom(address(this), nftRecipient, nftIds[i]);
 
             unchecked {
@@ -55,11 +55,8 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
         IERC721 _nft = nft();
         uint256 numNFTs = _nft.balanceOf(address(this));
         uint256[] memory ids = new uint256[](numNFTs);
-        for (uint256 i; i < numNFTs; ) {
-            ids[i] = IERC721Enumerable(address(_nft)).tokenOfOwnerByIndex(
-                address(this),
-                i
-            );
+        for (uint256 i; i < numNFTs;) {
+            ids[i] = IERC721Enumerable(address(_nft)).tokenOfOwnerByIndex(address(this), i);
 
             unchecked {
                 ++i;
@@ -68,24 +65,15 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
         return ids;
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) public virtual returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
     /// @inheritdoc ICollectionPool
-    function withdrawERC721(IERC721 a, uint256[] calldata nftIds)
-        external
-        override
-        onlyAuthorized
-    {
+    function withdrawERC721(IERC721 a, uint256[] calldata nftIds) external override onlyAuthorized {
         uint256 numNFTs = nftIds.length;
         address owner = owner();
-        for (uint256 i; i < numNFTs; ) {
+        for (uint256 i; i < numNFTs;) {
             a.safeTransferFrom(address(this), owner, nftIds[i]);
 
             unchecked {

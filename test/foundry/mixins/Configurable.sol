@@ -2,10 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {CollectionPool} from "../../../contracts/CollectionPool.sol";
+import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
-import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
+import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
 
 abstract contract Configurable {
     function getBalance(address a) public virtual returns (uint256);

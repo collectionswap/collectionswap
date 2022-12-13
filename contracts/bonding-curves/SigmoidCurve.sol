@@ -8,73 +8,70 @@ import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 import {ABDKMath64x64} from "../lib/ABDKMATH64x64.sol";
 
 /**
-    @author potato-cat69
-    @notice Bonding curve logic for a sigmoid curve, where each buy/sell changes 
-    spot price by adjusting its position along a sigmoid curve.
-    
-    WARNING: This curve does not set spotPrice to be the sell now price. Do not
-    assume as such. spotPrice for this curve is set to 0.
-
-    GLOSSARY:
-        P_min: minimum price of an NFT to be bought / sold
-        P_max: maximum price of an NFT to be bought / sold
-        k: scaling factor (curve gradient) that affects how fast P_min and P_max is approached.
-        n_0: initial number of NFTs the pool had
-        n: current number of NFTs the pool is holding
-        deltaN: n - n_0, ie. the delta between initial and current NFTs held
-
-    CONSTRAINTS:
-        - k and deltaN must be expressible as signed 64.64 bit fixed point
-          binary numbers as we rely on a 64x64 library for computations.
-          - k is non-negative as it is casted from uint256 delta, implying 0 <= k <= 0x7FFFFFFFFFFFFFFF
-          - -0x8000000000000000 <= deltaN <= 0x7FFFFFFFFFFFFFFF
-        - This means the pool can never have a net loss of NFTs greater than
-          -0x8000000000000000 or a net gain of NFTs greater than
-          0x7FFFFFFFFFFFFFFF
-
-    @dev The curve takes the form:
-    P(deltaN) = P_min + (P_max - P_min) / (1 + 2 ** (k * deltaN))
-
-    While a traditional sigmoid uses e as the exponent base, this is equivalent
-    to modifying the value of k so a value of 2 is used for convenience.
-
-    The values used in the equation for P(n) are as described below:
-    - `props` must be abi.encode(uint256(P_min), uint256(P_max - P_min))
-    - `state` must be abi.encode(int128(n - n0))
-    - `delta` must be k * 2**10 as a uint128. The value of k is normalized
-      because most useful curves have k between 0 and 8, with small changes to k
-      (e.g. 1/128) producing significant changes to the curve
-*/
+ * @author potato-cat69
+ * @notice Bonding curve logic for a sigmoid curve, where each buy/sell changes
+ * spot price by adjusting its position along a sigmoid curve.
+ *
+ * WARNING: This curve does not set spotPrice to be the sell now price. Do not
+ * assume as such. spotPrice for this curve is set to 0.
+ *
+ * GLOSSARY:
+ *     P_min: minimum price of an NFT to be bought / sold
+ *     P_max: maximum price of an NFT to be bought / sold
+ *     k: scaling factor (curve gradient) that affects how fast P_min and P_max is approached.
+ *     n_0: initial number of NFTs the pool had
+ *     n: current number of NFTs the pool is holding
+ *     deltaN: n - n_0, ie. the delta between initial and current NFTs held
+ *
+ * CONSTRAINTS:
+ *     - k and deltaN must be expressible as signed 64.64 bit fixed point
+ *       binary numbers as we rely on a 64x64 library for computations.
+ *     - k is non-negative as it is casted from uint256 delta, implying 0 <= k <= 0x7FFFFFFFFFFFFFFF
+ *     - -0x8000000000000000 <= deltaN <= 0x7FFFFFFFFFFFFFFF
+ *     - This means the pool can never have a net loss of NFTs greater than
+ *       -0x8000000000000000 or a net gain of NFTs greater than
+ *       0x7FFFFFFFFFFFFFFF
+ *
+ * @dev The curve takes the form:
+ * P(deltaN) = P_min + (P_max - P_min) / (1 + 2 ** (k * deltaN))
+ *
+ * While a traditional sigmoid uses e as the exponent base, this is equivalent
+ * to modifying the value of k so a value of 2 is used for convenience.
+ *
+ * The values used in the equation for P(n) are as described below:
+ * - `props` must be abi.encode(uint256(P_min), uint256(P_max - P_min))
+ * - `state` must be abi.encode(int128(n - n0))
+ * - `delta` must be k * 2**10 as a uint128. The value of k is normalized
+ *   because most useful curves have k between 0 and 8, with small changes to k
+ *   (e.g. 1/128) producing significant changes to the curve
+ */
 contract SigmoidCurve is ICurve, CurveErrorCodes {
     using FixedPointMathLib for uint256;
     using ABDKMath64x64 for int128;
     /**
      * @dev k = `(delta << 64) / 2**K_NORMALIZATION_EXPONENT`
      */
+
     uint256 private constant K_NORMALIZATION_EXPONENT = 10;
     int128 private constant ONE_64_64 = 1 << 64;
 
     /**
-        @dev See {ICurve-validateDelta}
+     * @dev See {ICurve-validateDelta}
      */
-    function validateDelta(
-        uint128 delta
-    ) external pure override returns (bool valid) {
+    function validateDelta(uint128 delta) external pure override returns (bool valid) {
         return valid64x64Uint(delta);
     }
 
     /**
-        @dev See {ICurve-validateSpotPrice}
+     * @dev See {ICurve-validateSpotPrice}
      */
-    function validateSpotPrice(
-        uint128 /* newSpotPrice */
-    ) external pure override returns (bool) {
+    function validateSpotPrice(uint128 /* newSpotPrice */ ) external pure override returns (bool) {
         // For a sigmoid curve, spot price is unused.
         return true;
     }
 
     /**
-        @dev See {ICurve-validateProps}
+     * @dev See {ICurve-validateProps}
      */
     function validateProps(bytes calldata props) external pure returns (bool valid) {
         // The only way for P_min and deltaP to be invalid is if P_min + deltaP
@@ -93,7 +90,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
     }
 
     /**
-        @dev See {ICurve-validateState}
+     * @dev See {ICurve-validateState}
      */
     function validateState(bytes calldata state) external pure returns (bool valid) {
         // convert to uint256 first, then check it doesn't exceed upper and lower bounds of int64
@@ -112,22 +109,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
     }
 
     /**
-        @dev See {ICurve-getBuyInfo}
+     * @dev See {ICurve-getBuyInfo}
      */
-    function getBuyInfo(
-        ICurve.Params calldata params,
-        uint256 numItems,
-        ICurve.FeeMultipliers calldata feeMultipliers
-    )
+    function getBuyInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
         external
         pure
         override
-        returns (
-            Error error,
-            ICurve.Params memory newParams,
-            uint256 inputValue,
-            ICurve.Fees memory fees
-        )
+        returns (Error error, ICurve.Params memory newParams, uint256 inputValue, ICurve.Fees memory fees)
     {
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
@@ -135,7 +123,8 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         }
 
         // Extract information about the state of the pool
-        (int128 k, int256 deltaN, uint256 pMin, uint256 deltaP) = getSigmoidParameters(params.delta, params.props, params.state);
+        (int128 k, int256 deltaN, uint256 pMin, uint256 deltaP) =
+            getSigmoidParameters(params.delta, params.props, params.state);
 
         // First, set new spotPrice and delta equal to old spotPrice and delta
         // as neither changes for this curve
@@ -151,7 +140,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         if (numItems > 0x7FFFFFFFFFFFFFFF) {
             return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
-        
+
         int256 _numItems = int256(numItems);
         // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
         if (!valid64x64Int(deltaN - _numItems)) {
@@ -177,16 +166,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // = P_min + deltaP / (1 + 2 ** k * (deltaN - n))
         // = P_min + deltaP (1 / (1 + 2 ** k * (deltaN - n)))
         // the loop calculates the sum of (1 / (1 + 2 ** k * (deltaN - n))) before we apply scaling by deltaP
-        for (int256 n = 1; n <= _numItems; ) {
+        for (int256 n = 1; n <= _numItems;) {
             kDeltaN = ABDKMath64x64.fromInt(deltaN - n).mul(k);
             // fraction = 1 / (1 + 2 ** (k * (deltaN - n)))
             fraction = ONE_64_64.div(ONE_64_64.add(kDeltaN.exp_2()));
             itemCost = pMin + fraction.mulu(deltaP);
             inputValue += itemCost;
-            itemRoyalty = itemCost.fmul(
-                feeMultipliers.royaltyNumerator,
-                FixedPointMathLib.WAD
-            );
+            itemRoyalty = itemCost.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
             fees.royalties[uint256(n) - 1] = itemRoyalty;
             totalRoyalty += itemRoyalty;
 
@@ -196,10 +182,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         }
 
         // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
-        fees.protocol = inputValue.fmul(
-            feeMultipliers.protocol,
-            FixedPointMathLib.WAD
-        );
+        fees.protocol = inputValue.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
 
         // Account for the trade fee, only for Trade pools
         fees.trade = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
@@ -218,13 +201,9 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
     }
 
     /**
-        @dev See {ICurve-getSellInfo}
+     * @dev See {ICurve-getSellInfo}
      */
-    function getSellInfo(
-        ICurve.Params calldata params,
-        uint256 numItems,
-        ICurve.FeeMultipliers calldata feeMultipliers
-    )
+    function getSellInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
         external
         pure
         returns (
@@ -240,7 +219,8 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         }
 
         // Extract information about the state of the pool
-        (int128 k, int256 deltaN, uint256 pMin, uint256 deltaP) = getSigmoidParameters(params.delta, params.props, params.state);
+        (int128 k, int256 deltaN, uint256 pMin, uint256 deltaP) =
+            getSigmoidParameters(params.delta, params.props, params.state);
 
         // First, set new spotPrice and delta equal to old spotPrice and delta
         // as neither changes for this curve
@@ -256,7 +236,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         if (numItems > 0x7FFFFFFFFFFFFFFF) {
             return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
         }
-        
+
         int256 _numItems = int256(numItems);
         // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
         if (!valid64x64Int(deltaN + _numItems)) {
@@ -281,16 +261,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // = P_min + deltaP / (1 + 2 ** (k * (deltaN + n)))
         // = P_min + deltaP * (1 / (1 + 2 ** (k * (deltaN + n))))
         // the loop calculates the sum of 1 / (1 + 2 ** (k * (deltaN + n))) before we apply scaling by deltaP
-        for (int256 n = 1; n <= _numItems; ) {
+        for (int256 n = 1; n <= _numItems;) {
             kDeltaN = ABDKMath64x64.fromInt(n + deltaN).mul(k);
             // fraction = 1 / (1 + 2 ** (k * (deltaN + n)))
             fraction = ONE_64_64.div(ONE_64_64.add(kDeltaN.exp_2()));
             itemCost = pMin + fraction.mulu(deltaP);
             outputValue += itemCost;
-            itemRoyalty = itemCost.fmul(
-                feeMultipliers.royaltyNumerator,
-                FixedPointMathLib.WAD
-            );
+            itemRoyalty = itemCost.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
             fees.royalties[uint256(n) - 1] = itemRoyalty;
             totalRoyalty += itemRoyalty;
 
@@ -300,10 +277,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         }
 
         // Account for the protocol fee, a flat percentage of the sell amount, only for Non-Trade pools
-        fees.protocol = outputValue.fmul(
-            feeMultipliers.protocol,
-            FixedPointMathLib.WAD
-        );
+        fees.protocol = outputValue.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
 
         // Account for the trade fee, only for Trade pools
         fees.trade = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
@@ -312,7 +286,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
         fees.trade -= carryFee;
         fees.protocol += carryFee;
-        
+
         // Account for the trade fee (only for Trade pools), protocol fee, and
         // royalties
         outputValue -= fees.trade + fees.protocol + totalRoyalty;
@@ -373,16 +347,11 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
      * @return pMin The minimum value of the sigmoid curve
      * @return deltaP The difference between min and max price of the curve
      */
-    function getSigmoidParameters(
-        uint128 delta,
-        bytes calldata params,
-        bytes calldata state
-    ) private pure returns (
-        int128 k,
-        int256 deltaN,
-        uint256 pMin,
-        uint256 deltaP
-    ) {
+    function getSigmoidParameters(uint128 delta, bytes calldata params, bytes calldata state)
+        private
+        pure
+        returns (int128 k, int256 deltaN, uint256 pMin, uint256 deltaP)
+    {
         k = getK(delta);
         deltaN = getDeltaN(state);
         (pMin, deltaP) = getPriceRange(params);

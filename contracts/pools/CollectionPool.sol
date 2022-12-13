@@ -6,34 +6,28 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
-import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
-import {ICurve} from "./bonding-curves/ICurve.sol";
-import {CollectionRouter} from "./CollectionRouter.sol";
+import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
+import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICollectionPool} from "./ICollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
-import {CurveErrorCodes} from "./bonding-curves/CurveErrorCodes.sol";
-import {TokenIDFilter} from "./filter/TokenIDFilter.sol";
+import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
+import {TokenIDFilter} from "../filter/TokenIDFilter.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 /// @title The base contract for an NFT/TOKEN AMM pool
 /// @author Collection
 /// @notice This implements the core swap logic from NFT to TOKEN
-abstract contract CollectionPool is
-    ReentrancyGuard,
-    ERC1155Holder,
-    TokenIDFilter,
-    ICollectionPool
-{
-
+abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilter, ICollectionPool {
     /**
-     * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps. 
+     * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps.
      * It contains two fields:
-     * @dev amount: The amount of the royalty payment, in the token's base units. 
+     * @dev amount: The amount of the royalty payment, in the token's base units.
      * This value is calculated based on the price of the NFT being swapped, and the royaltyNumerator value set in the AMM pool contract.
-     * @dev recipient: The address to which the royalty payment should be sent. 
+     * @dev recipient: The address to which the royalty payment should be sent.
      * This value is determined by the NFT being swapped, and it is specified in the ERC2981 metadata for the NFT.
      * @dev When a user swaps an NFT for tokens using the AMM pool contract, a RoyaltyDue struct is created to track the amount
-     * and recipient of the royalty payment that is due on the NFT swap. This struct is then used to facilitate the payment of 
+     * and recipient of the royalty payment that is due on the NFT swap. This struct is then used to facilitate the payment of
      * the royalty to the appropriate recipient.
      */
     struct RoyaltyDue {
@@ -42,11 +36,11 @@ abstract contract CollectionPool is
     }
 
     /**
-     * @dev The _INTERFACE_ID_ERC2981 constant specifies the interface ID for the ERC2981 standard. This standard is used for tracking 
-     * royalties on non-fungible tokens (NFTs). It defines a standard interface for NFTs that includes metadata about the royalties that 
+     * @dev The _INTERFACE_ID_ERC2981 constant specifies the interface ID for the ERC2981 standard. This standard is used for tracking
+     * royalties on non-fungible tokens (NFTs). It defines a standard interface for NFTs that includes metadata about the royalties that
      * are due on the NFT when it is swapped or transferred.
      * @dev The _INTERFACE_ID_ERC2981 constant is used in the AMM pool contract to check whether an NFT being swapped implements the ERC2981
-     * standard. If it does, the contract can use the metadata provided by the ERC2981 interface to facilitate the payment of royalties on the 
+     * standard. If it does, the contract can use the metadata provided by the ERC2981 interface to facilitate the payment of royalties on the
      * NFT swap. If the NFT does not implement the ERC2981 standard, the contract will not track or pay royalties on the NFT swap.
      * This can be overridden by the royaltyNumerator field in the AMM pool contract.
      * @dev For more information about the ERC2981 standard, see https://eips.ethereum.org/EIPS/eip-2981
@@ -63,11 +57,11 @@ abstract contract CollectionPool is
      * @dev For a buy order, the fee would be the bid price multiplied by the fee rate, or 9 * 1% = 0.09
      * @dev For a sell order, the fee would be the ask price multiplied by the fee rate, or 10 * 1% = 0.1
      * @dev The fee is charged as a percentage of the bid/ask price, and it is used to cover the costs associated with running the AMM pool
-     * contract and providing liquidity to the decentralized exchange. The fee is deducted from the final price of the token or NFT swap, 
-     * and it is paid to the contract owner or to a designated fee recipient. The exact fee rate and fee recipient can be configured by the 
+     * contract and providing liquidity to the decentralized exchange. The fee is deducted from the final price of the token or NFT swap,
+     * and it is paid to the contract owner or to a designated fee recipient. The exact fee rate and fee recipient can be configured by the
      * contract owner when the AMM pool contract is deployed.
      */
-    uint256 internal constant MAX_FEE = 0.90e18;
+    uint256 internal constant MAX_FEE = 0.9e18;
 
     // The current price of the NFT
     // @dev This is generally used to mean the immediate sell price for the next marginal NFT.
@@ -131,11 +125,9 @@ abstract contract CollectionPool is
     error BondingCurveError(CurveErrorCodes.Error error);
 
     /**
-        @dev Use this whenever modifying the value of royaltyNumerator.
-    */
-    modifier validRoyaltyNumerator(
-        uint256 _royaltyNumerator
-    ) {
+     * @dev Use this whenever modifying the value of royaltyNumerator.
+     */
+    modifier validRoyaltyNumerator(uint256 _royaltyNumerator) {
         require(_royaltyNumerator < 1e18, "royaltyNumerator must be < 1e18");
         _;
     }
@@ -170,24 +162,24 @@ abstract contract CollectionPool is
     }
 
     /**
-      @notice Called during pool creation to set initial parameters
-      @dev Only called once by factory to initialize.
-      We verify this by making sure that the current owner is address(0).
-      The Ownable library we use disallows setting the owner to be address(0), so this condition
-      should only be valid before the first initialize call.
-      @param _tokenId The token id of the pool
-      @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pool during swaps.
-      NOTE: If set to address(0), they will go to the pool itself.
-      @param _delta The initial delta of the bonding curve
-      @param _fee The initial % fee taken, if this is a trade pool
-      @param _spotPrice The initial price to sell an asset into the pool
-      @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18 
-        being sent to the account to which the traded NFT's royalties are awardable.
-        Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
-        @param _royaltyRecipientOverride An address to which all royalties will
-        be paid to if not address(0). This overrides ERC2981 royalties set by
-        the NFT creator, and allows sending royalties to arbitrary addresses
-        even if a collection does not support ERC2981.
+     * @notice Called during pool creation to set initial parameters
+     * @dev Only called once by factory to initialize.
+     * We verify this by making sure that the current owner is address(0).
+     * The Ownable library we use disallows setting the owner to be address(0), so this condition
+     * should only be valid before the first initialize call.
+     * @param _tokenId The token id of the pool
+     * @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pool during swaps.
+     * NOTE: If set to address(0), they will go to the pool itself.
+     * @param _delta The initial delta of the bonding curve
+     * @param _fee The initial % fee taken, if this is a trade pool
+     * @param _spotPrice The initial price to sell an asset into the pool
+     * @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18
+     * being sent to the account to which the traded NFT's royalties are awardable.
+     * Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
+     * @param _royaltyRecipientOverride An address to which all royalties will
+     * be paid to if not address(0). This overrides ERC2981 royalties set by
+     * the NFT creator, and allows sending royalties to arbitrary addresses
+     * even if a collection does not support ERC2981.
      */
     function initialize(
         uint256 _tokenId,
@@ -213,17 +205,11 @@ abstract contract CollectionPool is
             assetRecipient = _assetRecipient;
         } else if (_poolType == PoolType.TRADE) {
             require(_fee < MAX_FEE, "Trade fee must be less than 90%");
-            require(
-                _assetRecipient == address(0),
-                "Trade pools can't set asset recipient"
-            );
+            require(_assetRecipient == address(0), "Trade pools can't set asset recipient");
             fee = _fee;
         }
         require(_bondingCurve.validateDelta(_delta), "Invalid delta for curve");
-        require(
-            _bondingCurve.validateSpotPrice(_spotPrice),
-            "Invalid new spot price for curve"
-        );
+        require(_bondingCurve.validateSpotPrice(_spotPrice), "Invalid new spot price for curve");
         require(_bondingCurve.validateProps(_props), "Invalid props for curve");
         require(_bondingCurve.validateState(_state), "Invalid state for curve");
         delta = _delta;
@@ -239,9 +225,9 @@ abstract contract CollectionPool is
      */
 
     /**
-        @notice Sets NFT token ID filter that is allowed in this pool
-        @param merkleRoot Merkle root representing all allowed IDs
-        @param encodedTokenIDs Opaque encoded list of token IDs
+     * @notice Sets NFT token ID filter that is allowed in this pool
+     * @param merkleRoot Merkle root representing all allowed IDs
+     * @param encodedTokenIDs Opaque encoded list of token IDs
      */
     function setTokenIDFilter(bytes32 merkleRoot, bytes calldata encodedTokenIDs) external {
         require(msg.sender == address(factory()) || msg.sender == owner(), "not authorized");
@@ -249,18 +235,18 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Sends token to the pool in exchange for any `numNFTs` NFTs
-        @dev To compute the amount of token to send, call bondingCurve.getBuyInfo.
-        This swap function is meant for users who are ID agnostic
-        @param numNFTs The number of NFTs to purchase
-        @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
-        amount is greater than this value, the transaction will be reverted.
-        @param nftRecipient The recipient of the NFTs
-        @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
-        ETH pools.
-        @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
-        ETH pools.
-        @return inputAmount The amount of token used for purchase
+     * @notice Sends token to the pool in exchange for any `numNFTs` NFTs
+     * @dev To compute the amount of token to send, call bondingCurve.getBuyInfo.
+     * This swap function is meant for users who are ID agnostic
+     * @param numNFTs The number of NFTs to purchase
+     * @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
+     * amount is greater than this value, the transaction will be reverted.
+     * @param nftRecipient The recipient of the NFTs
+     * @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
+     * ETH pools.
+     * @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
+     * ETH pools.
+     * @return inputAmount The amount of token used for purchase
      */
     function swapTokenForAnyNFTs(
         uint256 numNFTs,
@@ -277,39 +263,22 @@ abstract contract CollectionPool is
         // Input validation
         {
             PoolType _poolType = poolType();
-            require(
-                _poolType == PoolType.NFT || _poolType == PoolType.TRADE,
-                "Wrong Pool type"
-            );
-            require(
-                (numNFTs > 0) && (numNFTs <= _nft.balanceOf(address(this))),
-                "Ask for > 0 and <= balanceOf NFTs"
-            );
+            require(_poolType == PoolType.NFT || _poolType == PoolType.TRADE, "Wrong Pool type");
+            require((numNFTs > 0) && (numNFTs <= _nft.balanceOf(address(this))), "Ask for > 0 and <= balanceOf NFTs");
         }
 
         require(creationTimestamp != block.timestamp, "Trade blocked");
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;
-        (inputAmount, fees) = _calculateBuyInfoAndUpdatePoolParams(
-            numNFTs,
-            maxExpectedTokenInput,
-            _bondingCurve,
-            _factory
-        );
+        (inputAmount, fees) =
+            _calculateBuyInfoAndUpdatePoolParams(numNFTs, maxExpectedTokenInput, _bondingCurve, _factory);
 
         tradeFee += fees.trade;
         uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
         RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(_nft, tokenIds, fees.royalties);
-        
-        _pullTokenInputAndPayProtocolFee(
-            inputAmount,
-            isRouter,
-            routerCaller,
-            _factory,
-            fees.protocol,
-            royaltiesDue
-        );
+
+        _pullTokenInputAndPayProtocolFee(inputAmount, isRouter, routerCaller, _factory, fees.protocol, royaltiesDue);
 
         _sendSpecificNFTsToRecipient(_nft, nftRecipient, tokenIds);
 
@@ -319,19 +288,19 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Sends token to the pool in exchange for a specific set of NFTs
-        @dev To compute the amount of token to send, call bondingCurve.getBuyInfo
-        This swap is meant for users who want specific IDs. Also higher chance of
-        reverting if some of the specified IDs leave the pool before the swap goes through.
-        @param nftIds The list of IDs of the NFTs to purchase
-        @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
-        amount is greater than this value, the transaction will be reverted.
-        @param nftRecipient The recipient of the NFTs
-        @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
-        ETH pools.
-        @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
-        ETH pools.
-        @return inputAmount The amount of token used for purchase
+     * @notice Sends token to the pool in exchange for a specific set of NFTs
+     * @dev To compute the amount of token to send, call bondingCurve.getBuyInfo
+     * This swap is meant for users who want specific IDs. Also higher chance of
+     * reverting if some of the specified IDs leave the pool before the swap goes through.
+     * @param nftIds The list of IDs of the NFTs to purchase
+     * @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
+     * amount is greater than this value, the transaction will be reverted.
+     * @param nftRecipient The recipient of the NFTs
+     * @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
+     * ETH pools.
+     * @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
+     * ETH pools.
+     * @return inputAmount The amount of token used for purchase
      */
     function swapTokenForSpecificNFTs(
         uint256[] calldata nftIds,
@@ -347,10 +316,7 @@ abstract contract CollectionPool is
         // Input validation
         {
             PoolType _poolType = poolType();
-            require(
-                _poolType == PoolType.NFT || _poolType == PoolType.TRADE,
-                "Wrong Pool type"
-            );
+            require(_poolType == PoolType.NFT || _poolType == PoolType.TRADE, "Wrong Pool type");
             require((nftIds.length > 0), "Must ask for > 0 NFTs");
         }
 
@@ -358,24 +324,13 @@ abstract contract CollectionPool is
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;
-        (inputAmount, fees) = _calculateBuyInfoAndUpdatePoolParams(
-            nftIds.length,
-            maxExpectedTokenInput,
-            _bondingCurve,
-            _factory
-        );
+        (inputAmount, fees) =
+            _calculateBuyInfoAndUpdatePoolParams(nftIds.length, maxExpectedTokenInput, _bondingCurve, _factory);
 
         tradeFee += fees.trade;
         RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nftIds, fees.royalties);
 
-        _pullTokenInputAndPayProtocolFee(
-            inputAmount,
-            isRouter,
-            routerCaller,
-            _factory,
-            fees.protocol,
-            royaltiesDue
-        );
+        _pullTokenInputAndPayProtocolFee(inputAmount, isRouter, routerCaller, _factory, fees.protocol, royaltiesDue);
 
         _sendSpecificNFTsToRecipient(nft(), nftRecipient, nftIds);
 
@@ -385,17 +340,17 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Sends a set of NFTs to the pool in exchange for token
-        @dev To compute the amount of token to that will be received, call bondingCurve.getSellInfo.
-        @param nfts The list of IDs of the NFTs to sell to the pool along with its Merkle multiproof.
-        @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
-        amount is less than this value, the transaction will be reverted.
-        @param tokenRecipient The recipient of the token output
-        @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
-        ETH pools.
-        @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
-        ETH pools.
-        @return outputAmount The amount of token received
+     * @notice Sends a set of NFTs to the pool in exchange for token
+     * @dev To compute the amount of token to that will be received, call bondingCurve.getSellInfo.
+     * @param nfts The list of IDs of the NFTs to sell to the pool along with its Merkle multiproof.
+     * @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
+     * amount is less than this value, the transaction will be reverted.
+     * @param tokenRecipient The recipient of the token output
+     * @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
+     * ETH pools.
+     * @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
+     * ETH pools.
+     * @return outputAmount The amount of token received
      */
     function swapNFTsForToken(
         ICollectionPool.NFTs calldata nfts,
@@ -411,21 +366,15 @@ abstract contract CollectionPool is
         // Input validation
         {
             PoolType _poolType = poolType();
-            require(
-                _poolType == PoolType.TOKEN || _poolType == PoolType.TRADE,
-                "Wrong Pool type"
-            );
+            require(_poolType == PoolType.TOKEN || _poolType == PoolType.TRADE, "Wrong Pool type");
             require(nfts.ids.length > 0, "Must ask for > 0 NFTs");
             require(acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags), "NFT not allowed");
         }
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;
-        (outputAmount, fees) = _calculateSellInfoAndUpdatePoolParams(
-            nfts.ids.length,
-            minExpectedTokenOutput,
-            _bondingCurve
-        );
+        (outputAmount, fees) =
+            _calculateSellInfoAndUpdatePoolParams(nfts.ids.length, minExpectedTokenOutput, _bondingCurve);
 
         // Accrue trade fees before sending token output. This ensures that the balance is always sufficient for trade fee withdrawal.
         tradeFee += fees.trade;
@@ -446,27 +395,31 @@ abstract contract CollectionPool is
      */
 
     /**
-        @notice Checks if NFTs is allowed in this pool
-        @param tokenID NFT ID
-        @param proof Merkle proof
+     * @notice Checks if NFTs is allowed in this pool
+     * @param tokenID NFT ID
+     * @param proof Merkle proof
      */
     function acceptsTokenID(uint256 tokenID, bytes32[] calldata proof) public view returns (bool) {
         return _acceptsTokenID(tokenID, proof);
     }
 
     /**
-        @notice Checks if list of NFTs are allowed in this pool using Merkle multiproof and flags
-        @param tokenIDs List of NFT IDs
-        @param proof Merkle multiproof
-        @param proofFlags Merkle multiproof flags
+     * @notice Checks if list of NFTs are allowed in this pool using Merkle multiproof and flags
+     * @param tokenIDs List of NFT IDs
+     * @param proof Merkle multiproof
+     * @param proofFlags Merkle multiproof flags
      */
-    function acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags) public view returns (bool) {
+    function acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags)
+        public
+        view
+        returns (bool)
+    {
         return _acceptsTokenIDs(tokenIDs, proof, proofFlags);
     }
 
     /**
-        @dev Used as read function to query the bonding curve for buy pricing info
-        @param numNFTs The number of NFTs to buy from the pool
+     * @dev Used as read function to query the bonding curve for buy pricing info
+     * @param numNFTs The number of NFTs to buy from the pool
      */
     function getBuyNFTQuote(uint256 numNFTs)
         external
@@ -483,16 +436,7 @@ abstract contract CollectionPool is
     {
         ICurve.Params memory newParams;
         ICurve.Fees memory fees;
-        (
-            error,
-            newParams,
-            inputAmount,
-            fees
-        ) = bondingCurve().getBuyInfo(
-            curveParams(),
-            numNFTs,
-            feeMultipliers()
-        );
+        (error, newParams, inputAmount, fees) = bondingCurve().getBuyInfo(curveParams(), numNFTs, feeMultipliers());
 
         newSpotPrice = newParams.spotPrice;
         newDelta = newParams.delta;
@@ -503,8 +447,8 @@ abstract contract CollectionPool is
     }
 
     /**
-        @dev Used as read function to query the bonding curve for sell pricing info
-        @param numNFTs The number of NFTs to sell to the pool
+     * @dev Used as read function to query the bonding curve for sell pricing info
+     * @param numNFTs The number of NFTs to sell to the pool
      */
     function getSellNFTQuote(uint256 numNFTs)
         external
@@ -521,16 +465,7 @@ abstract contract CollectionPool is
     {
         ICurve.Params memory newParams;
         ICurve.Fees memory fees;
-        (
-            error,
-            newParams,
-            outputAmount,
-            fees
-        ) = bondingCurve().getSellInfo(
-            curveParams(),
-            numNFTs,
-            feeMultipliers()
-        );
+        (error, newParams, outputAmount, fees) = bondingCurve().getSellInfo(curveParams(), numNFTs, feeMultipliers());
 
         newSpotPrice = newParams.spotPrice;
         newDelta = newParams.delta;
@@ -541,83 +476,63 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Returns all NFT IDs held by the pool
+     * @notice Returns all NFT IDs held by the pool
      */
     function getAllHeldIds() external view virtual returns (uint256[] memory);
 
     /**
-        @notice Returns the pool's variant (NFT is enumerable or not, pool uses ETH or ERC20)
+     * @notice Returns the pool's variant (NFT is enumerable or not, pool uses ETH or ERC20)
      */
-    function poolVariant()
-        public
-        pure
-        virtual
-        returns (ICollectionPoolFactory.PoolVariant);
+    function poolVariant() public pure virtual returns (ICollectionPoolFactory.PoolVariant);
 
     function factory() public pure returns (ICollectionPoolFactory _factory) {
         uint256 paramsLength = _immutableParamsLength();
         assembly {
-            _factory := shr(
-                0x60,
-                calldataload(sub(calldatasize(), paramsLength))
-            )
+            _factory := shr(0x60, calldataload(sub(calldatasize(), paramsLength)))
         }
     }
 
     /**
-        @notice Returns the type of bonding curve that parameterizes the pool
+     * @notice Returns the type of bonding curve that parameterizes the pool
      */
     function bondingCurve() public pure returns (ICurve _bondingCurve) {
         uint256 paramsLength = _immutableParamsLength();
         assembly {
-            _bondingCurve := shr(
-                0x60,
-                calldataload(add(sub(calldatasize(), paramsLength), 20))
-            )
+            _bondingCurve := shr(0x60, calldataload(add(sub(calldatasize(), paramsLength), 20)))
         }
     }
 
     /**
-        @notice Returns the NFT collection that parameterizes the pool
+     * @notice Returns the NFT collection that parameterizes the pool
      */
     function nft() public pure returns (IERC721 _nft) {
         uint256 paramsLength = _immutableParamsLength();
         assembly {
-            _nft := shr(
-                0x60,
-                calldataload(add(sub(calldatasize(), paramsLength), 40))
-            )
+            _nft := shr(0x60, calldataload(add(sub(calldatasize(), paramsLength), 40)))
         }
     }
 
     /**
-        @notice Returns the pool's type (TOKEN/NFT/TRADE)
+     * @notice Returns the pool's type (TOKEN/NFT/TRADE)
      */
     function poolType() public pure returns (PoolType _poolType) {
         uint256 paramsLength = _immutableParamsLength();
         assembly {
-            _poolType := shr(
-                0xf8,
-                calldataload(add(sub(calldatasize(), paramsLength), 60))
-            )
+            _poolType := shr(0xf8, calldataload(add(sub(calldatasize(), paramsLength), 60)))
         }
     }
 
     /**
      * @notice Handles royalty recipient and fallback logic. Attempts to honor
      * ERC2981 where possible, followed by the owner's set fallback. If neither
-     * is a valid address, then royalties go to the asset recipient for this 
+     * is a valid address, then royalties go to the asset recipient for this
      * pool.
      * @param erc2981Recipient The address to which royalties should be paid as
      * returned by the IERC2981 `royaltyInfo` method. `payable(address(0))` if
      * the nft does not implement IERC2981.
      * @return The address to which royalties should be paid
      */
-    function getRoyaltyRecipient(address payable erc2981Recipient) 
-        internal 
-        view 
-        returns (address payable) 
-    {
+    function getRoyaltyRecipient(address payable erc2981Recipient) internal view returns (address payable) {
         if (erc2981Recipient != address(0)) {
             return erc2981Recipient;
         }
@@ -627,19 +542,15 @@ abstract contract CollectionPool is
             return royaltyRecipientOverride;
         }
 
-        // No ERC2981 recipient or recipient fallback. Default to pool. 
+        // No ERC2981 recipient or recipient fallback. Default to pool.
         return getAssetRecipient();
     }
 
     /**
-        @notice Returns the address that assets that receives assets when a swap is done with this pool
-        Can be set to another address by the owner, if set to address(0), defaults to the pool's own address
+     * @notice Returns the address that assets that receives assets when a swap is done with this pool
+     * Can be set to another address by the owner, if set to address(0), defaults to the pool's own address
      */
-    function getAssetRecipient()
-        public
-        view
-        returns (address payable _assetRecipient)
-    {
+    function getAssetRecipient() public view returns (address payable _assetRecipient) {
         // If it's a TRADE pool, we know the recipient is 0 (TRADE pools can't set asset recipients)
         // so just return address(this)
         if (poolType() == PoolType.TRADE) {
@@ -656,12 +567,7 @@ abstract contract CollectionPool is
     }
 
     function curveParams() public view returns (ICurve.Params memory params) {
-        return ICurve.Params(
-            spotPrice,
-            delta,
-            props,
-            state
-        );
+        return ICurve.Params(spotPrice, delta, props, state);
     }
 
     function feeMultipliers() public view returns (ICurve.FeeMultipliers memory) {
@@ -675,12 +581,7 @@ abstract contract CollectionPool is
             carryFeeMultiplier = factory().carryFeeMultiplier();
         }
 
-        return ICurve.FeeMultipliers(
-            fee,
-            protocolFeeMultiplier,
-            royaltyNumerator,
-            carryFeeMultiplier
-        );
+        return ICurve.FeeMultipliers(fee, protocolFeeMultiplier, royaltyNumerator, carryFeeMultiplier);
     }
 
     /**
@@ -688,35 +589,23 @@ abstract contract CollectionPool is
      */
 
     /**
-        @notice Calculates the amount needed to be sent into the pool for a buy and adjusts spot price or delta if necessary
-        @param numNFTs The amount of NFTs to purchase from the pool
-        @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
-        amount is greater than this value, the transaction will be reverted.
-        @return inputAmount The amount of tokens total tokens receive
-        @return fees The amount of tokens to send as fees
+     * @notice Calculates the amount needed to be sent into the pool for a buy and adjusts spot price or delta if necessary
+     * @param numNFTs The amount of NFTs to purchase from the pool
+     * @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
+     * amount is greater than this value, the transaction will be reverted.
+     * @return inputAmount The amount of tokens total tokens receive
+     * @return fees The amount of tokens to send as fees
      */
     function _calculateBuyInfoAndUpdatePoolParams(
         uint256 numNFTs,
         uint256 maxExpectedTokenInput,
         ICurve _bondingCurve,
         ICollectionPoolFactory
-    ) internal returns (
-        uint256 inputAmount,
-        ICurve.Fees memory fees
-    ) {
+    ) internal returns (uint256 inputAmount, ICurve.Fees memory fees) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
-        (
-            error,
-            newParams,
-            inputAmount,
-            fees
-        ) = _bondingCurve.getBuyInfo(
-            params,
-            numNFTs,
-            feeMultipliers()
-        );
+        (error, newParams, inputAmount, fees) = _bondingCurve.getBuyInfo(params, numNFTs, feeMultipliers());
 
         // Revert if bonding curve had an error
         if (error != CurveErrorCodes.Error.OK) {
@@ -750,35 +639,23 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Calculates the amount needed to be sent by the pool for a sell and adjusts spot price or delta if necessary
-        @param numNFTs The amount of NFTs to send to the the pool
-        @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
-        amount is less than this value, the transaction will be reverted.
-        @param _bondingCurve The bonding curve used to fetch pricing information from
-        @return outputAmount The amount of tokens total tokens receive
-        @return fees The amount of tokens to send as fees
+     * @notice Calculates the amount needed to be sent by the pool for a sell and adjusts spot price or delta if necessary
+     * @param numNFTs The amount of NFTs to send to the the pool
+     * @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
+     * amount is less than this value, the transaction will be reverted.
+     * @param _bondingCurve The bonding curve used to fetch pricing information from
+     * @return outputAmount The amount of tokens total tokens receive
+     * @return fees The amount of tokens to send as fees
      */
     function _calculateSellInfoAndUpdatePoolParams(
         uint256 numNFTs,
         uint256 minExpectedTokenOutput,
         ICurve _bondingCurve
-    ) internal returns (
-        uint256 outputAmount,
-        ICurve.Fees memory fees
-    ) {
+    ) internal returns (uint256 outputAmount, ICurve.Fees memory fees) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
-        (
-            error,
-            newParams,
-            outputAmount,
-            fees
-        ) = _bondingCurve.getSellInfo(
-            params,
-            numNFTs,
-            feeMultipliers()
-        );
+        (error, newParams, outputAmount, fees) = _bondingCurve.getSellInfo(params, numNFTs, feeMultipliers());
 
         // Revert if bonding curve had an error
         if (error != CurveErrorCodes.Error.OK) {
@@ -786,10 +663,7 @@ abstract contract CollectionPool is
         }
 
         // Revert if output is too little
-        require(
-            outputAmount >= minExpectedTokenOutput,
-            "Out too little tokens"
-        );
+        require(outputAmount >= minExpectedTokenOutput, "Out too little tokens");
 
         // Consolidate writes to save gas
         if (params.spotPrice != newParams.spotPrice || params.delta != newParams.delta) {
@@ -815,13 +689,13 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Pulls the token input of a trade from the trader and pays the protocol fee.
-        @param inputAmount The amount of tokens to be sent
-        @param isRouter Whether or not the caller is CollectionRouter
-        @param routerCaller If called from CollectionRouter, store the original caller
-        @param _factory The CollectionPoolFactory which stores CollectionRouter allowlist info
-        @param protocolFee The protocol fee to be paid
-        @param royaltyAmounts An array of royalties to pay
+     * @notice Pulls the token input of a trade from the trader and pays the protocol fee.
+     * @param inputAmount The amount of tokens to be sent
+     * @param isRouter Whether or not the caller is CollectionRouter
+     * @param routerCaller If called from CollectionRouter, store the original caller
+     * @param _factory The CollectionPoolFactory which stores CollectionRouter allowlist info
+     * @param protocolFee The protocol fee to be paid
+     * @param royaltyAmounts An array of royalties to pay
      */
     function _pullTokenInputAndPayProtocolFee(
         uint256 inputAmount,
@@ -833,65 +707,55 @@ abstract contract CollectionPool is
     ) internal virtual;
 
     /**
-        @notice Sends excess tokens back to the caller (if applicable)
-        @dev We send ETH back to the caller even when called from CollectionRouter because we do an aggregate slippage check for certain bulk swaps. (Instead of sending directly back to the router caller)
-        Excess ETH sent for one swap can then be used to help pay for the next swap.
+     * @notice Sends excess tokens back to the caller (if applicable)
+     * @dev We send ETH back to the caller even when called from CollectionRouter because we do an aggregate slippage check for certain bulk swaps. (Instead of sending directly back to the router caller)
+     * Excess ETH sent for one swap can then be used to help pay for the next swap.
      */
     function _refundTokenToSender(uint256 inputAmount) internal virtual;
 
     /**
-        @notice Sends protocol fee (if it exists) back to the CollectionPoolFactory from the pool
+     * @notice Sends protocol fee (if it exists) back to the CollectionPoolFactory from the pool
      */
-    function _payProtocolFeeFromPool(
-        ICollectionPoolFactory _factory,
-        uint256 protocolFee
-    ) internal virtual;
+    function _payProtocolFeeFromPool(ICollectionPoolFactory _factory, uint256 protocolFee) internal virtual;
 
     /**
-        @notice Sends tokens to a recipient and pays royalties owed
-        @param tokenRecipient The address receiving the tokens
-        @param outputAmount The amount of tokens to send
-        @param royaltiesDue An array of royalties to pay
+     * @notice Sends tokens to a recipient and pays royalties owed
+     * @param tokenRecipient The address receiving the tokens
+     * @param outputAmount The amount of tokens to send
+     * @param royaltiesDue An array of royalties to pay
      */
-    function _sendTokenOutput(
-        address payable tokenRecipient,
-        uint256 outputAmount,
-        RoyaltyDue[] memory royaltiesDue
-    ) internal virtual;
+    function _sendTokenOutput(address payable tokenRecipient, uint256 outputAmount, RoyaltyDue[] memory royaltiesDue)
+        internal
+        virtual;
 
     /**
      * @notice Select arbitrary NFTs from pool
      * @param _nft The address of the NFT to send
-     * @param numNFTs The number of NFTs to send  
+     * @param numNFTs The number of NFTs to send
      */
-    function _selectArbitraryNFTs(
-        IERC721 _nft,
-        uint256 numNFTs
-    ) internal virtual returns (uint256[] memory tokenIds);
+    function _selectArbitraryNFTs(IERC721 _nft, uint256 numNFTs) internal virtual returns (uint256[] memory tokenIds);
 
     /**
-        @notice Sends specific NFTs to a recipient address
-        @dev Even though we specify the NFT address here, this internal function is only
-        used to send NFTs associated with this specific pool.
-        @param _nft The address of the NFT to send
-        @param nftRecipient The receiving address for the NFTs
-        @param nftIds The specific IDs of NFTs to send
+     * @notice Sends specific NFTs to a recipient address
+     * @dev Even though we specify the NFT address here, this internal function is only
+     * used to send NFTs associated with this specific pool.
+     * @param _nft The address of the NFT to send
+     * @param nftRecipient The receiving address for the NFTs
+     * @param nftIds The specific IDs of NFTs to send
      */
-    function _sendSpecificNFTsToRecipient(
-        IERC721 _nft,
-        address nftRecipient,
-        uint256[] memory nftIds
-    ) internal virtual;
+    function _sendSpecificNFTsToRecipient(IERC721 _nft, address nftRecipient, uint256[] memory nftIds)
+        internal
+        virtual;
 
     /**
-        @notice Takes NFTs from the caller and sends them into the pool's asset recipient
-        @dev This is used by the CollectionPool's swapNFTForToken function.
-        @param _nft The NFT collection to take from
-        @param nftIds The specific NFT IDs to take
-        @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
-        ETH pools.
-        @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
-        ETH pools.
+     * @notice Takes NFTs from the caller and sends them into the pool's asset recipient
+     * @dev This is used by the CollectionPool's swapNFTForToken function.
+     * @param _nft The NFT collection to take from
+     * @param nftIds The specific NFT IDs to take
+     * @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
+     * ETH pools.
+     * @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
+     * ETH pools.
      */
     function _takeNFTsFromSender(
         IERC721 _nft,
@@ -907,52 +771,29 @@ abstract contract CollectionPool is
             if (isRouter) {
                 // Verify if router is allowed
                 CollectionRouter router = CollectionRouter(payable(msg.sender));
-                (bool routerAllowed, ) = _factory.routerStatus(router);
+                (bool routerAllowed,) = _factory.routerStatus(router);
                 require(routerAllowed, "Not router");
 
                 // Call router to pull NFTs
                 // If more than 1 NFT is being transfered, we can do a balance check instead of an ownership check, as pools are indifferent between NFTs from the same collection
                 if (numNFTs > 1) {
                     uint256 beforeBalance = _nft.balanceOf(_assetRecipient);
-                    for (uint256 i = 0; i < numNFTs; ) {
-                        router.poolTransferNFTFrom(
-                            _nft,
-                            routerCaller,
-                            _assetRecipient,
-                            nftIds[i],
-                            poolVariant()
-                        );
+                    for (uint256 i = 0; i < numNFTs;) {
+                        router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[i], poolVariant());
 
                         unchecked {
                             ++i;
                         }
                     }
-                    require(
-                        (_nft.balanceOf(_assetRecipient) - beforeBalance) ==
-                            numNFTs,
-                        "NFTs not transferred"
-                    );
+                    require((_nft.balanceOf(_assetRecipient) - beforeBalance) == numNFTs, "NFTs not transferred");
                 } else {
-                    router.poolTransferNFTFrom(
-                        _nft,
-                        routerCaller,
-                        _assetRecipient,
-                        nftIds[0],
-                        poolVariant()
-                    );
-                    require(
-                        _nft.ownerOf(nftIds[0]) == _assetRecipient,
-                        "NFT not transferred"
-                    );
+                    router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[0], poolVariant());
+                    require(_nft.ownerOf(nftIds[0]) == _assetRecipient, "NFT not transferred");
                 }
             } else {
                 // Pull NFTs directly from sender
-                for (uint256 i; i < numNFTs; ) {
-                    _nft.safeTransferFrom(
-                        msg.sender,
-                        _assetRecipient,
-                        nftIds[i]
-                    );
+                for (uint256 i; i < numNFTs;) {
+                    _nft.safeTransferFrom(msg.sender, _assetRecipient, nftIds[i]);
 
                     unchecked {
                         ++i;
@@ -963,7 +804,7 @@ abstract contract CollectionPool is
     }
 
     /**
-        @dev Used internally to grab pool parameters from calldata, see CollectionPoolCloner for technical details
+     * @dev Used internally to grab pool parameters from calldata, see CollectionPoolCloner for technical details
      */
     function _immutableParamsLength() internal pure virtual returns (uint256);
 
@@ -972,35 +813,28 @@ abstract contract CollectionPool is
      */
 
     /**
-        @notice Rescues ERC1155 tokens from the pool to the owner. Only callable by the owner.
-        @param a The NFT to transfer
-        @param ids The NFT ids to transfer
-        @param amounts The amounts of each id to transfer
+     * @notice Rescues ERC1155 tokens from the pool to the owner. Only callable by the owner.
+     * @param a The NFT to transfer
+     * @param ids The NFT ids to transfer
+     * @param amounts The amounts of each id to transfer
      */
-    function withdrawERC1155(
-        IERC1155 a,
-        uint256[] calldata ids,
-        uint256[] calldata amounts
-    ) external onlyAuthorized {
+    function withdrawERC1155(IERC1155 a, uint256[] calldata ids, uint256[] calldata amounts) external onlyAuthorized {
         a.safeBatchTransferFrom(address(this), owner(), ids, amounts, "");
     }
 
     /**
-        @notice Withdraws trade fee owned by the pool to the owner address.
-        @dev Only callable by the owner.
+     * @notice Withdraws trade fee owned by the pool to the owner address.
+     * @dev Only callable by the owner.
      */
     function withdrawTradeFee() external virtual;
 
     /**
-        @notice Updates the selling spot price. Only callable by the owner.
-        @param newSpotPrice The new selling spot price value, in Token
+     * @notice Updates the selling spot price. Only callable by the owner.
+     * @param newSpotPrice The new selling spot price value, in Token
      */
     function changeSpotPrice(uint128 newSpotPrice) external onlyOwner {
         ICurve _bondingCurve = bondingCurve();
-        require(
-            _bondingCurve.validateSpotPrice(newSpotPrice),
-            "Invalid new spot price for curve"
-        );
+        require(_bondingCurve.validateSpotPrice(newSpotPrice), "Invalid new spot price for curve");
         if (spotPrice != newSpotPrice) {
             spotPrice = newSpotPrice;
             emit SpotPriceUpdate(newSpotPrice);
@@ -1008,15 +842,12 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Updates the delta parameter. Only callable by the owner.
-        @param newDelta The new delta parameter
+     * @notice Updates the delta parameter. Only callable by the owner.
+     * @param newDelta The new delta parameter
      */
     function changeDelta(uint128 newDelta) external onlyOwner {
         ICurve _bondingCurve = bondingCurve();
-        require(
-            _bondingCurve.validateDelta(newDelta),
-            "Invalid delta for curve"
-        );
+        require(_bondingCurve.validateDelta(newDelta), "Invalid delta for curve");
         if (delta != newDelta) {
             delta = newDelta;
             emit DeltaUpdate(newDelta);
@@ -1024,15 +855,12 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Updates the props parameter. Only callable by the owner.
-        @param newProps The new props parameter
+     * @notice Updates the props parameter. Only callable by the owner.
+     * @param newProps The new props parameter
      */
     function changeProps(bytes calldata newProps) external onlyOwner {
         ICurve _bondingCurve = bondingCurve();
-        require(
-            _bondingCurve.validateProps(newProps),
-            "Invalid props for curve"
-        );
+        require(_bondingCurve.validateProps(newProps), "Invalid props for curve");
         if (keccak256(props) != keccak256(newProps)) {
             props = newProps;
             emit PropsUpdate(newProps);
@@ -1040,15 +868,12 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Updates the state parameter. Only callable by the owner.
-        @param newState The new state parameter
+     * @notice Updates the state parameter. Only callable by the owner.
+     * @param newState The new state parameter
      */
     function changeState(bytes calldata newState) external onlyOwner {
         ICurve _bondingCurve = bondingCurve();
-        require(
-            _bondingCurve.validateState(newState),
-            "Invalid state for curve"
-        );
+        require(_bondingCurve.validateState(newState), "Invalid state for curve");
         if (keccak256(state) != keccak256(newState)) {
             state = newState;
             emit StateUpdate(newState);
@@ -1056,10 +881,10 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Updates the fee taken by the LP. Only callable by the owner.
-        Only callable if the pool is a Trade pool. Reverts if the fee is >=
-        MAX_FEE.
-        @param newFee The new LP fee percentage, 18 decimals
+     * @notice Updates the fee taken by the LP. Only callable by the owner.
+     * Only callable if the pool is a Trade pool. Reverts if the fee is >=
+     * MAX_FEE.
+     * @param newFee The new LP fee percentage, 18 decimals
      */
     function changeFee(uint96 newFee) external onlyOwner {
         PoolType _poolType = poolType();
@@ -1072,14 +897,11 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Changes the address that will receive assets received from
-        trades. Only callable by the owner.
-        @param newRecipient The new asset recipient
+     * @notice Changes the address that will receive assets received from
+     * trades. Only callable by the owner.
+     * @param newRecipient The new asset recipient
      */
-    function changeAssetRecipient(address payable newRecipient)
-        external
-        onlyOwner
-    {
+    function changeAssetRecipient(address payable newRecipient) external onlyOwner {
         PoolType _poolType = poolType();
         require(_poolType != PoolType.TRADE, "Not for Trade pools");
         if (assetRecipient != newRecipient) {
@@ -1088,7 +910,11 @@ abstract contract CollectionPool is
         }
     }
 
-    function changeRoyaltyNumerator(uint256 newRoyaltyNumerator) external onlyOwner validRoyaltyNumerator(newRoyaltyNumerator) {
+    function changeRoyaltyNumerator(uint256 newRoyaltyNumerator)
+        external
+        onlyOwner
+        validRoyaltyNumerator(newRoyaltyNumerator)
+    {
         require(
             _validRoyaltyState(newRoyaltyNumerator, royaltyRecipientOverride, nft()),
             "Invalid royaltyNumerator or royaltyRecipientOverride"
@@ -1107,35 +933,27 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Allows the pool to make arbitrary external calls to contracts
-        whitelisted by the protocol. Only callable by authorized parties.
-        @param target The contract to call
-        @param data The calldata to pass to the contract
+     * @notice Allows the pool to make arbitrary external calls to contracts
+     * whitelisted by the protocol. Only callable by authorized parties.
+     * @param target The contract to call
+     * @param data The calldata to pass to the contract
      */
-    function call(address payable target, bytes calldata data)
-        external
-        onlyAuthorized
-    {
+    function call(address payable target, bytes calldata data) external onlyAuthorized {
         ICollectionPoolFactory _factory = factory();
         require(_factory.callAllowed(target), "Target must be whitelisted");
-        (bool result, ) = target.call{value: 0}(data);
+        (bool result,) = target.call{value: 0}(data);
         require(result, "Call failed");
     }
 
     /**
-        @notice Allows owner to batch multiple calls, forked from: https://github.com/boringcrypto/BoringSolidity/blob/master/contracts/BoringBatchable.sol
-        @dev Intended for withdrawing/altering pool pricing in one tx, only callable by owner, cannot change owner
-        @param calls The calldata for each call to make
-        @param revertOnFail Whether or not to revert the entire tx if any of the calls fail
+     * @notice Allows owner to batch multiple calls, forked from: https://github.com/boringcrypto/BoringSolidity/blob/master/contracts/BoringBatchable.sol
+     * @dev Intended for withdrawing/altering pool pricing in one tx, only callable by owner, cannot change owner
+     * @param calls The calldata for each call to make
+     * @param revertOnFail Whether or not to revert the entire tx if any of the calls fail
      */
-    function multicall(bytes[] calldata calls, bool revertOnFail)
-        external
-        onlyAuthorized
-    {
-        for (uint256 i; i < calls.length; ) {
-            (bool success, bytes memory result) = address(this).delegatecall(
-                calls[i]
-            );
+    function multicall(bytes[] calldata calls, bool revertOnFail) external onlyAuthorized {
+        for (uint256 i; i < calls.length;) {
+            (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
             if (!success && revertOnFail) {
                 revert(_getRevertMsg(result));
             }
@@ -1146,21 +964,14 @@ abstract contract CollectionPool is
         }
 
         // Prevent multicall from malicious frontend sneaking in ownership change
-        require(
-            owner() == msg.sender,
-            "Ownership cannot be changed in multicall"
-        );
+        require(owner() == msg.sender, "Ownership cannot be changed in multicall");
     }
 
     /**
-      @param _returnData The data returned from a multicall result
-      @dev Used to grab the revert string from the underlying call
+     * @param _returnData The data returned from a multicall result
+     * @dev Used to grab the revert string from the underlying call
      */
-    function _getRevertMsg(bytes memory _returnData)
-        internal
-        pure
-        returns (string memory)
-    {
+    function _getRevertMsg(bytes memory _returnData) internal pure returns (string memory) {
         // If the _res length is less than 68, then the transaction failed silently (without a revert message)
         if (_returnData.length < 68) return "Transaction reverted silently";
 
@@ -1171,26 +982,24 @@ abstract contract CollectionPool is
         return abi.decode(_returnData, (string)); // All that remains is the revert string
     }
 
-    function _getRoyaltiesDue(
-        IERC721 _nft, 
-        uint256[] memory nftIds, 
-        uint256[] memory royaltyAmounts
-    ) private view returns (RoyaltyDue[] memory royaltiesDue) {
+    function _getRoyaltiesDue(IERC721 _nft, uint256[] memory nftIds, uint256[] memory royaltyAmounts)
+        private
+        view
+        returns (RoyaltyDue[] memory royaltiesDue)
+    {
         uint256 length = royaltyAmounts.length;
         royaltiesDue = new RoyaltyDue[](length);
         bool is2981 = IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981);
         if (royaltyNumerator != 0) {
-            for (uint256 i = 0; i < length; ) {
+            for (uint256 i = 0; i < length;) {
                 // 2981 recipient, if nft is 2981 and recipient is set.
                 address recipient2981;
                 if (is2981) {
-                    (recipient2981, ) = IERC2981(address(_nft)).royaltyInfo(nftIds[i], 0);
+                    (recipient2981,) = IERC2981(address(_nft)).royaltyInfo(nftIds[i], 0);
                 }
 
                 address recipient = getRoyaltyRecipient(payable(recipient2981));
-                royaltiesDue[i] = RoyaltyDue({
-                    amount: royaltyAmounts[i], recipient: recipient
-                });
+                royaltiesDue[i] = RoyaltyDue({amount: royaltyAmounts[i], recipient: recipient});
 
                 unchecked {
                     ++i;
@@ -1200,21 +1009,22 @@ abstract contract CollectionPool is
     }
 
     /**
-        @notice Returns true if it's valid to set the contract variables to the
-        variables passed to this function.
+     * @notice Returns true if it's valid to set the contract variables to the
+     * variables passed to this function.
      */
-    function _validRoyaltyState(
-        uint256 _royaltyNumerator,
-        address payable _royaltyRecipientOverride,
-        IERC721 _nft
-    ) internal view returns (bool) {
-        return (
-            // Supports 2981 interface to tell us who gets royalties or
-            IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981) || 
+    function _validRoyaltyState(uint256 _royaltyNumerator, address payable _royaltyRecipientOverride, IERC721 _nft)
+        internal
+        view
+        returns (bool)
+    {
+        return
+        // Supports 2981 interface to tell us who gets royalties or
+        (
+            IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981)
             // There is an override so we always know where to send royaltiers or
-            _royaltyRecipientOverride != address(0) ||
+            || _royaltyRecipientOverride != address(0)
             // Royalties will not be paid
-            _royaltyNumerator == 0
+            || _royaltyNumerator == 0
         );
     }
 }

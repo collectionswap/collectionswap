@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {Test721} from "../../../contracts/mocks/Test721.sol";
+import {Test721} from "../../../contracts/test/mocks/Test721.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Configurable} from "./Configurable.sol";
 

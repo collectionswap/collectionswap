@@ -3,12 +3,12 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {ICollectionPoolFactory} from "../../../contracts/ICollectionPoolFactory.sol";
-import {CollectionPool} from "../../../contracts/CollectionPool.sol";
-import {CollectionPoolFactory} from "../../../contracts/CollectionPoolFactory.sol";
-import {CollectionRouter} from "../../../contracts/CollectionRouter.sol";
-import {CollectionRouter2} from "../../../contracts/CollectionRouter2.sol";
-import {CollectionPoolETH} from "../../../contracts/CollectionPoolETH.sol";
+import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
+import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
+import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
+import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
+import {CollectionRouter2} from "../../../contracts/routers/CollectionRouter2.sol";
+import {CollectionPoolETH} from "../../../contracts/pools/CollectionPoolETH.sol";
 import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
 

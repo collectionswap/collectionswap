@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {CollectionRouter} from "../../../contracts/CollectionRouter.sol";
-import {CollectionRouter2} from "../../../contracts/CollectionRouter2.sol";
+import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
+import {CollectionRouter2} from "../../../contracts/routers/CollectionRouter2.sol";
 
 abstract contract RouterCaller {
     function swapTokenForAnyNFTs(

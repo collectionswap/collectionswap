@@ -84,11 +84,6 @@ export async function verifyCollectionSet(
     });
   }
 
-  await verify("SortitionTree", {
-    address: addresses.tree,
-    constructorArguments: [],
-  });
-
   await verify("Collectionstaker", {
     address: addresses.collectionStaker,
     constructorArguments: [factory],

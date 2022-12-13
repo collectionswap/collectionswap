@@ -31,6 +31,6 @@ jobs:
 
       - name: Run Tests
         run: |
-          CURVE_TYPE=linear npx hardhat test
-          CURVE_TYPE=exponential npx hardhat test
-          CURVE_TYPE=sigmoid npx hardhat test
+          CURVE_TYPE=linear yarn test:hh
+          CURVE_TYPE=exponential yarn test:hh
+          CURVE_TYPE=sigmoid yarn test:hh

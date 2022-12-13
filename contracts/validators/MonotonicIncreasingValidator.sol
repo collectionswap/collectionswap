@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IValidator} from "./IValidator.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
-import {ICollectionPool} from "../ICollectionPool.sol";
+import {ICollectionPool} from "../pools/ICollectionPool.sol";
 
 /// @notice MonotonicIncreasingValidator is suitable for all bonding curves that are monotonic increasing.
 /// i.e. the spot price is always non-decreasing when delta increases.

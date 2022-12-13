@@ -36,7 +36,8 @@ async function main() {
   const CollectionPoolEnumerableETH = await ethers.getContractFactory(
     "CollectionPoolEnumerableETH"
   );
-  const collectionPoolEnumerableETH = await CollectionPoolEnumerableETH.deploy();
+  const collectionPoolEnumerableETH =
+    await CollectionPoolEnumerableETH.deploy();
 
   const CollectionPoolMissingEnumerableETH = await ethers.getContractFactory(
     "CollectionPoolMissingEnumerableETH"
@@ -47,7 +48,8 @@ async function main() {
   const CollectionPoolEnumerableERC20 = await ethers.getContractFactory(
     "CollectionPoolEnumerableERC20"
   );
-  const collectionPoolEnumerableERC20 = await CollectionPoolEnumerableERC20.deploy();
+  const collectionPoolEnumerableERC20 =
+    await CollectionPoolEnumerableERC20.deploy();
 
   const CollectionPoolMissingEnumerableERC20 = await ethers.getContractFactory(
     "CollectionPoolMissingEnumerableERC20"
@@ -62,7 +64,9 @@ async function main() {
   const rawSpot = 100;
 
   const protocolFeeMultiplier = convertToBigNumber(rawPctProtocolFee);
-  const CollectionPoolFactory = await ethers.getContractFactory("CollectionPoolFactory");
+  const CollectionPoolFactory = await ethers.getContractFactory(
+    "CollectionPoolFactory"
+  );
   const collectionPoolFactory = await CollectionPoolFactory.deploy(
     collectionPoolEnumerableETH.address,
     collectionPoolMissingEnumerableETH.address,
@@ -71,7 +75,9 @@ async function main() {
     payoutAddress,
     protocolFeeMultiplier
   );
-  console.log(`CollectionPoolFactory deployed to ${collectionPoolFactory.address}`);
+  console.log(
+    `CollectionPoolFactory deployed to ${collectionPoolFactory.address}`
+  );
 
   const [owner, otherAccount, otherAccount2, otherAccount3, otherAccount4] =
     await ethers.getSigners();
@@ -109,7 +115,9 @@ async function main() {
   // https://ethereum.stackexchange.com/questions/4086/how-are-enums-converted-to-uint
 
   const Collectionswap = await ethers.getContractFactory("Collectionswap");
-  const collectionswap = await Collectionswap.deploy(collectionPoolFactory.address);
+  const collectionswap = await Collectionswap.deploy(
+    collectionPoolFactory.address
+  );
   console.log(`Collectionswap deployed to ${collectionswap.address}`);
 
   // Const theseAccounts = [otherAccount, otherAccount2]

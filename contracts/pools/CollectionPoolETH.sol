@@ -7,11 +7,11 @@ import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ICollectionPool} from "./ICollectionPool.sol";
 import {CollectionPool} from "./CollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
-import {ICurve} from "./bonding-curves/ICurve.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
 
 /**
-    @title An NFT/Token pool where the token is ETH
-    @author Collection
+ * @title An NFT/Token pool where the token is ETH
+ * @author Collection
  */
 abstract contract CollectionPoolETH is CollectionPool {
     using SafeTransferLib for address payable;
@@ -40,23 +40,18 @@ abstract contract CollectionPoolETH is CollectionPool {
             totalRoyaltiesPaid += royaltyAmount;
             if (royaltyAmount > 0) {
                 address recipient = getRoyaltyRecipient(payable(due.recipient));
-                payable(recipient).safeTransferETH(
-                    royaltyAmount
-                );
+                payable(recipient).safeTransferETH(royaltyAmount);
             }
 
             unchecked {
                 ++i;
             }
         }
-        
 
         // Transfer inputAmount ETH to assetRecipient if it's been set
         address payable _assetRecipient = getAssetRecipient();
         if (_assetRecipient != address(this)) {
-            _assetRecipient.safeTransferETH(
-                inputAmount - protocolFee - totalRoyaltiesPaid
-            );
+            _assetRecipient.safeTransferETH(inputAmount - protocolFee - totalRoyaltiesPaid);
         }
 
         // Take protocol fee
@@ -81,10 +76,7 @@ abstract contract CollectionPoolETH is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function _payProtocolFeeFromPool(
-        ICollectionPoolFactory _factory,
-        uint256 protocolFee
-    ) internal override {
+    function _payProtocolFeeFromPool(ICollectionPoolFactory _factory, uint256 protocolFee) internal override {
         // Take protocol fee
         if (protocolFee > 0) {
             // Round down to the actual ETH balance if there are numerical stability issues with the bonding curve calculations
@@ -99,15 +91,14 @@ abstract contract CollectionPoolETH is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function _sendTokenOutput(
-        address payable tokenRecipient,
-        uint256 outputAmount,
-        RoyaltyDue[] memory royaltiesDue
-    ) internal override {
+    function _sendTokenOutput(address payable tokenRecipient, uint256 outputAmount, RoyaltyDue[] memory royaltiesDue)
+        internal
+        override
+    {
         // Unfortunately we need to duplicate work here
         uint256 length = royaltiesDue.length;
         uint256 totalRoyaltiesDue;
-        for (uint256 i = 0; i  < length; ) {
+        for (uint256 i = 0; i < length;) {
             totalRoyaltiesDue += royaltiesDue[i].amount;
             unchecked {
                 ++i;
@@ -116,14 +107,11 @@ abstract contract CollectionPoolETH is CollectionPool {
 
         // Send ETH to caller
         if (outputAmount > 0) {
-            require(
-                address(this).balance >= outputAmount + tradeFee + totalRoyaltiesDue,
-                "Too little ETH"
-            );
+            require(address(this).balance >= outputAmount + tradeFee + totalRoyaltiesDue, "Too little ETH");
             tokenRecipient.safeTransferETH(outputAmount);
         }
 
-        for (uint256 i = 0; i < length; ) {
+        for (uint256 i = 0; i < length;) {
             RoyaltyDue memory due = royaltiesDue[i];
             address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
             uint256 royaltyAmount = due.amount;
@@ -144,8 +132,8 @@ abstract contract CollectionPoolETH is CollectionPool {
     }
 
     /**
-        @notice Withdraws all token owned by the pool to the owner address.
-        @dev Only callable by the owner.
+     * @notice Withdraws all token owned by the pool to the owner address.
+     * @dev Only callable by the owner.
      */
     function withdrawAllETH() external onlyAuthorized {
         tradeFee = 0;
@@ -154,25 +142,19 @@ abstract contract CollectionPoolETH is CollectionPool {
     }
 
     /**
-        @notice Withdraws a specified amount of token owned by the pool to the owner address.
-        @dev Only callable by the owner.
-        @param amount The amount of token to send to the owner. If the pool's balance is less than
-        this value, the transaction will be reverted.
+     * @notice Withdraws a specified amount of token owned by the pool to the owner address.
+     * @dev Only callable by the owner.
+     * @param amount The amount of token to send to the owner. If the pool's balance is less than
+     * this value, the transaction will be reverted.
      */
     function withdrawETH(uint256 amount) external onlyAuthorized {
-        require(
-            address(this).balance >= amount + tradeFee,
-            "Too little ETH"
-        );
+        require(address(this).balance >= amount + tradeFee, "Too little ETH");
 
         _withdrawETH(amount);
     }
 
     /// @inheritdoc ICollectionPool
-    function withdrawERC20(ERC20 a, uint256 amount)
-        external
-        onlyAuthorized
-    {
+    function withdrawERC20(ERC20 a, uint256 amount) external onlyAuthorized {
         a.safeTransfer(msg.sender, amount);
     }
 
@@ -187,16 +169,16 @@ abstract contract CollectionPoolETH is CollectionPool {
     }
 
     /**
-        @dev All ETH transfers into the pool are accepted. This is the main method
-        for the owner to top up the pool's token reserves.
+     * @dev All ETH transfers into the pool are accepted. This is the main method
+     * for the owner to top up the pool's token reserves.
      */
     receive() external payable {
         emit TokenDeposit(msg.value);
     }
 
     /**
-        @dev All ETH transfers into the pool are accepted. This is the main method
-        for the owner to top up the pool's token reserves.
+     * @dev All ETH transfers into the pool are accepted. This is the main method
+     * for the owner to top up the pool's token reserves.
      */
     fallback() external payable {
         // Only allow calls without function selector

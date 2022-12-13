@@ -1,7 +1,7 @@
 pragma solidity ^0.8.0;
 
-import "../ICollectionPoolFactory.sol";
-import "../CollectionPool.sol";
+import "../../pools/ICollectionPoolFactory.sol";
+import "../../pools/CollectionPool.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 contract TestAtomicTrader is IERC721Receiver {

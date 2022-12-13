@@ -21,12 +21,7 @@ contract RNGServiceMock is RNGInterface {
 
     /// @return _feeToken
     /// @return _requestFee
-    function getRequestFee()
-        external
-        view
-        override
-        returns (address _feeToken, uint256 _requestFee)
-    {
+    function getRequestFee() external view override returns (address _feeToken, uint256 _requestFee) {
         return (feeToken, requestFee);
     }
 

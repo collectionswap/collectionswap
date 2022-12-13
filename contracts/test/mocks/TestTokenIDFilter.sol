@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import "../filter/TokenIDFilter.sol";
+import "../../filter/TokenIDFilter.sol";
 
 contract TokenIDFilterMock is TokenIDFilter {
     function setTokenIDFilter(address collection, bytes32 _merkleRoot, bytes calldata data) public {
