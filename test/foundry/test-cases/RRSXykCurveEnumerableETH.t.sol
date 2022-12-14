@@ -7,9 +7,4 @@ import {UsingXykCurve} from "../mixins/UsingXykCurve.sol";
 import {UsingEnumerable} from "../mixins/UsingEnumerable.sol";
 import {UsingETH} from "../mixins/UsingETH.sol";
 
-contract RRSXykCurveEnumerableETHTest is
-    RouterRobustSwap,
-    UsingXykCurve,
-    UsingEnumerable,
-    UsingETH
-{}
+contract RRSXykCurveEnumerableETHTest is RouterRobustSwap, UsingXykCurve, UsingEnumerable, UsingETH {}

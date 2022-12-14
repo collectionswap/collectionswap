@@ -31,12 +31,14 @@ interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
      * @param encodedTokenIDs Encoded list of acceptable NFT IDs
      * @param initialProof Merkle multiproof for initial NFT IDs
      * @param initialProofFlags Merkle multiproof flags for initial NFT IDs
+     * @param initialProofLeaves Sorted leaves of Merkle multiproof
      */
     struct NFTFilterParams {
         bytes32 merkleRoot;
         bytes encodedTokenIDs;
         bytes32[] initialProof;
         bool[] initialProofFlags;
+        bytes32[] initialProofLeaves;
     }
 
     /**

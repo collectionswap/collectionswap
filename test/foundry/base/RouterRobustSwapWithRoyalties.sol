@@ -19,7 +19,10 @@ import {CollectionPoolEnumerableETH} from "../../../contracts/pools/CollectionPo
 import {CollectionPoolMissingEnumerableETH} from "../../../contracts/pools/CollectionPoolMissingEnumerableETH.sol";
 import {CollectionPoolEnumerableERC20} from "../../../contracts/pools/CollectionPoolEnumerableERC20.sol";
 import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/pools/CollectionPoolMissingEnumerableERC20.sol";
-import {CollectionRouterWithRoyalties, CollectionRouter} from "../../../contracts/routers/CollectionRouterWithRoyalties.sol";
+import {
+    CollectionRouterWithRoyalties,
+    CollectionRouter
+} from "../../../contracts/routers/CollectionRouterWithRoyalties.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Hevm} from "../utils/Hevm.sol";
 import {ConfigurableWithRoyalties} from "../mixins/ConfigurableWithRoyalties.sol";
@@ -56,10 +59,7 @@ abstract contract RouterRobustSwapWithRoyalties is
         test721 = setup721();
         test2981 = setup2981();
         royaltyRegistry = setupRoyaltyRegistry();
-        royaltyRegistry.setRoyaltyLookupAddress(
-            address(test721),
-            address(test2981)
-        );
+        royaltyRegistry.setRoyaltyLookupAddress(address(test721), address(test2981));
 
         CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
         CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
@@ -158,11 +158,10 @@ abstract contract RouterRobustSwapWithRoyalties is
 
     // Test where pool 1 and pool 2 swap tokens for NFT succeed but pool 3 fails
     function test_robustSwapTokenForAny2NFTs() public {
-        CollectionRouter.RobustPoolSwapAny[]
-            memory swapList = new CollectionRouter.RobustPoolSwapAny[](3);
+        CollectionRouter.RobustPoolSwapAny[] memory swapList = new CollectionRouter.RobustPoolSwapAny[](3);
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2InputAmount, , ) = pool2.getBuyNFTQuote(2);
+        (,,,, uint256 pool1InputAmount,,) = pool1.getBuyNFTQuote(2);
+        (,,,, uint256 pool2InputAmount,,) = pool2.getBuyNFTQuote(2);
 
         uint256 totalRoyaltyAmount = 0;
 
@@ -191,15 +190,8 @@ abstract contract RouterRobustSwapWithRoyalties is
 
         // Expect to have the first two swapPools succeed, and the last one silently fail
         // with 10% protocol fee:
-        uint256 remainingValue = this.robustSwapTokenForAnyNFTs{
-            value: modifyInputAmount(pool2InputAmount * 3)
-        }(
-            router,
-            swapList,
-            payable(address(this)),
-            address(this),
-            block.timestamp,
-            pool2InputAmount * 3
+        uint256 remainingValue = this.robustSwapTokenForAnyNFTs{value: modifyInputAmount(pool2InputAmount * 3)}(
+            router, swapList, payable(address(this)), address(this), block.timestamp, pool2InputAmount * 3
         );
 
         uint256 afterNFTBalance = test721.balanceOf(address(this));
@@ -207,11 +199,7 @@ abstract contract RouterRobustSwapWithRoyalties is
         // If the first two swap pools succeed, we gain 4 NFTs
         assertEq((afterNFTBalance - beforeNFTBalance), 4, "Incorrect NFT swap");
 
-        assertEq(
-            remainingValue,
-            pool2InputAmount * 3 - (pool1InputAmount + pool2InputAmount),
-            "Incorrect refund"
-        );
+        assertEq(remainingValue, pool2InputAmount * 3 - (pool1InputAmount + pool2InputAmount), "Incorrect refund");
 
         // check that royalty has been issued
         assertEq(getBalance(ROYALTY_RECEIVER), totalRoyaltyAmount);
@@ -233,8 +221,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         nftIds3[0] = 20;
         nftIds3[1] = 21;
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2InputAmount, , ) = pool2.getBuyNFTQuote(2);
+        (,,,, uint256 pool1InputAmount,,) = pool1.getBuyNFTQuote(2);
+        (,,,, uint256 pool2InputAmount,,) = pool2.getBuyNFTQuote(2);
 
         // calculate royalty and add it to the input amount
         uint256 royaltyAmount = calcRoyalty(pool1InputAmount);
@@ -244,14 +232,14 @@ abstract contract RouterRobustSwapWithRoyalties is
         pool2InputAmount += royaltyAmount;
         totalRoyaltyAmount += royaltyAmount;
 
-        CollectionRouter.RobustPoolSwapSpecific[]
-            memory swapList = new CollectionRouter.RobustPoolSwapSpecific[](3);
+        CollectionRouter.RobustPoolSwapSpecific[] memory swapList = new CollectionRouter.RobustPoolSwapSpecific[](3);
         swapList[0] = CollectionRouter.RobustPoolSwapSpecific({
             swapInfo: CollectionRouter.PoolSwapSpecific({
                 pool: pool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             maxCost: pool2InputAmount
         });
@@ -260,7 +248,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             maxCost: pool2InputAmount
         });
@@ -269,7 +258,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool3,
                 nftIds: nftIds3,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             maxCost: pool2InputAmount
         });
@@ -278,26 +268,15 @@ abstract contract RouterRobustSwapWithRoyalties is
 
         // Expect to have the first two swapPools succeed, and the last one silently fail
         // with 10% protocol fee:
-        uint256 remainingValue = this.robustSwapTokenForSpecificNFTs{
-            value: modifyInputAmount(pool2InputAmount * 3)
-        }(
-            router,
-            swapList,
-            payable(address(this)),
-            address(this),
-            block.timestamp,
-            pool2InputAmount * 3
+        uint256 remainingValue = this.robustSwapTokenForSpecificNFTs{value: modifyInputAmount(pool2InputAmount * 3)}(
+            router, swapList, payable(address(this)), address(this), block.timestamp, pool2InputAmount * 3
         );
 
         uint256 afterNFTBalance = test721.balanceOf(address(this));
 
         // If the first two swap pools succeed we gain 4 NFTs
         assertEq((afterNFTBalance - beforeNFTBalance), 4, "Incorrect NFT swap");
-        assertEq(
-            remainingValue,
-            pool2InputAmount * 3 - (pool1InputAmount + pool2InputAmount),
-            "Incorrect ETH refund"
-        );
+        assertEq(remainingValue, pool2InputAmount * 3 - (pool1InputAmount + pool2InputAmount), "Incorrect ETH refund");
 
         // check that royalty has been issued
         assertEq(getBalance(ROYALTY_RECEIVER), totalRoyaltyAmount);
@@ -319,8 +298,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         nftIds3[0] = 34;
         nftIds3[1] = 35;
 
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
-        (, , , , uint256 pool3OutputAmount, , ) = pool3.getSellNFTQuote(2);
+        (,,,, uint256 pool2OutputAmount,,) = pool2.getSellNFTQuote(2);
+        (,,,, uint256 pool3OutputAmount,,) = pool3.getSellNFTQuote(2);
 
         // calculate royalty and rm it from the input amount
         uint256 royaltyAmount = calcRoyalty(pool2OutputAmount);
@@ -330,8 +309,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         pool3OutputAmount -= royaltyAmount;
         totalRoyaltyAmount += royaltyAmount;
 
-        CollectionRouter.RobustPoolSwapSpecificForToken[]
-            memory swapList = new CollectionRouter.RobustPoolSwapSpecificForToken[](
+        CollectionRouter.RobustPoolSwapSpecificForToken[] memory swapList =
+        new CollectionRouter.RobustPoolSwapSpecificForToken[](
                 3
             );
         swapList[0] = CollectionRouter.RobustPoolSwapSpecificForToken({
@@ -339,7 +318,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -348,7 +328,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -357,7 +338,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool3,
                 nftIds: nftIds3,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -366,20 +348,12 @@ abstract contract RouterRobustSwapWithRoyalties is
 
         // Expect to have the last two swapPools succeed, and the first one silently fail
         // with 10% protocol fee:
-        uint256 remainingValue = router.robustSwapNFTsForToken(
-            swapList,
-            payable(address(this)),
-            block.timestamp
-        );
+        uint256 remainingValue = router.robustSwapNFTsForToken(swapList, payable(address(this)), block.timestamp);
 
         uint256 afterNFTBalance = test721.balanceOf(address(this));
 
         assertEq((beforeNFTBalance - afterNFTBalance), 4, "Incorrect NFT swap");
-        assertEq(
-            remainingValue,
-            pool3OutputAmount + pool2OutputAmount,
-            "Incorrect ETH received"
-        );
+        assertEq(remainingValue, pool3OutputAmount + pool2OutputAmount, "Incorrect ETH received");
 
         // check that royalty has been issued
         assertEq(getBalance(ROYALTY_RECEIVER), totalRoyaltyAmount);
@@ -399,14 +373,14 @@ abstract contract RouterRobustSwapWithRoyalties is
 
         uint256[] memory nftIds3 = new uint256[](0);
 
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
+        (,,,, uint256 pool2OutputAmount,,) = pool2.getSellNFTQuote(2);
 
         // calculate royalty and rm it from the output amount
         uint256 royaltyAmount = calcRoyalty(pool2OutputAmount);
         pool2OutputAmount -= royaltyAmount;
 
-        CollectionRouter.RobustPoolSwapSpecificForToken[]
-            memory swapList = new CollectionRouter.RobustPoolSwapSpecificForToken[](
+        CollectionRouter.RobustPoolSwapSpecificForToken[] memory swapList =
+        new CollectionRouter.RobustPoolSwapSpecificForToken[](
                 3
             );
         swapList[0] = CollectionRouter.RobustPoolSwapSpecificForToken({
@@ -414,7 +388,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -423,7 +398,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -432,7 +408,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool3,
                 nftIds: nftIds3,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -441,11 +418,7 @@ abstract contract RouterRobustSwapWithRoyalties is
 
         // Expect to have the last two swapPools succeed, and the first one silently fail
         // with 10% protocol fee:
-        uint256 remainingValue = router.robustSwapNFTsForToken(
-            swapList,
-            payable(address(this)),
-            block.timestamp
-        );
+        uint256 remainingValue = router.robustSwapNFTsForToken(swapList, payable(address(this)), block.timestamp);
 
         uint256 afterNFTBalance = test721.balanceOf(address(this));
 
@@ -465,8 +438,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         assertEq(test721.ownerOf(32), address(this));
         assertEq(test721.ownerOf(33), address(this));
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
+        (,,,, uint256 pool1InputAmount,,) = pool1.getBuyNFTQuote(2);
+        (,,,, uint256 pool2OutputAmount,,) = pool2.getSellNFTQuote(2);
 
         // calculate royalty and modify input and output amounts
         uint256 royaltyAmount = calcRoyalty(pool1InputAmount);
@@ -479,8 +452,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         uint256[] memory nftIds1 = new uint256[](2);
         nftIds1[0] = 0;
         nftIds1[1] = 1;
-        CollectionRouter.RobustPoolSwapSpecific[]
-            memory tokenToNFTSwapList = new CollectionRouter.RobustPoolSwapSpecific[](
+        CollectionRouter.RobustPoolSwapSpecific[] memory tokenToNFTSwapList =
+        new CollectionRouter.RobustPoolSwapSpecific[](
                 1
             );
         tokenToNFTSwapList[0] = CollectionRouter.RobustPoolSwapSpecific({
@@ -488,7 +461,8 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             maxCost: pool1InputAmount
         });
@@ -497,8 +471,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         uint256[] memory nftIds2 = new uint256[](2);
         nftIds2[0] = 32;
         nftIds2[1] = 33;
-        CollectionRouter.RobustPoolSwapSpecificForToken[]
-            memory nftToTokenSwapList = new CollectionRouter.RobustPoolSwapSpecificForToken[](
+        CollectionRouter.RobustPoolSwapSpecificForToken[] memory nftToTokenSwapList =
+        new CollectionRouter.RobustPoolSwapSpecificForToken[](
                 1
             );
         nftToTokenSwapList[0] = CollectionRouter.RobustPoolSwapSpecificForToken({
@@ -506,16 +480,15 @@ abstract contract RouterRobustSwapWithRoyalties is
                 pool: pool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             }),
             minOutput: pool2OutputAmount
         });
 
         // Do the swap
         uint256 inputAmount = pool1InputAmount;
-        this.robustSwapTokenForSpecificNFTsAndNFTsForTokens{
-            value: modifyInputAmount(inputAmount)
-        }(
+        this.robustSwapTokenForSpecificNFTsAndNFTsForTokens{value: modifyInputAmount(inputAmount)}(
             router,
             CollectionRouter.RobustPoolNFTsFoTokenAndTokenforNFTsTrade({
                 nftToTokenTrades: nftToTokenSwapList,

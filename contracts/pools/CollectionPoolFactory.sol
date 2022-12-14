@@ -490,7 +490,9 @@ contract CollectionPoolFactory is
         _pool.setTokenIDFilter(_filterParams.merkleRoot, _filterParams.encodedTokenIDs);
 
         require(
-            _pool.acceptsTokenIDs(_params.initialNFTIDs, _filterParams.initialProof, _filterParams.initialProofFlags),
+            _pool.acceptsTokenIDs(
+                _filterParams.initialProof, _filterParams.initialProofFlags, _filterParams.initialProofLeaves
+            ),
             "NFT not allowed"
         );
 
@@ -559,7 +561,9 @@ contract CollectionPoolFactory is
         _pool.setTokenIDFilter(_filterParams.merkleRoot, _filterParams.encodedTokenIDs);
 
         require(
-            _pool.acceptsTokenIDs(_params.initialNFTIDs, _filterParams.initialProof, _filterParams.initialProofFlags),
+            _pool.acceptsTokenIDs(
+                _filterParams.initialProof, _filterParams.initialProofFlags, _filterParams.initialProofLeaves
+            ),
             "NFT not allowed"
         );
 
@@ -585,6 +589,7 @@ contract CollectionPoolFactory is
         uint256[] calldata ids,
         bytes32[] calldata proof,
         bool[] calldata proofFlags,
+        bytes32[] calldata proofLeaves,
         address recipient
     ) external {
         bool _isPool = isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.ENUMERABLE_ETH)
@@ -592,7 +597,7 @@ contract CollectionPoolFactory is
             || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ETH);
 
         if (_isPool) {
-            require(CollectionPool(recipient).acceptsTokenIDs(ids, proof, proofFlags), "NFT not allowed");
+            require(CollectionPool(recipient).acceptsTokenIDs(proof, proofFlags, proofLeaves), "NFT not allowed");
         }
 
         // transfer NFTs from caller to recipient

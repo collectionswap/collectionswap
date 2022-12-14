@@ -18,7 +18,10 @@ import {CollectionPoolEnumerableETH} from "../../../contracts/pools/CollectionPo
 import {CollectionPoolMissingEnumerableETH} from "../../../contracts/pools/CollectionPoolMissingEnumerableETH.sol";
 import {CollectionPoolEnumerableERC20} from "../../../contracts/pools/CollectionPoolEnumerableERC20.sol";
 import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/pools/CollectionPoolMissingEnumerableERC20.sol";
-import {CollectionRouterWithRoyalties, CollectionRouter} from "../../../contracts/routers/CollectionRouterWithRoyalties.sol";
+import {
+    CollectionRouterWithRoyalties,
+    CollectionRouter
+} from "../../../contracts/routers/CollectionRouterWithRoyalties.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {ConfigurableWithRoyalties} from "../mixins/ConfigurableWithRoyalties.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
@@ -48,10 +51,7 @@ abstract contract RouterMultiPoolWithRoyalties is
         test721 = setup721();
         test2981 = setup2981();
         royaltyRegistry = setupRoyaltyRegistry();
-        royaltyRegistry.setRoyaltyLookupAddress(
-            address(test721),
-            address(test2981)
-        );
+        royaltyRegistry.setRoyaltyLookupAddress(address(test721), address(test2981));
 
         CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
         CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate = new CollectionPoolMissingEnumerableETH();
@@ -109,13 +109,12 @@ abstract contract RouterMultiPoolWithRoyalties is
 
     function test_swapTokenForAny5NFTs() public {
         // Swap across all 5 pools
-        CollectionRouter.PoolSwapAny[]
-            memory swapList = new CollectionRouter.PoolSwapAny[](5);
+        CollectionRouter.PoolSwapAny[] memory swapList = new CollectionRouter.PoolSwapAny[](5);
         uint256 totalInputAmount = 0;
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 inputAmount;
-            (, , , , inputAmount, , ) = pools[i + 1].getBuyNFTQuote(1);
+            (,,,, inputAmount,,) = pools[i + 1].getBuyNFTQuote(1);
 
             // calculate royalty and add it to the input amount
             uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -123,19 +122,11 @@ abstract contract RouterMultiPoolWithRoyalties is
             totalRoyaltyAmount += royaltyAmount;
 
             totalInputAmount += inputAmount;
-            swapList[i] = CollectionRouter.PoolSwapAny({
-                pool: pools[i + 1],
-                numItems: 1
-            });
+            swapList[i] = CollectionRouter.PoolSwapAny({pool: pools[i + 1], numItems: 1});
         }
         uint256 startBalance = test721.balanceOf(address(this));
         this.swapTokenForAnyNFTs{value: modifyInputAmount(totalInputAmount)}(
-            router,
-            swapList,
-            payable(address(this)),
-            address(this),
-            block.timestamp,
-            totalInputAmount
+            router, swapList, payable(address(this)), address(this), block.timestamp, totalInputAmount
         );
         uint256 endBalance = test721.balanceOf(address(this));
         require((endBalance - startBalance) == 5, "Too few NFTs acquired");
@@ -146,13 +137,12 @@ abstract contract RouterMultiPoolWithRoyalties is
 
     function test_swapTokenForSpecific5NFTs() public {
         // Swap across all 5 pools
-        CollectionRouter.PoolSwapSpecific[]
-            memory swapList = new CollectionRouter.PoolSwapSpecific[](5);
+        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](5);
         uint256 totalInputAmount = 0;
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 inputAmount;
-            (, , , , inputAmount, , ) = pools[i + 1].getBuyNFTQuote(1);
+            (,,,, inputAmount,,) = pools[i + 1].getBuyNFTQuote(1);
 
             // calculate royalty and add it to the input amount
             uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -166,19 +156,13 @@ abstract contract RouterMultiPoolWithRoyalties is
                 pool: pools[i + 1],
                 nftIds: nftIds,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             });
         }
         uint256 startBalance = test721.balanceOf(address(this));
-        this.swapTokenForSpecificNFTs{
-            value: modifyInputAmount(totalInputAmount)
-        }(
-            router,
-            swapList,
-            payable(address(this)),
-            address(this),
-            block.timestamp,
-            totalInputAmount
+        this.swapTokenForSpecificNFTs{value: modifyInputAmount(totalInputAmount)}(
+            router, swapList, payable(address(this)), address(this), block.timestamp, totalInputAmount
         );
         uint256 endBalance = test721.balanceOf(address(this));
         require((endBalance - startBalance) == 5, "Too few NFTs acquired");
@@ -189,13 +173,12 @@ abstract contract RouterMultiPoolWithRoyalties is
 
     function test_swap5NFTsForToken() public {
         // Swap across all 5 pools
-        CollectionRouter.PoolSwapSpecific[]
-            memory swapList = new CollectionRouter.PoolSwapSpecific[](5);
+        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](5);
         uint256 totalOutputAmount = 0;
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 outputAmount;
-            (, , , , outputAmount, , ) = pools[i + 1].getSellNFTQuote(1);
+            (,,,, outputAmount,,) = pools[i + 1].getSellNFTQuote(1);
 
             // calculate royalty and rm it from the output amount
             uint256 royaltyAmount = calcRoyalty(outputAmount);
@@ -210,16 +193,12 @@ abstract contract RouterMultiPoolWithRoyalties is
                 pool: pools[i + 1],
                 nftIds: nftIds,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                proofLeaves: new bytes32[](0)
             });
         }
         uint256 startBalance = test721.balanceOf(address(this));
-        router.swapNFTsForToken(
-            swapList,
-            totalOutputAmount,
-            payable(address(this)),
-            block.timestamp
-        );
+        router.swapNFTsForToken(swapList, totalOutputAmount, payable(address(this)), block.timestamp);
         uint256 endBalance = test721.balanceOf(address(this));
         require((startBalance - endBalance) == 5, "Too few NFTs sold");
 

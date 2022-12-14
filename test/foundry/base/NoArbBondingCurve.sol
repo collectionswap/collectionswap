@@ -55,13 +55,9 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
     }
 
     /**
-    @dev Ensures selling NFTs & buying them back results in no profit.
+     * @dev Ensures selling NFTs & buying them back results in no profit.
      */
-    function test_bondingCurveSellBuyNoProfit(
-        uint56 spotPrice,
-        uint64 delta,
-        uint8 numItems
-    ) public payable {
+    function test_bondingCurveSellBuyNoProfit(uint56 spotPrice, uint64 delta, uint8 numItems) public payable {
         // modify spotPrice to be appropriate for the bonding curve
         spotPrice = modifySpotPrice(spotPrice);
 
@@ -108,26 +104,11 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
 
         // sell all NFTs minted to the pool
         {
-            (
-                ,
-                ICurve.Params memory newParams,
-                uint256 outputAmount,
-                ICurve.Fees memory fees
-            ) = bondingCurve.getSellInfo(
-                    ICurve.Params(
-                        spotPrice,
-                        delta,
-                        "",
-                        ""
-                    ),
-                    numItems,
-                    ICurve.FeeMultipliers(
-                        0,
-                        protocolFeeMultiplier,
-                        royaltyNumerator,
-                        0
-                    )
-                );
+            (, ICurve.Params memory newParams, uint256 outputAmount, ICurve.Fees memory fees) = bondingCurve.getSellInfo(
+                ICurve.Params(spotPrice, delta, "", ""),
+                numItems,
+                ICurve.FeeMultipliers(0, protocolFeeMultiplier, royaltyNumerator, 0)
+            );
 
             // give the pool contract enough tokens to pay for the NFTs
             sendTokens(pool, outputAmount + fees.protocol);
@@ -136,11 +117,7 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
             test721.setApprovalForAll(address(pool), true);
             startBalance = getBalance(address(this));
             pool.swapNFTsForToken(
-                ICollectionPool.NFTs(
-                    idList,
-                    new bytes32[](0),
-                    new bool[](0)
-                ),
+                ICollectionPool.NFTs(idList, new bytes32[](0), new bool[](0), new bytes32[](0)),
                 0,
                 payable(address(this)),
                 false,
@@ -151,27 +128,13 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
 
         // buy back the NFTs just sold to the pool
         {
-            (, , uint256 inputAmount, ) = bondingCurve.getBuyInfo(
-                ICurve.Params(
-                    spotPrice,
-                    delta,
-                    "",
-                    ""
-                ),
+            (,, uint256 inputAmount,) = bondingCurve.getBuyInfo(
+                ICurve.Params(spotPrice, delta, "", ""),
                 numItems,
-                ICurve.FeeMultipliers(
-                    0,
-                    protocolFeeMultiplier,
-                    royaltyNumerator,
-                    0
-                )
+                ICurve.FeeMultipliers(0, protocolFeeMultiplier, royaltyNumerator, 0)
             );
             pool.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-                idList.length,
-                inputAmount,
-                address(this),
-                false,
-                address(0)
+                idList.length, inputAmount, address(this), false, address(0)
             );
             endBalance = getBalance(address(this));
         }
@@ -184,13 +147,9 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
     }
 
     /**
-    @dev Ensures buying NFTs & selling them back results in no profit.
+     * @dev Ensures buying NFTs & selling them back results in no profit.
      */
-    function test_bondingCurveBuySellNoProfit(
-        uint56 spotPrice,
-        uint64 delta,
-        uint8 numItems
-    ) public payable {
+    function test_bondingCurveBuySellNoProfit(uint56 spotPrice, uint64 delta, uint8 numItems) public payable {
         // modify spotPrice to be appropriate for the bonding curve
         spotPrice = modifySpotPrice(spotPrice);
 
@@ -235,31 +194,16 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
 
         // buy all NFTs
         {
-            (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
-                .getBuyInfo(
-                    ICurve.Params(
-                        spotPrice,
-                        delta,
-                        "",
-                        ""
-                    ),
-                    numItems,
-                    ICurve.FeeMultipliers(
-                        0,
-                        protocolFeeMultiplier,
-                        royaltyNumerator,
-                        0
-                    )
-                );
+            (, ICurve.Params memory newParams, uint256 inputAmount,) = bondingCurve.getBuyInfo(
+                ICurve.Params(spotPrice, delta, "", ""),
+                numItems,
+                ICurve.FeeMultipliers(0, protocolFeeMultiplier, royaltyNumerator, 0)
+            );
 
             // buy NFTs
             startBalance = getBalance(address(this));
             pool.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-                numItems,
-                inputAmount,
-                address(this),
-                false,
-                address(0)
+                numItems, inputAmount, address(this), false, address(0)
             );
             spotPrice = uint56(newParams.spotPrice);
         }
@@ -267,26 +211,12 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
         // sell back the NFTs
         {
             bondingCurve.getSellInfo(
-                ICurve.Params(
-                    spotPrice,
-                    delta,
-                    "",
-                    ""
-                ),
+                ICurve.Params(spotPrice, delta, "", ""),
                 numItems,
-                ICurve.FeeMultipliers(
-                    0,
-                    protocolFeeMultiplier,
-                    royaltyNumerator,
-                    0
-                )
+                ICurve.FeeMultipliers(0, protocolFeeMultiplier, royaltyNumerator, 0)
             );
             pool.swapNFTsForToken(
-                ICollectionPool.NFTs(
-                    idList,
-                    new bytes32[](0),
-                    new bool[](0)
-                ),
+                ICollectionPool.NFTs(idList, new bytes32[](0), new bool[](0), new bytes32[](0)),
                 0,
                 payable(address(this)),
                 false,

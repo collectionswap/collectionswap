@@ -7,9 +7,4 @@ import {UsingXykCurve} from "../mixins/UsingXykCurve.sol";
 import {UsingEnumerable} from "../mixins/UsingEnumerable.sol";
 import {UsingERC20} from "../mixins/UsingERC20.sol";
 
-contract PAFXykCurveEnumerableERC20Test is
-    PoolAndFactory,
-    UsingXykCurve,
-    UsingEnumerable,
-    UsingERC20
-{}
+contract PAFXykCurveEnumerableERC20Test is PoolAndFactory, UsingXykCurve, UsingEnumerable, UsingERC20 {}

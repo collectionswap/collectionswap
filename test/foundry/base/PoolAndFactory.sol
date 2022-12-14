@@ -198,11 +198,7 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     function testFail_callMint721() public {
-        bytes memory data = abi.encodeWithSelector(
-            Test721.mint.selector,
-            address(this),
-            1000
-        );
+        bytes memory data = abi.encodeWithSelector(Test721.mint.selector, address(this), 1000);
         pool.call(payable(address(test721)), data);
     }
 
@@ -212,11 +208,7 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
         // add to whitelist
         factory.setCallAllowed(payable(address(test721)), true);
 
-        bytes memory data = abi.encodeWithSelector(
-            Test721.mint.selector,
-            address(this),
-            1000
-        );
+        bytes memory data = abi.encodeWithSelector(Test721.mint.selector, address(this), 1000);
         pool.call(payable(address(test721)), data);
 
         // verify NFT ownership
@@ -235,7 +227,7 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     /**
-        Test failure conditions
+     * Test failure conditions
      */
 
     function testFail_rescueTokensNotOwner() public {
@@ -275,27 +267,14 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
         // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
-        (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
-            .getBuyInfo(
-                ICurve.Params(
-                    spotPrice,
-                    delta,
-                    "",
-                    ""
-                ),
-                numItems + 1,
-                pool.feeMultipliers()
-            );
+        (, ICurve.Params memory newParams, uint256 inputAmount,) =
+            bondingCurve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems + 1, pool.feeMultipliers());
 
         // buy specific NFT not in pool
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 69;
         pool.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
-            nftIds,
-            inputAmount,
-            address(this),
-            false,
-            address(0)
+            nftIds, inputAmount, address(this), false, address(0)
         );
         spotPrice = uint56(newParams.spotPrice);
     }
@@ -304,25 +283,12 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
         // skip 1 second so that trades are not in the same timestamp as pool creation
         skip(1);
 
-        (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
-            .getBuyInfo(
-                ICurve.Params(
-                    spotPrice,
-                    delta,
-                    "",
-                    ""
-                ),
-                numItems + 1,
-                pool.feeMultipliers()
-            );
+        (, ICurve.Params memory newParams, uint256 inputAmount,) =
+            bondingCurve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems + 1, pool.feeMultipliers());
 
         // buy any NFTs past pool inventory
         pool.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-            numItems + 1,
-            inputAmount,
-            address(this),
-            false,
-            address(0)
+            numItems + 1, inputAmount, address(this), false, address(0)
         );
         spotPrice = uint56(newParams.spotPrice);
     }
@@ -348,30 +314,13 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
 
         // buy all NFTs
         {
-            (
-                ,
-                ICurve.Params memory newParams,
-                uint256 inputAmount,
-                ICurve.Fees memory fees
-            ) = bondingCurve.getBuyInfo(
-                    ICurve.Params(
-                        spotPrice,
-                        delta,
-                        "",
-                        ""
-                    ),
-                    numItems,
-                    pool.feeMultipliers()
-                );
+            (, ICurve.Params memory newParams, uint256 inputAmount, ICurve.Fees memory fees) =
+                bondingCurve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, pool.feeMultipliers());
             totalProtocolFee += fees.protocol;
 
             // buy NFTs
             pool.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-                numItems,
-                inputAmount,
-                address(this),
-                false,
-                address(0)
+                numItems, inputAmount, address(this), false, address(0)
             );
             spotPrice = uint56(newParams.spotPrice);
         }

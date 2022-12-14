@@ -29,9 +29,9 @@ contract TokenIDFilterTest is Test {
         assert(filter.acceptsTokenID(uint256(1), empty));
 
         bool[] memory emptyFlags;
-        uint256[] memory tokens = new uint256[](1);
-        tokens[0] = 1;
-        assert(filter.acceptsTokenIDs(tokens, empty, emptyFlags));
+        bytes32[] memory tokens = new bytes32[](1);
+        tokens[0] = bytes32(abi.encodePacked(uint256(1)));
+        assert(filter.acceptsTokenIDs(empty, emptyFlags, tokens));
     }
 
     function testFilterTwoIDs() public {
@@ -41,8 +41,7 @@ contract TokenIDFilterTest is Test {
 
         if (token42Leaf < token88Leaf) {
             root = hash(token42Leaf, token88Leaf);
-        }
-        else {
+        } else {
             root = hash(token88Leaf, token42Leaf);
         }
 
@@ -58,17 +57,12 @@ contract TokenIDFilterTest is Test {
     }
 
     function testFilterMulti() public {
-        
-        filter.setTokenIDFilter(
-            collection,
-            0xdf8c8da4082b4272cc9b0870e40a116efd467249794a1b9e55467ce9fec4ad08,
-            data
-            );
+        filter.setTokenIDFilter(collection, 0xdf8c8da4082b4272cc9b0870e40a116efd467249794a1b9e55467ce9fec4ad08, data);
 
-        uint256[] memory tokens = new uint256[](3);
-        tokens[0] = 0x3;
-        tokens[1] = 0x7;
-        tokens[2] = 0x1;
+        bytes32[] memory leaves = new bytes32[](3);
+        leaves[0] = bytes32(abi.encodePacked(uint256(3)));
+        leaves[1] = bytes32(abi.encodePacked(uint256(7)));
+        leaves[2] = bytes32(abi.encodePacked(uint256(1)));
 
         bytes32[] memory proof = new bytes32[](5);
         proof[0] = 0x16db2e4b9f8dc120de98f8491964203ba76de27b27b29c2d25f85a325cd37477;
@@ -86,7 +80,7 @@ contract TokenIDFilterTest is Test {
         proofFlags[5] = true;
         proofFlags[6] = true;
 
-        assert(filter.acceptsTokenIDs(tokens, proof, proofFlags));
+        assert(filter.acceptsTokenIDs(proof, proofFlags, leaves));
     }
 }
 
@@ -100,11 +94,11 @@ contract TokenIDFilterHugeTest is Test {
         filter = new TokenIDFilterMock();
     }
 
-    function useAndTestDistribution(bytes32 seed, uint count, uint256 maxTokenID) public {
+    function useAndTestDistribution(bytes32 seed, uint256 count, uint256 maxTokenID) public {
         uint256[] memory tokens = new uint256[](count);
         bytes32[] memory leaves = new bytes32[](count);
 
-        for (uint i = 0; i < count; i++) {
+        for (uint256 i = 0; i < count; i++) {
             // poor man's random numbers
             seed = hash(seed);
 
@@ -114,11 +108,7 @@ contract TokenIDFilterHugeTest is Test {
 
         Merkle tree = new Merkle();
 
-        filter.setTokenIDFilter(
-            collection,
-            tree.getRoot(leaves),
-            data
-            );
+        filter.setTokenIDFilter(collection, tree.getRoot(leaves), data);
 
         assert(filter.acceptsTokenID(tokens[0], tree.getProof(leaves, 0)));
         assert(filter.acceptsTokenID(tokens[1], tree.getProof(leaves, 1)));
@@ -127,31 +117,31 @@ contract TokenIDFilterHugeTest is Test {
     }
 
     function testPowersOfTwoPlusOne() public {
-        useAndTestDistribution(bytes32(uint(0xbeef)), 3, 10000);
-        useAndTestDistribution(bytes32(uint(0xabcd)), 9, 10000);
-        useAndTestDistribution(bytes32(uint(0x8888)), 65, 10000);
-        useAndTestDistribution(bytes32(uint(0xfeed)), 513, 10000);
-        useAndTestDistribution(bytes32(uint(0xbead)), 8193, 10000);
+        useAndTestDistribution(bytes32(uint256(0xbeef)), 3, 10000);
+        useAndTestDistribution(bytes32(uint256(0xabcd)), 9, 10000);
+        useAndTestDistribution(bytes32(uint256(0x8888)), 65, 10000);
+        useAndTestDistribution(bytes32(uint256(0xfeed)), 513, 10000);
+        useAndTestDistribution(bytes32(uint256(0xbead)), 8193, 10000);
     }
 
     function testPowersOfTwoMinusOne() public {
-        useAndTestDistribution(bytes32(uint(0xabcd)), 7, 10000);
-        useAndTestDistribution(bytes32(uint(0x8888)), 63, 10000);
-        useAndTestDistribution(bytes32(uint(0xfeed)), 511, 10000);
-        useAndTestDistribution(bytes32(uint(0xbead)), 8191, 10000);
+        useAndTestDistribution(bytes32(uint256(0xabcd)), 7, 10000);
+        useAndTestDistribution(bytes32(uint256(0x8888)), 63, 10000);
+        useAndTestDistribution(bytes32(uint256(0xfeed)), 511, 10000);
+        useAndTestDistribution(bytes32(uint256(0xbead)), 8191, 10000);
     }
 
     function testPowersOfTwo() public {
-        useAndTestDistribution(bytes32(uint(0xbeef)), 2, 10000);
-        useAndTestDistribution(bytes32(uint(0xabcd)), 8, 10000);
-        useAndTestDistribution(bytes32(uint(0x8888)), 64, 10000);
-        useAndTestDistribution(bytes32(uint(0xfeed)), 512, 10000);
-        useAndTestDistribution(bytes32(uint(0xbead)), 8192, 10000);
+        useAndTestDistribution(bytes32(uint256(0xbeef)), 2, 10000);
+        useAndTestDistribution(bytes32(uint256(0xabcd)), 8, 10000);
+        useAndTestDistribution(bytes32(uint256(0x8888)), 64, 10000);
+        useAndTestDistribution(bytes32(uint256(0xfeed)), 512, 10000);
+        useAndTestDistribution(bytes32(uint256(0xbead)), 8192, 10000);
     }
 
     function testMany() public {
-        useAndTestDistribution(bytes32(uint(0xbeef)), 5000, 10000);
-        useAndTestDistribution(bytes32(uint(0xbeef)), 50000, 100000);
+        useAndTestDistribution(bytes32(uint256(0xbeef)), 5000, 10000);
+        useAndTestDistribution(bytes32(uint256(0xbeef)), 50000, 100000);
 
         // insufficient gas for ~million items
         // useAndTestDistribution(bytes32(uint(0xbeef)), 500000, 1000000);
@@ -165,11 +155,11 @@ contract TokenIDFilterEvents is Test {
         filter = new TokenIDFilterMock();
     }
 
-    function many(bytes32 seed, uint count, uint256 maxTokenID) public {
+    function many(bytes32 seed, uint256 count, uint256 maxTokenID) public {
         uint256[] memory tokens = new uint256[](count);
         bytes32[] memory leaves = new bytes32[](count);
 
-        for (uint i = 0; i < count; i++) {
+        for (uint256 i = 0; i < count; i++) {
             // poor man's random numbers
             seed = hash(seed);
 
@@ -181,7 +171,7 @@ contract TokenIDFilterEvents is Test {
     }
 
     function testEmit() public {
-        many(bytes32(uint(0)), 50000, 100000);
+        many(bytes32(uint256(0)), 50000, 100000);
     }
 }
 

@@ -350,7 +350,12 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                 if (royaltyAmount > 0) {
                     // Do the swap and update outputAmount with how many tokens we got
                     poolOutput = swap.swapInfo.pool.swapNFTsForToken(
-                        ICollectionPool.NFTs(swap.swapInfo.nftIds, swap.swapInfo.proof, swap.swapInfo.proofFlags),
+                        ICollectionPool.NFTs(
+                            swap.swapInfo.nftIds,
+                            swap.swapInfo.proof,
+                            swap.swapInfo.proofFlags,
+                            swap.swapInfo.proofLeaves
+                        ),
                         0,
                         payable(address(this)),
                         true,
@@ -381,7 +386,12 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                 } else {
                     // Do the swap and update outputAmount with how many tokens we got
                     outputAmount += swap.swapInfo.pool.swapNFTsForToken(
-                        ICollectionPool.NFTs(swap.swapInfo.nftIds, swap.swapInfo.proof, swap.swapInfo.proofFlags),
+                        ICollectionPool.NFTs(
+                            swap.swapInfo.nftIds,
+                            swap.swapInfo.proof,
+                            swap.swapInfo.proofFlags,
+                            swap.swapInfo.proofLeaves
+                        ),
                         0,
                         tokenRecipient,
                         true,
@@ -489,7 +499,10 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                         // Do the swap and update outputAmount with how many tokens we got
                         poolOutput = swapOut.swapInfo.pool.swapNFTsForToken(
                             ICollectionPool.NFTs(
-                                swapOut.swapInfo.nftIds, swapOut.swapInfo.proof, swapOut.swapInfo.proofFlags
+                                swapOut.swapInfo.nftIds,
+                                swapOut.swapInfo.proof,
+                                swapOut.swapInfo.proofFlags,
+                                swapOut.swapInfo.proofLeaves
                             ),
                             0,
                             payable(address(this)),
@@ -522,7 +535,10 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                         // Do the swap and update outputAmount with how many tokens we got
                         outputAmount += swapOut.swapInfo.pool.swapNFTsForToken(
                             ICollectionPool.NFTs(
-                                swapOut.swapInfo.nftIds, swapOut.swapInfo.proof, swapOut.swapInfo.proofFlags
+                                swapOut.swapInfo.nftIds,
+                                swapOut.swapInfo.proof,
+                                swapOut.swapInfo.proofFlags,
+                                swapOut.swapInfo.proofLeaves
                             ),
                             0,
                             params.tokenRecipient,
@@ -626,7 +642,10 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                         // Do the swap and update outputAmount with how many tokens we got
                         poolOutput = swapOut.swapInfo.pool.swapNFTsForToken(
                             ICollectionPool.NFTs(
-                                swapOut.swapInfo.nftIds, swapOut.swapInfo.proof, swapOut.swapInfo.proofFlags
+                                swapOut.swapInfo.nftIds,
+                                swapOut.swapInfo.proof,
+                                swapOut.swapInfo.proofFlags,
+                                swapOut.swapInfo.proofLeaves
                             ),
                             0,
                             payable(address(this)),
@@ -659,7 +678,10 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                         // Do the swap and update outputAmount with how many tokens we got
                         outputAmount += swapOut.swapInfo.pool.swapNFTsForToken(
                             ICollectionPool.NFTs(
-                                swapOut.swapInfo.nftIds, swapOut.swapInfo.proof, swapOut.swapInfo.proofFlags
+                                swapOut.swapInfo.nftIds,
+                                swapOut.swapInfo.proof,
+                                swapOut.swapInfo.proofFlags,
+                                swapOut.swapInfo.proofLeaves
                             ),
                             0,
                             params.tokenRecipient,
@@ -879,7 +901,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
             // Do the swap for token and then update outputAmount
             // Note: minExpectedTokenOutput is set to 0 since we're doing an aggregate slippage check below
             swapOutputAmount = swap.pool.swapNFTsForToken(
-                ICollectionPool.NFTs(swap.nftIds, swap.proof, swap.proofFlags),
+                ICollectionPool.NFTs(swap.nftIds, swap.proof, swap.proofFlags, swap.proofLeaves),
                 0,
                 payable(address(this)),
                 true,
