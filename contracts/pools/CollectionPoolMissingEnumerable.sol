@@ -100,7 +100,7 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
         // Otherwise, withdraw and also remove the ID from the ID set
         else {
             for (uint256 i; i < numNFTs;) {
-                _nft.safeTransferFrom(address(this), msg.sender, nftIds[i]);
+                _nft.safeTransferFrom(address(this), owner, nftIds[i]);
                 idSet.remove(nftIds[i]);
 
                 unchecked {

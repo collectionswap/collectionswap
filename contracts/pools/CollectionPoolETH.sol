@@ -155,7 +155,7 @@ abstract contract CollectionPoolETH is CollectionPool {
 
     /// @inheritdoc ICollectionPool
     function withdrawERC20(ERC20 a, uint256 amount) external onlyAuthorized {
-        a.safeTransfer(msg.sender, amount);
+        a.safeTransfer(owner(), amount);
     }
 
     /// @inheritdoc CollectionPool

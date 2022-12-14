@@ -2,8 +2,9 @@
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import {IERC721Mintable} from "./IERC721Mintable.sol";
 
-contract Test721Enumerable is ERC721Enumerable, IERC2981 {
+contract Test721Enumerable is ERC721Enumerable, IERC2981, IERC721Mintable {
     mapping(uint256 => address payable) royaltyRecipients;
 
     constructor() ERC721("Test721", "T721") {}
