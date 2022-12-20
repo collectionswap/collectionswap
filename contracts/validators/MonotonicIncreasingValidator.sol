@@ -14,11 +14,9 @@ contract MonotonicIncreasingValidator is IValidator {
     /// @dev See {IValidator-validate}
     function validate(ICollectionPool pool, ICurve.Params calldata params, uint96 fee, uint256 royaltyNumerator, bytes32 tokenIDFilterRoot) public view override returns (bool) {
         return (
-            pool.delta() <= params.delta &&
-            pool.fee() <= fee &&
-            pool.royaltyNumerator() >= royaltyNumerator &&
-            pool.poolType() == ICollectionPool.PoolType.TRADE &&
-            pool.tokenIDFilterRoot() == tokenIDFilterRoot
+            pool.delta() <= params.delta && pool.fee() <= fee && pool.royaltyNumerator() >= royaltyNumerator
+                && pool.poolType() == ICollectionPool.PoolType.TRADE
+                && (tokenIDFilterRoot == 0 || pool.tokenIDFilterRoot() == tokenIDFilterRoot)
         );
     }
 }
