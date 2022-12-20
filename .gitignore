@@ -15,3 +15,5 @@ out
 .DS_Store
 .idea
 Makefile
+# hardhat-tenderly plugin
+deployments

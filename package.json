@@ -8,7 +8,8 @@
     "lint:ci": "eslint scripts test hardhat.config.ts --ext .ts",
     "solhint": "solhint 'contracts/**/*.sol'",
     "deploy": "node scripts/noUnstagedChanges.js && hardhat clean && hardhat compile && hardhat deployCollectionSet",
-    "verify": "hardhat verifyCollectionSet"
+    "verify": "hardhat verifyEtherscanCollectionSet",
+    "verify:tenderly": "hardhat verifyTenderlyCollectionSet"
   },
   "devDependencies": {
     "@chainlink/contracts": "^0.5.1",
@@ -22,6 +23,7 @@
     "@nomiclabs/hardhat-truffle5": "^2.0.7",
     "@nomiclabs/hardhat-web3": "^2.0.0",
     "@pooltogether/pooltogether-rng-contracts": "^1.5.1",
+    "@tenderly/hardhat-tenderly": "^1.4.1",
     "@typechain/ethers-v5": "^10.1.0",
     "@typechain/hardhat": "^6.1.2",
     "@types/chai": "^4.3.3",

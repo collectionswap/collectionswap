@@ -69,7 +69,10 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   await collectionStaker.deployed();
   console.log(`Collectionstaker address: ${collectionStaker.address}`);
 
-  const { validatorAddresses } = await deployValidators(hre, deployer);
+  const { validatorNames, validatorAddresses } = await deployValidators(
+    hre,
+    deployer
+  );
 
   const rng = await deployChainlink(hre, deployer);
 
@@ -90,23 +93,22 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     collectionStaker.rewardVaultETHLogic(),
     collectionStaker.rewardVaultETHDrawLogic(),
   ]);
+
+  const zip = (a: string[], b: string[]) => a.map((k, i) => [k, b[i]]);
+
   const addressesToExport = {
+    contracts: {
+      ...Object.fromEntries(zip(templateNames, templateAddresses)),
+      ...Object.fromEntries(zip(curveNames, curveAddresses)),
+      CollectionPoolFactory: factory.address,
+      Collectionstaker: collectionStaker.address,
+      SortitionTreeManager: sortitionTreeManagerAddress,
+      RewardVaultETH: rewardVaultETHAddress,
+      RewardVaultETHDraw: rewardVaultETHDrawAddress,
+      RNGChainlinkV2: rng.address,
+      ...Object.fromEntries(zip(validatorNames, validatorAddresses)),
+    },
     deployer: deployerAddress,
-    collectionPoolEnumerableETH: templateAddresses[0],
-    collectionPoolMissingEnumerableETH: templateAddresses[1],
-    collectionPoolEnumerableERC20: templateAddresses[2],
-    collectionPoolMissingEnumerableERC20: templateAddresses[3],
-    linearCurve: curveAddresses[0],
-    exponentialCurve: curveAddresses[1],
-    xykCurve: curveAddresses[2],
-    sigmoidCurve: curveAddresses[3],
-    factory: factory.address,
-    collectionStaker: collectionStaker.address,
-    sortitionTreeManager: sortitionTreeManagerAddress,
-    rewardVaultETH: rewardVaultETHAddress,
-    rewardVaultETHDraw: rewardVaultETHDrawAddress,
-    rng: rng.address,
-    monotonicIncreasingValidator: validatorAddresses[0],
   };
   const exportJson = JSON.stringify(
     {
@@ -120,88 +122,6 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     path.resolve("deploys", `${hre.network.name}.json`),
     exportJson
   );
-
-  console.log(
-    "waiting for etherscan backend propagation... sleeping for 1 minute"
-  );
-  for (let i = 1; i <= 4; i++) {
-    await new Promise((resolve) => {
-      setTimeout(resolve, 15_000);
-    });
-    console.log(`${60 - 15 * i}s left...`);
-  }
-
-  console.log(`----- VERIFICATION ------`);
-  for (let i = 0; i < templateAddresses.length; i++) {
-    console.log(`verifying ${templateNames[i]}`);
-    await hre.run("verify:verify", {
-      address: templateAddresses[i],
-      constructorArguments: [],
-    });
-  }
-
-  console.log("verifying factory...");
-  await hre.run("verify:verify", {
-    address: factory.address,
-    constructorArguments: [
-      templateAddresses[0],
-      templateAddresses[1],
-      templateAddresses[2],
-      templateAddresses[3],
-      hre.ethers.constants.AddressZero, // Payout address
-      hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
-      hre.ethers.utils.parseEther(config.CARRY_FEE_MULTIPLIER),
-    ],
-  });
-
-  for (let i = 0; i < curveAddresses.length; i++) {
-    console.log(`verifying ${curveNames[i]}`);
-    await hre.run("verify:verify", {
-      address: curveAddresses[i],
-      constructorArguments: [],
-    });
-  }
-
-  console.log("verifying Collectionstaker...");
-  await hre.run("verify:verify", {
-    address: collectionStaker.address,
-    constructorArguments: [factory.address],
-  });
-
-  console.log("verifying SortitionTreeManager...");
-  await hre.run("verify:verify", {
-    address: sortitionTreeManagerAddress,
-    constructorArguments: [],
-  });
-
-  console.log("verifying RewardETHLogic...");
-  await hre.run("verify:verify", {
-    address: rewardVaultETHAddress,
-    constructorArguments: [],
-  });
-
-  console.log("verifying RewardETHDrawLogic...");
-  await hre.run("verify:verify", {
-    address: rewardVaultETHDrawAddress,
-    constructorArguments: [],
-  });
-
-  console.log("verifying Monotonic Increasing Validator...");
-  await hre.run("verify:verify", {
-    address: validatorAddresses[0],
-    constructorArguments: [],
-  });
-
-  console.log("verifying RNG...");
-  await hre.run("verify:verify", {
-    address: rng.address,
-    constructorArguments: [
-      deployerAddress,
-      config.VRF_COORDINATOR,
-      config.SUBSCRIPTION_ID,
-      config.KEY_HASH,
-    ],
-  });
 }
 
 export async function deployTemplates(

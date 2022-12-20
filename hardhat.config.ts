@@ -1,5 +1,6 @@
 import path from "path";
 
+import * as tdly from "@tenderly/hardhat-tenderly";
 import * as dotenv from "dotenv";
 import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/task-names";
 import { subtask } from "hardhat/config";
@@ -13,6 +14,7 @@ import "hardhat-contract-sizer";
 import "./scripts/index";
 
 dotenv.config();
+tdly.setup();
 
 const UNUSED_CONTRACTS = [
   "CollectionRouter2",
