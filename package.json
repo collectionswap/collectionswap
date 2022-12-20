@@ -7,7 +7,7 @@
     "lint": "yarn lint:ci --fix",
     "lint:ci": "eslint scripts test hardhat.config.ts --ext .ts",
     "solhint": "solhint 'contracts/**/*.sol'",
-    "deploy": "hardhat clean && hardhat compile && hardhat deployCollectionSet",
+    "deploy": "node scripts/noUnstagedChanges.js && hardhat clean && hardhat compile && hardhat deployCollectionSet",
     "verify": "hardhat verifyCollectionSet"
   },
   "devDependencies": {
