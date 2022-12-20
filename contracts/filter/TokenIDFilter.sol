@@ -32,7 +32,7 @@ contract TokenIDFilter is ITokenIDFilter {
         emit AcceptsTokenIDs(collection, tokenIDFilterRoot, data);
     }
 
-    function _acceptsTokenIDs(bytes32[] calldata proof, bool[] calldata proofFlags, bytes32[] calldata leaves)
+    function _acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags)
         internal
         view
         returns (bool)
@@ -41,17 +41,17 @@ contract TokenIDFilter is ITokenIDFilter {
             return true;
         }
 
-        uint256 length = leaves.length;
-        bytes32[] memory hashedLeaves = new bytes32[](length);
+        uint256 length = tokenIDs.length;
+        bytes32[] memory leaves = new bytes32[](length);
 
         for (uint256 i; i < length;) {
             // double hash to prevent second preimage attack
-            hashedLeaves[i] = keccak256(abi.encodePacked(keccak256(abi.encodePacked((leaves[i])))));
+            leaves[i] = keccak256(abi.encodePacked(keccak256(abi.encodePacked((tokenIDs[i])))));
             unchecked {
                 ++i;
             }
         }
 
-        return MerkleProof.multiProofVerify(proof, proofFlags, tokenIDFilterRoot, hashedLeaves);
+        return MerkleProof.multiProofVerify(proof, proofFlags, tokenIDFilterRoot, leaves);
     }
 }

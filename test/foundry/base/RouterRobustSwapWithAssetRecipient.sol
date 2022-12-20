@@ -23,7 +23,13 @@ import {Hevm} from "../utils/Hevm.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
 
-abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC721Holder, Configurable, RouterCaller {
+abstract contract RouterRobustSwapWithAssetRecipient is
+    StdCheats,
+    DSTest,
+    ERC721Holder,
+    Configurable,
+    RouterCaller
+{
     IERC721Mintable test721;
     ICurve bondingCurve;
     CollectionPoolFactory factory;
@@ -144,8 +150,9 @@ abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC72
     // Swapping tokens for any NFT on sellPool1 works, but fails silently on sellPool2 if slippage is too tight
     function test_robustSwapTokenForAnyNFTs() public {
         uint256 sellPool1Price;
-        (,,,, sellPool1Price,,) = sellPool1.getBuyNFTQuote(1);
-        CollectionRouter.RobustPoolSwapAny[] memory swapList = new CollectionRouter.RobustPoolSwapAny[](2);
+        (, , , , sellPool1Price, , ) = sellPool1.getBuyNFTQuote(1);
+        CollectionRouter.RobustPoolSwapAny[]
+            memory swapList = new CollectionRouter.RobustPoolSwapAny[](2);
         swapList[0] = CollectionRouter.RobustPoolSwapAny({
             swapInfo: CollectionRouter.PoolSwapAny({pool: sellPool1, numItems: 1}),
             maxCost: sellPool1Price
@@ -154,8 +161,15 @@ abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC72
             swapInfo: CollectionRouter.PoolSwapAny({pool: sellPool2, numItems: 1}),
             maxCost: 0 ether
         });
-        uint256 remainingValue = this.robustSwapTokenForAnyNFTs{value: modifyInputAmount(2 ether)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, 2 ether
+        uint256 remainingValue = this.robustSwapTokenForAnyNFTs{
+            value: modifyInputAmount(2 ether)
+        }(
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            2 ether
         );
         assertEq(remainingValue + sellPool1Price, 2 ether);
         assertEq(getBalance(sellPoolRecipient), sellPool1Price);
@@ -164,8 +178,9 @@ abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC72
     // Swapping tokens to a specific NFT with sellPool2 works, but fails silently on sellPool1 if slippage is too tight
     function test_robustSwapTokenForSpecificNFTs() public {
         uint256 sellPool1Price;
-        (,,,, sellPool1Price,,) = sellPool2.getBuyNFTQuote(1);
-        CollectionRouter.RobustPoolSwapSpecific[] memory swapList = new CollectionRouter.RobustPoolSwapSpecific[](2);
+        (, , , , sellPool1Price, , ) = sellPool2.getBuyNFTQuote(1);
+        CollectionRouter.RobustPoolSwapSpecific[]
+            memory swapList = new CollectionRouter.RobustPoolSwapSpecific[](2);
         uint256[] memory nftIds1 = new uint256[](1);
         nftIds1[0] = 1;
         uint256[] memory nftIds2 = new uint256[](1);
@@ -175,8 +190,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC72
                 pool: sellPool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0),
-                proofLeaves: new bytes32[](0)
+                proofFlags: new bool[](0)
             }),
             maxCost: 0 ether
         });
@@ -185,13 +199,19 @@ abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC72
                 pool: sellPool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0),
-                proofLeaves: new bytes32[](0)
+                proofFlags: new bool[](0)
             }),
             maxCost: sellPool1Price
         });
-        uint256 remainingValue = this.robustSwapTokenForSpecificNFTs{value: modifyInputAmount(2 ether)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, 2 ether
+        uint256 remainingValue = this.robustSwapTokenForSpecificNFTs{
+            value: modifyInputAmount(2 ether)
+        }(
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            2 ether
         );
         assertEq(remainingValue + sellPool1Price, 2 ether);
         assertEq(getBalance(sellPoolRecipient), sellPool1Price);
@@ -200,13 +220,13 @@ abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC72
     // Swapping NFTs to tokens with buyPool1 works, but buyPool2 silently fails due to slippage
     function test_robustSwapNFTsForToken() public {
         uint256 buyPool1Price;
-        (,,,, buyPool1Price,,) = buyPool1.getSellNFTQuote(1);
+        (, , , , buyPool1Price, , ) = buyPool1.getSellNFTQuote(1);
         uint256[] memory nftIds1 = new uint256[](1);
         nftIds1[0] = 5;
         uint256[] memory nftIds2 = new uint256[](1);
         nftIds2[0] = 6;
-        CollectionRouter.RobustPoolSwapSpecificForToken[] memory swapList =
-        new CollectionRouter.RobustPoolSwapSpecificForToken[](
+        CollectionRouter.RobustPoolSwapSpecificForToken[]
+            memory swapList = new CollectionRouter.RobustPoolSwapSpecificForToken[](
                 2
             );
         swapList[0] = CollectionRouter.RobustPoolSwapSpecificForToken({
@@ -214,8 +234,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC72
                 pool: buyPool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0),
-                proofLeaves: new bytes32[](0)
+                proofFlags: new bool[](0)
             }),
             minOutput: buyPool1Price
         });
@@ -224,12 +243,15 @@ abstract contract RouterRobustSwapWithAssetRecipient is StdCheats, DSTest, ERC72
                 pool: buyPool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0),
-                proofLeaves: new bytes32[](0)
+                proofFlags: new bool[](0)
             }),
             minOutput: 2 ether
         });
-        router.robustSwapNFTsForToken(swapList, payable(address(this)), block.timestamp);
+        router.robustSwapNFTsForToken(
+            swapList,
+            payable(address(this)),
+            block.timestamp
+        );
         assertEq(test721.balanceOf(buyPoolRecipient), 1);
     }
 }

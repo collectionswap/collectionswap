@@ -17,12 +17,17 @@ abstract contract UsingLinearCurve is Configurable {
         return delta;
     }
 
-    function modifySpotPrice(uint56 spotPrice) public pure override returns (uint56) {
+    function modifySpotPrice(uint56 spotPrice)
+        public
+        pure
+        override
+        returns (uint56)
+    {
         return spotPrice;
     }
 
-    // Return 1 eth as spot price and 0.1 eth as the delta scaling
+        // Return 1 eth as spot price and 0.1 eth as the delta scaling
     function getParamsForPartialFillTest() public pure override returns (uint128 spotPrice, uint128 delta) {
-        return (10 ** 18, 10 ** 17);
+      return (10**18, 10**17);
     }
 }

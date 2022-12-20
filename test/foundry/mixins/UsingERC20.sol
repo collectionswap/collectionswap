@@ -21,7 +21,6 @@ import {RouterCaller} from "./RouterCaller.sol";
 
 abstract contract UsingERC20 is Configurable, RouterCaller {
     using SafeTransferLib for ERC20;
-
     ERC20 test20;
 
     function modifyInputAmount(uint256) public pure override returns (uint256) {
@@ -62,7 +61,7 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         IMintable(address(test20)).mint(address(this), 1000 ether);
 
         // initialize the pool
-        (address poolAddress,) = factory.createPoolERC20(
+        (address poolAddress, ) = factory.createPoolERC20(
             ICollectionPoolFactory.CreateERC20PoolParams(
                 test20,
                 nft,
@@ -94,7 +93,10 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function withdrawProtocolFees(CollectionPoolFactory factory) public override {
-        factory.withdrawERC20ProtocolFees(test20, test20.balanceOf(address(factory)));
+        factory.withdrawERC20ProtocolFees(
+            test20,
+            test20.balanceOf(address(factory))
+        );
     }
 
     function swapTokenForAnyNFTs(
@@ -105,7 +107,13 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         uint256 deadline,
         uint256 inputAmount
     ) public payable override returns (uint256) {
-        return router.swapERC20ForAnyNFTs(swapList, inputAmount, nftRecipient, deadline);
+        return
+            router.swapERC20ForAnyNFTs(
+                swapList,
+                inputAmount,
+                nftRecipient,
+                deadline
+            );
     }
 
     function swapTokenForSpecificNFTs(
@@ -116,7 +124,13 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         uint256 deadline,
         uint256 inputAmount
     ) public payable override returns (uint256) {
-        return router.swapERC20ForSpecificNFTs(swapList, inputAmount, nftRecipient, deadline);
+        return
+            router.swapERC20ForSpecificNFTs(
+                swapList,
+                inputAmount,
+                nftRecipient,
+                deadline
+            );
     }
 
     function swapNFTsForAnyNFTsThroughToken(
@@ -128,7 +142,14 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         uint256 deadline,
         uint256 inputAmount
     ) public payable override returns (uint256) {
-        return router.swapNFTsForAnyNFTsThroughERC20(trade, inputAmount, minOutput, nftRecipient, deadline);
+        return
+            router.swapNFTsForAnyNFTsThroughERC20(
+                trade,
+                inputAmount,
+                minOutput,
+                nftRecipient,
+                deadline
+            );
     }
 
     function swapNFTsForSpecificNFTsThroughToken(
@@ -140,7 +161,14 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         uint256 deadline,
         uint256 inputAmount
     ) public payable override returns (uint256) {
-        return router.swapNFTsForSpecificNFTsThroughERC20(trade, inputAmount, minOutput, nftRecipient, deadline);
+        return
+            router.swapNFTsForSpecificNFTsThroughERC20(
+                trade,
+                inputAmount,
+                minOutput,
+                nftRecipient,
+                deadline
+            );
     }
 
     function robustSwapTokenForAnyNFTs(
@@ -151,7 +179,13 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         uint256 deadline,
         uint256 inputAmount
     ) public payable override returns (uint256) {
-        return router.robustSwapERC20ForAnyNFTs(swapList, inputAmount, nftRecipient, deadline);
+        return
+            router.robustSwapERC20ForAnyNFTs(
+                swapList,
+                inputAmount,
+                nftRecipient,
+                deadline
+            );
     }
 
     function robustSwapTokenForSpecificNFTs(
@@ -162,7 +196,13 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         uint256 deadline,
         uint256 inputAmount
     ) public payable override returns (uint256) {
-        return router.robustSwapERC20ForSpecificNFTs(swapList, inputAmount, nftRecipient, deadline);
+        return
+            router.robustSwapERC20ForSpecificNFTs(
+                swapList,
+                inputAmount,
+                nftRecipient,
+                deadline
+            );
     }
 
     function robustSwapTokenForSpecificNFTsAndNFTsForTokens(

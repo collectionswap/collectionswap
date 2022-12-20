@@ -21,7 +21,13 @@ import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
 
-abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC721Holder, Configurable, RouterCaller {
+abstract contract RouterSinglePoolWithAssetRecipient is
+    StdCheats,
+    DSTest,
+    ERC721Holder,
+    Configurable,
+    RouterCaller
+{
     IERC721Mintable test721;
     ICurve bondingCurve;
     CollectionPoolFactory factory;
@@ -115,12 +121,18 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
     }
 
     function test_swapTokenForSingleAnyNFT() public {
-        CollectionRouter.PoolSwapAny[] memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: sellPool, numItems: 1});
         uint256 inputAmount;
-        (,,,, inputAmount,,) = sellPool.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(1);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
         assertEq(getBalance(sellPoolRecipient), inputAmount);
     }
@@ -128,36 +140,46 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
     function test_swapTokenForSingleSpecificNFT() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 1;
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: sellPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (,,,, inputAmount,,) = sellPool.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(1);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
         assertEq(getBalance(sellPoolRecipient), inputAmount);
     }
 
     function test_swapSingleNFTForToken() public {
-        (,,,, uint256 outputAmount,,) = buyPool.getSellNFTQuote(1);
+        (, , , , uint256 outputAmount, , ) = buyPool.getSellNFTQuote(1);
         uint256 beforeBuyPoolNFTBalance = test721.balanceOf(address(buyPool));
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs * 2 + 1;
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: buyPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
-        router.swapNFTsForToken(swapList, outputAmount, payable(address(this)), block.timestamp);
+        router.swapNFTsForToken(
+            swapList,
+            outputAmount,
+            payable(address(this)),
+            block.timestamp
+        );
         assertEq(test721.balanceOf(buyPoolRecipient), 1);
         // Pool should still keep track of the same number of NFTs prior to the swap
         // because we sent the NFT to the asset recipient (and not the pool)
@@ -169,22 +191,28 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
         // construct NFT to Token swap list
         uint256[] memory sellNFTIds = new uint256[](1);
         sellNFTIds[0] = 2 * numInitialNFTs + 1;
-        CollectionRouter.PoolSwapSpecific[] memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
         nftToTokenSwapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: buyPool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         // construct Token to NFT swap list
-        CollectionRouter.PoolSwapAny[] memory tokenToNFTSwapList = new CollectionRouter.PoolSwapAny[](1);
-        tokenToNFTSwapList[0] = CollectionRouter.PoolSwapAny({pool: sellPool, numItems: 1});
+        CollectionRouter.PoolSwapAny[]
+            memory tokenToNFTSwapList = new CollectionRouter.PoolSwapAny[](1);
+        tokenToNFTSwapList[0] = CollectionRouter.PoolSwapAny({
+            pool: sellPool,
+            numItems: 1
+        });
         uint256 sellAmount;
-        (,,,, sellAmount,,) = sellPool.getBuyNFTQuote(1);
+        (, , , , sellAmount, , ) = sellPool.getBuyNFTQuote(1);
         // Note: we send a little bit of tokens with the call because the exponential curve increases price ever so slightly
         uint256 inputAmount = 0.1 ether;
-        this.swapNFTsForAnyNFTsThroughToken{value: modifyInputAmount(inputAmount)}(
+        this.swapNFTsForAnyNFTsThroughToken{
+            value: modifyInputAmount(inputAmount)
+        }(
             router,
             CollectionRouter.NFTsForAnyNFTsTrade({
                 nftToTokenTrades: nftToTokenSwapList,
@@ -204,31 +232,33 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
         // construct NFT to token swap list
         uint256[] memory sellNFTIds = new uint256[](1);
         sellNFTIds[0] = 2 * numInitialNFTs + 1;
-        CollectionRouter.PoolSwapSpecific[] memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
         nftToTokenSwapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: buyPool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
 
         // construct token to NFT swap list
         uint256[] memory buyNFTIds = new uint256[](1);
         buyNFTIds[0] = numInitialNFTs;
-        CollectionRouter.PoolSwapSpecific[] memory tokenToNFTSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory tokenToNFTSwapList = new CollectionRouter.PoolSwapSpecific[](1);
         tokenToNFTSwapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: sellPool,
             nftIds: buyNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 sellAmount;
-        (,,,, sellAmount,,) = sellPool.getBuyNFTQuote(1);
+        (, , , , sellAmount, , ) = sellPool.getBuyNFTQuote(1);
         // Note: we send a little bit of tokens with the call because the exponential curve increases price ever so slightly
         uint256 inputAmount = 0.1 ether;
-        this.swapNFTsForSpecificNFTsThroughToken{value: modifyInputAmount(inputAmount)}(
+        this.swapNFTsForSpecificNFTsThroughToken{
+            value: modifyInputAmount(inputAmount)
+        }(
             router,
             CollectionRouter.NFTsForSpecificNFTsTrade({
                 nftToTokenTrades: nftToTokenSwapList,
@@ -245,13 +275,19 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
     }
 
     function test_swapTokenforAny5NFTs() public {
-        CollectionRouter.PoolSwapAny[] memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: sellPool, numItems: 5});
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (,,,, inputAmount,,) = sellPool.getBuyNFTQuote(5);
+        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(5);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
         uint256 endBalance = test721.balanceOf(address(this));
         require((endBalance - startBalance) == 5, "Too few NFTs acquired");
@@ -259,7 +295,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
     }
 
     function test_swapTokenforSpecific5NFTs() public {
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         uint256[] memory nftIds = new uint256[](5);
         nftIds[0] = 1;
         nftIds[1] = 2;
@@ -270,14 +307,18 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
             pool: sellPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (,,,, inputAmount,,) = sellPool.getBuyNFTQuote(5);
+        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(5);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
         uint256 endBalance = test721.balanceOf(address(this));
         require((endBalance - startBalance) == 5, "Too few NFTs acquired");
@@ -285,21 +326,26 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
     }
 
     function test_swap5NFTsForToken() public {
-        (,,,, uint256 outputAmount,,) = buyPool.getSellNFTQuote(5);
+        (, , , , uint256 outputAmount, , ) = buyPool.getSellNFTQuote(5);
         uint256 beforeBuyPoolNFTBalance = test721.balanceOf(address(buyPool));
         uint256[] memory nftIds = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
             nftIds[i] = 2 * numInitialNFTs + i + 1;
         }
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: buyPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
-        router.swapNFTsForToken(swapList, outputAmount, payable(address(this)), block.timestamp);
+        router.swapNFTsForToken(
+            swapList,
+            outputAmount,
+            payable(address(this)),
+            block.timestamp
+        );
         assertEq(test721.balanceOf(buyPoolRecipient), 5);
         // Pool should still keep track of the same number of NFTs prior to the swap
         // because we sent the NFT to the asset recipient (and not the pool)
@@ -312,16 +358,21 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
         factory.changeProtocolFeeMultiplier(0.1e18);
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs * 2 + 1;
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: buyPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
-        (,,,, uint256 outputAmount,,) = buyPool.getSellNFTQuote(1);
-        uint256 output = router.swapNFTsForToken(swapList, outputAmount, payable(address(this)), block.timestamp);
+        (, , , , uint256 outputAmount, , ) = buyPool.getSellNFTQuote(1);
+        uint256 output = router.swapNFTsForToken(
+            swapList,
+            outputAmount,
+            payable(address(this)),
+            block.timestamp
+        );
         // User gets 90% of the tokens (which is output) and the other 10% goes to the factory
         assertEq(getBalance(address(factory)), output / 9);
     }
@@ -331,36 +382,53 @@ abstract contract RouterSinglePoolWithAssetRecipient is StdCheats, DSTest, ERC72
         factory.changeProtocolFeeMultiplier(0.1e18);
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 1;
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: sellPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (,,,, inputAmount,,) = sellPool.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(1);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
         // Assert 90% and 10% split of the buy amount between sellPoolRecipient and the factory
         assertEq(getBalance(address(factory)), inputAmount / 11);
-        assertEq(getBalance(sellPoolRecipient) + getBalance(address(factory)), inputAmount);
+        assertEq(
+            getBalance(sellPoolRecipient) + getBalance(address(factory)),
+            inputAmount
+        );
     }
 
     function test_swapTokenForSingleAnyNFTWithProtocolFee() public {
         // Set protocol fee to be 10%
         factory.changeProtocolFeeMultiplier(0.1e18);
-        CollectionRouter.PoolSwapAny[] memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: sellPool, numItems: 1});
         uint256 inputAmount;
-        (,,,, inputAmount,,) = sellPool.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(1);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
         // Assert 90% and 10% split of the buy amount between sellPoolRecipient and the factory
         assertEq(getBalance(address(factory)), inputAmount / 11);
-        assertEq(getBalance(sellPoolRecipient) + getBalance(address(factory)), inputAmount);
+        assertEq(
+            getBalance(sellPoolRecipient) + getBalance(address(factory)),
+            inputAmount
+        );
     }
 }

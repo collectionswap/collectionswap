@@ -368,7 +368,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             PoolType _poolType = poolType();
             require(_poolType == PoolType.TOKEN || _poolType == PoolType.TRADE, "Wrong Pool type");
             require(nfts.ids.length > 0, "Must ask for > 0 NFTs");
-            require(acceptsTokenIDs(nfts.proof, nfts.proofFlags, nfts.proofLeaves), "NFT not allowed");
+            require(acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags), "NFT not allowed");
         }
 
         // Call bonding curve for pricing information
@@ -405,16 +405,16 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     /**
      * @notice Checks if list of NFTs are allowed in this pool using Merkle multiproof and flags
+     * @param tokenIDs List of NFT IDs
      * @param proof Merkle multiproof
      * @param proofFlags Merkle multiproof flags
-     * @param leaves The leaves of the merkle tree in sorted order
      */
-    function acceptsTokenIDs(bytes32[] calldata proof, bool[] calldata proofFlags, bytes32[] calldata leaves)
+    function acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags)
         public
         view
         returns (bool)
     {
-        return _acceptsTokenIDs(proof, proofFlags, leaves);
+        return _acceptsTokenIDs(tokenIDs, proof, proofFlags);
     }
 
     /**

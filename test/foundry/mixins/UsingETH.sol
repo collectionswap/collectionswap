@@ -13,7 +13,12 @@ import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
 
 abstract contract UsingETH is Configurable, RouterCaller {
-    function modifyInputAmount(uint256 inputAmount) public pure override returns (uint256) {
+    function modifyInputAmount(uint256 inputAmount)
+        public
+        pure
+        override
+        returns (uint256)
+    {
         return inputAmount;
     }
 
@@ -53,7 +58,9 @@ abstract contract UsingETH is Configurable, RouterCaller {
             payable(0),
             _idList
         );
-        (address poolAddress,) = factory.createPoolETH{value: msg.value}(params);
+        (address poolAddress, ) = factory.createPoolETH{value: msg.value}(
+            params
+        );
         return CollectionPoolETH(payable(poolAddress));
     }
 
@@ -73,7 +80,13 @@ abstract contract UsingETH is Configurable, RouterCaller {
         uint256 deadline,
         uint256
     ) public payable override returns (uint256) {
-        return router.swapETHForAnyNFTs{value: msg.value}(swapList, ethRecipient, nftRecipient, deadline);
+        return
+            router.swapETHForAnyNFTs{value: msg.value}(
+                swapList,
+                ethRecipient,
+                nftRecipient,
+                deadline
+            );
     }
 
     function swapTokenForSpecificNFTs(
@@ -84,7 +97,13 @@ abstract contract UsingETH is Configurable, RouterCaller {
         uint256 deadline,
         uint256
     ) public payable override returns (uint256) {
-        return router.swapETHForSpecificNFTs{value: msg.value}(swapList, ethRecipient, nftRecipient, deadline);
+        return
+            router.swapETHForSpecificNFTs{value: msg.value}(
+                swapList,
+                ethRecipient,
+                nftRecipient,
+                deadline
+            );
     }
 
     function swapNFTsForAnyNFTsThroughToken(
@@ -96,9 +115,14 @@ abstract contract UsingETH is Configurable, RouterCaller {
         uint256 deadline,
         uint256
     ) public payable override returns (uint256) {
-        return router.swapNFTsForAnyNFTsThroughETH{value: msg.value}(
-            trade, minOutput, ethRecipient, nftRecipient, deadline
-        );
+        return
+            router.swapNFTsForAnyNFTsThroughETH{value: msg.value}(
+                trade,
+                minOutput,
+                ethRecipient,
+                nftRecipient,
+                deadline
+            );
     }
 
     function swapNFTsForSpecificNFTsThroughToken(
@@ -110,9 +134,14 @@ abstract contract UsingETH is Configurable, RouterCaller {
         uint256 deadline,
         uint256
     ) public payable override returns (uint256) {
-        return router.swapNFTsForSpecificNFTsThroughETH{value: msg.value}(
-            trade, minOutput, ethRecipient, nftRecipient, deadline
-        );
+        return
+            router.swapNFTsForSpecificNFTsThroughETH{value: msg.value}(
+                trade,
+                minOutput,
+                ethRecipient,
+                nftRecipient,
+                deadline
+            );
     }
 
     function robustSwapTokenForAnyNFTs(
@@ -123,7 +152,13 @@ abstract contract UsingETH is Configurable, RouterCaller {
         uint256 deadline,
         uint256
     ) public payable override returns (uint256) {
-        return router.robustSwapETHForAnyNFTs{value: msg.value}(swapList, ethRecipient, nftRecipient, deadline);
+        return
+            router.robustSwapETHForAnyNFTs{value: msg.value}(
+                swapList,
+                ethRecipient,
+                nftRecipient,
+                deadline
+            );
     }
 
     function robustSwapTokenForSpecificNFTs(
@@ -134,14 +169,23 @@ abstract contract UsingETH is Configurable, RouterCaller {
         uint256 deadline,
         uint256
     ) public payable override returns (uint256) {
-        return router.robustSwapETHForSpecificNFTs{value: msg.value}(swapList, ethRecipient, nftRecipient, deadline);
+        return
+            router.robustSwapETHForSpecificNFTs{value: msg.value}(
+                swapList,
+                ethRecipient,
+                nftRecipient,
+                deadline
+            );
     }
 
     function robustSwapTokenForSpecificNFTsAndNFTsForTokens(
         CollectionRouter router,
         CollectionRouter.RobustPoolNFTsFoTokenAndTokenforNFTsTrade calldata params
     ) public payable override returns (uint256, uint256) {
-        return router.robustSwapETHForSpecificNFTsAndNFTsToToken{value: msg.value}(params);
+        return
+            router.robustSwapETHForSpecificNFTsAndNFTsToToken{value: msg.value}(
+                params
+            );
     }
 
     function buyAndSellWithPartialFill(
@@ -149,13 +193,15 @@ abstract contract UsingETH is Configurable, RouterCaller {
         CollectionRouter2.PoolSwapSpecificPartialFill[] calldata buyList,
         CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata sellList
     ) public payable override returns (uint256) {
-        return router.robustBuySellWithETHAndPartialFill{value: msg.value}(buyList, sellList);
+      return router.robustBuySellWithETHAndPartialFill{value: msg.value}(
+        buyList, sellList
+      );
     }
 
     function swapETHForSpecificNFTs(
         CollectionRouter2 router,
         CollectionRouter2.RobustPoolSwapSpecific[] calldata buyList
     ) public payable override returns (uint256) {
-        return router.swapETHForSpecificNFTs{value: msg.value}(buyList);
+      return router.swapETHForSpecificNFTs{value: msg.value}(buyList);
     }
 }

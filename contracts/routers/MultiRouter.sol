@@ -27,7 +27,6 @@ contract MultiRouter {
         uint256[] nftIds;
         bytes32[] proof;
         bool[] proofFlags;
-        bytes32[] proofLeaves;
     }
 
     struct RobustPoolSwapSpecificWithToken {
@@ -125,8 +124,7 @@ contract MultiRouter {
                         ICollectionPool.NFTs(
                             params.nftToTokenTrades[i].swapInfo.nftIds,
                             params.nftToTokenTrades[i].swapInfo.proof,
-                            params.nftToTokenTrades[i].swapInfo.proofFlags,
-                            params.nftToTokenTrades[i].swapInfo.proofLeaves
+                            params.nftToTokenTrades[i].swapInfo.proofFlags
                         ),
                         0,
                         payable(msg.sender),

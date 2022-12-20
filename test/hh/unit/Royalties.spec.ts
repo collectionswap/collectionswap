@@ -479,7 +479,6 @@ describe("Royalties", function () {
             ids: [],
             proof: [],
             proofFlags: [],
-            proofLeaves: [],
           },
           ethers.utils.parseEther("0"),
           trader.address,

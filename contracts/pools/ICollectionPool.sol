@@ -19,13 +19,11 @@ interface ICollectionPool is ITokenIDFilter {
      * @param ids The list of IDs of the NFTs to sell to the pool
      * @param proof Merkle multiproof proving list is allowed by pool
      * @param proofFlags Merkle multiproof flags for proof
-     * @param proofLeaves Sorted leaves of Merkle multiproof
      */
     struct NFTs {
         uint256[] ids;
         bytes32[] proof;
         bool[] proofFlags;
-        bytes32[] proofLeaves;
     }
 
     function bondingCurve() external view returns (ICurve);

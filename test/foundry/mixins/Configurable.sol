@@ -28,7 +28,10 @@ abstract contract Configurable {
 
     function setup721() public virtual returns (IERC721Mintable);
 
-    function modifyInputAmount(uint256 inputAmount) public virtual returns (uint256);
+    function modifyInputAmount(uint256 inputAmount)
+        public
+        virtual
+        returns (uint256);
 
     function modifyDelta(uint64 delta) public virtual returns (uint64);
 
@@ -40,7 +43,10 @@ abstract contract Configurable {
 
     function withdrawProtocolFees(CollectionPoolFactory factory) public virtual;
 
-    function getParamsForPartialFillTest() public virtual returns (uint128 spotPrice, uint128 delta);
+    function getParamsForPartialFillTest()
+        public
+        virtual
+        returns (uint128 spotPrice, uint128 delta);
 
     receive() external payable {}
 }

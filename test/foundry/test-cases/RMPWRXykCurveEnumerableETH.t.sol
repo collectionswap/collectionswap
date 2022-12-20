@@ -7,4 +7,9 @@ import {UsingXykCurve} from "../mixins/UsingXykCurve.sol";
 import {UsingEnumerable} from "../mixins/UsingEnumerable.sol";
 import {UsingETH} from "../mixins/UsingETH.sol";
 
-contract RMPWRXykCurveEnumerableETHTest is RouterMultiPoolWithRoyalties, UsingXykCurve, UsingEnumerable, UsingETH {}
+contract RMPWRXykCurveEnumerableETHTest is
+    RouterMultiPoolWithRoyalties,
+    UsingXykCurve,
+    UsingEnumerable,
+    UsingETH
+{}

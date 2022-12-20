@@ -23,7 +23,6 @@ contract CollectionRouter {
         uint256[] nftIds;
         bytes32[] proof;
         bool[] proofFlags;
-        bytes32[] proofLeaves;
     }
 
     struct RobustPoolSwapAny {
@@ -498,10 +497,7 @@ contract CollectionRouter {
                 // Do the swap and update outputAmount with how many tokens we got
                 outputAmount += swapList[i].swapInfo.pool.swapNFTsForToken(
                     ICollectionPool.NFTs(
-                        swapList[i].swapInfo.nftIds,
-                        swapList[i].swapInfo.proof,
-                        swapList[i].swapInfo.proofFlags,
-                        swapList[i].swapInfo.proofLeaves
+                        swapList[i].swapInfo.nftIds, swapList[i].swapInfo.proof, swapList[i].swapInfo.proofFlags
                     ),
                     0,
                     tokenRecipient,
@@ -591,8 +587,7 @@ contract CollectionRouter {
                         ICollectionPool.NFTs(
                             params.nftToTokenTrades[i].swapInfo.nftIds,
                             params.nftToTokenTrades[i].swapInfo.proof,
-                            params.nftToTokenTrades[i].swapInfo.proofFlags,
-                            params.nftToTokenTrades[i].swapInfo.proofLeaves
+                            params.nftToTokenTrades[i].swapInfo.proofFlags
                         ),
                         0,
                         params.tokenRecipient,
@@ -676,8 +671,7 @@ contract CollectionRouter {
                         ICollectionPool.NFTs(
                             params.nftToTokenTrades[i].swapInfo.nftIds,
                             params.nftToTokenTrades[i].swapInfo.proof,
-                            params.nftToTokenTrades[i].swapInfo.proofFlags,
-                            params.nftToTokenTrades[i].swapInfo.proofLeaves
+                            params.nftToTokenTrades[i].swapInfo.proofFlags
                         ),
                         0,
                         params.tokenRecipient,
@@ -941,9 +935,7 @@ contract CollectionRouter {
             // Do the swap for token and then update outputAmount
             // Note: minExpectedTokenOutput is set to 0 since we're doing an aggregate slippage check below
             outputAmount += swapList[i].pool.swapNFTsForToken(
-                ICollectionPool.NFTs(
-                    swapList[i].nftIds, swapList[i].proof, swapList[i].proofFlags, swapList[i].proofLeaves
-                ),
+                ICollectionPool.NFTs(swapList[i].nftIds, swapList[i].proof, swapList[i].proofFlags),
                 0,
                 tokenRecipient,
                 true,

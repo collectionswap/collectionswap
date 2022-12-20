@@ -21,7 +21,13 @@ import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
 
-abstract contract RouterSinglePool is StdCheats, DSTest, ERC721Holder, Configurable, RouterCaller {
+abstract contract RouterSinglePool is
+    StdCheats,
+    DSTest,
+    ERC721Holder,
+    Configurable,
+    RouterCaller
+{
     IERC721Mintable test721;
     ICurve bondingCurve;
     CollectionPoolFactory factory;
@@ -90,62 +96,83 @@ abstract contract RouterSinglePool is StdCheats, DSTest, ERC721Holder, Configura
     }
 
     function test_swapTokenForSingleAnyNFT() public {
-        CollectionRouter.PoolSwapAny[] memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 1});
         uint256 inputAmount;
-        (,,,, inputAmount,,) = pool.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
     }
 
     function test_swapTokenForSingleSpecificNFT() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 1;
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (,,,, inputAmount,,) = pool.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
     }
 
     function test_swapSingleNFTForToken() public {
-        (,,,, uint256 outputAmount,,) = pool.getSellNFTQuote(1);
+        (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(1);
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs + 1;
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
-        router.swapNFTsForToken(swapList, outputAmount, payable(address(this)), block.timestamp);
+        router.swapNFTsForToken(
+            swapList,
+            outputAmount,
+            payable(address(this)),
+            block.timestamp
+        );
     }
 
     function testGas_swapSingleNFTForToken5Times() public {
         for (uint256 i = 1; i <= 5; i++) {
-            (,,,, uint256 outputAmount,,) = pool.getSellNFTQuote(1);
+            (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(1);
             uint256[] memory nftIds = new uint256[](1);
             nftIds[0] = numInitialNFTs + i;
-            CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+            CollectionRouter.PoolSwapSpecific[]
+                memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
             swapList[0] = CollectionRouter.PoolSwapSpecific({
                 pool: pool,
                 nftIds: nftIds,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0),
-                proofLeaves: new bytes32[](0)
+                proofFlags: new bool[](0)
             });
-            router.swapNFTsForToken(swapList, outputAmount, payable(address(this)), block.timestamp);
+            router.swapNFTsForToken(
+                swapList,
+                outputAmount,
+                payable(address(this)),
+                block.timestamp
+            );
         }
     }
 
@@ -153,22 +180,28 @@ abstract contract RouterSinglePool is StdCheats, DSTest, ERC721Holder, Configura
         // construct NFT to Token swap list
         uint256[] memory sellNFTIds = new uint256[](1);
         sellNFTIds[0] = numInitialNFTs + 1;
-        CollectionRouter.PoolSwapSpecific[] memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
         nftToTokenSwapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
 
         // construct Token to NFT swap list
-        CollectionRouter.PoolSwapAny[] memory tokenToNFTSwapList = new CollectionRouter.PoolSwapAny[](1);
-        tokenToNFTSwapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 1});
+        CollectionRouter.PoolSwapAny[]
+            memory tokenToNFTSwapList = new CollectionRouter.PoolSwapAny[](1);
+        tokenToNFTSwapList[0] = CollectionRouter.PoolSwapAny({
+            pool: pool,
+            numItems: 1
+        });
 
         // NOTE: We send some tokens (more than enough) to cover the protocol fee needed
         uint256 inputAmount = 0.01 ether;
-        this.swapNFTsForAnyNFTsThroughToken{value: modifyInputAmount(inputAmount)}(
+        this.swapNFTsForAnyNFTsThroughToken{
+            value: modifyInputAmount(inputAmount)
+        }(
             router,
             CollectionRouter.NFTsForAnyNFTsTrade({
                 nftToTokenTrades: nftToTokenSwapList,
@@ -186,30 +219,32 @@ abstract contract RouterSinglePool is StdCheats, DSTest, ERC721Holder, Configura
         // construct NFT to token swap list
         uint256[] memory sellNFTIds = new uint256[](1);
         sellNFTIds[0] = numInitialNFTs + 1;
-        CollectionRouter.PoolSwapSpecific[] memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory nftToTokenSwapList = new CollectionRouter.PoolSwapSpecific[](1);
         nftToTokenSwapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
 
         // construct token to NFT swap list
         uint256[] memory buyNFTIds = new uint256[](1);
         buyNFTIds[0] = 1;
-        CollectionRouter.PoolSwapSpecific[] memory tokenToNFTSwapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory tokenToNFTSwapList = new CollectionRouter.PoolSwapSpecific[](1);
         tokenToNFTSwapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: buyNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
 
         // NOTE: We send some tokens (more than enough) to cover the protocol fee
         uint256 inputAmount = 0.01 ether;
-        this.swapNFTsForSpecificNFTsThroughToken{value: modifyInputAmount(inputAmount)}(
+        this.swapNFTsForSpecificNFTsThroughToken{
+            value: modifyInputAmount(inputAmount)
+        }(
             router,
             CollectionRouter.NFTsForSpecificNFTsTrade({
                 nftToTokenTrades: nftToTokenSwapList,
@@ -224,20 +259,27 @@ abstract contract RouterSinglePool is StdCheats, DSTest, ERC721Holder, Configura
     }
 
     function test_swapTokenforAny5NFTs() public {
-        CollectionRouter.PoolSwapAny[] memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 5});
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (,,,, inputAmount,,) = pool.getBuyNFTQuote(5);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(5);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
         uint256 endBalance = test721.balanceOf(address(this));
         require((endBalance - startBalance) == 5, "Too few NFTs acquired");
     }
 
     function test_swapTokenforSpecific5NFTs() public {
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         uint256[] memory nftIds = new uint256[](5);
         nftIds[0] = 1;
         nftIds[1] = 2;
@@ -248,109 +290,150 @@ abstract contract RouterSinglePool is StdCheats, DSTest, ERC721Holder, Configura
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (,,,, inputAmount,,) = pool.getBuyNFTQuote(5);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(5);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
         uint256 endBalance = test721.balanceOf(address(this));
         require((endBalance - startBalance) == 5, "Too few NFTs acquired");
     }
 
     function test_swap5NFTsForToken() public {
-        (,,,, uint256 outputAmount,,) = pool.getSellNFTQuote(5);
+        (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(5);
         uint256[] memory nftIds = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
             nftIds[i] = numInitialNFTs + i + 1;
         }
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
-        router.swapNFTsForToken(swapList, outputAmount, payable(address(this)), block.timestamp);
+        router.swapNFTsForToken(
+            swapList,
+            outputAmount,
+            payable(address(this)),
+            block.timestamp
+        );
     }
 
     function testFail_swapTokenForSingleAnyNFTSlippage() public {
-        CollectionRouter.PoolSwapAny[] memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 1});
         uint256 inputAmount;
-        (,,,, inputAmount,,) = pool.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
         inputAmount = inputAmount - 1 wei;
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
     }
 
     function testFail_swapTokenForSingleSpecificNFTSlippage() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 1;
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (,,,, inputAmount,,) = pool.getBuyNFTQuote(1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
         inputAmount = inputAmount - 1 wei;
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
     }
 
     function testFail_swapSingleNFTForNonexistentToken() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs + 1;
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 sellAmount;
-        (,,,, sellAmount,,) = pool.getSellNFTQuote(1);
+        (, , , , sellAmount, , ) = pool.getSellNFTQuote(1);
         sellAmount = sellAmount + 1 wei;
-        router.swapNFTsForToken(swapList, sellAmount, payable(address(this)), block.timestamp);
+        router.swapNFTsForToken(
+            swapList,
+            sellAmount,
+            payable(address(this)),
+            block.timestamp
+        );
     }
 
     function testFail_swapTokenForAnyNFTsPastBalance() public {
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs + 1;
-        CollectionRouter.PoolSwapAny[] memory swapList = new CollectionRouter.PoolSwapAny[](1);
-        swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: test721.balanceOf(address(pool)) + 1});
+        CollectionRouter.PoolSwapAny[]
+            memory swapList = new CollectionRouter.PoolSwapAny[](1);
+        swapList[0] = CollectionRouter.PoolSwapAny({
+            pool: pool,
+            numItems: test721.balanceOf(address(pool)) + 1
+        });
         uint256 inputAmount;
-        (,,,, inputAmount,,) = pool.getBuyNFTQuote(test721.balanceOf(address(pool)) + 1);
+        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(
+            test721.balanceOf(address(pool)) + 1
+        );
         inputAmount = inputAmount + 1 wei;
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
-            router, swapList, payable(address(this)), address(this), block.timestamp, inputAmount
+            router,
+            swapList,
+            payable(address(this)),
+            address(this),
+            block.timestamp,
+            inputAmount
         );
     }
 
     function testFail_swapSingleNFTForTokenWithEmptyList() public {
         uint256[] memory nftIds = new uint256[](0);
-        CollectionRouter.PoolSwapSpecific[] memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
+        CollectionRouter.PoolSwapSpecific[]
+            memory swapList = new CollectionRouter.PoolSwapSpecific[](1);
         swapList[0] = CollectionRouter.PoolSwapSpecific({
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0),
-            proofLeaves: new bytes32[](0)
+            proofFlags: new bool[](0)
         });
         uint256 sellAmount;
-        (,,,, sellAmount,,) = pool.getSellNFTQuote(1);
+        (, , , , sellAmount, , ) = pool.getSellNFTQuote(1);
         sellAmount = sellAmount + 1 wei;
-        router.swapNFTsForToken(swapList, sellAmount, payable(address(this)), block.timestamp);
+        router.swapNFTsForToken(
+            swapList,
+            sellAmount,
+            payable(address(this)),
+            block.timestamp
+        );
     }
 }

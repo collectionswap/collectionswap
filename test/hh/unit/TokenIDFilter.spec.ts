@@ -45,10 +45,10 @@ describe("TokenIDFilter", function () {
       );
 
       expect(
-        await tokenIDFilterMock.acceptsTokenIDs([], [], [token(1)])
+        await tokenIDFilterMock.acceptsTokenIDs([token(1)], [], [])
       ).to.equal(true);
       expect(
-        await tokenIDFilterMock.acceptsTokenIDs([], [], [token(2)])
+        await tokenIDFilterMock.acceptsTokenIDs([token(2)], [], [])
       ).to.equal(false);
     });
 
@@ -148,7 +148,7 @@ describe("TokenIDFilter", function () {
       const subset = leaves.map((l) => l[0]);
 
       expect(
-        await tokenIDFilterMock.acceptsTokenIDs(proof, proofFlags, subset)
+        await tokenIDFilterMock.acceptsTokenIDs(subset, proof, proofFlags)
       ).to.equal(true);
     });
   });

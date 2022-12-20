@@ -19,7 +19,6 @@ contract CollectionRouter2 {
         uint256[] nftIds;
         bytes32[] proof;
         bool[] proofFlags;
-        bytes32[] proofLeaves;
     }
 
     struct RobustPoolSwapSpecific {
@@ -210,10 +209,7 @@ contract CollectionRouter2 {
                 if (spotPrice >= sellList[i].expectedSpotPrice) {
                     pool.swapNFTsForToken(
                         ICollectionPool.NFTs(
-                            sellList[i].swapInfo.nftIds,
-                            sellList[i].swapInfo.proof,
-                            sellList[i].swapInfo.proofFlags,
-                            sellList[i].swapInfo.proofLeaves
+                            sellList[i].swapInfo.nftIds, sellList[i].swapInfo.proof, sellList[i].swapInfo.proofFlags
                         ),
                         sellList[i].minOutputPerNumNFTs[numNFTs - 1],
                         payable(msg.sender),
@@ -229,8 +225,7 @@ contract CollectionRouter2 {
                         ICollectionPool.NFTs(
                             sellList[i].swapInfo.nftIds[0:numItemsToFill],
                             sellList[i].swapInfo.proof[0:numItemsToFill],
-                            sellList[i].swapInfo.proofFlags[0:numItemsToFill],
-                            sellList[i].swapInfo.proofLeaves[0:numItemsToFill]
+                            sellList[i].swapInfo.proofFlags[0:numItemsToFill]
                         ),
                         priceToFillAt,
                         payable(msg.sender),
@@ -409,10 +404,7 @@ contract CollectionRouter2 {
                 // Do the swap for token and then update outputAmount
                 sellList[i].swapInfo.pool.swapNFTsForToken(
                     ICollectionPool.NFTs(
-                        sellList[i].swapInfo.nftIds,
-                        sellList[i].swapInfo.proof,
-                        sellList[i].swapInfo.proofFlags,
-                        sellList[i].swapInfo.proofLeaves
+                        sellList[i].swapInfo.nftIds, sellList[i].swapInfo.proof, sellList[i].swapInfo.proofFlags
                     ),
                     sellList[i].minOutput,
                     payable(msg.sender),
@@ -444,10 +436,7 @@ contract CollectionRouter2 {
                 // Do the swap for token and then update outputAmount
                 outputAmount += sellList[i].swapInfo.pool.swapNFTsForToken(
                     ICollectionPool.NFTs(
-                        sellList[i].swapInfo.nftIds,
-                        sellList[i].swapInfo.proof,
-                        sellList[i].swapInfo.proofFlags,
-                        sellList[i].swapInfo.proofLeaves
+                        sellList[i].swapInfo.nftIds, sellList[i].swapInfo.proof, sellList[i].swapInfo.proofFlags
                     ),
                     sellList[i].minOutput,
                     payable(address(this)), // Send funds here first
@@ -538,10 +527,7 @@ contract CollectionRouter2 {
             // Do the swap for token and then update outputAmount
             outputAmount += swapList[i].swapInfo.pool.swapNFTsForToken(
                 ICollectionPool.NFTs(
-                    swapList[i].swapInfo.nftIds,
-                    swapList[i].swapInfo.proof,
-                    swapList[i].swapInfo.proofFlags,
-                    swapList[i].swapInfo.proofLeaves
+                    swapList[i].swapInfo.nftIds, swapList[i].swapInfo.proof, swapList[i].swapInfo.proofFlags
                 ),
                 swapList[i].minOutput,
                 payable(msg.sender),

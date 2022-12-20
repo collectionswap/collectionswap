@@ -16,14 +16,20 @@ abstract contract UsingExponentialCurve is Configurable {
     function modifyDelta(uint64 delta) public pure override returns (uint64) {
         if (delta <= FixedPointMathLib.WAD) {
             return uint64(FixedPointMathLib.WAD + delta + 1);
-        } else if (delta >= 2 * FixedPointMathLib.WAD) {
-            return uint64(2 * FixedPointMathLib.WAD);
-        } else {
+        } else if (delta >= 2*FixedPointMathLib.WAD) {
+          return uint64(2*FixedPointMathLib.WAD);
+        }
+        else {
             return delta;
         }
     }
 
-    function modifySpotPrice(uint56 spotPrice) public pure override returns (uint56) {
+    function modifySpotPrice(uint56 spotPrice)
+        public
+        pure
+        override
+        returns (uint56)
+    {
         if (spotPrice < 1 gwei) {
             return 1 gwei;
         } else {
@@ -33,6 +39,6 @@ abstract contract UsingExponentialCurve is Configurable {
 
     // Return 1 eth as spot price and 10% as the delta scaling
     function getParamsForPartialFillTest() public pure override returns (uint128 spotPrice, uint128 delta) {
-        return (10 ** 18, 1.1 * (10 ** 18));
+      return (10**18, 1.1*(10**18));
     }
 }

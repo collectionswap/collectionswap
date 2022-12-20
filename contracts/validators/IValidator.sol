@@ -6,11 +6,5 @@ import {ICollectionPool} from "../pools/ICollectionPool.sol";
 
 interface IValidator {
     /// @notice Validates if a pool fulfills the conditions of a bonding curve. The conditions can be different for each type of curve.
-    function validate(
-        ICollectionPool pool,
-        ICurve.Params calldata params,
-        uint96 fee,
-        uint256 royaltyNumerator,
-        bytes32 tokenIDFilterRoot
-    ) external returns (bool);
+    function validate(ICollectionPool pool, ICurve.Params calldata params, uint96 fee, uint256 royaltyNumerator, bytes32 tokenIDFilterRoot) external returns (bool);
 }
