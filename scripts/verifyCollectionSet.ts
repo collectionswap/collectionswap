@@ -89,6 +89,11 @@ export async function verifyCollectionSet(
     constructorArguments: [factory],
   });
 
+  await verify("SortitionTreeManager", {
+    address: addresses.sortitionTreeManager,
+    constructorArguments: [],
+  });
+
   await verify("RewardETHLogic", {
     address: addresses.rewardVaultETH,
     constructorArguments: [],

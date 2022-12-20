@@ -81,7 +81,12 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   await rng.setAllowedCaller(collectionStaker.address);
 
   console.log("exporting addresses...");
-  const [rewardVaultETHAddress, rewardVaultETHDrawAddress] = await Promise.all([
+  const [
+    sortitionTreeManagerAddress,
+    rewardVaultETHAddress,
+    rewardVaultETHDrawAddress,
+  ] = await Promise.all([
+    collectionStaker.treeManager(),
     collectionStaker.rewardVaultETHLogic(),
     collectionStaker.rewardVaultETHDrawLogic(),
   ]);
@@ -97,6 +102,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     sigmoidCurve: curveAddresses[3],
     factory: factory.address,
     collectionStaker: collectionStaker.address,
+    sortitionTreeManager: sortitionTreeManagerAddress,
     rewardVaultETH: rewardVaultETHAddress,
     rewardVaultETHDraw: rewardVaultETHDrawAddress,
     rng: rng.address,
@@ -160,6 +166,12 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   await hre.run("verify:verify", {
     address: collectionStaker.address,
     constructorArguments: [factory.address],
+  });
+
+  console.log("verifying SortitionTreeManager...");
+  await hre.run("verify:verify", {
+    address: sortitionTreeManagerAddress,
+    constructorArguments: [],
   });
 
   console.log("verifying RewardETHLogic...");
