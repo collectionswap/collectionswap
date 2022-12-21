@@ -145,7 +145,7 @@ interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
     function burn(uint256 tokenId) external;
 
     /**
-     * @return poolParams the parameters of the pool matching `tokenId`.
+     * @dev Returns the pool address of the `tokenId` token.
      */
-    function viewPoolParams(uint256 tokenId) external view returns (LPTokenParams721 memory poolParams);
+    function poolAddressOf(uint256 tokenId) external view returns (address);
 }

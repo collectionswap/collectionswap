@@ -315,11 +315,10 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         ICollectionPoolFactory _lpToken = lpToken;
         if (_lpToken.ownerOf(tokenId) != msg.sender) revert Unauthorized();
 
-        ICollectionPoolFactory.LPTokenParams721 memory params = _lpToken.viewPoolParams(tokenId);
-        ICollectionPool _pool = ICollectionPool(params.poolAddress);
+        ICollectionPool _pool = ICollectionPool(_lpToken.poolAddressOf(tokenId));
         IERC721 _nft = nft;
         if (
-            params.nftAddress != address(_nft) || params.bondingCurveAddress != bondingCurve
+            _pool.nft() != _nft || address(_pool.bondingCurve()) != bondingCurve
                 || !validator.validate(_pool, curveParams, fee, royaltyNumerator, tokenIDFilterRoot)
         ) revert PoolMismatch();
 

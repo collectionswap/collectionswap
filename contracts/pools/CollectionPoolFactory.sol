@@ -59,8 +59,9 @@ contract CollectionPoolFactory is
      */
     uint256 internal constant MAX_CARRY_FEE = 0.5e18; // 50%
 
-    /// @dev maps the tokenID to the pool address created
-    mapping(uint256 => LPTokenParams721) internal _tokenIdToPoolParams;
+    // Mapping from token ID to pool address
+    mapping(uint256 => address) private _poolAddresses;
+
     /// @dev The ID of the next token that will be minted. Skips 0
     uint256 internal _nextTokenId;
 
@@ -161,16 +162,8 @@ contract CollectionPoolFactory is
         // issue new token
         tokenId = mint(params.receiver);
 
-        // save params in mapping
-        _tokenIdToPoolParams[tokenId] = LPTokenParams721({
-            nftAddress: address(params.nft),
-            bondingCurveAddress: address(params.bondingCurve),
-            tokenAddress: ETH_ADDRESS,
-            poolAddress: payable(pool),
-            fee: params.fee,
-            delta: params.delta,
-            royaltyNumerator: params.royaltyNumerator
-        });
+        // save pool address in mapping
+        _poolAddresses[tokenId] = pool;
 
         _initializePoolETH(CollectionPoolETH(payable(pool)), params, tokenId);
 
@@ -209,16 +202,8 @@ contract CollectionPoolFactory is
         // issue new token
         tokenId = mint(params.receiver);
 
-        // save params in mapping
-        _tokenIdToPoolParams[tokenId] = LPTokenParams721({
-            nftAddress: address(params.nft),
-            bondingCurveAddress: address(params.bondingCurve),
-            tokenAddress: ETH_ADDRESS,
-            poolAddress: payable(pool),
-            fee: params.fee,
-            delta: params.delta,
-            royaltyNumerator: params.royaltyNumerator
-        });
+        // save pool address in mapping
+        _poolAddresses[tokenId] = pool;
 
         _initializePoolETHFiltered(CollectionPoolETH(payable(pool)), params, filterParams, tokenId);
         emit NewPool(pool);
@@ -246,16 +231,8 @@ contract CollectionPoolFactory is
         // issue new token
         tokenId = mint(params.receiver);
 
-        // save params in mapping
-        _tokenIdToPoolParams[tokenId] = LPTokenParams721({
-            nftAddress: address(params.nft),
-            bondingCurveAddress: address(params.bondingCurve),
-            tokenAddress: address(params.token),
-            poolAddress: payable(pool),
-            fee: params.fee,
-            delta: params.delta,
-            royaltyNumerator: params.royaltyNumerator
-        });
+        // save pool address in mapping
+        _poolAddresses[tokenId] = pool;
 
         _initializePoolERC20(CollectionPoolERC20(payable(pool)), params, tokenId);
 
@@ -287,16 +264,8 @@ contract CollectionPoolFactory is
         // issue new token
         tokenId = mint(params.receiver);
 
-        // save params in mapping
-        _tokenIdToPoolParams[tokenId] = LPTokenParams721({
-            nftAddress: address(params.nft),
-            bondingCurveAddress: address(params.bondingCurve),
-            tokenAddress: address(params.token),
-            poolAddress: payable(pool),
-            fee: params.fee,
-            delta: params.delta,
-            royaltyNumerator: params.royaltyNumerator
-        });
+        // save pool address in mapping
+        _poolAddresses[tokenId] = pool;
 
         _initializePoolERC20Filtered(CollectionPoolERC20(payable(pool)), params, filterParams, tokenId);
 
@@ -304,10 +273,10 @@ contract CollectionPoolFactory is
     }
 
     /**
-     * @return poolParams the parameters of the pool matching `tokenId`.
+     * @dev See {ICollectionPoolFactory-poolAddressOf}.
      */
-    function viewPoolParams(uint256 tokenId) public view returns (LPTokenParams721 memory poolParams) {
-        poolParams = _tokenIdToPoolParams[tokenId];
+    function poolAddressOf(uint256 tokenId) public view returns (address) {
+        return _poolAddresses[tokenId];
     }
 
     /**
@@ -633,30 +602,22 @@ contract CollectionPoolFactory is
     /// @dev does not withdraw airdropped assets, that should be done prior to calling this function
     function burn(uint256 tokenId) external nonReentrant {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Not approved");
-        LPTokenParams721 memory poolParams = viewPoolParams(tokenId);
-        uint256[] memory heldNftIds;
+        address poolAddress = poolAddressOf(tokenId);
+        CollectionPool pool = CollectionPool(poolAddress);
+        PoolVariant poolVariant = pool.poolVariant();
 
         // withdraw all ETH / ERC20
-        if (poolParams.tokenAddress == ETH_ADDRESS) {
+        if (poolVariant == PoolVariant.ENUMERABLE_ETH || poolVariant == PoolVariant.MISSING_ENUMERABLE_ETH) {
             // withdraw ETH, sent to owner of LPToken
-            CollectionPoolETH pool = CollectionPoolETH(poolParams.poolAddress);
-            pool.withdrawAllETH();
-
-            // then withdraw NFTs
-            heldNftIds = pool.getAllHeldIds();
-            pool.withdrawERC721(IERC721(poolParams.nftAddress), heldNftIds);
-        } else {
+            CollectionPoolETH(payable(poolAddress)).withdrawAllETH();
+        } else if (poolVariant == PoolVariant.ENUMERABLE_ERC20 || poolVariant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
             // withdraw ERC20
-            CollectionPoolERC20 pool = CollectionPoolERC20(poolParams.poolAddress);
-            pool.withdrawAllERC20();
-            heldNftIds = pool.getAllHeldIds();
-
-            // then withdraw NFTs
-            heldNftIds = pool.getAllHeldIds();
-            pool.withdrawERC721(IERC721(poolParams.nftAddress), heldNftIds);
+            CollectionPoolERC20(poolAddress).withdrawAllERC20();
         }
+        // then withdraw NFTs
+        pool.withdrawERC721(pool.nft(), pool.getAllHeldIds());
 
-        delete _tokenIdToPoolParams[tokenId];
+        delete _poolAddresses[tokenId];
         _burn(tokenId);
     }
 
