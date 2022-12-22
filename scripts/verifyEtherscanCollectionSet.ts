@@ -67,6 +67,16 @@ export async function verifyEtherscanCollectionSet(
     });
   }
 
+  const routers = Object.entries(contracts).filter(([name]) =>
+    name.includes("Router")
+  );
+  for (const [name, address] of routers) {
+    await verify(name, {
+      address,
+      constructorArguments: [contracts.CollectionPoolFactory],
+    });
+  }
+
   await verify("Collectionstaker", {
     address: contracts.Collectionstaker,
     constructorArguments: [contracts.CollectionPoolFactory],

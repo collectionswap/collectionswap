@@ -50,10 +50,19 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   console.log(`Factory address: ${factory.address}`);
 
   const { curveNames, curveAddresses } = await deployCurves(hre, deployer);
-
   for (let i = 0; i < curveNames.length; i++) {
     console.log(`Whitelisting ${curveNames[i]} in factory...`);
     await factory.setBondingCurveAllowed(curveAddresses[i], true);
+  }
+
+  const { routerNames, routerAddresses } = await deployRouters(
+    hre,
+    deployer,
+    factory.address
+  );
+  for (let i = 0; i < routerNames.length; i++) {
+    console.log(`Whitelisting ${routerNames[i]} in factory...`);
+    await factory.setRouterAllowed(routerAddresses[i], true);
   }
 
   console.log(`Deploying Collectionstaker...`);
@@ -192,6 +201,35 @@ export async function deployCurves(
   return { curveNames, curveAddresses };
 }
 
+export async function deployRouters(
+  hre: HardhatRuntimeEnvironment,
+  deployer: LedgerSigner | SignerWithAddress,
+  factoryAddress: string
+): Promise<{ routerNames: string[]; routerAddresses: string[] }> {
+  const routerNames = ["CollectionRouter"];
+  const routerAddresses: string[] = [];
+
+  console.log(`--------------------------------`);
+  console.log(`------- Deploying Routers -------`);
+  console.log(`--------------------------------`);
+
+  for (const routerName of routerNames) {
+    console.log(`Deploying ${routerName}`);
+    const deployFactory = await hre.ethers.getContractFactory(
+      routerName,
+      deployer
+    );
+    const deployedRouter = await deployFactory.deploy(factoryAddress);
+    await deployedRouter.deployed();
+    console.log(`${routerName} address: ${deployedRouter.address}`);
+    routerAddresses.push(deployedRouter.address);
+  }
+
+  console.log(`------------------------------`);
+
+  return { routerNames, routerAddresses };
+}
+
 export async function deployValidators(
   hre: HardhatRuntimeEnvironment,
   deployer: LedgerSigner | SignerWithAddress
@@ -210,10 +248,10 @@ export async function deployValidators(
       validatorName,
       deployer
     );
-    const deployedCurve = await deployFactory.deploy();
-    await deployedCurve.deployed();
-    console.log(`${validatorName} address: ${deployedCurve.address}`);
-    validatorAddresses.push(deployedCurve.address);
+    const deployedValidator = await deployFactory.deploy();
+    await deployedValidator.deployed();
+    console.log(`${validatorName} address: ${deployedValidator.address}`);
+    validatorAddresses.push(deployedValidator.address);
   }
 
   console.log(`------------------------------`);
