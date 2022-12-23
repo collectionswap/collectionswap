@@ -110,6 +110,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
       ...Object.fromEntries(zip(templateNames, templateAddresses)),
       ...Object.fromEntries(zip(curveNames, curveAddresses)),
       CollectionPoolFactory: factory.address,
+      ...Object.fromEntries(zip(routerNames, routerAddresses)),
       Collectionstaker: collectionStaker.address,
       SortitionTreeManager: sortitionTreeManagerAddress,
       RewardVaultETH: rewardVaultETHAddress,
