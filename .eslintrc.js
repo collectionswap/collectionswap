@@ -62,4 +62,12 @@ module.exports = {
     "max-params": "off",
     "require-await": "off",
   },
+  overrides: [
+    {
+      "files": ["test/hh/**/*.spec.ts"],
+      "rules": {
+        "max-nested-callbacks": "off"
+      }
+    }
+  ]
 };
