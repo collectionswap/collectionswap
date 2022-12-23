@@ -3,7 +3,7 @@ import { BigNumber } from "ethers";
 import { formatEther } from "ethers/lib/utils";
 import { assert, ethers } from "hardhat";
 
-import { CURVE_TYPE, getPoolAddress } from "./constants";
+import { CURVE_TYPE } from "./constants";
 
 import type {
   CollectionPoolFactory,
@@ -20,7 +20,14 @@ import type {
   CollectionPoolETH,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { BigNumberish, Contract, providers, Signer, Wallet } from "ethers";
+import type {
+  BigNumberish,
+  Contract,
+  providers,
+  Signer,
+  Wallet,
+  ContractTransaction,
+} from "ethers";
 
 const SIGMOID_NORMALIZATION_CONSTANT = 1024;
 
@@ -743,4 +750,18 @@ export async function checkSufficiencyERC20List(
     const token = await ethers.getContractAt("IERC20", tokenAddress);
     expect(await token.balanceOf(ownerAddress)).to.be.at.least(tokenAmount);
   }
+}
+
+export async function getPoolAddress(tx: ContractTransaction, showGas = false) {
+  const receipt = await tx.wait();
+  if (showGas) {
+    console.log("gas used:", receipt.cumulativeGasUsed);
+  }
+
+  const newPoolEvent = receipt.events?.find(
+    (event) => event.event === "NewPool"
+  );
+  const { poolAddress: newPoolAddress, tokenId: newTokenId } =
+    newPoolEvent!.args!;
+  return { newPoolAddress, newTokenId };
 }

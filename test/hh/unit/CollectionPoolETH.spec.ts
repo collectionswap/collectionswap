@@ -2,7 +2,6 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import { getPoolAddress } from "../shared/constants";
 import {
   getCurveParameters,
   collectionFixture,
@@ -14,6 +13,7 @@ import {
   changesEtherBalancesFuzzy,
   cumulativeSumWithRoyalties,
   expectAddressToOwnNFTs,
+  getPoolAddress,
   mintNfts,
 } from "../shared/helpers";
 import { getSigners } from "../shared/signers";

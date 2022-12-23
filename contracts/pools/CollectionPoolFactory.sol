@@ -66,8 +66,6 @@ contract CollectionPoolFactory is
     /// @dev The ID of the next token that will be minted. Skips 0
     uint256 internal _nextTokenId;
 
-    event NewTokenId(uint256 tokenId);
-
     address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     CollectionPoolEnumerableETH public immutable enumerableETHTemplate;
     CollectionPoolMissingEnumerableETH public immutable missingEnumerableETHTemplate;
@@ -93,7 +91,7 @@ contract CollectionPoolFactory is
 
     string public baseURI;
 
-    event NewPool(address poolAddress);
+    event NewPool(address poolAddress, uint256 tokenId);
     event TokenDeposit(address poolAddress);
     event NFTDeposit(address poolAddress);
     event ProtocolFeeRecipientUpdate(address recipientAddress);
@@ -355,7 +353,7 @@ contract CollectionPoolFactory is
         // save pool address in mapping
         _poolAddresses[tokenId] = pool;
 
-        emit NewPool(pool);
+        emit NewPool(pool, tokenId);
     }
 
     function _initializePoolETH(CollectionPoolETH _pool, CreateETHPoolParams calldata _params, uint256 tokenId)
@@ -406,7 +404,7 @@ contract CollectionPoolFactory is
         // save pool address in mapping
         _poolAddresses[tokenId] = pool;
 
-        emit NewPool(pool);
+        emit NewPool(pool, tokenId);
     }
 
     function _initializePoolERC20(CollectionPoolERC20 _pool, CreateERC20PoolParams calldata _params, uint256 tokenId)
@@ -502,8 +500,6 @@ contract CollectionPoolFactory is
 
     function mint(address recipient) internal returns (uint256 tokenId) {
         _safeMint(recipient, (tokenId = ++_nextTokenId));
-
-        emit NewTokenId(tokenId);
     }
 
     // overrides required by Solidiity for ERC721 contract

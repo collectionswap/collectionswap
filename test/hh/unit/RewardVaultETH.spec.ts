@@ -24,6 +24,7 @@ import type {
   Test721Enumerable,
 } from "../../../typechain-types";
 import type { NFTFixture } from "../shared/fixtures";
+import type { LogDescription } from "@ethersproject/abi";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumberish, ContractTransaction } from "ethers";
 
@@ -96,14 +97,13 @@ describe("RewardVaultETH", function () {
               return null;
             }
           })
-          .filter((x) => x);
+          .filter((x) => x) as LogDescription[];
 
-        const newPoolAddress = descriptions.find(
+        const description = descriptions.find(
           (description) => description.name === "NewPool"
-        ).args.poolAddress;
-        const newTokenId = descriptions.find(
-          (description) => description.name === "NewTokenId"
-        ).args.tokenId;
+        );
+        const { poolAddress: newPoolAddress, tokenId: newTokenId } =
+          description!.args;
 
         expect(stakedTokenId).to.equal(newTokenId);
 
@@ -1243,21 +1243,9 @@ describe("RewardVaultETH", function () {
               { value: params.value }
             );
           // Console.log(4);
-          const currTokenIdResp = await currTokenIdTx.wait();
-          expect(currTokenIdResp.events).to.exist;
-          const currTokenIdEvent = currTokenIdResp
-            .events!.map((event) => {
-              try {
-                return factory.interface.parseLog(event);
-              } catch (e) {
-                return null;
-              }
-            })
-            .find(
-              (description) => description && description.name === "NewTokenId"
-            );
-          expect(currTokenIdEvent).to.exist;
-          const currTokenId = currTokenIdEvent!.args.tokenId;
+          const { newTokenId: currTokenId } = await getPoolAddress(
+            currTokenIdTx
+          );
 
           await rewardVault.exit(currTokenId);
           await factory.setApprovalForAll(factory.address, true);

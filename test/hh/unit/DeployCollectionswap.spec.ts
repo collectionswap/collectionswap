@@ -11,6 +11,7 @@ import {
   closeEnough,
   convertToBigNumber,
   cumulativeSum,
+  getPoolAddress,
   sellToPool,
 } from "../shared/helpers";
 
@@ -89,23 +90,6 @@ console.log(
 //       }
 //     );
 // }
-
-async function getPoolAddress(tx: ContractTransaction, showGas = false) {
-  const receipt = await tx.wait();
-  if (showGas) {
-    console.log("gas used:", receipt.cumulativeGasUsed);
-  }
-
-  const newPoolEvent = receipt.events?.find(
-    (event) => event.event === "NewPool"
-  );
-  const newPoolAddress = newPoolEvent?.args?.poolAddress;
-  const newTokenEvent = receipt.events?.find(
-    (event) => event.event === "NewTokenId"
-  );
-  const newTokenId = newTokenEvent?.args?.tokenId;
-  return { newPoolAddress, newTokenId };
-}
 
 describe("Collectionswap", function () {
   describe("Direct interactions with AMM", function () {

@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import * as path from "path";
 
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { Contract, ContractTransaction } from "ethers";
+import type { Contract } from "ethers";
 
 const IMPLEMENTED_CURVES = ["linear", "exponential", "sigmoid"] as const;
 export type curveType = typeof IMPLEMENTED_CURVES[number];
@@ -42,21 +42,4 @@ export async function mintTokensAndApprove(
       .approve(collectionPoolFactory.address, nftId);
     // Console.log(`owner of ${nftId} is '${await myERC721.ownerOf(nftId)}'`)
   }
-}
-
-export async function getPoolAddress(tx: ContractTransaction, showGas = false) {
-  const receipt = await tx.wait();
-  if (showGas) {
-    console.log("gas used:", receipt.cumulativeGasUsed);
-  }
-
-  const newPoolEvent = receipt.events?.find(
-    (event) => event.event === "NewPool"
-  );
-  const newPoolAddress = newPoolEvent?.args?.poolAddress;
-  const newTokenEvent = receipt.events?.find(
-    (event) => event.event === "NewTokenId"
-  );
-  const newTokenId = newTokenEvent?.args?.tokenId;
-  return { newPoolAddress, newTokenId };
 }

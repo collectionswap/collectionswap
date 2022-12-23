@@ -1,7 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import { getPoolAddress } from "../shared/constants";
 import {
   DEFAULT_VALID_ROYALTY,
   royaltyFixture,
@@ -12,6 +11,7 @@ import {
   changesEtherBalancesFuzzy,
   changesEtherBalancesFuzzyMultipleTransactions,
   enumerateAddress,
+  getPoolAddress,
   getRandomInt,
   mintNfts,
   pickRandomElements,
