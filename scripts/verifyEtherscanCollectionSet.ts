@@ -28,7 +28,7 @@ export async function verifyEtherscanCollectionSet(
   // Read file from input
   const filePath =
     taskArgs.i || path.resolve("deploys", `${hre.network.name}.json`);
-  const { contracts, deployerAddress } = JSON.parse(
+  const { contracts, deployer: deployerAddress } = JSON.parse(
     fs.readFileSync(filePath, "utf8")
   );
   const networkId = hre.network.config.chainId as number;
@@ -50,7 +50,7 @@ export async function verifyEtherscanCollectionSet(
   await verify("CollectionPoolFactory", {
     address: contracts.CollectionPoolFactory,
     constructorArguments: [
-      ...Object.keys(templates),
+      ...templates.map(([_, address]) => address),
       hre.ethers.constants.AddressZero, // Payout address
       hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
       hre.ethers.utils.parseEther(config.CARRY_FEE_MULTIPLIER),
