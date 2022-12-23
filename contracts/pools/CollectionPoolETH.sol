@@ -31,22 +31,7 @@ abstract contract CollectionPoolETH is CollectionPool {
         require(msg.value >= inputAmount, "Sent too little ETH");
 
         // Pay royalties first to obtain total amount of royalties paid
-        uint256 length = royaltiesDue.length;
-        uint256 totalRoyaltiesPaid;
-
-        for (uint256 i = 0; i < length;) {
-            RoyaltyDue memory due = royaltiesDue[i];
-            uint256 royaltyAmount = due.amount;
-            totalRoyaltiesPaid += royaltyAmount;
-            if (royaltyAmount > 0) {
-                address recipient = getRoyaltyRecipient(payable(due.recipient));
-                payable(recipient).safeTransferETH(royaltyAmount);
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
+        uint256 totalRoyaltiesPaid = _payRoyalties(royaltiesDue);
 
         // Transfer inputAmount ETH to assetRecipient if it's been set
         address payable _assetRecipient = getAssetRecipient();
@@ -54,17 +39,7 @@ abstract contract CollectionPoolETH is CollectionPool {
             _assetRecipient.safeTransferETH(inputAmount - protocolFee - totalRoyaltiesPaid);
         }
 
-        // Take protocol fee
-        if (protocolFee > 0) {
-            // Round down to the actual ETH balance if there are numerical stability issues with the bonding curve calculations
-            if (protocolFee > address(this).balance) {
-                protocolFee = address(this).balance;
-            }
-
-            if (protocolFee > 0) {
-                payable(address(_factory)).safeTransferETH(protocolFee);
-            }
-        }
+        _payProtocolFeeFromPool(_factory, protocolFee);
     }
 
     /// @inheritdoc CollectionPool
@@ -90,38 +65,35 @@ abstract contract CollectionPoolETH is CollectionPool {
         }
     }
 
+    function _payRoyalties(RoyaltyDue[] memory royaltiesDue) internal returns (uint256 totalRoyaltiesPaid) {
+        uint256 length = royaltiesDue.length;
+        for (uint256 i = 0; i < length;) {
+            RoyaltyDue memory due = royaltiesDue[i];
+            uint256 royaltyAmount = due.amount;
+            if (royaltyAmount > 0) {
+                totalRoyaltiesPaid += royaltyAmount;
+
+                address recipient = getRoyaltyRecipient(payable(due.recipient));
+                payable(recipient).safeTransferETH(royaltyAmount);
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /// @inheritdoc CollectionPool
     function _sendTokenOutput(address payable tokenRecipient, uint256 outputAmount, RoyaltyDue[] memory royaltiesDue)
         internal
         override
     {
-        // Unfortunately we need to duplicate work here
-        uint256 length = royaltiesDue.length;
-        uint256 totalRoyaltiesDue;
-        for (uint256 i = 0; i < length;) {
-            totalRoyaltiesDue += royaltiesDue[i].amount;
-            unchecked {
-                ++i;
-            }
-        }
+        uint256 totalRoyaltiesPaid = _payRoyalties(royaltiesDue);
 
         // Send ETH to caller
         if (outputAmount > 0) {
-            require(address(this).balance >= outputAmount + tradeFee + totalRoyaltiesDue, "Too little ETH");
+            require(address(this).balance >= outputAmount + tradeFee + totalRoyaltiesPaid, "Too little ETH");
             tokenRecipient.safeTransferETH(outputAmount);
-        }
-
-        for (uint256 i = 0; i < length;) {
-            RoyaltyDue memory due = royaltiesDue[i];
-            address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
-            uint256 royaltyAmount = due.amount;
-            if (royaltyAmount > 0) {
-                payable(royaltyRecipient).safeTransferETH(royaltyAmount);
-            }
-
-            unchecked {
-                ++i;
-            }
         }
     }
 

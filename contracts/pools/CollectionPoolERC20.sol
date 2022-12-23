@@ -105,31 +105,12 @@ abstract contract CollectionPoolERC20 is CollectionPool {
             // so there is no incentive to *not* pay protocol fee
         } else {
             // Pay royalties first to obtain total amount of royalties paid
-            uint256 length = royaltiesDue.length;
-            uint256 totalRoyaltiesPaid;
-
-            for (uint256 i = 0; i < length;) {
-                RoyaltyDue memory due = royaltiesDue[i];
-                uint256 royaltyAmount = due.amount;
-                address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
-                if (royaltyAmount > 0) {
-                    totalRoyaltiesPaid += royaltyAmount;
-
-                    _token.safeTransferFrom(msg.sender, royaltyRecipient, royaltyAmount);
-                }
-
-                unchecked {
-                    ++i;
-                }
-            }
+            uint256 totalRoyaltiesPaid = _payRoyalties(royaltiesDue);
 
             // Transfer tokens directly
             _token.safeTransferFrom(msg.sender, _assetRecipient, inputAmount - protocolFee - totalRoyaltiesPaid);
 
-            // Take protocol fee (if it exists)
-            if (protocolFee > 0) {
-                _token.safeTransferFrom(msg.sender, address(_factory), protocolFee);
-            }
+            _payProtocolFeeFromPool(_factory, protocolFee);
         }
     }
 
@@ -155,39 +136,38 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         }
     }
 
+    function _payRoyalties(RoyaltyDue[] memory royaltiesDue) internal returns (uint256 totalRoyaltiesPaid) {
+        ERC20 _token = token();
+
+        uint256 length = royaltiesDue.length;
+        for (uint256 i = 0; i < length;) {
+            RoyaltyDue memory due = royaltiesDue[i];
+            uint256 royaltyAmount = due.amount;
+            address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
+            if (royaltyAmount > 0) {
+                totalRoyaltiesPaid += royaltyAmount;
+
+                _token.safeTransferFrom(msg.sender, royaltyRecipient, royaltyAmount);
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /// @inheritdoc CollectionPool
     function _sendTokenOutput(address payable tokenRecipient, uint256 outputAmount, RoyaltyDue[] memory royaltiesDue)
         internal
         override
     {
-        // Unfortunately we need to duplicate work here
-        uint256 length = royaltiesDue.length;
-        uint256 totalRoyaltiesDue;
-        for (uint256 i = 0; i < length;) {
-            totalRoyaltiesDue += royaltiesDue[i].amount;
-            unchecked {
-                ++i;
-            }
-        }
+        uint256 totalRoyaltiesPaid = _payRoyalties(royaltiesDue);
 
         // Send tokens to caller
         if (outputAmount > 0) {
             ERC20 _token = token();
-            require(_token.balanceOf(address(this)) >= outputAmount + tradeFee + totalRoyaltiesDue, "Too little ERC20");
+            require(_token.balanceOf(address(this)) >= outputAmount + tradeFee + totalRoyaltiesPaid, "Too little ERC20");
             _token.safeTransfer(tokenRecipient, outputAmount);
-        }
-
-        for (uint256 i = 0; i < length;) {
-            RoyaltyDue memory due = royaltiesDue[i];
-            uint256 royaltyAmount = due.amount;
-            if (royaltyAmount > 0) {
-                address royaltyRecipient = getRoyaltyRecipient(payable(due.recipient));
-                token().safeTransfer(royaltyRecipient, royaltyAmount);
-            }
-
-            unchecked {
-                ++i;
-            }
         }
     }
 

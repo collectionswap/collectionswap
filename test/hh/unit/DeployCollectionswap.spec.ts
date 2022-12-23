@@ -400,7 +400,7 @@ describe("Collectionswap", function () {
           false,
           ethers.constants.AddressZero
         )
-      ).to.be.revertedWith("Too little ETH");
+      ).to.be.revertedWith("ETH_TRANSFER_FAILED");
 
       // Can withdraw
       await collectionPoolETH.withdrawAllETH();

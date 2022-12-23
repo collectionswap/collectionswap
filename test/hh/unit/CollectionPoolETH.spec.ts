@@ -2,6 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
+import { getPoolAddress } from "../shared/constants";
 import {
   getCurveParameters,
   collectionFixture,
@@ -76,10 +77,8 @@ describe("CollectionPoolETH", function () {
       royaltyRecipientOverride: ethers.constants.AddressZero,
       initialNFTIDs: nftTokenIds,
     });
-    const receipt = await resp.wait();
-    // Get the NewTokenId event
-    const event = receipt.events?.filter((e) => e.event === "NewTokenId");
-    const lpTokenId = event?.[0].args?.tokenId;
+    const { newPoolAddress: poolAddress, newTokenId: lpTokenId } =
+      await getPoolAddress(resp);
 
     expect(await factory.tokenURI(lpTokenId)).to.equal(
       // Concatenation of baseURI and lpTokenId
@@ -90,7 +89,7 @@ describe("CollectionPoolETH", function () {
       collectionPoolFactory: factory,
       collectionPoolETH: await ethers.getContractAt(
         "CollectionPoolETH",
-        receipt.events![5].args!.poolAddress,
+        poolAddress,
         user
       ),
       nft,

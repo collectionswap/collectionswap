@@ -15,6 +15,7 @@ import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
+import {TransferLib} from "../lib/TransferLib.sol";
 
 import {CollectionPool} from ".//CollectionPool.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
@@ -141,33 +142,9 @@ contract CollectionPoolFactory is
         payable
         returns (address pool, uint256 tokenId)
     {
-        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
-
-        require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientOverride != address(0),
-            "Nonzero royalty for non ERC2981 without override"
-        );
-
-        // Check to see if the NFT supports Enumerable to determine which template to use
-        address template;
-        try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
-            template = isEnumerable ? address(enumerableETHTemplate) : address(missingEnumerableETHTemplate);
-        } catch {
-            template = address(missingEnumerableETHTemplate);
-        }
-
-        pool = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
-
-        // issue new token
-        tokenId = mint(params.receiver);
-
-        // save pool address in mapping
-        _poolAddresses[tokenId] = pool;
+        (pool, tokenId) = _createPoolETH(params);
 
         _initializePoolETH(CollectionPoolETH(payable(pool)), params, tokenId);
-
-        emit NewPool(pool);
     }
 
     /**
@@ -181,95 +158,40 @@ contract CollectionPoolFactory is
         payable
         returns (address pool, uint256 tokenId)
     {
-        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
+        (pool, tokenId) = _createPoolETH(params);
 
+        // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
+        // If not, we could re-use createPoolETH and check later.
+        CollectionPoolETH _pool = CollectionPoolETH(payable(pool));
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientOverride != address(0),
-            "Nonzero royalty for non ERC2981 without override"
+            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
+            "NFT not allowed"
         );
 
-        // Check to see if the NFT supports Enumerable to determine which template to use
-        address template;
-        try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
-            template = isEnumerable ? address(enumerableETHTemplate) : address(missingEnumerableETHTemplate);
-        } catch {
-            template = address(missingEnumerableETHTemplate);
-        }
-
-        pool = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
-
-        // issue new token
-        tokenId = mint(params.receiver);
-
-        // save pool address in mapping
-        _poolAddresses[tokenId] = pool;
-
-        _initializePoolETHFiltered(CollectionPoolETH(payable(pool)), params, filterParams, tokenId);
-        emit NewPool(pool);
+        _initializePoolETH(_pool, params, tokenId);
     }
 
     function createPoolERC20(CreateERC20PoolParams calldata params) external returns (address pool, uint256 tokenId) {
-        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
-
-        require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientOverride != address(0),
-            "Nonzero royalty for non ERC2981 without override"
-        );
-
-        // Check to see if the NFT supports Enumerable to determine which template to use
-        address template;
-        try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
-            template = isEnumerable ? address(enumerableERC20Template) : address(missingEnumerableERC20Template);
-        } catch {
-            template = address(missingEnumerableERC20Template);
-        }
-
-        pool = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
-
-        // issue new token
-        tokenId = mint(params.receiver);
-
-        // save pool address in mapping
-        _poolAddresses[tokenId] = pool;
+        (pool, tokenId) = _createPoolERC20(params);
 
         _initializePoolERC20(CollectionPoolERC20(payable(pool)), params, tokenId);
-
-        emit NewPool(pool);
     }
 
     function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams)
         external
         returns (address pool, uint256 tokenId)
     {
-        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
+        (pool, tokenId) = _createPoolERC20(params);
 
+        // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
+        // If not, we could re-use createPoolERC20 and check later.
+        CollectionPoolERC20 _pool = CollectionPoolERC20(payable(pool));
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientOverride != address(0),
-            "Nonzero royalty for non ERC2981 without override"
+            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
+            "NFT not allowed"
         );
 
-        // Check to see if the NFT supports Enumerable to determine which template to use
-        address template;
-        try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
-            template = isEnumerable ? address(enumerableERC20Template) : address(missingEnumerableERC20Template);
-        } catch {
-            template = address(missingEnumerableERC20Template);
-        }
-
-        pool = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
-
-        // issue new token
-        tokenId = mint(params.receiver);
-
-        // save pool address in mapping
-        _poolAddresses[tokenId] = pool;
-
-        _initializePoolERC20Filtered(CollectionPoolERC20(payable(pool)), params, filterParams, tokenId);
-
-        emit NewPool(address(pool));
+        _initializePoolERC20(_pool, params, tokenId);
     }
 
     /**
@@ -408,6 +330,34 @@ contract CollectionPoolFactory is
         return baseURI;
     }
 
+    function _createPoolETH(CreateETHPoolParams calldata params) internal returns (address pool, uint256 tokenId) {
+        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
+
+        require(
+            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
+                || params.royaltyRecipientOverride != address(0),
+            "Nonzero royalty for non ERC2981 without override"
+        );
+
+        // Check to see if the NFT supports Enumerable to determine which template to use
+        address template;
+        try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
+            template = isEnumerable ? address(enumerableETHTemplate) : address(missingEnumerableETHTemplate);
+        } catch {
+            template = address(missingEnumerableETHTemplate);
+        }
+
+        pool = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
+
+        // issue new token
+        tokenId = mint(params.receiver);
+
+        // save pool address in mapping
+        _poolAddresses[tokenId] = pool;
+
+        emit NewPool(pool);
+    }
+
     function _initializePoolETH(CollectionPoolETH _pool, CreateETHPoolParams calldata _params, uint256 tokenId)
         internal
     {
@@ -428,53 +378,35 @@ contract CollectionPoolFactory is
         payable(address(_pool)).safeTransferETH(msg.value);
 
         // transfer initial NFTs from sender to pool
-        uint256 numNFTs = _params.initialNFTIDs.length;
-        for (uint256 i; i < numNFTs;) {
-            _params.nft.safeTransferFrom(msg.sender, address(_pool), _params.initialNFTIDs[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
+        TransferLib.bulkSafeTransferERC721From(_params.nft, msg.sender, address(_pool), _params.initialNFTIDs);
     }
 
-    function _initializePoolETHFiltered(
-        CollectionPoolETH _pool,
-        CreateETHPoolParams calldata _params,
-        NFTFilterParams calldata _filterParams,
-        uint256 tokenId
-    ) internal {
-        // initialize pool
-        _pool.initialize(
-            tokenId,
-            _params.assetRecipient,
-            _params.delta,
-            _params.fee,
-            _params.spotPrice,
-            _params.props,
-            _params.state,
-            _params.royaltyNumerator,
-            _params.royaltyRecipientOverride
-        );
-        _pool.setTokenIDFilter(_filterParams.merkleRoot, _filterParams.encodedTokenIDs);
+    function _createPoolERC20(CreateERC20PoolParams calldata params) internal returns (address pool, uint256 tokenId) {
+        require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            _pool.acceptsTokenIDs(_params.initialNFTIDs, _filterParams.initialProof, _filterParams.initialProofFlags),
-            "NFT not allowed"
+            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
+                || params.royaltyRecipientOverride != address(0),
+            "Nonzero royalty for non ERC2981 without override"
         );
 
-        // transfer initial ETH to pool
-        payable(address(_pool)).safeTransferETH(msg.value);
-
-        // transfer initial NFTs from sender to pool
-        uint256 numNFTs = _params.initialNFTIDs.length;
-        for (uint256 i; i < numNFTs;) {
-            _params.nft.safeTransferFrom(msg.sender, address(_pool), _params.initialNFTIDs[i]);
-
-            unchecked {
-                ++i;
-            }
+        // Check to see if the NFT supports Enumerable to determine which template to use
+        address template;
+        try IERC165(address(params.nft)).supportsInterface(INTERFACE_ID_ERC721_ENUMERABLE) returns (bool isEnumerable) {
+            template = isEnumerable ? address(enumerableERC20Template) : address(missingEnumerableERC20Template);
+        } catch {
+            template = address(missingEnumerableERC20Template);
         }
+
+        pool = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
+
+        // issue new token
+        tokenId = mint(params.receiver);
+
+        // save pool address in mapping
+        _poolAddresses[tokenId] = pool;
+
+        emit NewPool(pool);
     }
 
     function _initializePoolERC20(CollectionPoolERC20 _pool, CreateERC20PoolParams calldata _params, uint256 tokenId)
@@ -497,53 +429,7 @@ contract CollectionPoolFactory is
         _params.token.safeTransferFrom(msg.sender, address(_pool), _params.initialTokenBalance);
 
         // transfer initial NFTs from sender to pool
-        uint256 numNFTs = _params.initialNFTIDs.length;
-        for (uint256 i; i < numNFTs;) {
-            _params.nft.safeTransferFrom(msg.sender, address(_pool), _params.initialNFTIDs[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _initializePoolERC20Filtered(
-        CollectionPoolERC20 _pool,
-        CreateERC20PoolParams calldata _params,
-        NFTFilterParams calldata _filterParams,
-        uint256 tokenId
-    ) internal {
-        // initialize pool
-        _pool.initialize(
-            tokenId,
-            _params.assetRecipient,
-            _params.delta,
-            _params.fee,
-            _params.spotPrice,
-            _params.props,
-            _params.state,
-            _params.royaltyNumerator,
-            _params.royaltyRecipientOverride
-        );
-        _pool.setTokenIDFilter(_filterParams.merkleRoot, _filterParams.encodedTokenIDs);
-
-        require(
-            _pool.acceptsTokenIDs(_params.initialNFTIDs, _filterParams.initialProof, _filterParams.initialProofFlags),
-            "NFT not allowed"
-        );
-
-        // transfer initial tokens to pool
-        _params.token.safeTransferFrom(msg.sender, address(_pool), _params.initialTokenBalance);
-
-        // transfer initial NFTs from sender to pool
-        uint256 numNFTs = _params.initialNFTIDs.length;
-        for (uint256 i; i < numNFTs;) {
-            _params.nft.safeTransferFrom(msg.sender, address(_pool), _params.initialNFTIDs[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
+        TransferLib.bulkSafeTransferERC721From(_params.nft, msg.sender, address(_pool), _params.initialNFTIDs);
     }
 
     /**
@@ -565,14 +451,7 @@ contract CollectionPoolFactory is
         }
 
         // transfer NFTs from caller to recipient
-        uint256 numNFTs = ids.length;
-        for (uint256 i; i < numNFTs;) {
-            _nft.safeTransferFrom(msg.sender, recipient, ids[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
+        TransferLib.bulkSafeTransferERC721From(_nft, msg.sender, recipient, ids);
 
         if (_isPool) {
             emit NFTDeposit(recipient);

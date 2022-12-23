@@ -7,6 +7,7 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
+import {TransferLib} from "../lib/TransferLib.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICollectionPool} from "./ICollectionPool.sol";
@@ -238,6 +239,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @notice Sends token to the pool in exchange for any `numNFTs` NFTs
      * @dev To compute the amount of token to send, call bondingCurve.getBuyInfo.
      * This swap function is meant for users who are ID agnostic
+     * @dev The nonReentrant modifier is in swapTokenForSpecificNFTs
      * @param numNFTs The number of NFTs to purchase
      * @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
      * amount is greater than this value, the transaction will be reverted.
@@ -254,37 +256,12 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address nftRecipient,
         bool isRouter,
         address routerCaller
-    ) external payable virtual nonReentrant returns (uint256 inputAmount) {
-        // Store locally to remove extra calls
-        ICollectionPoolFactory _factory = factory();
-        ICurve _bondingCurve = bondingCurve();
+    ) external payable virtual returns (uint256 inputAmount) {
         IERC721 _nft = nft();
+        require((numNFTs > 0) && (numNFTs <= _nft.balanceOf(address(this))), "Ask for > 0 and <= balanceOf NFTs");
 
-        // Input validation
-        {
-            PoolType _poolType = poolType();
-            require(_poolType == PoolType.NFT || _poolType == PoolType.TRADE, "Wrong Pool type");
-            require((numNFTs > 0) && (numNFTs <= _nft.balanceOf(address(this))), "Ask for > 0 and <= balanceOf NFTs");
-        }
-
-        require(creationTimestamp != block.timestamp, "Trade blocked");
-
-        // Call bonding curve for pricing information
-        ICurve.Fees memory fees;
-        (inputAmount, fees) =
-            _calculateBuyInfoAndUpdatePoolParams(numNFTs, maxExpectedTokenInput, _bondingCurve, _factory);
-
-        tradeFee += fees.trade;
         uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
-        RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(_nft, tokenIds, fees.royalties);
-
-        _pullTokenInputAndPayProtocolFee(inputAmount, isRouter, routerCaller, _factory, fees.protocol, royaltiesDue);
-
-        _sendSpecificNFTsToRecipient(_nft, nftRecipient, tokenIds);
-
-        _refundTokenToSender(inputAmount);
-
-        emit SwapNFTOutPool();
+        inputAmount = swapTokenForSpecificNFTs(tokenIds, maxExpectedTokenInput, nftRecipient, isRouter, routerCaller);
     }
 
     /**
@@ -303,12 +280,12 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @return inputAmount The amount of token used for purchase
      */
     function swapTokenForSpecificNFTs(
-        uint256[] calldata nftIds,
+        uint256[] memory nftIds,
         uint256 maxExpectedTokenInput,
         address nftRecipient,
         bool isRouter,
         address routerCaller
-    ) external payable virtual nonReentrant returns (uint256 inputAmount) {
+    ) public payable virtual nonReentrant returns (uint256 inputAmount) {
         // Store locally to remove extra calls
         ICollectionPoolFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
@@ -605,27 +582,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         // Revert if input is more than expected
         require(inputAmount <= maxExpectedTokenInput, "In too many tokens");
 
-        // Consolidate writes to save gas
-        if (params.spotPrice != newParams.spotPrice || params.delta != newParams.delta) {
-            spotPrice = newParams.spotPrice;
-            delta = newParams.delta;
-        }
-
-        if (keccak256(params.state) != keccak256(newParams.state)) {
-            state = newParams.state;
-
-            emit StateUpdate(newParams.state);
-        }
-
-        // Emit spot price update if it has been updated
-        if (params.spotPrice != newParams.spotPrice) {
-            emit SpotPriceUpdate(newParams.spotPrice);
-        }
-
-        // Emit delta update if it has been updated
-        if (params.delta != newParams.delta) {
-            emit DeltaUpdate(newParams.delta);
-        }
+        _updatePoolParams(params, newParams);
     }
 
     /**
@@ -655,6 +612,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         // Revert if output is too little
         require(outputAmount >= minExpectedTokenOutput, "Out too little tokens");
 
+        _updatePoolParams(params, newParams);
+    }
+
+    function _updatePoolParams(ICurve.Params memory params, ICurve.Params memory newParams) internal {
         // Consolidate writes to save gas
         if (params.spotPrice != newParams.spotPrice || params.delta != newParams.delta) {
             spotPrice = newParams.spotPrice;
@@ -782,13 +743,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                 }
             } else {
                 // Pull NFTs directly from sender
-                for (uint256 i; i < numNFTs;) {
-                    _nft.safeTransferFrom(msg.sender, _assetRecipient, nftIds[i]);
-
-                    unchecked {
-                        ++i;
-                    }
-                }
+                TransferLib.bulkSafeTransferERC721From(_nft, msg.sender, _assetRecipient, nftIds);
             }
         }
     }

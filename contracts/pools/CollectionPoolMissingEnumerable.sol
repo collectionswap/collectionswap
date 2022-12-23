@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {TransferLib} from "../lib/TransferLib.sol";
 import {ICollectionPool} from "../pools/ICollectionPool.sol";
 import {CollectionPool} from "../pools/CollectionPool.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
@@ -84,29 +85,15 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
     /// @inheritdoc ICollectionPool
     function withdrawERC721(IERC721 a, uint256[] calldata nftIds) external override onlyAuthorized {
         IERC721 _nft = nft();
-        uint256 numNFTs = nftIds.length;
         address owner = owner();
 
         // If it's not the pool's NFT, just withdraw normally
         if (a != _nft) {
-            for (uint256 i; i < numNFTs;) {
-                a.safeTransferFrom(address(this), owner, nftIds[i]);
-
-                unchecked {
-                    ++i;
-                }
-            }
+            TransferLib.bulkSafeTransferERC721From(a, address(this), owner, nftIds);
         }
         // Otherwise, withdraw and also remove the ID from the ID set
         else {
-            for (uint256 i; i < numNFTs;) {
-                _nft.safeTransferFrom(address(this), owner, nftIds[i]);
-                idSet.remove(nftIds[i]);
-
-                unchecked {
-                    ++i;
-                }
-            }
+            _sendSpecificNFTsToRecipient(_nft, owner, nftIds);
 
             emit NFTWithdrawal();
         }

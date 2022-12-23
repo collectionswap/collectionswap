@@ -8,6 +8,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
+import {TransferLib} from "../lib/TransferLib.sol";
 import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
 import {ICollectionPool} from "../pools/ICollectionPool.sol";
 import {IValidator} from "../validators/IValidator.sol";
@@ -289,12 +290,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         );
 
         // transfer NFTs into pool
-        for (uint256 i; i < _initialNFTIDs.length;) {
-            _nft.safeTransferFrom(msg.sender, pool, _initialNFTIDs[i]);
-            unchecked {
-                ++i;
-            }
-        }
+        TransferLib.bulkSafeTransferERC721From(_nft, msg.sender, pool, _initialNFTIDs);
 
         stake(currTokenId);
     }

@@ -3,7 +3,7 @@ import { BigNumber } from "ethers";
 import { formatEther } from "ethers/lib/utils";
 import { assert, ethers } from "hardhat";
 
-import { CURVE_TYPE } from "./constants";
+import { CURVE_TYPE, getPoolAddress } from "./constants";
 
 import type {
   CollectionPoolFactory,
@@ -167,11 +167,12 @@ export async function createPoolEth(
   dBalance = dBalance.add(
     receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice)
   );
-  const events = receipt.events!;
+  const { newPoolAddress: poolAddress, newTokenId: lpTokenId } =
+    await getPoolAddress(response);
   return {
     dBalance,
-    poolAddress: events[5].args!.poolAddress,
-    lpTokenId: events[0].args!.tokenId,
+    poolAddress,
+    lpTokenId,
   };
 }
 

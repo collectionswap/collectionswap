@@ -165,13 +165,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
      * @param _rewardStartTime - the reward start time (note that this can be different from the draw start time)
      * @param _rewardPeriodFinish - the reward period finish time
      * @param _rng - RNG contract address
-     * @param _additionalERC20DrawPrize - additional ERC20 prize to add to the draw, list
-     * @param _additionalERC20DrawPrizeAmounts - additional ERC20 prize amount to add to the draw, list. NB: Note that this is NOT divided per second, unlike the _rewardRates
-     * @param _nftCollectionsPrize - additional ERC721 prize to add to the draw, list
-     * @param _nftIdsPrize - additional ERC721 prize ID to add to the draw, list
-     * @param _prizesPerWinner - number of ERC721 prizes per winner
-     * @param _drawStartTime - the start time of draw
-     * @param _drawPeriodFinish - the end time of draw
+     * @param _prizesParams - the additional prizes parameters
      *
      */
     function initialize(
@@ -190,13 +184,7 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         uint256 _rewardStartTime,
         uint256 _rewardPeriodFinish,
         RNGInterface _rng,
-        IERC20[] calldata _additionalERC20DrawPrize,
-        uint256[] calldata _additionalERC20DrawPrizeAmounts,
-        IERC721[] calldata _nftCollectionsPrize,
-        uint256[] calldata _nftIdsPrize,
-        uint256 _prizesPerWinner,
-        uint256 _drawStartTime,
-        uint256 _drawPeriodFinish,
+        AddNewPrizesParams calldata _prizesParams,
         ISortitionTreeManager _treeManager
     ) external {
         __ReentrancyGuard_init();
@@ -233,21 +221,30 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         treeManager.set(TREE_KEY, 1, _ID);
 
         // thisEpoch is incremented in function below
-        _addNewPrizeEpoch({
-            _nftCollectionsPrize: _nftCollectionsPrize,
-            _nftIdsPrize: _nftIdsPrize,
-            _prizesPerWinner: _prizesPerWinner,
-            _erc20Prize: _additionalERC20DrawPrize,
-            _erc20PrizeAmounts: _additionalERC20DrawPrizeAmounts,
-            _drawStartTime: _drawStartTime,
-            _drawPeriodFinish: _drawPeriodFinish,
-            _callerIsDeployer: false,
-            _epoch: thisEpoch
-        });
+        _addNewPrizeEpoch({_params: _prizesParams, _callerIsDeployer: false, _epoch: thisEpoch});
     }
 
     function _onlyDeployer() internal view {
         if (msg.sender != deployer) revert CallerNotDeployer();
+    }
+
+    /**
+     * @param _nftCollectionsPrize - additional ERC721 prize to add to the draw, list
+     * @param _nftIdsPrize - additional ERC721 prize ID to add to the draw, list
+     * @param _erc20DrawPrize - additional ERC20 prize to add to the draw, list
+     * @param _erc20PrizeAmounts - additional ERC20 prize amount to add to the draw, list. NB: Note that this is NOT divided per second, unlike the _rewardRates
+     * @param _prizesPerWinner - number of ERC721 prizes per winner
+     * @param _drawStartTime - the start time of draw
+     * @param _drawPeriodFinish - the end time of draw
+     */
+    struct AddNewPrizesParams {
+        IERC721[] nftCollectionsPrize;
+        uint256[] nftIdsPrize;
+        IERC20[] erc20Prize;
+        uint256[] erc20PrizeAmounts;
+        uint256 prizesPerWinner;
+        uint256 drawStartTime;
+        uint256 drawPeriodFinish;
     }
 
     /**
@@ -256,31 +253,13 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
      * @dev - Only callable by deployer
      * @dev - Specify zero drawStartTime to add during an epoch, else adding after an epoch
      */
-    function addNewPrizes(
-        IERC721[] calldata _nftCollectionsPrize,
-        uint256[] calldata _nftIdsPrize,
-        IERC20[] calldata _erc20Prize,
-        uint256[] calldata _erc20PrizeAmounts,
-        uint256 _prizesPerWinner,
-        uint256 _drawStartTime,
-        uint256 _drawPeriodFinish
-    ) external {
+    function addNewPrizes(AddNewPrizesParams calldata _params) external {
         _onlyDeployer();
-        _addNewPrizeEpoch({
-            _nftCollectionsPrize: _nftCollectionsPrize,
-            _nftIdsPrize: _nftIdsPrize,
-            _erc20Prize: _erc20Prize,
-            _erc20PrizeAmounts: _erc20PrizeAmounts,
-            _prizesPerWinner: _prizesPerWinner,
-            _drawStartTime: _drawStartTime,
-            _drawPeriodFinish: _drawPeriodFinish,
-            _callerIsDeployer: true,
-            _epoch: thisEpoch
-        });
+        _addNewPrizeEpoch({_params: _params, _callerIsDeployer: true, _epoch: thisEpoch});
 
         // Add after epoch
         // fast forward sortition tree
-        if (_drawStartTime != 0) recalcSortitionTreesEpochStart();
+        if (_params.drawStartTime != 0) recalcSortitionTreesEpochStart();
     }
 
     /**
@@ -291,28 +270,21 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
      * @dev - NB: _drawStartTime and _drawPeriodFinish are potentially different from the rewards start and end time. (draw and rewards can potentially run on different timers)
      *
      */
-    function _addNewPrizeEpoch(
-        IERC721[] calldata _nftCollectionsPrize,
-        uint256[] calldata _nftIdsPrize,
-        IERC20[] calldata _erc20Prize,
-        uint256[] calldata _erc20PrizeAmounts,
-        uint256 _prizesPerWinner,
-        uint256 _drawStartTime,
-        uint256 _drawPeriodFinish,
-        bool _callerIsDeployer,
-        uint64 _epoch
-    ) internal nonReentrant {
-        uint256 numNfts = _nftCollectionsPrize.length;
+    function _addNewPrizeEpoch(AddNewPrizesParams calldata _params, bool _callerIsDeployer, uint64 _epoch)
+        internal
+        nonReentrant
+    {
+        uint256 numNfts = _params.nftCollectionsPrize.length;
 
         /////////////////////////////
         /// UPDATES FOR NEW EPOCH ///
         /////////////////////////////
-        if (_drawStartTime != 0) {
+        if (_params.drawStartTime != 0) {
             // ensure that current epoch has been resolved
             // excludes base case of _epoch == 0 (uninitialized)
             if (_epoch != 0) if (drawStatus != DrawStatus.Resolved) revert IncorrectDrawStatus();
-            if (_drawStartTime <= block.timestamp) revert BadStartTime();
-            if (_drawPeriodFinish <= _drawStartTime) revert BadEndTime();
+            if (_params.drawStartTime <= block.timestamp) revert BadStartTime();
+            if (_params.drawPeriodFinish <= _params.drawStartTime) revert BadEndTime();
 
             // update thisEpoch storage variable
             // and increment _epoch to new epoch
@@ -322,11 +294,11 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
             _initPrizeSet(_epoch);
 
             // set new epoch times
-            epochToStartTime[_epoch] = _drawStartTime;
-            epochToFinishTime[_epoch] = _drawPeriodFinish;
+            epochToStartTime[_epoch] = _params.drawStartTime;
+            epochToFinishTime[_epoch] = _params.drawPeriodFinish;
 
             // update reward sweep time if it will exceed current reward sweep time
-            uint256 newRewardSweepTime = _drawPeriodFinish + LOCK_TIME;
+            uint256 newRewardSweepTime = _params.drawPeriodFinish + LOCK_TIME;
             if (rewardSweepTime < newRewardSweepTime) rewardSweepTime = newRewardSweepTime;
 
             drawStatus = DrawStatus.Open;
@@ -341,14 +313,14 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
                 // We assume the project is only using the reward distribution portion initially,
                 // and would use the draw functionality in the future
                 // Hence, we check that no rewards are being distributed
-                if (numNfts != 0 || _erc20Prize.length != 0) revert BadEpochZeroInitalization();
+                if (numNfts != 0 || _params.erc20Prize.length != 0) revert BadEpochZeroInitalization();
             }
         }
 
         ////////////////////////////
         /// HANDLING NFT PRIZES  ///
         ////////////////////////////
-        if (numNfts != _nftIdsPrize.length) revert LengthMismatch();
+        if (numNfts != _params.nftIdsPrize.length) revert LengthMismatch();
 
         PrizeSet storage prizeSet = epochPrizeSets[_epoch];
         // index for appending to existing number of NFTs
@@ -356,41 +328,41 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
         if (prizeIdIndex + numNfts > MAX_REWARD_NFTS) revert LengthLimitExceeded();
         // iterate through each nft in prizePool.nftCollections and transfer to this contract if caller is deployer
         for (uint256 i; i < numNfts; ++i) {
-            IERC721 myCollAdd = (_nftCollectionsPrize[i]);
+            IERC721 myCollAdd = (_params.nftCollectionsPrize[i]);
 
             if (!epochERC721Collections[_epoch][myCollAdd]) {
                 // new collection for this epoch
                 // check if it supports ERC721
-                if (!_nftCollectionsPrize[i].supportsInterface(0x80ac58cd)) revert NFTNotERC721();
+                if (!_params.nftCollectionsPrize[i].supportsInterface(0x80ac58cd)) revert NFTNotERC721();
                 epochERC721Collections[_epoch][myCollAdd] = true;
                 prizeSet.erc721RewardTokens.push(myCollAdd);
             }
             // @dev: only need transfer NFTs in if caller is deployer
             if (_callerIsDeployer) {
-                _nftCollectionsPrize[i].safeTransferFrom(msg.sender, address(this), _nftIdsPrize[i]);
+                _params.nftCollectionsPrize[i].safeTransferFrom(msg.sender, address(this), _params.nftIdsPrize[i]);
             }
-            epochERC721PrizeIdsData[_epoch][++prizeIdIndex] = NFTData(myCollAdd, _nftIdsPrize[i]);
+            epochERC721PrizeIdsData[_epoch][++prizeIdIndex] = NFTData(myCollAdd, _params.nftIdsPrize[i]);
         }
         // update only if numNfts is non-zero
         if (numNfts != 0) {
             prizeSet.numERC721Prizes = prizeIdIndex;
-            _setPrizePerWinner(prizeSet, _prizesPerWinner);
+            _setPrizePerWinner(prizeSet, _params.prizesPerWinner);
         }
 
         /////////////////////////////
         /// HANDLING ERC20 PRIZES ///
         /////////////////////////////
-        if (_erc20Prize.length != _erc20PrizeAmounts.length) revert LengthMismatch();
+        if (_params.erc20Prize.length != _params.erc20PrizeAmounts.length) revert LengthMismatch();
 
         // iterate through each ERC20 token and transfer to this contract
-        for (uint256 i; i < _erc20Prize.length; ++i) {
-            if (_erc20PrizeAmounts[i] == 0) revert ZeroRewardRate();
+        for (uint256 i; i < _params.erc20Prize.length; ++i) {
+            if (_params.erc20PrizeAmounts[i] == 0) revert ZeroRewardRate();
             // @dev: only need transfer tokens in if caller is deployer
             if (_callerIsDeployer) {
-                _erc20Prize[i].safeTransferFrom(msg.sender, address(this), _erc20PrizeAmounts[i]);
+                _params.erc20Prize[i].safeTransferFrom(msg.sender, address(this), _params.erc20PrizeAmounts[i]);
             }
 
-            IERC20 myCollAdd = _erc20Prize[i];
+            IERC20 myCollAdd = _params.erc20Prize[i];
             uint256 epochAmount = epochERC20PrizeAmounts[_epoch][myCollAdd];
             if (epochAmount == 0) {
                 // not encountered before
@@ -398,17 +370,17 @@ contract RewardVaultETHDraw is ReentrancyGuard, RewardVaultETH {
                 // ensure no. of ERC20 tokens don't exceed MAX_REWARD_TOKENS
                 if (prizeSet.erc20RewardTokens.length > MAX_REWARD_TOKENS) revert LengthLimitExceeded();
             }
-            epochERC20PrizeAmounts[_epoch][myCollAdd] = epochAmount + _erc20PrizeAmounts[i];
+            epochERC20PrizeAmounts[_epoch][myCollAdd] = epochAmount + _params.erc20PrizeAmounts[i];
         }
 
         emit PrizesAdded(
             _epoch,
-            _nftCollectionsPrize,
-            _nftIdsPrize,
-            _erc20Prize,
-            _erc20PrizeAmounts,
-            _drawStartTime,
-            _drawPeriodFinish
+            _params.nftCollectionsPrize,
+            _params.nftIdsPrize,
+            _params.erc20Prize,
+            _params.erc20PrizeAmounts,
+            _params.drawStartTime,
+            _params.drawPeriodFinish
             );
     }
 

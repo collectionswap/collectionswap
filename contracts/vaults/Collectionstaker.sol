@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {TransferLib} from "../lib/TransferLib.sol";
 import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
 import {RewardVaultETH} from "./RewardVaultETH.sol";
 import {RewardVaultETHDraw} from "./RewardVaultETHDraw.sol";
@@ -107,13 +108,7 @@ contract Collectionstaker is Ownable {
         );
 
         // transfer reward tokens to RewardVault
-        for (uint256 i; i < rewardTokensLength;) {
-            rewardTokens[i].safeTransferFrom(msg.sender, address(rewardVault), rewards[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
+        TransferLib.batchSafeTransferERC20From(rewardTokens, msg.sender, address(rewardVault), rewards);
 
         emit IncentiveETHCreated(address(rewardVault), rewardTokens, rewards, startTime, endTime);
     }
@@ -138,13 +133,7 @@ contract Collectionstaker is Ownable {
      * @param rewards: An array of reward amounts that will be distributed to liquidity providers. This is the whole amount, which will be divided by the duration of the incentive program as an argument to the child initialize() function
      * @param rewardStartTime: The time when the incentive program begins.
      * @param rewardEndTime: The time at which the incentive program will end and rewards will no longer be distributed.
-     * @param _additionalERC20DrawPrize: The array of ERC20 tokens that will be distributed as additional prizes in the draw.
-     * @param _additionalERC20DrawAmounts: The array of ERC20 token amounts that will be distributed as additional prizes in the draw.
-     * @param _nftCollectionsPrize The NFT collections that will be awarded as prizes.
-     * @param _nftIdsPrize The IDs of the NFTs that will be awarded as prizes.
-     * @param _prizesPerWinner The number of prizes that will be awarded to each winner.
-     * @param drawStartTime The time when the prize draw will begin. Not necessarily the same as the rewards programme
-     * @param drawPeriodFinish The time when the prize draw will end. Not necessarily the same as the rewards programme
+     * @param _prizesParams: The additional prizes that will be distributed in the draw.
      */
     function createIncentiveETHDraw(
         IValidator validator,
@@ -158,13 +147,7 @@ contract Collectionstaker is Ownable {
         uint256[] calldata rewards,
         uint256 rewardStartTime,
         uint256 rewardEndTime,
-        IERC20[] calldata _additionalERC20DrawPrize,
-        uint256[] calldata _additionalERC20DrawAmounts,
-        IERC721[] calldata _nftCollectionsPrize,
-        uint256[] calldata _nftIdsPrize,
-        uint256 _prizesPerWinner,
-        uint256 drawStartTime,
-        uint256 drawPeriodFinish
+        RewardVaultETHDraw.AddNewPrizesParams calldata _prizesParams
     ) public randomnessIsSet {
         uint256 rewardTokensLength = rewardTokens.length;
         if (rewardStartTime != 0) {
@@ -205,46 +188,24 @@ contract Collectionstaker is Ownable {
             rewardStartTime,
             rewardEndTime,
             rngChainlink,
-            _additionalERC20DrawPrize,
-            _additionalERC20DrawAmounts,
-            _nftCollectionsPrize,
-            _nftIdsPrize,
-            _prizesPerWinner,
-            drawStartTime,
-            drawPeriodFinish,
+            _prizesParams,
             treeManager
         );
 
         rngChainlink.setAllowedCaller(address(rewardVault));
 
         // transfer erc20 drawTokens to RewardVault
-        for (uint256 i; i < _additionalERC20DrawPrize.length;) {
-            _additionalERC20DrawPrize[i].safeTransferFrom(
-                msg.sender, address(rewardVault), _additionalERC20DrawAmounts[i]
-            );
-
-            unchecked {
-                ++i;
-            }
-        }
+        TransferLib.batchSafeTransferERC20From(
+            _prizesParams.erc20Prize, msg.sender, address(rewardVault), _prizesParams.erc20PrizeAmounts
+        );
 
         // transfer erc721 drawTokens to RewardVault
-        for (uint256 i; i < _nftCollectionsPrize.length;) {
-            _nftCollectionsPrize[i].safeTransferFrom(msg.sender, address(rewardVault), _nftIdsPrize[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
+        TransferLib.batchSafeTransferERC721From(
+            _prizesParams.nftCollectionsPrize, msg.sender, address(rewardVault), _prizesParams.nftIdsPrize
+        );
 
         // transfer reward tokens to RewardVault
-        for (uint256 i; i < rewardTokensLength;) {
-            rewardTokens[i].safeTransferFrom(msg.sender, address(rewardVault), rewards[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
+        TransferLib.batchSafeTransferERC20From(rewardTokens, msg.sender, address(rewardVault), rewards);
 
         emit IncentiveETHDrawCreated(address(rewardVault), rewardTokens, rewards, rewardStartTime, rewardEndTime);
     }

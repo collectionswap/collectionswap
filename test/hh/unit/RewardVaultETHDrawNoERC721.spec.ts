@@ -317,13 +317,15 @@ describe("RewardVaultETHDraw", function () {
       rewards,
       startTime,
       endTime,
-      drawERC20Tokens,
-      drawERC20TokenAmounts,
-      [], // ShuffledNFTAddresses,
-      [], // ShuffledNFTTokenIds,
-      prizesPerWinner,
-      startTime,
-      endTime
+      {
+        nftCollectionsPrize: [],
+        nftIdsPrize: [],
+        erc20Prize: drawERC20Tokens,
+        erc20PrizeAmounts: drawERC20TokenAmounts,
+        prizesPerWinner,
+        drawStartTime: startTime,
+        drawPeriodFinish: endTime,
+      }
     );
     const { poolAddress: rewardVaultAddress } = await getVaultAddress(tx);
     let rewardVault = await ethers.getContractAt(
@@ -812,15 +814,15 @@ describe("RewardVaultETHDraw", function () {
         owner.address
       );
 
-      await rewardVault.connect(owner).addNewPrizes(
-        newPrizeNFTAddresses,
-        newPrizeTokenIds,
-        rewardTokensNew.map((t) => t.address),
-        rewardTokenAmountList,
+      await rewardVault.connect(owner).addNewPrizes({
+        nftCollectionsPrize: newPrizeNFTAddresses,
+        nftIdsPrize: newPrizeTokenIds,
+        erc20Prize: rewardTokensNew.map((t) => t.address),
+        erc20PrizeAmounts: rewardTokenAmountList,
         prizesPerWinner,
-        startTime2,
-        endTime2
-      );
+        drawStartTime: startTime2,
+        drawPeriodFinish: endTime2,
+      });
       await checkOwnershipERC721List(
         newPrizeNFTAddresses,
         newPrizeTokenIds,
@@ -932,15 +934,15 @@ describe("RewardVaultETHDraw", function () {
         const { rewardTokensNew, rewardTokenAmountList } =
           await setUpNewPrizeERC20(owner, rewardVault, rewardTokenAmount);
         thisStartTime = (await time.latest()) + 1000;
-        await rewardVault.connect(owner).addNewPrizes(
-          newPrizeNFTAddresses,
-          newPrizeTokenIds,
-          rewardTokensNew.map((t) => t.address),
-          rewardTokenAmountList,
+        await rewardVault.connect(owner).addNewPrizes({
+          nftCollectionsPrize: newPrizeNFTAddresses,
+          nftIdsPrize: newPrizeTokenIds,
+          erc20Prize: rewardTokensNew.map((t) => t.address),
+          erc20PrizeAmounts: rewardTokenAmountList,
           prizesPerWinner,
-          thisStartTime,
-          thisStartTime + rewardDuration
-        );
+          drawStartTime: thisStartTime,
+          drawPeriodFinish: thisStartTime + rewardDuration,
+        });
         await rewardVault.thisEpoch();
       }
     }).timeout(100000);
@@ -1027,15 +1029,15 @@ describe("RewardVaultETHDraw", function () {
         } = await setUpNewPrizeERC20(owner, rewardVault, drawTokenAmount);
         thisStartTime = (await time.latest()) + 1000;
         const thisEndTime = thisStartTime + rewardDuration;
-        await rewardVault.connect(owner).addNewPrizes(
-          newPrizeNFTAddresses,
-          newPrizeTokenIds,
-          drawTokensNew.map((t) => t.address),
-          drawTokenAmountList,
+        await rewardVault.connect(owner).addNewPrizes({
+          nftCollectionsPrize: newPrizeNFTAddresses,
+          nftIdsPrize: newPrizeTokenIds,
+          erc20Prize: drawTokensNew.map((t) => t.address),
+          erc20PrizeAmounts: drawTokenAmountList,
           prizesPerWinner,
-          thisStartTime,
-          thisEndTime
-        );
+          drawStartTime: thisStartTime,
+          drawPeriodFinish: thisEndTime,
+        });
 
         const newRewardAmount = ethers.utils.parseEther("1000");
         balanceTracking = [];
@@ -1088,17 +1090,17 @@ describe("RewardVaultETHDraw", function () {
       const { rewardTokensNew, rewardTokenAmountList } =
         await setUpNewPrizeERC20(owner, rewardVault, rewardTokenAmount);
 
-      await rewardVault
-        .connect(owner)
-        .addNewPrizes(
-          newPrizeNFTAddresses,
-          newPrizeTokenIds,
-          rewardTokensNew.map((rewardToken) => rewardToken.address).slice(0, 2),
-          rewardTokenAmountList.slice(0, 2),
-          prizesPerWinner,
-          0,
-          0
-        );
+      await rewardVault.connect(owner).addNewPrizes({
+        nftCollectionsPrize: newPrizeNFTAddresses,
+        nftIdsPrize: newPrizeTokenIds,
+        erc20Prize: rewardTokensNew
+          .map((rewardToken) => rewardToken.address)
+          .slice(0, 2),
+        erc20PrizeAmounts: rewardTokenAmountList.slice(0, 2),
+        prizesPerWinner,
+        drawStartTime: 0,
+        drawPeriodFinish: 0,
+      });
 
       // Check that the new prizes are owned by the reward pool
       await checkOwnershipERC721List(
@@ -1137,15 +1139,15 @@ describe("RewardVaultETHDraw", function () {
 
       // //   Add the erc20
       await expect(
-        rewardVault.connect(newNFTOwner).addNewPrizes(
-          newPrizeNFTAddresses,
-          newPrizeTokenIds,
-          rewardTokensNew.map((rewardToken) => rewardToken.address),
-          rewardTokenAmountList,
+        rewardVault.connect(newNFTOwner).addNewPrizes({
+          nftCollectionsPrize: newPrizeNFTAddresses,
+          nftIdsPrize: newPrizeTokenIds,
+          erc20Prize: rewardTokensNew.map((rewardToken) => rewardToken.address),
+          erc20PrizeAmounts: rewardTokenAmountList,
           prizesPerWinner,
-          0,
-          0
-        )
+          drawStartTime: 0,
+          drawPeriodFinish: 0,
+        })
       ).to.be.revertedWithCustomError(rewardVault, "CallerNotDeployer");
     });
 
@@ -1165,7 +1167,15 @@ describe("RewardVaultETHDraw", function () {
 
       expect(lastUpdateTime2).to.be.gte(periodFinish);
       await expect(
-        rewardVault.connect(user1).addNewPrizes([], [], [], [], 1, 0, 0)
+        rewardVault.connect(user1).addNewPrizes({
+          nftCollectionsPrize: [],
+          nftIdsPrize: [],
+          erc20Prize: [],
+          erc20PrizeAmounts: [],
+          prizesPerWinner: 1,
+          drawStartTime: 0,
+          drawPeriodFinish: 0,
+        })
       ).to.be.revertedWithCustomError(rewardVault, "CallerNotDeployer");
 
       await rewardVault.connect(user1).closeDraw();
@@ -1176,9 +1186,15 @@ describe("RewardVaultETHDraw", function () {
         rewardVault
       );
       await expect(
-        rewardVault
-          .connect(owner)
-          .addNewPrizes(newPrizeNFTAddresses, newPrizeTokenIds, [], [], 1, 0, 0)
+        rewardVault.connect(owner).addNewPrizes({
+          nftCollectionsPrize: newPrizeNFTAddresses,
+          nftIdsPrize: newPrizeTokenIds,
+          erc20Prize: [],
+          erc20PrizeAmounts: [],
+          prizesPerWinner: 1,
+          drawStartTime: 0,
+          drawPeriodFinish: 0,
+        })
       ).to.not.be.reverted; // Should be okay
 
       const {
@@ -1190,17 +1206,15 @@ describe("RewardVaultETHDraw", function () {
       await rewardVault.connect(user1).resolveDrawResults();
 
       await expect(
-        rewardVault
-          .connect(owner)
-          .addNewPrizes(
-            newPrizeNFTAddresses2,
-            newPrizeTokenIds2,
-            [],
-            [],
-            1,
-            0,
-            0
-          )
+        rewardVault.connect(owner).addNewPrizes({
+          nftCollectionsPrize: newPrizeNFTAddresses2,
+          nftIdsPrize: newPrizeTokenIds2,
+          erc20Prize: [],
+          erc20PrizeAmounts: [],
+          prizesPerWinner: 1,
+          drawStartTime: 0,
+          drawPeriodFinish: 0,
+        })
       ).to.be.revertedWithCustomError(rewardVault, "IncorrectDrawStatus");
     });
   });
