@@ -111,7 +111,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 1});
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
+        (, , , inputAmount, ) = pool.getBuyNFTQuote(1);
 
         // calculate royalty and add it to the input amount
         uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -142,7 +142,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
+        (, , , inputAmount, ) = pool.getBuyNFTQuote(1);
 
         // calculate royalty and add it to the input amount
         uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -162,7 +162,7 @@ abstract contract RouterSinglePoolWithRoyalties is
     }
 
     function test_swapSingleNFTForToken() public {
-        (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(1);
+        (, , , uint256 outputAmount, ) = pool.getSellNFTQuote(1);
 
         // calculate royalty and rm it from the output amount
         uint256 royaltyAmount = calcRoyalty(outputAmount);
@@ -192,7 +192,7 @@ abstract contract RouterSinglePoolWithRoyalties is
     function testGas_swapSingleNFTForToken5Times() public {
         uint256 totalRoyaltyAmount;
         for (uint256 i = 1; i <= 5; i++) {
-            (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(1);
+            (, , , uint256 outputAmount, ) = pool.getSellNFTQuote(1);
 
             // calculate royalty and rm it from the output amount
             uint256 royaltyAmount = calcRoyalty(outputAmount);
@@ -234,7 +234,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
         });
-        (, , , , uint256 salePrice, , ) = nftToTokenSwapList[0]
+        (, , , uint256 salePrice, ) = nftToTokenSwapList[0]
             .pool
             .getSellNFTQuote(sellNFTIds.length);
         totalRoyaltyAmount += calcRoyalty(salePrice);
@@ -247,7 +247,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             numItems: 1
         });
 
-        (, , , , uint256 buyPrice, , ) = tokenToNFTSwapList[0].pool.getBuyNFTQuote(
+        (, , , uint256 buyPrice, ) = tokenToNFTSwapList[0].pool.getBuyNFTQuote(
             1
         );
         totalRoyaltyAmount += calcRoyalty(buyPrice);
@@ -303,7 +303,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             proofFlags: new bool[](0)
         });
 
-        (, , , , uint256 salePrice, , ) = nftToTokenSwapList[0]
+        (, , , uint256 salePrice, ) = nftToTokenSwapList[0]
             .pool
             .getSellNFTQuote(sellNFTIds.length);
         totalRoyaltyAmount += calcRoyalty(salePrice);
@@ -320,7 +320,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             proofFlags: new bool[](0)
         });
 
-        (, , , , uint256 buyPrice, , ) = tokenToNFTSwapList[0].pool.getBuyNFTQuote(
+        (, , , uint256 buyPrice, ) = tokenToNFTSwapList[0].pool.getBuyNFTQuote(
             buyNFTIds.length
         );
         totalRoyaltyAmount += calcRoyalty(buyPrice);
@@ -368,7 +368,7 @@ abstract contract RouterSinglePoolWithRoyalties is
         swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 5});
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(5);
+        (, , , inputAmount, ) = pool.getBuyNFTQuote(5);
 
         // calculate royalty and add it to the input amount
         uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -406,7 +406,7 @@ abstract contract RouterSinglePoolWithRoyalties is
         });
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(5);
+        (, , , inputAmount, ) = pool.getBuyNFTQuote(5);
 
         // calculate royalty and add it to the input amount
         uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -428,7 +428,7 @@ abstract contract RouterSinglePoolWithRoyalties is
     }
 
     function test_swap5NFTsForToken() public {
-        (, , , , uint256 outputAmount, , ) = pool.getSellNFTQuote(5);
+        (, , , uint256 outputAmount, ) = pool.getSellNFTQuote(5);
 
         // calculate royalty and rm it from the output amount
         uint256 royaltyAmount = calcRoyalty(outputAmount);
@@ -462,7 +462,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: pool, numItems: 1});
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
+        (, , , inputAmount, ) = pool.getBuyNFTQuote(1);
         inputAmount = addRoyalty(inputAmount);
 
         inputAmount = inputAmount - 1 wei;
@@ -488,7 +488,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(1);
+        (, , , inputAmount, ) = pool.getBuyNFTQuote(1);
         inputAmount = addRoyalty(inputAmount);
 
         inputAmount = inputAmount - 1 wei;
@@ -514,7 +514,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             proofFlags: new bool[](0)
         });
         uint256 sellAmount;
-        (, , , , sellAmount, , ) = pool.getSellNFTQuote(1);
+        (, , , sellAmount, ) = pool.getSellNFTQuote(1);
         sellAmount = subRoyalty(sellAmount);
 
         sellAmount = sellAmount + 1 wei;
@@ -536,7 +536,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             numItems: test721.balanceOf(address(pool)) + 1
         });
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = pool.getBuyNFTQuote(
+        (, , , inputAmount, ) = pool.getBuyNFTQuote(
             test721.balanceOf(address(pool)) + 1
         );
         inputAmount = addRoyalty(inputAmount);
@@ -563,7 +563,7 @@ abstract contract RouterSinglePoolWithRoyalties is
             proofFlags: new bool[](0)
         });
         uint256 sellAmount;
-        (, , , , sellAmount, , ) = pool.getSellNFTQuote(1);
+        (, , , sellAmount, ) = pool.getSellNFTQuote(1);
         sellAmount = subRoyalty(sellAmount);
 
         sellAmount = sellAmount + 1 wei;

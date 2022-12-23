@@ -64,12 +64,10 @@ interface ICollectionPool is ITokenIDFilter {
         view
         returns (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            uint256 newDelta,
-            bytes memory newState,
+            ICurve.Params memory newParams,
+            uint256 totalAmount,
             uint256 outputAmount,
-            uint256 tradeFee,
-            uint256 protocolFee
+            ICurve.Fees memory fees
         );
 }
 

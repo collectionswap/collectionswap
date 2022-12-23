@@ -82,7 +82,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
             {
                 CurveErrorCodes.Error error;
                 // Calculate actual cost per swap
-                (error,,,, poolCost,,) = swap.swapInfo.pool.getBuyNFTQuote(swap.swapInfo.numItems);
+                (error,,, poolCost,) = swap.swapInfo.pool.getBuyNFTQuote(swap.swapInfo.numItems);
                 if (error != CurveErrorCodes.Error.OK) {
                     unchecked {
                         ++i;
@@ -147,7 +147,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
             {
                 CurveErrorCodes.Error error;
                 // Calculate actual cost per swap
-                (error,,,, poolCost,,) = swap.swapInfo.pool.getBuyNFTQuote(swap.swapInfo.nftIds.length);
+                (error,,, poolCost,) = swap.swapInfo.pool.getBuyNFTQuote(swap.swapInfo.nftIds.length);
                 if (error != CurveErrorCodes.Error.OK) {
                     unchecked {
                         ++i;
@@ -213,7 +213,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
             {
                 CurveErrorCodes.Error error;
                 // Calculate actual cost per swap
-                (error,,,, poolCost,,) = swap.swapInfo.pool.getBuyNFTQuote(swap.swapInfo.numItems);
+                (error,,, poolCost,) = swap.swapInfo.pool.getBuyNFTQuote(swap.swapInfo.numItems);
                 if (error != CurveErrorCodes.Error.OK) {
                     unchecked {
                         ++i;
@@ -275,7 +275,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
             {
                 CurveErrorCodes.Error error;
                 // Calculate actual cost per swap
-                (error,,,, poolCost,,) = swap.swapInfo.pool.getBuyNFTQuote(swap.swapInfo.nftIds.length);
+                (error,,, poolCost,) = swap.swapInfo.pool.getBuyNFTQuote(swap.swapInfo.nftIds.length);
                 if (error != CurveErrorCodes.Error.OK) {
                     unchecked {
                         ++i;
@@ -333,7 +333,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
             // Locally scoped to avoid stack too deep error
             {
                 CurveErrorCodes.Error error;
-                (error,,,, poolOutput,,) = swap.swapInfo.pool.getSellNFTQuote(swap.swapInfo.nftIds.length);
+                (error,,, poolOutput,) = swap.swapInfo.pool.getSellNFTQuote(swap.swapInfo.nftIds.length);
                 if (error != CurveErrorCodes.Error.OK) {
                     unchecked {
                         ++i;
@@ -425,7 +425,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                 swapIn = params.tokenToNFTTrades[i];
 
                 // Calculate actual cost per swap
-                (error,,,, poolCost,,) = swapIn.swapInfo.pool.getBuyNFTQuote(swapIn.swapInfo.nftIds.length);
+                (error,,, poolCost,) = swapIn.swapInfo.pool.getBuyNFTQuote(swapIn.swapInfo.nftIds.length);
 
                 (address royaltyRecipient, uint256 royaltyAmount) = _calculateRoyalties(swapIn.swapInfo.pool, poolCost);
                 // If within our maxCost and no error, proceed
@@ -470,7 +470,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                 // Locally scoped to avoid stack too deep error
                 {
                     CurveErrorCodes.Error error;
-                    (error,,,, poolOutput,,) = swapOut.swapInfo.pool.getSellNFTQuote(swapOut.swapInfo.nftIds.length);
+                    (error,,, poolOutput,) = swapOut.swapInfo.pool.getSellNFTQuote(swapOut.swapInfo.nftIds.length);
                     if (error != CurveErrorCodes.Error.OK) {
                         unchecked {
                             ++i;
@@ -568,7 +568,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                 swapIn = params.tokenToNFTTrades[i];
 
                 // Calculate actual cost per swap
-                (error,,,, poolCost,,) = swapIn.swapInfo.pool.getBuyNFTQuote(swapIn.swapInfo.nftIds.length);
+                (error,,, poolCost,) = swapIn.swapInfo.pool.getBuyNFTQuote(swapIn.swapInfo.nftIds.length);
 
                 (address royaltyRecipient, uint256 royaltyAmount) = _calculateRoyalties(swapIn.swapInfo.pool, poolCost);
 
@@ -607,7 +607,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                 // Locally scoped to avoid stack too deep error
                 {
                     CurveErrorCodes.Error error;
-                    (error,,,, poolOutput,,) = swapOut.swapInfo.pool.getSellNFTQuote(swapOut.swapInfo.nftIds.length);
+                    (error,,, poolOutput,) = swapOut.swapInfo.pool.getSellNFTQuote(swapOut.swapInfo.nftIds.length);
                     if (error != CurveErrorCodes.Error.OK) {
                         unchecked {
                             ++i;
@@ -702,7 +702,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
             swap = swapList[i];
 
             // Calculate the cost per swap first to send exact amount of ETH over, saves gas by avoiding the need to send back excess ETH
-            (error,,,, poolCost,,) = swap.pool.getBuyNFTQuote(swap.numItems);
+            (error,,, poolCost,) = swap.pool.getBuyNFTQuote(swap.numItems);
 
             // Require no error
             require(error == CurveErrorCodes.Error.OK, "Bonding curve error");
@@ -752,7 +752,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
             swap = swapList[i];
 
             // Calculate the cost per swap first to send exact amount of ETH over, saves gas by avoiding the need to send back excess ETH
-            (error,,,, poolCost,,) = swap.pool.getBuyNFTQuote(swap.nftIds.length);
+            (error,,, poolCost,) = swap.pool.getBuyNFTQuote(swap.nftIds.length);
 
             // Require no errors
             require(error == CurveErrorCodes.Error.OK, "Bonding curve error");

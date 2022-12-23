@@ -125,7 +125,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: sellPool, numItems: 1});
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(1);
+        (, , , inputAmount, ) = sellPool.getBuyNFTQuote(1);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -149,7 +149,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(1);
+        (, , , inputAmount, ) = sellPool.getBuyNFTQuote(1);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -162,7 +162,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
     }
 
     function test_swapSingleNFTForToken() public {
-        (, , , , uint256 outputAmount, , ) = buyPool.getSellNFTQuote(1);
+        (, , , uint256 outputAmount, ) = buyPool.getSellNFTQuote(1);
         uint256 beforeBuyPoolNFTBalance = test721.balanceOf(address(buyPool));
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs * 2 + 1;
@@ -207,7 +207,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             numItems: 1
         });
         uint256 sellAmount;
-        (, , , , sellAmount, , ) = sellPool.getBuyNFTQuote(1);
+        (, , , sellAmount, ) = sellPool.getBuyNFTQuote(1);
         // Note: we send a little bit of tokens with the call because the exponential curve increases price ever so slightly
         uint256 inputAmount = 0.1 ether;
         this.swapNFTsForAnyNFTsThroughToken{
@@ -253,7 +253,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             proofFlags: new bool[](0)
         });
         uint256 sellAmount;
-        (, , , , sellAmount, , ) = sellPool.getBuyNFTQuote(1);
+        (, , , sellAmount, ) = sellPool.getBuyNFTQuote(1);
         // Note: we send a little bit of tokens with the call because the exponential curve increases price ever so slightly
         uint256 inputAmount = 0.1 ether;
         this.swapNFTsForSpecificNFTsThroughToken{
@@ -280,7 +280,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
         swapList[0] = CollectionRouter.PoolSwapAny({pool: sellPool, numItems: 5});
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(5);
+        (, , , inputAmount, ) = sellPool.getBuyNFTQuote(5);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -311,7 +311,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
         });
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(5);
+        (, , , inputAmount, ) = sellPool.getBuyNFTQuote(5);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -326,7 +326,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
     }
 
     function test_swap5NFTsForToken() public {
-        (, , , , uint256 outputAmount, , ) = buyPool.getSellNFTQuote(5);
+        (, , , uint256 outputAmount, ) = buyPool.getSellNFTQuote(5);
         uint256 beforeBuyPoolNFTBalance = test721.balanceOf(address(buyPool));
         uint256[] memory nftIds = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
@@ -366,7 +366,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             proof: new bytes32[](0),
             proofFlags: new bool[](0)
         });
-        (, , , , uint256 outputAmount, , ) = buyPool.getSellNFTQuote(1);
+        (, , , uint256 outputAmount, ) = buyPool.getSellNFTQuote(1);
         uint256 output = router.swapNFTsForToken(
             swapList,
             outputAmount,
@@ -391,7 +391,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             proofFlags: new bool[](0)
         });
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(1);
+        (, , , inputAmount, ) = sellPool.getBuyNFTQuote(1);
         this.swapTokenForSpecificNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,
@@ -415,7 +415,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: sellPool, numItems: 1});
         uint256 inputAmount;
-        (, , , , inputAmount, , ) = sellPool.getBuyNFTQuote(1);
+        (, , , inputAmount, ) = sellPool.getBuyNFTQuote(1);
         this.swapTokenForAnyNFTs{value: modifyInputAmount(inputAmount)}(
             router,
             swapList,

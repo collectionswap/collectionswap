@@ -174,7 +174,7 @@ contract CollectionRouter2 {
                                 continue;
                             }
                             // Otherwise, adjust the max amt sent to be down
-                            (,,,, priceToFillAt,,) = pool.getBuyNFTQuote(numItemsToFill);
+                            (,,, priceToFillAt,) = pool.getBuyNFTQuote(numItemsToFill);
                         }
 
                         // Now, do the partial fill swap with the updated price and ids
@@ -260,7 +260,7 @@ contract CollectionRouter2 {
             uint256 mid = start + (end - start) / 2;
 
             // mid is the index of the max price to buy mid+1 NFTs
-            (,,,, uint256 currentPrice,,) = pool.getBuyNFTQuote(mid + 1);
+            (,,, uint256 currentPrice,) = pool.getBuyNFTQuote(mid + 1);
 
             // If we pay at least the currentPrice with our maxPrice, record the value, and recurse on the right half
             if (currentPrice <= maxPricesPerNumNFTs[mid]) {
@@ -292,7 +292,7 @@ contract CollectionRouter2 {
         // while (start <= end) {
         //     // Get price of mid number of items
         //     uint256 mid = start + (end - start + 1) / 2;
-        //     (, , , , uint256 currentPrice, , ) = pool.getSellNFTQuote(mid + 1);
+        //     (, , , uint256 currentPrice, ) = pool.getSellNFTQuote(mid + 1);
         //     // If it costs more than there is ETH balance for, then recurse on the left half
         //     if (currentPrice > poolBalance) {
         //         if (mid == 1) {

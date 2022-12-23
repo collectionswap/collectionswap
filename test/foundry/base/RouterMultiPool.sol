@@ -103,7 +103,7 @@ abstract contract RouterMultiPool is
         uint256 totalInputAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 inputAmount;
-            (, , , , inputAmount, , ) = pools[i + 1].getBuyNFTQuote(1);
+            (, , , inputAmount, ) = pools[i + 1].getBuyNFTQuote(1);
             totalInputAmount += inputAmount;
             swapList[i] = CollectionRouter.PoolSwapAny({
                 pool: pools[i + 1],
@@ -130,7 +130,7 @@ abstract contract RouterMultiPool is
         uint256 totalInputAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 inputAmount;
-            (, , , , inputAmount, , ) = pools[i + 1].getBuyNFTQuote(1);
+            (, , , inputAmount, ) = pools[i + 1].getBuyNFTQuote(1);
             totalInputAmount += inputAmount;
             uint256[] memory nftIds = new uint256[](1);
             nftIds[0] = i + 1;
@@ -163,7 +163,7 @@ abstract contract RouterMultiPool is
         uint256 totalOutputAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 outputAmount;
-            (, , , , outputAmount, , ) = pools[i + 1].getSellNFTQuote(1);
+            (, , , outputAmount, ) = pools[i + 1].getSellNFTQuote(1);
             totalOutputAmount += outputAmount;
             uint256[] memory nftIds = new uint256[](1);
             // Set it to be an ID we own

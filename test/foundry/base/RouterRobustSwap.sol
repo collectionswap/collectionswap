@@ -150,8 +150,8 @@ abstract contract RouterRobustSwap is
         CollectionRouter.RobustPoolSwapAny[]
             memory swapList = new CollectionRouter.RobustPoolSwapAny[](3);
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2InputAmount, , ) = pool2.getBuyNFTQuote(2);
+        (, , , uint256 pool1InputAmount, ) = pool1.getBuyNFTQuote(2);
+        (, , , uint256 pool2InputAmount, ) = pool2.getBuyNFTQuote(2);
 
         swapList[0] = CollectionRouter.RobustPoolSwapAny({
             swapInfo: CollectionRouter.PoolSwapAny({pool: pool1, numItems: 2}),
@@ -207,8 +207,8 @@ abstract contract RouterRobustSwap is
         nftIds3[0] = 20;
         nftIds3[1] = 21;
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2InputAmount, , ) = pool2.getBuyNFTQuote(2);
+        (, , , uint256 pool1InputAmount, ) = pool1.getBuyNFTQuote(2);
+        (, , , uint256 pool2InputAmount, ) = pool2.getBuyNFTQuote(2);
 
         CollectionRouter.RobustPoolSwapSpecific[]
             memory swapList = new CollectionRouter.RobustPoolSwapSpecific[](3);
@@ -280,8 +280,8 @@ abstract contract RouterRobustSwap is
         nftIds3[0] = 34;
         nftIds3[1] = 35;
 
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
-        (, , , , uint256 pool3OutputAmount, , ) = pool3.getSellNFTQuote(2);
+        (, , , uint256 pool2OutputAmount, ) = pool2.getSellNFTQuote(2);
+        (, , , uint256 pool3OutputAmount, ) = pool3.getSellNFTQuote(2);
 
         CollectionRouter.RobustPoolSwapSpecificForToken[]
             memory swapList = new CollectionRouter.RobustPoolSwapSpecificForToken[](
@@ -349,7 +349,7 @@ abstract contract RouterRobustSwap is
 
         uint256[] memory nftIds3 = new uint256[](0);
 
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
+        (, , , uint256 pool2OutputAmount, ) = pool2.getSellNFTQuote(2);
 
         CollectionRouter.RobustPoolSwapSpecificForToken[]
             memory swapList = new CollectionRouter.RobustPoolSwapSpecificForToken[](
@@ -407,8 +407,8 @@ abstract contract RouterRobustSwap is
         assertEq(test721.ownerOf(32), address(this));
         assertEq(test721.ownerOf(33), address(this));
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
+        (, , , uint256 pool1InputAmount, ) = pool1.getBuyNFTQuote(2);
+        (, , , uint256 pool2OutputAmount, ) = pool2.getSellNFTQuote(2);
 
         uint256[] memory nftIds1 = new uint256[](2);
         nftIds1[0] = 0;

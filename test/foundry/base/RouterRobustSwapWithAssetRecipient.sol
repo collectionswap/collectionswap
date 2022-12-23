@@ -150,7 +150,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     // Swapping tokens for any NFT on sellPool1 works, but fails silently on sellPool2 if slippage is too tight
     function test_robustSwapTokenForAnyNFTs() public {
         uint256 sellPool1Price;
-        (, , , , sellPool1Price, , ) = sellPool1.getBuyNFTQuote(1);
+        (, , , sellPool1Price, ) = sellPool1.getBuyNFTQuote(1);
         CollectionRouter.RobustPoolSwapAny[]
             memory swapList = new CollectionRouter.RobustPoolSwapAny[](2);
         swapList[0] = CollectionRouter.RobustPoolSwapAny({
@@ -178,7 +178,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     // Swapping tokens to a specific NFT with sellPool2 works, but fails silently on sellPool1 if slippage is too tight
     function test_robustSwapTokenForSpecificNFTs() public {
         uint256 sellPool1Price;
-        (, , , , sellPool1Price, , ) = sellPool2.getBuyNFTQuote(1);
+        (, , , sellPool1Price, ) = sellPool2.getBuyNFTQuote(1);
         CollectionRouter.RobustPoolSwapSpecific[]
             memory swapList = new CollectionRouter.RobustPoolSwapSpecific[](2);
         uint256[] memory nftIds1 = new uint256[](1);
@@ -220,7 +220,7 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     // Swapping NFTs to tokens with buyPool1 works, but buyPool2 silently fails due to slippage
     function test_robustSwapNFTsForToken() public {
         uint256 buyPool1Price;
-        (, , , , buyPool1Price, , ) = buyPool1.getSellNFTQuote(1);
+        (, , , buyPool1Price, ) = buyPool1.getSellNFTQuote(1);
         uint256[] memory nftIds1 = new uint256[](1);
         nftIds1[0] = 5;
         uint256[] memory nftIds2 = new uint256[](1);

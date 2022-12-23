@@ -381,9 +381,8 @@ export async function sellToPool(
 ) {
   const [
     _bidError,
-    _bidNewSpotPrice,
-    _bidNewDelta,
-    _bidNewState,
+    _bidNewParams,
+    _bidTotalAmount,
     bidInputAmount,
     _bidTradeFee,
     _bidProtocolFee,
@@ -410,9 +409,8 @@ export async function buyFromPool(
 ) {
   const [
     _askError,
-    _askNewSpotPrice,
-    _askNewDelta,
-    _askNewState,
+    _askNewParams,
+    _askTotalAmount,
     askOutputAmount,
     _askTradeFee,
     _askProtocolFee,
@@ -606,12 +604,10 @@ export async function prepareQuoteValues(
 
   const [
     _error,
-    _newSpotPrice,
-    _newDelta,
-    _newState,
+    _newParams,
+    _totalAmount,
     quote,
-    ,
-    protocolFeeAmount,
+    { protocol: protocolFeeAmount },
   ] = isSell
     ? await pool.getSellNFTQuote(numberOfNfts)
     : await pool.getBuyNFTQuote(numberOfNfts);

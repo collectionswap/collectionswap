@@ -329,7 +329,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         uint256 amount0 = _nft.balanceOf(address(_pool));
         uint256 amount1 = address(_pool).balance;
 
-        (,,,, uint256 bidPrice,,) = _pool.getSellNFTQuote(1);
+        (,,, uint256 bidPrice,) = _pool.getSellNFTQuote(1);
         if (amount1 >= bidPrice) {
             amount = Math.sqrt(amount0 * amount1);
         }

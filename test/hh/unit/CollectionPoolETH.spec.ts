@@ -109,12 +109,10 @@ describe("CollectionPoolETH", function () {
     const nftsToBuy = 1;
     const [
       _error,
-      _newSpotPrice,
-      _newDelta,
-      _newState,
+      _newParams,
+      _totalAmount,
       inputAmount,
-      tradeFee,
-      protocolFee,
+      { trade: tradeFee, protocol: protocolFee },
     ] = await collectionPoolETH.getBuyNFTQuote(nftsToBuy);
     const numNFTs = await nft.balanceOf(user1.address);
 
@@ -180,12 +178,10 @@ describe("CollectionPoolETH", function () {
 
     const [
       _error,
-      _newSpotPrice,
-      _newDelta,
-      _newState,
+      _newParams,
+      _totalAmount,
       outputAmount,
-      tradeFee,
-      protocolFee,
+      { trade: tradeFee, protocol: protocolFee },
     ] = await collectionPoolETH.getSellNFTQuote(1);
 
     // Send enough ETH to the pool for it to buy the nfts
@@ -257,12 +253,10 @@ describe("CollectionPoolETH", function () {
     const nftsToBuy = 1;
     let [
       _error,
-      _newSpotPrice,
-      _newDelta,
-      _newState,
+      _newParams,
+      _totalAmount,
       inputAmount,
-      tradeFee1,
-      protocolFee,
+      { trade: tradeFee1, protocol: protocolFee },
     ] = await collectionPoolETH.getBuyNFTQuote(nftsToBuy);
     const numNFTs = await nft.balanceOf(user1.address);
 
@@ -326,12 +320,10 @@ describe("CollectionPoolETH", function () {
     let tradeFee2;
     [
       _error,
-      _newSpotPrice,
-      _newDelta,
-      _newState,
+      _newParams,
+      _totalAmount,
       outputAmount,
-      tradeFee2,
-      protocolFee,
+      { trade: tradeFee2, protocol: protocolFee },
     ] = await collectionPoolETH.getSellNFTQuote(1);
     const nftTokenIds = await mintNfts(nft, user1.address);
     await nft.connect(user1).setApprovalForAll(collectionPoolETH.address, true);
@@ -401,12 +393,10 @@ describe("CollectionPoolETH", function () {
 
     let [
       _error,
-      _newSpotPrice,
-      _newDelta,
-      _newState,
+      _newParams,
+      _totalAmount,
       outputAmount,
-      tradeFee,
-      protocolFee,
+      { trade: tradeFee, protocol: protocolFee },
     ] = await collectionPoolETH.getSellNFTQuote(1);
 
     // First calculate the expected sale value + royalty amounts
@@ -476,15 +466,9 @@ describe("CollectionPoolETH", function () {
     // The pool should accrue the trade fees
     expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee);
 
-    [
-      _error,
-      _newSpotPrice,
-      _newDelta,
-      _newState,
-      outputAmount,
-      tradeFee,
-      protocolFee,
-    ] = await collectionPoolETH.getSellNFTQuote(1);
+    let _fees;
+    [_error, _newParams, _totalAmount, outputAmount, _fees] =
+      await collectionPoolETH.getSellNFTQuote(1);
     await expect(
       collectionPoolETH.connect(user1).swapNFTsForToken(
         {
@@ -505,12 +489,10 @@ describe("CollectionPoolETH", function () {
     beforeEach(async function () {
       let [
         _error,
-        _newSpotPrice,
-        _newDelta,
-        _newState,
+        _newParams,
+        _totalAmount,
         inputAmount,
-        tradeFee1,
-        protocolFee,
+        { trade: tradeFee1, protocol: protocolFee },
       ] = await collectionPoolETH.getBuyNFTQuote(nftsToBuy);
       const numNFTs = await nft.balanceOf(user1.address);
 
@@ -574,12 +556,10 @@ describe("CollectionPoolETH", function () {
       let tradeFee2;
       [
         _error,
-        _newSpotPrice,
-        _newDelta,
-        _newState,
+        _newParams,
+        _totalAmount,
         outputAmount,
-        tradeFee2,
-        protocolFee,
+        { trade: tradeFee2, protocol: protocolFee },
       ] = await collectionPoolETH.getSellNFTQuote(1);
 
       const nftTokenIds = await mintNfts(nft, user1.address);

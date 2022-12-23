@@ -426,24 +426,16 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         view
         returns (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            uint256 newDelta,
-            bytes memory newState,
+            ICurve.Params memory newParams,
+            uint256 totalAmount,
             uint256 inputAmount,
-            uint256 _tradeFee,
-            uint256 protocolFee
+            ICurve.Fees memory fees
         )
     {
-        ICurve.Params memory newParams;
-        ICurve.Fees memory fees;
         (error, newParams, inputAmount, fees) = bondingCurve().getBuyInfo(curveParams(), numNFTs, feeMultipliers());
 
-        newSpotPrice = newParams.spotPrice;
-        newDelta = newParams.delta;
-        newState = newParams.state;
-
-        _tradeFee = fees.trade;
-        protocolFee = fees.protocol;
+        // Since inputAmount is already inclusive of fees.
+        totalAmount = inputAmount;
     }
 
     /**
@@ -455,24 +447,22 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         view
         returns (
             CurveErrorCodes.Error error,
-            uint256 newSpotPrice,
-            uint256 newDelta,
-            bytes memory newState,
+            ICurve.Params memory newParams,
+            uint256 totalAmount,
             uint256 outputAmount,
-            uint256 _tradeFee,
-            uint256 protocolFee
+            ICurve.Fees memory fees
         )
     {
-        ICurve.Params memory newParams;
-        ICurve.Fees memory fees;
         (error, newParams, outputAmount, fees) = bondingCurve().getSellInfo(curveParams(), numNFTs, feeMultipliers());
 
-        newSpotPrice = newParams.spotPrice;
-        newDelta = newParams.delta;
-        newState = newParams.state;
-
-        _tradeFee = fees.trade;
-        protocolFee = fees.protocol;
+        totalAmount = outputAmount + fees.trade + fees.protocol;
+        uint256 length = fees.royalties.length;
+        for (uint256 i; i < length;) {
+            totalAmount = fees.royalties[i];
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /**

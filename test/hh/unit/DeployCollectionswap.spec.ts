@@ -222,7 +222,7 @@ describe("Collectionswap", function () {
 
             const buyPriceQuote = (
               await collectionPoolETH.getBuyNFTQuote(qtyQuoted)
-            )[4];
+            )[3];
             const buyPriceQuoteSelfCalc = convertToBigNumber(
               await cumulativeSum(
                 calculateAsk,
@@ -312,7 +312,7 @@ describe("Collectionswap", function () {
 
             const sellPriceQuote = (
               await collectionPoolETH.getSellNFTQuote(qtyQuoted)
-            )[4];
+            )[3];
             const sellPriceQuoteSelfCalc = convertToBigNumber(
               await cumulativeSum(
                 calculateBid,
@@ -371,12 +371,10 @@ describe("Collectionswap", function () {
       const externalTraderNftsIHave = [222];
       const [
         _bidError,
-        _bidNewSpotPrice,
-        _bidNewDelta,
-        _bidNewState,
+        _bidNewParams,
+        _bidTotalAmount,
         bidInputAmount,
-        _bidTradeFee,
-        _bidProtocolFee,
+        _bidFees,
         _bidnObj,
       ] = await collectionPoolETH.getSellNFTQuote(
         externalTraderNftsIHave.length
@@ -463,12 +461,10 @@ describe("Collectionswap", function () {
         // Sell my NFT into the pool
         const [
           _bidError,
-          _bidNewSpotPrice,
-          _bidNewDelta,
-          _bidNewState,
+          _bidNewParams,
+          _bidTotalAmount,
           bidInputAmount,
-          _bidTradeFee,
-          _bidProtocolFee,
+          _bidFees,
           _bidnObj,
         ] = await collectionPoolETH.getSellNFTQuote(1);
         // Console.log([bidError, bidNewSpotPrice, bidNewDelta, bidInputAmount, bidProtocolFee, bidnObj])
@@ -486,12 +482,10 @@ describe("Collectionswap", function () {
 
         const [
           _askError,
-          _askNewSpotPrice,
-          _askNewDelta,
-          _askNewState,
+          _askNewParams,
+          _askTotalAmount,
           askOutputAmount,
-          _askTradeFee,
-          _askProtocolFee,
+          _askFees,
           _asknObj,
         ] = await collectionPoolETH.getBuyNFTQuote(1);
 

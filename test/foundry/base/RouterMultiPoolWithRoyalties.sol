@@ -115,7 +115,7 @@ abstract contract RouterMultiPoolWithRoyalties is
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 inputAmount;
-            (, , , , inputAmount, , ) = pools[i + 1].getBuyNFTQuote(1);
+            (, , , inputAmount, ) = pools[i + 1].getBuyNFTQuote(1);
 
             // calculate royalty and add it to the input amount
             uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -152,7 +152,7 @@ abstract contract RouterMultiPoolWithRoyalties is
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 inputAmount;
-            (, , , , inputAmount, , ) = pools[i + 1].getBuyNFTQuote(1);
+            (, , , inputAmount, ) = pools[i + 1].getBuyNFTQuote(1);
 
             // calculate royalty and add it to the input amount
             uint256 royaltyAmount = calcRoyalty(inputAmount);
@@ -195,7 +195,7 @@ abstract contract RouterMultiPoolWithRoyalties is
         uint256 totalRoyaltyAmount = 0;
         for (uint256 i = 0; i < 5; i++) {
             uint256 outputAmount;
-            (, , , , outputAmount, , ) = pools[i + 1].getSellNFTQuote(1);
+            (, , , outputAmount, ) = pools[i + 1].getSellNFTQuote(1);
 
             // calculate royalty and rm it from the output amount
             uint256 royaltyAmount = calcRoyalty(outputAmount);

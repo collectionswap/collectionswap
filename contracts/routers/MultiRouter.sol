@@ -67,7 +67,7 @@ contract MultiRouter {
             uint256 numSwaps = params.tokenToNFTTradesSpecific.length;
             for (uint256 i; i < numSwaps;) {
                 // Calculate actual cost per swap
-                (error,,,, poolCost,,) = params.tokenToNFTTradesSpecific[i].swapInfo.pool.getBuyNFTQuote(
+                (error,,, poolCost,) = params.tokenToNFTTradesSpecific[i].swapInfo.pool.getBuyNFTQuote(
                     params.tokenToNFTTradesSpecific[i].swapInfo.nftIds.length
                 );
 
@@ -106,7 +106,7 @@ contract MultiRouter {
                 // Locally scoped to avoid stack too deep error
                 {
                     CurveErrorCodes.Error error;
-                    (error,,,, poolOutput,,) = params.nftToTokenTrades[i].swapInfo.pool.getSellNFTQuote(
+                    (error,,, poolOutput,) = params.nftToTokenTrades[i].swapInfo.pool.getSellNFTQuote(
                         params.nftToTokenTrades[i].swapInfo.nftIds.length
                     );
                     if (error != CurveErrorCodes.Error.OK) {

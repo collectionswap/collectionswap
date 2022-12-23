@@ -161,8 +161,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         CollectionRouter.RobustPoolSwapAny[]
             memory swapList = new CollectionRouter.RobustPoolSwapAny[](3);
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2InputAmount, , ) = pool2.getBuyNFTQuote(2);
+        (, , , uint256 pool1InputAmount, ) = pool1.getBuyNFTQuote(2);
+        (, , , uint256 pool2InputAmount, ) = pool2.getBuyNFTQuote(2);
 
         uint256 totalRoyaltyAmount = 0;
 
@@ -233,8 +233,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         nftIds3[0] = 20;
         nftIds3[1] = 21;
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2InputAmount, , ) = pool2.getBuyNFTQuote(2);
+        (, , , uint256 pool1InputAmount, ) = pool1.getBuyNFTQuote(2);
+        (, , , uint256 pool2InputAmount, ) = pool2.getBuyNFTQuote(2);
 
         // calculate royalty and add it to the input amount
         uint256 royaltyAmount = calcRoyalty(pool1InputAmount);
@@ -319,8 +319,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         nftIds3[0] = 34;
         nftIds3[1] = 35;
 
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
-        (, , , , uint256 pool3OutputAmount, , ) = pool3.getSellNFTQuote(2);
+        (, , , uint256 pool2OutputAmount, ) = pool2.getSellNFTQuote(2);
+        (, , , uint256 pool3OutputAmount, ) = pool3.getSellNFTQuote(2);
 
         // calculate royalty and rm it from the input amount
         uint256 royaltyAmount = calcRoyalty(pool2OutputAmount);
@@ -399,7 +399,7 @@ abstract contract RouterRobustSwapWithRoyalties is
 
         uint256[] memory nftIds3 = new uint256[](0);
 
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
+        (, , , uint256 pool2OutputAmount, ) = pool2.getSellNFTQuote(2);
 
         // calculate royalty and rm it from the output amount
         uint256 royaltyAmount = calcRoyalty(pool2OutputAmount);
@@ -465,8 +465,8 @@ abstract contract RouterRobustSwapWithRoyalties is
         assertEq(test721.ownerOf(32), address(this));
         assertEq(test721.ownerOf(33), address(this));
 
-        (, , , , uint256 pool1InputAmount, , ) = pool1.getBuyNFTQuote(2);
-        (, , , , uint256 pool2OutputAmount, , ) = pool2.getSellNFTQuote(2);
+        (, , , uint256 pool1InputAmount, ) = pool1.getBuyNFTQuote(2);
+        (, , , uint256 pool2OutputAmount, ) = pool2.getSellNFTQuote(2);
 
         // calculate royalty and modify input and output amounts
         uint256 royaltyAmount = calcRoyalty(pool1InputAmount);
