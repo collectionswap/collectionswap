@@ -435,7 +435,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         totalAmount = outputAmount + fees.trade + fees.protocol;
         uint256 length = fees.royalties.length;
         for (uint256 i; i < length;) {
-            totalAmount = fees.royalties[i];
+            totalAmount += fees.royalties[i];
             unchecked {
                 ++i;
             }
