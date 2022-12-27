@@ -45,7 +45,7 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function getAllHeldIds() external view override returns (uint256[] memory) {
+    function getAllHeldIds() public view override returns (uint256[] memory) {
         IERC721 _nft = nft();
         uint256 numNFTs = _nft.balanceOf(address(this));
         uint256[] memory ids = new uint256[](numNFTs);

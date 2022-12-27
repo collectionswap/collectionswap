@@ -44,6 +44,7 @@ export async function verifyTenderlyCollectionSet(
   const request = {
     config: {
       ...config,
+      // eslint-disable-next-line camelcase
       via_ir: hre.config.solidity.compilers[0].settings.viaIR,
     },
     contracts,

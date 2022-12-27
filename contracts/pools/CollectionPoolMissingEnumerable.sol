@@ -56,7 +56,7 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function getAllHeldIds() external view override returns (uint256[] memory) {
+    function getAllHeldIds() public view override returns (uint256[] memory) {
         uint256 numNFTs = idSet.length();
         uint256[] memory ids = new uint256[](numNFTs);
         for (uint256 i; i < numNFTs;) {

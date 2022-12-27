@@ -53,11 +53,25 @@ export async function mintNfts(
   );
 }
 
+export async function mintAndApproveNfts(
+  nft: Test721Enumerable,
+  to: SignerWithAddress,
+  approveTo: string,
+  n = 1
+): Promise<string[]> {
+  const tokenIds = await mintNfts(nft, to.address, n);
+  await Promise.all(
+    tokenIds.map(async (tokenId) => nft.connect(to).approve(approveTo, tokenId))
+  );
+  return tokenIds;
+}
+
 interface Params {
   nft: IERC721;
   bondingCurve: ICurve;
   delta: BigNumberish;
   fee: BigNumberish;
+  royaltyNumerator: BigNumberish;
 }
 
 export async function createIncentiveEth(
@@ -402,6 +416,7 @@ export async function sellToPool(
       ids: [nftToSell],
       proof: [],
       proofFlags: [],
+      proofLeaves: [],
     },
     bidInputAmount,
     externalTrader.address,
@@ -647,6 +662,7 @@ export async function prepareQuoteValues(
           ids: quantityOrIds as string[],
           proof: [],
           proofFlags: [],
+          proofLeaves: [],
         },
         quote,
         trader.address,
@@ -706,6 +722,7 @@ export function pickRandomElements<ElemType>(
   array: ElemType[],
   n: number
 ): ElemType[] {
+  if (n > array.length) throw new Error("pickRandomElements: n > array.length");
   // Shuffle array
   const shuffled = array.slice().sort(() => 0.5 - Math.random());
 

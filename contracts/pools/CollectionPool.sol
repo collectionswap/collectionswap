@@ -226,12 +226,14 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
 
     /**
-     * @notice Sets NFT token ID filter that is allowed in this pool
+     * @notice Sets NFT token ID filter that is allowed in this pool. Pool must
+     * be empty to call this function.
      * @param merkleRoot Merkle root representing all allowed IDs
      * @param encodedTokenIDs Opaque encoded list of token IDs
      */
     function setTokenIDFilter(bytes32 merkleRoot, bytes calldata encodedTokenIDs) external {
         require(msg.sender == address(factory()) || msg.sender == owner(), "not authorized");
+        require(nft().balanceOf(address(this)) == 0, "pool not empty");
         _setRootAndEmitAcceptedIDs(address(nft()), merkleRoot, encodedTokenIDs);
     }
 

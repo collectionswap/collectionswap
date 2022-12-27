@@ -1,7 +1,5 @@
 import { task } from "hardhat/config";
 
-import { verifyEtherscanCollectionSet } from "./verifyEtherscanCollectionSet";
-
 task(
   "deployCollectionSet",
   "deploy templates, curves, factory and Collectionstaker contracts"
