@@ -2,7 +2,10 @@ import { TokenIDs as TokenIds } from "filter_code";
 import { ethers, expect } from "hardhat";
 
 import { everythingFixture, nftFixture } from "../shared/fixtures";
-import { mintAndApproveNfts, pickRandomElements } from "../shared/helpers";
+import {
+  mintAndApproveRandomNfts,
+  pickRandomElements,
+} from "../shared/helpers";
 import { getSigners } from "../shared/signers";
 
 import type { Test721Enumerable } from "../../../typechain-types";
@@ -24,6 +27,7 @@ function getBannedIds(filter: TokenIds, n: number, hint?: TokenIds): bigint[] {
     while (arr.includes(nextElement) || output.has(nextElement)) nextElement++;
     output.add(nextElement);
   }
+
   return Array.from(output).slice(0, n);
 }
 
@@ -190,7 +194,7 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
             bn.toString()
           );
           const otherAcceptedIds = acceptedTokenIds.filter((tokenId) => {
-            return !poolIds.includes(tokenId);
+            return !poolIds.includes(tokenId.toString());
           });
 
           const idsToSell = pickRandomElements(otherAcceptedIds, sellQty).map(
@@ -297,7 +301,7 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
         );
 
         const newFilter = new TokenIds([0n]);
-        expect(
+        await expect(
           pool.setTokenIDFilter(newFilter.root(), newFilter.encode())
         ).to.be.revertedWith("pool not empty");
       }
@@ -325,7 +329,9 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
           0,
           nft
         );
-        expect(pool.setTokenIDFilter(newFilter.root(), newFilter.encode()))
+        await expect(
+          pool.setTokenIDFilter(newFilter.root(), newFilter.encode())
+        )
           .to.emit(pool, "AcceptsTokenIDs")
           .withArgs(await pool.nft(), newFilter.root(), newFilter.encode());
       }
@@ -368,8 +374,11 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
         tokenIdFilter: oldFilter,
       } = await createFilteredPool(1, 0);
 
-      const { acceptedTokenIds, tokenIdFilter: newFilter } =
-        await createFilteredPool(newFilterSize, 0, nft);
+      const { tokenIdFilter: newFilter } = await createFilteredPool(
+        newFilterSize,
+        0,
+        nft
+      );
 
       await collectionPoolETH.setTokenIDFilter(
         newFilter.root(),
@@ -661,7 +670,7 @@ async function createFilteredPool(
 
   const { owner } = await getSigners();
 
-  const acceptedTokenIds = await mintAndApproveNfts(
+  const acceptedTokenIds = await mintAndApproveRandomNfts(
     nft,
     owner,
     collectionPoolFactory.address,

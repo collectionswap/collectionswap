@@ -2,7 +2,6 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import {
-  DEFAULT_VALID_ROYALTY,
   royaltyFixture,
   royaltyWithPoolFixture,
   royaltyWithPoolAndOverrideFixture,
@@ -11,9 +10,10 @@ import {
   changesEtherBalancesFuzzy,
   changesEtherBalancesFuzzyMultipleTransactions,
   enumerateAddress,
+  getNftTransfersTo,
   getPoolAddress,
   getRandomInt,
-  mintNfts,
+  mintRandomNfts,
   pickRandomElements,
   prepareQuoteValues,
 } from "../shared/helpers";
@@ -23,412 +23,6 @@ import type { BigNumber, providers } from "ethers";
 const newRoyaltyNumerator = ethers.utils.parseEther("0.5");
 
 describe("Royalties", function () {
-  describe("Initializing pool with royaltyNumerator and/or override", function () {
-    it("Should allow zero royaltyNumerator for non-ERC2981 without override", async function () {
-      const {
-        ethPoolParams,
-        nftNon2981: nft,
-        collectionPoolFactory,
-        tokenIdsWithoutRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const collectionPoolETHContractTx =
-        await collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            nft: nft.address,
-            royaltyNumerator: ethers.BigNumber.from("0"),
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-      const { newPoolAddress } = await getPoolAddress(
-        collectionPoolETHContractTx
-      );
-      const collectionPoolETH = await ethers.getContractAt(
-        "CollectionPoolETH",
-        newPoolAddress
-      );
-
-      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal("0");
-      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
-        ethers.constants.AddressZero
-      );
-    });
-
-    it("Should allow zero royaltyNumerator for non-ERC2981 with override", async function () {
-      const {
-        ethPoolParams,
-        nftNon2981: nft,
-        collectionPoolFactory,
-        royaltyRecipientOverride,
-        tokenIdsWithoutRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const collectionPoolETHContractTx =
-        await collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            royaltyRecipientOverride: royaltyRecipientOverride.address,
-            nft: nft.address,
-            royaltyNumerator: ethers.BigNumber.from("0"),
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-      const { newPoolAddress } = await getPoolAddress(
-        collectionPoolETHContractTx
-      );
-      const collectionPoolETH = await ethers.getContractAt(
-        "CollectionPoolETH",
-        newPoolAddress
-      );
-
-      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal("0");
-      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
-        royaltyRecipientOverride.address
-      );
-    });
-
-    it("Should allow zero royaltyNumerator for ERC2981 without override", async function () {
-      const {
-        ethPoolParams,
-        nft2981: nft,
-        collectionPoolFactory,
-        tokenIdsWithRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const collectionPoolETHContractTx =
-        await collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            nft: nft.address,
-            royaltyNumerator: ethers.BigNumber.from("0"),
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-      const { newPoolAddress } = await getPoolAddress(
-        collectionPoolETHContractTx
-      );
-      const collectionPoolETH = await ethers.getContractAt(
-        "CollectionPoolETH",
-        newPoolAddress
-      );
-
-      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal("0");
-      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
-        ethers.constants.AddressZero
-      );
-    });
-
-    it("Should allow zero royaltyNumerator for ERC2981 with override", async function () {
-      const {
-        ethPoolParams,
-        nft2981: nft,
-        collectionPoolFactory,
-        royaltyRecipientOverride,
-        tokenIdsWithRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const collectionPoolETHContractTx =
-        await collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            royaltyRecipientOverride: royaltyRecipientOverride.address,
-            nft: nft.address,
-            royaltyNumerator: ethers.BigNumber.from("0"),
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-      const { newPoolAddress } = await getPoolAddress(
-        collectionPoolETHContractTx
-      );
-      const collectionPoolETH = await ethers.getContractAt(
-        "CollectionPoolETH",
-        newPoolAddress
-      );
-
-      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal("0");
-      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
-        royaltyRecipientOverride.address
-      );
-    });
-
-    it("Should allow nonzero royaltyNumerator for ERC2981 without override", async function () {
-      const {
-        ethPoolParams,
-        nft2981: nft,
-        collectionPoolFactory,
-        tokenIdsWithRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const royaltyNumerator = DEFAULT_VALID_ROYALTY;
-
-      const collectionPoolETHContractTx =
-        await collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            nft: nft.address,
-            royaltyNumerator,
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-      const { newPoolAddress } = await getPoolAddress(
-        collectionPoolETHContractTx
-      );
-      const collectionPoolETH = await ethers.getContractAt(
-        "CollectionPoolETH",
-        newPoolAddress
-      );
-
-      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal(
-        royaltyNumerator
-      );
-      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
-        ethers.constants.AddressZero
-      );
-    });
-
-    it("Should allow nonzero royaltyNumerator for ERC2981 with override", async function () {
-      const {
-        ethPoolParams,
-        nft2981: nft,
-        collectionPoolFactory,
-        royaltyRecipientOverride,
-        tokenIdsWithRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const royaltyNumerator = DEFAULT_VALID_ROYALTY;
-
-      const collectionPoolETHContractTx =
-        await collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            nft: nft.address,
-            royaltyRecipientOverride: royaltyRecipientOverride.address,
-            royaltyNumerator,
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-      const { newPoolAddress } = await getPoolAddress(
-        collectionPoolETHContractTx
-      );
-      const collectionPoolETH = await ethers.getContractAt(
-        "CollectionPoolETH",
-        newPoolAddress
-      );
-
-      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal(
-        royaltyNumerator
-      );
-      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
-        royaltyRecipientOverride.address
-      );
-    });
-
-    it("Should revert on nonzero royaltyNumerator for non-ERC2981 without override", async function () {
-      const {
-        ethPoolParams,
-        nftNon2981: nft,
-        collectionPoolFactory,
-        tokenIdsWithoutRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const royaltyNumerator = DEFAULT_VALID_ROYALTY;
-
-      await expect(
-        collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            nft: nft.address,
-            royaltyNumerator,
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        )
-      ).to.be.revertedWith("Nonzero royalty for non ERC2981 without override");
-    });
-
-    it("Should allow nonzero royaltyNumerator for non-ERC2981 with override", async function () {
-      const {
-        ethPoolParams,
-        nftNon2981: nft,
-        royaltyRecipientOverride,
-        collectionPoolFactory,
-        tokenIdsWithoutRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const royaltyNumerator = DEFAULT_VALID_ROYALTY;
-
-      const collectionPoolETHContractTx =
-        await collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            royaltyRecipientOverride: royaltyRecipientOverride.address,
-            nft: nft.address,
-            royaltyNumerator,
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        );
-
-      const { newPoolAddress } = await getPoolAddress(
-        collectionPoolETHContractTx
-      );
-      const collectionPoolETH = await ethers.getContractAt(
-        "CollectionPoolETH",
-        newPoolAddress
-      );
-
-      expect(await collectionPoolETH.royaltyNumerator()).to.be.equal(
-        royaltyNumerator
-      );
-      expect(await collectionPoolETH.royaltyRecipientOverride()).to.be.equal(
-        royaltyRecipientOverride.address
-      );
-    });
-
-    it("Should revert on royaltyNumerator > 1e18 for non-ERC2981 without override", async function () {
-      const {
-        ethPoolParams,
-        nftNon2981: nft,
-        collectionPoolFactory,
-        tokenIdsWithoutRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const royaltyNumerator = ethers.utils.parseEther("2");
-
-      await expect(
-        collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            nft: nft.address,
-            royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        )
-      ).to.be.revertedWith(
-        // This transaction should fail for 2 reasons actually. Just that the
-        // non-ERC2981 reason takes precedence
-        "Nonzero royalty for non ERC2981 without override"
-      );
-    });
-
-    it("Should revert on royaltyNumerator > 1e18 for non-ERC2981 with override", async function () {
-      const {
-        ethPoolParams,
-        royaltyRecipientOverride,
-        nftNon2981: nft,
-        collectionPoolFactory,
-        tokenIdsWithoutRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const royaltyNumerator = ethers.utils.parseEther("2");
-
-      await expect(
-        collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            royaltyRecipientOverride: royaltyRecipientOverride.address,
-            nft: nft.address,
-            royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        )
-      ).to.be.revertedWith("royaltyNumerator must be < 1e18");
-    });
-
-    it("Should revert on royaltyNumerator > 1e18 for ERC2981 without override", async function () {
-      const {
-        ethPoolParams,
-        nft2981: nft,
-        collectionPoolFactory,
-        tokenIdsWithRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const royaltyNumerator = ethers.utils.parseEther("2");
-
-      await expect(
-        collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            nft: nft.address,
-            royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        )
-      ).to.be.revertedWith("royaltyNumerator must be < 1e18");
-    });
-
-    it("Should revert on royaltyNumerator > 1e18 for ERC2981 with override", async function () {
-      const {
-        ethPoolParams,
-        nft2981: nft,
-        royaltyRecipientOverride,
-        collectionPoolFactory,
-        tokenIdsWithRoyalty: tokenIds,
-      } = await royaltyFixture();
-
-      const royaltyNumerator = ethers.utils.parseEther("2");
-
-      await expect(
-        collectionPoolFactory.createPoolETH(
-          {
-            ...ethPoolParams,
-            royaltyRecipientOverride: royaltyRecipientOverride.address,
-            nft: nft.address,
-            royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
-            initialNFTIDs: tokenIds,
-          },
-          {
-            value: ethers.BigNumber.from(`${1.2e18}`),
-            gasLimit: 1000000,
-          }
-        )
-      ).to.be.revertedWith("royaltyNumerator must be < 1e18");
-    });
-  });
-
   describe("Royalties should be awarded upon swaps", function () {
     it("Should not award royalties when buying 0 items from pool (revert)", async function () {
       const {
@@ -441,7 +35,7 @@ describe("Royalties", function () {
         recipients.map(async (recipient) => recipient.getBalance())
       );
 
-      expect(
+      await expect(
         collectionPoolETH.swapTokenForSpecificNFTs(
           [],
           ethers.BigNumber.from("0"),
@@ -473,7 +67,7 @@ describe("Royalties", function () {
         recipients.map(async (recipient) => recipient.getBalance())
       );
 
-      expect(
+      await expect(
         collectionPoolETH.swapNFTsForToken(
           {
             ids: [],
@@ -502,8 +96,6 @@ describe("Royalties", function () {
         fee,
         protocolFee,
         royaltyNumerator,
-        enumerateTrader,
-        traderNfts,
       } = await royaltyWithPoolFixture();
 
       // Specify quantity of random NFTs to buy
@@ -531,9 +123,7 @@ describe("Royalties", function () {
       );
 
       // Figure out which random NFT the trader bought
-      const tradedIds = (await enumerateTrader()).filter(
-        (nftId) => !traderNfts.includes(nftId)
-      );
+      const tradedIds = await getNftTransfersTo(tx, nft, trader.address);
 
       const royaltyPaid = ethers.utils.parseEther(totalRoyalties.toFixed(18));
       const amountsDue = new Map<string, BigNumber>();
@@ -579,8 +169,6 @@ describe("Royalties", function () {
         protocolFee,
         royaltyNumerator,
         tokenIdsWithRoyalty,
-        enumerateTrader,
-        traderNfts,
       } = await royaltyWithPoolFixture();
 
       // Specify NFTs to buy
@@ -608,9 +196,7 @@ describe("Royalties", function () {
       );
 
       // Figure out which random NFT the trader bought
-      const tradedIds = (await enumerateTrader()).filter(
-        (nftId) => !traderNfts.includes(nftId)
-      );
+      const tradedIds = await getNftTransfersTo(tx, nft, trader.address);
 
       const royaltyPaid = ethers.utils.parseEther(totalRoyalties.toFixed(18));
       const amountsDue = new Map<string, BigNumber>();
@@ -824,7 +410,6 @@ describe("Royalties", function () {
         // Unfortunately there's no way to retrieve the random order in which
         // the NFTs were selected so we can only test with quantity 1
         const numNftsToBuy = 1;
-        const traderInitialNfts = await enumerateTrader();
         const currentNumNftsInPool = (await pool.getAllHeldIds()).length;
 
         // Create the transaction and get expected values
@@ -864,10 +449,9 @@ describe("Royalties", function () {
         );
 
         // Maintain royalties due
+        const nftsSold = await getNftTransfersTo(tx, nft, trader.address);
         for (let i = 0; i < numNftsToBuy; i++) {
-          const nftSold = (await enumerateTrader()).filter(
-            (id) => !traderInitialNfts.includes(id)
-          )[0];
+          const nftSold = nftsSold[0];
           let recipient = (await nft.royaltyInfo(nftSold, 0))[0];
           if (recipient === ethers.constants.AddressZero.toString()) {
             recipient = pool.address;
@@ -1278,7 +862,7 @@ describe("Royalties", function () {
       );
 
       // Give the trader some nfts so both directions can be tested
-      await mintNfts(nft as unknown as any, trader.address, 4);
+      await mintRandomNfts(nft as unknown as any, trader.address, 4);
 
       // Approve all for trading with the pool
       await nft.connect(trader).setApprovalForAll(pool.address, true);

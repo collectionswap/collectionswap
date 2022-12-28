@@ -13,7 +13,7 @@ import {
   checkOwnershipERC721List,
   checkSufficiencyERC20List,
   createPoolEth,
-  mintNfts,
+  mintRandomNfts,
 } from "../shared/helpers";
 import { getSigners } from "../shared/signers";
 
@@ -157,7 +157,7 @@ async function setUpNewPrizeNFT(
   targetPool: RewardVaultETHDraw
 ) {
   const { nft: newPrizeNFT } = await nftFixture();
-  const newPrizeTokenIds = await mintNfts(
+  const newPrizeTokenIds = await mintRandomNfts(
     newPrizeNFT,
     targetOwner.address,
     numNewPrizes
@@ -280,7 +280,7 @@ describe("RewardVaultETHDraw", function () {
           // Iterate through number of tokens per ID
           const { nft: thisPrize721 } = await nftFixture();
           distinctNFTs.push(thisPrize721);
-          const tokenIds = await mintNfts(
+          const tokenIds = await mintRandomNfts(
             thisPrize721,
             owner.address,
             numPerERC721Token
@@ -342,8 +342,8 @@ describe("RewardVaultETHDraw", function () {
           rewardVaultAddress
         );
 
-        const nftTokenIds = await mintNfts(nft, user.address);
-        const nftTokenIds1 = await mintNfts(nft, user1.address);
+        const nftTokenIds = await mintRandomNfts(nft, user.address);
+        const nftTokenIds1 = await mintRandomNfts(nft, user1.address);
 
         factory = factory.connect(user);
         nft = nft.connect(user);

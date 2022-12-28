@@ -8,17 +8,13 @@ contract TestAtomicTrader is IERC721Receiver {
     ICollectionPoolFactory factory;
     ICurve curve;
 
-    constructor (
-        ICollectionPoolFactory _factory,
-        ICurve _curve
-    ) {
+    constructor(ICollectionPoolFactory _factory, ICurve _curve) {
         factory = _factory;
         curve = _curve;
     }
 
     function createAndTrade(IERC721 nft, uint256[] calldata nftIDs) external payable {
-
-        for (uint i; i < nftIDs.length; ++i) {
+        for (uint256 i; i < nftIDs.length; ++i) {
             // pull NFTs into this contract
             nft.safeTransferFrom(msg.sender, address(this), nftIDs[i]);
             // give approval to factory
@@ -26,7 +22,7 @@ contract TestAtomicTrader is IERC721Receiver {
         }
 
         // create pool pool
-        (address pool, ) = factory.createPoolETH{value: msg.value}(
+        (address pool,) = factory.createPoolETH{value: msg.value}(
             ICollectionPoolFactory.CreateETHPoolParams({
                 nft: nft,
                 bondingCurve: curve,
@@ -45,21 +41,10 @@ contract TestAtomicTrader is IERC721Receiver {
         );
 
         // then try to swap against it
-        CollectionPool(pool).swapTokenForAnyNFTs(
-            1,
-            100e18,
-            address(this),
-            true,
-            address(this)
-        );
+        CollectionPool(pool).swapTokenForAnyNFTs(1, 100e18, address(this), true, address(this));
     }
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) external pure returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 }

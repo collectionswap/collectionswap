@@ -16,8 +16,11 @@ contract TokenIDFilterMock is TokenIDFilter {
         return _acceptsTokenID(tokenID, proof);
     }
 
-    function acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags) public view returns (bool) {
+    function acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags)
+        public
+        view
+        returns (bool)
+    {
         return _acceptsTokenIDs(tokenIDs, proof, proofFlags);
     }
 }
-

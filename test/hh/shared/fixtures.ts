@@ -2,7 +2,7 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers } from "hardhat";
 
 import { config, CURVE_TYPE } from "./constants";
-import { createPoolEth, getPoolAddress, mintNfts } from "./helpers";
+import { createPoolEth, getPoolAddress, mintRandomNfts } from "./helpers";
 import { getSigners } from "./signers";
 
 import type {
@@ -12,6 +12,7 @@ import type {
   CollectionPoolFactory,
   Test721Enumerable,
   IERC721Mintable,
+  Test721EnumerableRoyalty,
 } from "../../../typechain-types";
 import type { curveType } from "./constants";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -176,6 +177,11 @@ export async function collectionstakerWithRewardsFixture() {
   };
 }
 
+export async function test20Fixture() {
+  const Test20 = await ethers.getContractFactory("Test20");
+  return Test20.deploy();
+}
+
 export async function rewardTokenFixture() {
   const RewardToken = await ethers.getContractFactory(
     "ERC20PresetMinterPauser"
@@ -205,6 +211,14 @@ export async function test721EnumerableFixture(): Promise<{
   return { nft: test721Enumerable };
 }
 
+export async function test721RoyaltyFixture(): Promise<{
+  nft: IERC721Mintable;
+}> {
+  const Test721Royalty = await ethers.getContractFactory("Test721Royalty");
+  const test721Royalty = await Test721Royalty.deploy();
+  return { nft: test721Royalty };
+}
+
 export async function non2981NftFixture() {
   const MyERC721 = await ethers.getContractFactory("Test721Non2981");
   const myERC721 = await MyERC721.deploy();
@@ -212,9 +226,11 @@ export async function non2981NftFixture() {
 }
 
 export async function nftFixture() {
-  const MyERC721 = await ethers.getContractFactory("Test721Enumerable");
+  const { nft: test721 } = await test721Fixture();
+  const { nft: test721Royalty } = await test721RoyaltyFixture();
+  const MyERC721 = await ethers.getContractFactory("Test721EnumerableRoyalty");
   const myERC721 = await MyERC721.deploy();
-  return { nft: myERC721 };
+  return { nft: myERC721, test721, test721Royalty };
 }
 
 export async function collectionFixture() {
@@ -284,15 +300,21 @@ export async function collectionFixture() {
     true
   );
 
-  const map: { [key in curveType]: any } = {
+  const NoopCurve = await ethers.getContractFactory("NoopCurve");
+  const noopCurve = await NoopCurve.connect(ammDeployer).deploy();
+  await collectionPoolFactory.setBondingCurveAllowed(noopCurve.address, true);
+
+  const curves: { [key in curveType | "noop"]: any } = {
     linear: linearCurve,
     exponential: exponentialCurve,
     sigmoid: sigmoidCurve,
+    noop: noopCurve,
   };
 
   return {
     ammDeployer,
-    curve: map[CURVE_TYPE!],
+    curve: curves[CURVE_TYPE!],
+    curves,
     factory: collectionPoolFactory,
   };
 }
@@ -367,7 +389,7 @@ export async function everythingFixture() {
   ] = await ethers.getSigners();
   // Console.log([otherAccount0.address, otherAccount1.address, otherAccount2.address, otherAccount3.address, otherAccount4.address])
 
-  const MyERC721 = await ethers.getContractFactory("Test721Enumerable");
+  const MyERC721 = await ethers.getContractFactory("Test721EnumerableRoyalty");
   const myERC721 = await MyERC721.deploy();
 
   const MyERC1155 = await ethers.getContractFactory("Test1155");
@@ -502,8 +524,8 @@ export function makeRewardVaultFixture(nftFixture: NFTFixture) {
       await rewardTokens[i].mint(rewardVault.address, REWARDS[i]);
     }
 
-    const nftTokenIds = await mintNfts(nft, user.address);
-    const nftTokenIds1 = await mintNfts(nft, user1.address);
+    const nftTokenIds = await mintRandomNfts(nft, user.address);
+    const nftTokenIds1 = await mintRandomNfts(nft, user1.address);
 
     factory = factory.connect(user);
     nft = nft.connect(user);
@@ -578,7 +600,7 @@ export async function validatorFixture() {
  * Also provides a non 2981 NFT to swap into params
  */
 export async function royaltyFixture(): Promise<{
-  nft2981: Test721Enumerable;
+  nft2981: Test721EnumerableRoyalty;
   nftNon2981: IERC721;
   initialOwner: SignerWithAddress;
   recipients: SignerWithAddress[];
@@ -602,11 +624,11 @@ export async function royaltyFixture(): Promise<{
     royaltyRecipientOverride,
   } = await getSigners();
 
-  const nftsWithRoyalty = await mintNfts(nft, owner.address, 4);
+  const nftsWithRoyalty = await mintRandomNfts(nft, owner.address, 4);
   const { fee, protocolFee } = getCurveParameters();
 
   const nftNon2981 = (await non2981NftFixture()).nft as unknown as IERC721;
-  const nftsWithoutRoyalty = await mintNfts(
+  const nftsWithoutRoyalty = await mintRandomNfts(
     nftNon2981 as any,
     owner.address,
     3
@@ -616,7 +638,7 @@ export async function royaltyFixture(): Promise<{
   const recipients = [royaltyRecipient0, royaltyRecipient1];
   await Promise.all(
     recipients.map(async (recipient, index) =>
-      nft.setRoyaltyRecipient(nftsWithRoyalty[index], recipient.address)
+      nft.setTokenRoyalty(nftsWithRoyalty[index], recipient.address)
     )
   );
 
@@ -658,7 +680,7 @@ export async function royaltyFixture(): Promise<{
  * the trader
  */
 export async function royaltyWithPoolFixture(): Promise<{
-  nft2981: Test721Enumerable;
+  nft2981: Test721EnumerableRoyalty;
   initialOwner: SignerWithAddress;
   recipients: SignerWithAddress[];
   royaltyRecipientOverride: SignerWithAddress;
@@ -671,7 +693,7 @@ export async function royaltyWithPoolFixture(): Promise<{
   fee: BigNumber;
   protocolFee: BigNumber;
   royaltyNumerator: BigNumber;
-  enumerateTrader: () => Promise<string[]>;
+  enumerateTrader: () => Promise<BigNumber[]>;
 }> {
   const {
     nft2981,
@@ -707,7 +729,7 @@ export async function royaltyWithPoolFixture(): Promise<{
   );
 
   // Give the trader some nfts so both directions can be tested
-  const traderNfts = await mintNfts(nft2981, otherAccount1.address, 4);
+  const traderNfts = await mintRandomNfts(nft2981, otherAccount1.address, 4);
 
   // Approve all for trading with the pool
   await nft2981
@@ -719,18 +741,18 @@ export async function royaltyWithPoolFixture(): Promise<{
   const recipients2 = [royaltyRecipient3, royaltyRecipient4];
   await Promise.all(
     recipients2.map(async (recipient, index) =>
-      nft2981.setRoyaltyRecipient(traderNfts[index], recipient.address)
+      nft2981.setTokenRoyalty(traderNfts[index], recipient.address)
     )
   );
 
-  const enumerateTrader: () => Promise<string[]> = async () => {
+  const enumerateTrader: () => Promise<BigNumber[]> = async () => {
     const balance = (await nft2981.balanceOf(otherAccount1.address)).toNumber();
     const output = [];
     for (let i = 0; i < balance; i++) {
       output.push(await nft2981.tokenOfOwnerByIndex(otherAccount1.address, i));
     }
 
-    return output.map((bn) => bn.toString());
+    return output;
   };
 
   return {
@@ -799,7 +821,7 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
   );
 
   // Give the trader some nfts so both directions can be tested
-  const traderNfts = await mintNfts(nft2981, otherAccount1.address, 4);
+  const traderNfts = await mintRandomNfts(nft2981, otherAccount1.address, 4);
 
   // Approve all for trading with the pool
   await nft2981
@@ -811,7 +833,7 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
   const recipients2 = [royaltyRecipient3, royaltyRecipient4];
   await Promise.all(
     recipients2.map(async (recipient, index) =>
-      nft2981.setRoyaltyRecipient(traderNfts[index], recipient.address)
+      nft2981.setTokenRoyalty(traderNfts[index], recipient.address)
     )
   );
 

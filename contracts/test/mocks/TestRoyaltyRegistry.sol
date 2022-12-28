@@ -6,6 +6,4 @@ import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {RoyaltyRegistry} from "@manifoldxyz/royalty-registry-solidity/contracts/RoyaltyRegistry.sol";
 
 // Gives more realistic scenarios where swaps have to go through multiple pools, for more accurate gas profiling
-contract TestRoyaltyRegistry is RoyaltyRegistry {
-
-}
+contract TestRoyaltyRegistry is RoyaltyRegistry {}

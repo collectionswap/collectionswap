@@ -12,7 +12,7 @@ import {
   test721EnumerableFixture,
   test721Fixture,
 } from "../shared/fixtures";
-import { mintNfts } from "../shared/helpers";
+import { mintRandomNfts } from "../shared/helpers";
 
 import type {
   ICollectionPoolFactory,
@@ -1213,7 +1213,7 @@ describe("RewardVaultETH", function () {
           //   Await nft.connect(user).setApprovalForAll(rewardVault.address, true);
 
           // console.log(1);
-          const newNftTokenIds = await mintNfts(
+          const newNftTokenIds = await mintRandomNfts(
             nft.connect(owner),
             user.address
           );
@@ -1253,7 +1253,7 @@ describe("RewardVaultETH", function () {
 
         it("Atomic entry, atomic exit", async function () {
           //   Await nft.connect(user).setApprovalForAll(rewardVault.address, true);
-          const newNftTokenIds = await mintNfts(
+          const newNftTokenIds = await mintRandomNfts(
             nft.connect(owner),
             user.address
           );

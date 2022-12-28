@@ -1,11 +1,10 @@
 pragma solidity ^0.8.0;
 
-import { SortitionSumTreeFactory } from "../../lib/SortitionSumTreeFactory.sol";
-
-
+import {SortitionSumTreeFactory} from "../../lib/SortitionSumTreeFactory.sol";
 
 contract TestSortitionTree {
     using SortitionSumTreeFactory for SortitionSumTreeFactory.SortitionSumTrees; // Use library functions for sortition sum trees.
+
     SortitionSumTreeFactory.SortitionSumTrees internal sortitionSumTrees; // The sortition sum trees.
 
     bytes32 treeKey;
@@ -16,7 +15,7 @@ contract TestSortitionTree {
         treeKey = keccak256(abi.encodePacked("treeKey"));
         treeLeaves = 4;
         currentRandomNumber = 4;
-    
+
         sortitionSumTrees.createTree(treeKey, treeLeaves); // Create a tree with 4 children per node.
     }
 
@@ -31,6 +30,8 @@ contract TestSortitionTree {
     }
 
     function draw(uint256 _drawnNumber) public view returns (bytes32) {
-        return sortitionSumTrees.draw(treeKey, uint(keccak256(abi.encodePacked(currentRandomNumber, _drawnNumber, block.timestamp))));
+        return sortitionSumTrees.draw(
+            treeKey, uint256(keccak256(abi.encodePacked(currentRandomNumber, _drawnNumber, block.timestamp)))
+        );
     }
 }

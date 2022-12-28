@@ -4,6 +4,7 @@ import { formatEther } from "ethers/lib/utils";
 import { assert, ethers } from "hardhat";
 
 import { CURVE_TYPE } from "./constants";
+import { randomBigNumber } from "./random";
 
 import type {
   CollectionPoolFactory,
@@ -37,16 +38,22 @@ enum PoolType {
   TRADE,
 }
 
-let nextTokenId = 0;
-
 export async function mintNfts(
-  nft: Test721Enumerable,
+  nft: IERC721Mintable,
+  to: string,
+  tokenIds: BigNumber[]
+): Promise<BigNumber[]> {
+  return Promise.all(tokenIds.map((tokenId) => nft.mint(to, tokenId)));
+}
+
+export async function mintRandomNfts(
+  nft: IERC721Mintable,
   to: string,
   n = 1
-): Promise<string[]> {
+): Promise<BigNumber[]> {
   return Promise.all(
     new Array(n).fill(0).map(async () => {
-      const id = String(nextTokenId++);
+      const id = randomBigNumber();
       await nft.mint(to, id);
       return id;
     })
@@ -54,16 +61,47 @@ export async function mintNfts(
 }
 
 export async function mintAndApproveNfts(
-  nft: Test721Enumerable,
+  nft: IERC721Mintable,
+  to: SignerWithAddress,
+  approveTo: string,
+  tokenIds: BigNumber[]
+): Promise<BigNumber[]> {
+  await mintNfts(nft, to.address, tokenIds);
+  await approveNfts(nft, to, approveTo, tokenIds);
+  return tokenIds;
+}
+
+export async function mintAndApproveRandomNfts(
+  nft: IERC721Mintable,
   to: SignerWithAddress,
   approveTo: string,
   n = 1
-): Promise<string[]> {
-  const tokenIds = await mintNfts(nft, to.address, n);
-  await Promise.all(
+): Promise<BigNumber[]> {
+  const tokenIds = await mintRandomNfts(nft, to.address, n);
+  await approveNfts(nft, to, approveTo, tokenIds);
+  return tokenIds;
+}
+
+async function approveNfts(
+  nft: IERC721,
+  to: SignerWithAddress,
+  approveTo: string,
+  tokenIds: BigNumber[]
+) {
+  return Promise.all(
     tokenIds.map(async (tokenId) => nft.connect(to).approve(approveTo, tokenId))
   );
-  return tokenIds;
+}
+
+export async function mintAndApproveRandomAmountToken(
+  token: IER20Mintable,
+  to: SignerWithAddress,
+  approveTo: string
+): Promise<BigNumber> {
+  const amount = randomBigNumber();
+  await token.mint(to.address, amount);
+  await token.connect(to).approve(approveTo, amount);
+  return amount;
 }
 
 interface Params {
@@ -200,7 +238,7 @@ export async function createPoolEth(
 export async function expectAddressToOwnNFTs(
   address: string,
   nft: ERC721,
-  tokenIds: string[]
+  tokenIds: BigNumber[]
 ): Promise<void> {
   for (const tokenId of tokenIds) {
     expect(await nft.ownerOf(tokenId)).to.equal(address);
@@ -769,7 +807,10 @@ export async function checkSufficiencyERC20List(
   }
 }
 
-export async function getPoolAddress(tx: ContractTransaction, showGas = false) {
+export async function getPoolAddress(
+  tx: ContractTransaction,
+  showGas = false
+): Promise<{ newPoolAddress: string; newTokenId: BigNumber }> {
   const receipt = await tx.wait();
   if (showGas) {
     console.log("gas used:", receipt.cumulativeGasUsed);
@@ -781,4 +822,24 @@ export async function getPoolAddress(tx: ContractTransaction, showGas = false) {
   const { poolAddress: newPoolAddress, tokenId: newTokenId } =
     newPoolEvent!.args!;
   return { newPoolAddress, newTokenId };
+}
+
+export async function getNftTransfersTo(
+  tx: ContractTransaction,
+  nft: IERC721,
+  to: string
+): Promise<BigNumber[]> {
+  const receipt = await tx.wait();
+  return receipt
+    .events!.filter((event) => event.address === nft.address)
+    .map((event) => nft.interface.parseLog(event))
+    .filter(
+      (description) =>
+        description.name === "Transfer" && description.args.to === to
+    )
+    .map((description) => description.args.tokenId);
+}
+
+export function toBigInt(bn: BigNumber): bigint {
+  return bn.toBigInt();
 }

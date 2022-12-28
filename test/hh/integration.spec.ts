@@ -3,7 +3,11 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { integrationFixture } from "./shared/fixtures";
-import { createIncentiveEth, createPoolEth, mintNfts } from "./shared/helpers";
+import {
+  createIncentiveEth,
+  createPoolEth,
+  mintRandomNfts,
+} from "./shared/helpers";
 
 import type { IERC721 } from "../../typechain-types";
 
@@ -32,7 +36,7 @@ describe("integration", function () {
       royaltyNumerator,
     } = await loadFixture(integrationFixture);
 
-    const initialNftTokenIds = await mintNfts(nft, user.address);
+    const initialNftTokenIds = await mintRandomNfts(nft, user.address);
     // Note: This must be bigger than the initial price of the pool
     // WHICH SHOULD NOT BE ASSUMED TO BE SPOT PRICE.
     const initialETH = ethers.utils.parseEther("25");

@@ -14,7 +14,7 @@ import {
   cumulativeSumWithRoyalties,
   expectAddressToOwnNFTs,
   getPoolAddress,
-  mintNfts,
+  mintRandomNfts,
 } from "../shared/helpers";
 import { getSigners } from "../shared/signers";
 
@@ -51,7 +51,7 @@ describe("CollectionPoolETH", function () {
     const { protocol, user, user1 } = await getSigners();
     const { curve, factory, ammDeployer } = await collectionFixture();
     const { nft } = await nftFixture();
-    const nftTokenIds = await mintNfts(nft, user.address);
+    const nftTokenIds = await mintRandomNfts(nft, user.address);
     await nft.connect(user).setApprovalForAll(factory.address, true);
 
     const poolType = 2;
@@ -172,7 +172,7 @@ describe("CollectionPoolETH", function () {
   });
 
   it("Should have trade fee when selling", async function () {
-    const nftTokenIds = await mintNfts(nft, user1.address);
+    const nftTokenIds = await mintRandomNfts(nft, user1.address);
     await nft.connect(user1).setApprovalForAll(collectionPoolETH.address, true);
 
     const [
@@ -324,7 +324,7 @@ describe("CollectionPoolETH", function () {
       outputAmount,
       { trade: tradeFee2, protocol: protocolFee },
     ] = await collectionPoolETH.getSellNFTQuote(1);
-    const nftTokenIds = await mintNfts(nft, user1.address);
+    const nftTokenIds = await mintRandomNfts(nft, user1.address);
     await nft.connect(user1).setApprovalForAll(collectionPoolETH.address, true);
 
     // The seller should own the nfts
@@ -387,7 +387,7 @@ describe("CollectionPoolETH", function () {
   });
 
   it("Should not be able to use trade fee when selling", async function () {
-    const nftTokenIds = await mintNfts(nft, user1.address, 100);
+    const nftTokenIds = await mintRandomNfts(nft, user1.address, 100);
     await nft.connect(user1).setApprovalForAll(collectionPoolETH.address, true);
 
     let [
@@ -561,7 +561,7 @@ describe("CollectionPoolETH", function () {
         { trade: tradeFee2, protocol: protocolFee },
       ] = await collectionPoolETH.getSellNFTQuote(1);
 
-      const nftTokenIds = await mintNfts(nft, user1.address);
+      const nftTokenIds = await mintRandomNfts(nft, user1.address);
 
       // First calculate the expected sale value + royalty amounts
       const sellAmounts = await cumulativeSumWithRoyalties(
