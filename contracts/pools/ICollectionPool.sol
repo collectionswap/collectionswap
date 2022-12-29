@@ -43,6 +43,16 @@ interface ICollectionPool is ITokenIDFilter {
     function royaltyNumerator() external view returns (uint256);
 
     /**
+     * @notice The usable balance of the pool. This is the amount the pool needs to have to buy NFTs and pay out royalties.
+     */
+    function liquidity() external view returns (uint256);
+
+    function balanceToFulfillSellNFT(uint256 numNFTs)
+        external
+        view
+        returns (CurveErrorCodes.Error error, uint256 balance);
+
+    /**
      * @notice Rescues a specified set of NFTs owned by the pool to the owner address. (onlyOwnable modifier is in the implemented function)
      * @dev If the NFT is the pool's collection, we also remove it from the id tracking (if the NFT is missing enumerable).
      * @param a The NFT to transfer

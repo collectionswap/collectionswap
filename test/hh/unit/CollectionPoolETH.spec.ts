@@ -480,7 +480,7 @@ describe("CollectionPoolETH", function () {
         false,
         ethers.constants.AddressZero
       )
-    ).to.be.revertedWith("Too little ETH");
+    ).to.be.revertedWithCustomError(collectionPoolETH, "InsufficientLiquidity");
   });
 
   describe("Withdraw", function () {
@@ -631,7 +631,9 @@ describe("CollectionPoolETH", function () {
       expect(tradeFee).to.not.equal(0);
 
       // The user should receive the trade fees
-      await expect(collectionPoolETH.withdrawTradeFee()).to.changeEtherBalances(
+      await expect(
+        collectionPoolETH.withdrawAccruedTradeFee()
+      ).to.changeEtherBalances(
         [collectionPoolETH, user],
         [tradeFee.mul(-1), tradeFee]
       );

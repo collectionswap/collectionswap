@@ -311,7 +311,8 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         ICollectionPoolFactory _lpToken = lpToken;
         if (_lpToken.ownerOf(tokenId) != msg.sender) revert Unauthorized();
 
-        ICollectionPool _pool = ICollectionPool(_lpToken.poolAddressOf(tokenId));
+        address poolAddress = _lpToken.poolAddressOf(tokenId);
+        ICollectionPool _pool = ICollectionPool(poolAddress);
         IERC721 _nft = nft;
         if (
             _pool.nft() != _nft || address(_pool.bondingCurve()) != bondingCurve
@@ -323,10 +324,10 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         // buy at least 1 NFT. Else 0.
         (uint128 _reserve0, uint128 _reserve1) = getReserves(); // gas savings
         uint256 amount0 = _nft.balanceOf(address(_pool));
-        uint256 amount1 = address(_pool).balance;
+        uint256 amount1 = _pool.liquidity();
 
-        (,,, uint256 bidPrice,) = _pool.getSellNFTQuote(1);
-        if (amount1 >= bidPrice) {
+        (, uint256 balance) = _pool.balanceToFulfillSellNFT(1);
+        if (poolAddress.balance >= balance) {
             amount = Math.sqrt(amount0 * amount1);
         }
 

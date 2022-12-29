@@ -19,6 +19,15 @@ abstract contract CollectionPoolETH is CollectionPool {
 
     uint256 internal constant IMMUTABLE_PARAMS_LENGTH = 61;
 
+    /// @inheritdoc ICollectionPool
+    function liquidity() public view returns (uint256) {
+        uint256 _balance = address(this).balance;
+        uint256 _accruedTradeFee = accruedTradeFee;
+        if (_balance < _accruedTradeFee) revert InsufficientLiquidity(_balance, _accruedTradeFee);
+
+        return _balance - _accruedTradeFee;
+    }
+
     /// @inheritdoc CollectionPool
     function _pullTokenInputAndPayProtocolFee(
         uint256 inputAmount,
@@ -88,11 +97,11 @@ abstract contract CollectionPoolETH is CollectionPool {
         internal
         override
     {
-        uint256 totalRoyaltiesPaid = _payRoyalties(royaltiesDue);
+        _payRoyalties(royaltiesDue);
 
         // Send ETH to caller
         if (outputAmount > 0) {
-            require(address(this).balance >= outputAmount + tradeFee + totalRoyaltiesPaid, "Too little ETH");
+            require(liquidity() >= outputAmount, "Too little ETH");
             tokenRecipient.safeTransferETH(outputAmount);
         }
     }
@@ -108,7 +117,7 @@ abstract contract CollectionPoolETH is CollectionPool {
      * @dev Only callable by the owner.
      */
     function withdrawAllETH() external onlyAuthorized {
-        tradeFee = 0;
+        accruedTradeFee = 0;
 
         _withdrawETH(address(this).balance);
     }
@@ -120,7 +129,7 @@ abstract contract CollectionPoolETH is CollectionPool {
      * this value, the transaction will be reverted.
      */
     function withdrawETH(uint256 amount) external onlyAuthorized {
-        require(address(this).balance >= amount + tradeFee, "Too little ETH");
+        require(liquidity() >= amount, "Too little ETH");
 
         _withdrawETH(amount);
     }
@@ -131,12 +140,12 @@ abstract contract CollectionPoolETH is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function withdrawTradeFee() external override onlyOwner {
-        uint256 _tradeFee = tradeFee;
-        if (_tradeFee > 0) {
-            tradeFee = 0;
+    function withdrawAccruedTradeFee() external override onlyOwner {
+        uint256 _accruedTradeFee = accruedTradeFee;
+        if (_accruedTradeFee > 0) {
+            accruedTradeFee = 0;
 
-            _withdrawETH(_tradeFee);
+            _withdrawETH(_accruedTradeFee);
         }
     }
 

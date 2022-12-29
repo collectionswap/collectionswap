@@ -84,7 +84,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     address payable public assetRecipient;
 
     // The trade fee accrued from trades.
-    uint256 public tradeFee;
+    uint256 public accruedTradeFee;
 
     // The properties used by the pool's bonding curve.
     bytes public props;
@@ -124,6 +124,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
+    error InsufficientLiquidity(uint256 balance, uint256 accruedTradeFee);
 
     /**
      * @dev Use this whenever modifying the value of royaltyNumerator.
@@ -306,7 +307,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         (inputAmount, fees) =
             _calculateBuyInfoAndUpdatePoolParams(nftIds.length, maxExpectedTokenInput, _bondingCurve, _factory);
 
-        tradeFee += fees.trade;
+        accruedTradeFee += fees.trade;
         RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nftIds, fees.royalties);
 
         _pullTokenInputAndPayProtocolFee(inputAmount, isRouter, routerCaller, _factory, fees.protocol, royaltiesDue);
@@ -356,7 +357,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             _calculateSellInfoAndUpdatePoolParams(nfts.ids.length, minExpectedTokenOutput, _bondingCurve);
 
         // Accrue trade fees before sending token output. This ensures that the balance is always sufficient for trade fee withdrawal.
-        tradeFee += fees.trade;
+        accruedTradeFee += fees.trade;
 
         RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nfts.ids, fees.royalties);
 
@@ -367,6 +368,26 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         _takeNFTsFromSender(nft(), nfts.ids, _factory, isRouter, routerCaller);
 
         emit SwapNFTInPool();
+    }
+
+    function balanceToFulfillBuyNFT(uint256 numNFTs)
+        external
+        view
+        returns (CurveErrorCodes.Error error, uint256 balance)
+    {
+        uint256 totalAmount;
+        (error,, totalAmount,,) = getBuyNFTQuote(numNFTs);
+        balance = accruedTradeFee + totalAmount;
+    }
+
+    function balanceToFulfillSellNFT(uint256 numNFTs)
+        external
+        view
+        returns (CurveErrorCodes.Error error, uint256 balance)
+    {
+        uint256 totalAmount;
+        (error,, totalAmount,,) = getSellNFTQuote(numNFTs);
+        balance = accruedTradeFee + totalAmount;
     }
 
     /**
@@ -401,7 +422,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param numNFTs The number of NFTs to buy from the pool
      */
     function getBuyNFTQuote(uint256 numNFTs)
-        external
+        public
         view
         returns (
             CurveErrorCodes.Error error,
@@ -422,7 +443,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param numNFTs The number of NFTs to sell to the pool
      */
     function getSellNFTQuote(uint256 numNFTs)
-        external
+        public
         view
         returns (
             CurveErrorCodes.Error error,
@@ -770,10 +791,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     }
 
     /**
-     * @notice Withdraws trade fee owned by the pool to the owner address.
+     * @notice Withdraws the accrued trade fee owned by the pool to the owner address.
      * @dev Only callable by the owner.
      */
-    function withdrawTradeFee() external virtual;
+    function withdrawAccruedTradeFee() external virtual;
 
     /**
      * @notice Updates the selling spot price. Only callable by the owner.

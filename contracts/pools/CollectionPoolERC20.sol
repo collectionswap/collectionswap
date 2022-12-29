@@ -31,6 +31,15 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         }
     }
 
+    /// @inheritdoc ICollectionPool
+    function liquidity() public view returns (uint256) {
+        uint256 _balance = token().balanceOf(address(this));
+        uint256 _accruedTradeFee = accruedTradeFee;
+        if (_balance < _accruedTradeFee) revert InsufficientLiquidity(_balance, _accruedTradeFee);
+
+        return _balance - _accruedTradeFee;
+    }
+
     /// @inheritdoc CollectionPool
     function _pullTokenInputAndPayProtocolFee(
         uint256 inputAmount,
@@ -161,12 +170,12 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         internal
         override
     {
-        uint256 totalRoyaltiesPaid = _payRoyalties(royaltiesDue);
+        _payRoyalties(royaltiesDue);
 
         // Send tokens to caller
         if (outputAmount > 0) {
             ERC20 _token = token();
-            require(_token.balanceOf(address(this)) >= outputAmount + tradeFee + totalRoyaltiesPaid, "Too little ERC20");
+            require(liquidity() >= outputAmount, "Too little ERC20");
             _token.safeTransfer(tokenRecipient, outputAmount);
         }
     }
@@ -182,7 +191,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
      * @dev Only callable by the owner.
      */
     function withdrawAllERC20() external onlyAuthorized {
-        tradeFee = 0;
+        accruedTradeFee = 0;
 
         ERC20 _token = token();
         uint256 amount = _token.balanceOf(address(this));
@@ -195,7 +204,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     /// @inheritdoc ICollectionPool
     function withdrawERC20(ERC20 a, uint256 amount) external onlyAuthorized {
         if (a == token()) {
-            require(a.balanceOf(address(this)) >= amount + tradeFee, "Too little ERC20");
+            require(liquidity() >= amount, "Too little ERC20");
 
             // emit event since it is the pool token
             emit TokenWithdrawal(amount);
@@ -205,15 +214,15 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function withdrawTradeFee() external override onlyOwner {
-        uint256 _tradeFee = tradeFee;
-        if (_tradeFee > 0) {
-            tradeFee = 0;
+    function withdrawAccruedTradeFee() external override onlyOwner {
+        uint256 _accruedTradeFee = accruedTradeFee;
+        if (_accruedTradeFee > 0) {
+            accruedTradeFee = 0;
 
-            token().safeTransfer(msg.sender, _tradeFee);
+            token().safeTransfer(msg.sender, _accruedTradeFee);
 
             // emit event since it is the pool token
-            emit TokenWithdrawal(_tradeFee);
+            emit TokenWithdrawal(_accruedTradeFee);
         }
     }
 }
