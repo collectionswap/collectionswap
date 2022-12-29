@@ -27,7 +27,7 @@ import type { Test721Enumerable } from "../../../typechain-types";
 
 const MAX_ACCEPTED_TOKEN_IDS = 4;
 
-describe.only("Testing filter_code library is consistent with TokenIdFilter contract", function () {
+describe("Testing filter_code library is consistent with TokenIdFilter contract", function () {
   it("Should be able to create pool with subset of allowed ids as initial ids", async function () {
     for (
       let filterSize = 1;

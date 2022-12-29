@@ -168,7 +168,7 @@ describe("CollectionPoolETH", function () {
     expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
     // The pool should accrue trade fees
-    expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee);
+    expect(await collectionPoolETH.accruedTradeFee()).to.equal(tradeFee);
   });
 
   it("Should have trade fee when selling", async function () {
@@ -245,7 +245,7 @@ describe("CollectionPoolETH", function () {
     await expectAddressToOwnNFTs(collectionPoolETH.address, nft, nftTokenIds);
 
     // The pool should accrue trade fees
-    expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee);
+    expect(await collectionPoolETH.accruedTradeFee()).to.equal(tradeFee);
   });
 
   it("Should accrue trade fees", async function () {
@@ -313,7 +313,7 @@ describe("CollectionPoolETH", function () {
     expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
     // The pool should accrue trade fees
-    expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee1);
+    expect(await collectionPoolETH.accruedTradeFee()).to.equal(tradeFee1);
 
     let outputAmount;
     let tradeFee2;
@@ -381,7 +381,7 @@ describe("CollectionPoolETH", function () {
     await expectAddressToOwnNFTs(collectionPoolETH.address, nft, nftTokenIds);
 
     // The pool should accrue trade fees
-    expect(await collectionPoolETH.tradeFee()).to.equal(
+    expect(await collectionPoolETH.accruedTradeFee()).to.equal(
       tradeFee1.add(tradeFee2)
     );
   });
@@ -463,7 +463,7 @@ describe("CollectionPoolETH", function () {
     );
 
     // The pool should accrue the trade fees
-    expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee);
+    expect(await collectionPoolETH.accruedTradeFee()).to.equal(tradeFee);
 
     let _fees;
     [_error, _newParams, _totalAmount, outputAmount, _fees] =
@@ -549,7 +549,7 @@ describe("CollectionPoolETH", function () {
       expect(await nft.balanceOf(user1.address)).to.equal(numNFTs.add(1));
 
       // The pool should accrue trade fees
-      expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee1);
+      expect(await collectionPoolETH.accruedTradeFee()).to.equal(tradeFee1);
 
       let outputAmount;
       let tradeFee2;
@@ -621,13 +621,13 @@ describe("CollectionPoolETH", function () {
       await expectAddressToOwnNFTs(collectionPoolETH.address, nft, nftTokenIds);
 
       // The pool should accrue the trade fees
-      expect(await collectionPoolETH.tradeFee()).to.equal(
+      expect(await collectionPoolETH.accruedTradeFee()).to.equal(
         tradeFee1.add(tradeFee2)
       );
     });
 
     it("Should be able to withdraw trade fees", async function () {
-      const tradeFee = await collectionPoolETH.tradeFee();
+      const tradeFee = await collectionPoolETH.accruedTradeFee();
       expect(tradeFee).to.not.equal(0);
 
       // The user should receive the trade fees
@@ -639,11 +639,11 @@ describe("CollectionPoolETH", function () {
       );
 
       // Trade fee should be reset to 0
-      expect(await collectionPoolETH.tradeFee()).to.equal(0);
+      expect(await collectionPoolETH.accruedTradeFee()).to.equal(0);
     });
 
     it("Should be able to withdraw all", async function () {
-      const tradeFee = await collectionPoolETH.tradeFee();
+      const tradeFee = await collectionPoolETH.accruedTradeFee();
       expect(tradeFee).to.not.equal(0);
 
       // The user should receive everything
@@ -656,11 +656,11 @@ describe("CollectionPoolETH", function () {
       );
 
       // Trade fee should be reset to 0
-      expect(await collectionPoolETH.tradeFee()).to.equal(0);
+      expect(await collectionPoolETH.accruedTradeFee()).to.equal(0);
     });
 
     it("Should not be able to withdraw more than trade fees", async function () {
-      const tradeFee = await collectionPoolETH.tradeFee();
+      const tradeFee = await collectionPoolETH.accruedTradeFee();
       expect(tradeFee).to.not.equal(0);
 
       // The user should not be able to withdraw
@@ -669,7 +669,7 @@ describe("CollectionPoolETH", function () {
       );
 
       // Trade fee should still be the same
-      expect(await collectionPoolETH.tradeFee()).to.equal(tradeFee);
+      expect(await collectionPoolETH.accruedTradeFee()).to.equal(tradeFee);
     });
   });
 });
