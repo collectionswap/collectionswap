@@ -161,6 +161,7 @@ contract CollectionPoolFactory is
         // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
         // If not, we could re-use createPoolETH and check later.
         CollectionPoolETH _pool = CollectionPoolETH(payable(pool));
+        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
         require(
             _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
             "NFT not allowed"
@@ -184,6 +185,7 @@ contract CollectionPoolFactory is
         // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
         // If not, we could re-use createPoolERC20 and check later.
         CollectionPoolERC20 _pool = CollectionPoolERC20(payable(pool));
+        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
         require(
             _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
             "NFT not allowed"

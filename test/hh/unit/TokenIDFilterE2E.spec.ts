@@ -1,21 +1,3 @@
-/**
- * Testing approach for verifying fummpel library == TokenIDFilter contract:
- *
- * Let us refer to fummpel as JS and TokenIDFilter as SC.
- *
- * We need to show that the set of accepted inputs (where inputs consist of the
- * true set of accepted IDs and the list of IDs to verify) for JS and SC are
- * equal
- *
- * The classic approach to show this is to show that JS accepts => SC accepts
- * and JS rejects => SC rejects. However, we cannot even generate an input for
- * SC if JS rejects. Doing so is a problem no simpler than generating a hash
- * collision for the 256bit merkle tree root. Thus, we do not need to test the
- * second direction.
- *
- * This leaves us to test JS accepts => SC accepts, which is what this file sets
- * out to do empirically.
- */
 import { TokenIDs as TokenIds } from "filter_code";
 import { ethers, expect } from "hardhat";
 
@@ -26,6 +8,24 @@ import { getSigners } from "../shared/signers";
 import type { Test721Enumerable } from "../../../typechain-types";
 
 const MAX_ACCEPTED_TOKEN_IDS = 4;
+const WRONG_PROOF: any[] = [];
+
+/**
+ * @param hint An old filter whose tokenIds should be prioritized for addition to
+ * the output
+ */
+function getBannedIds(filter: TokenIds, n: number, hint?: TokenIds): bigint[] {
+  const arr = filter.tokens();
+  const output = new Set<bigint>(
+    hint?.tokens()?.filter((id) => !arr.includes(id)) ?? []
+  );
+  let nextElement = 0n;
+  while (output.size < n) {
+    while (arr.includes(nextElement) || output.has(nextElement)) nextElement++;
+    output.add(nextElement);
+  }
+  return Array.from(output).slice(0, n);
+}
 
 describe("Testing filter_code library is consistent with TokenIdFilter contract", function () {
   it("Should be able to create pool with subset of allowed ids as initial ids", async function () {
@@ -67,6 +67,30 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
     }
   });
 
+  it("Should not acceptTokenID for non-accepted IDs which are in pool", async function () {
+    for (
+      let filterSize = 1;
+      filterSize <= MAX_ACCEPTED_TOKEN_IDS;
+      filterSize++
+    ) {
+      for (
+        let numInitialIds = 0;
+        numInitialIds <= filterSize;
+        numInitialIds++
+      ) {
+        const { collectionPoolETH, tokenIdFilter } = await createFilteredPool(
+          filterSize,
+          numInitialIds
+        );
+
+        const unallowedId = getBannedIds(tokenIdFilter, 1)[0];
+
+        expect(await collectionPoolETH.acceptsTokenID(unallowedId, WRONG_PROOF))
+          .to.be.false;
+      }
+    }
+  });
+
   it("Should acceptTokenIDs for accepted IDs which are in pool", async function () {
     for (
       let filterSize = 1;
@@ -96,6 +120,43 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
               proofFlags
             )
           ).to.be.true;
+        }
+      }
+    }
+  });
+
+  it("Should not acceptTokenIDs for non accepted IDs which are in pool", async function () {
+    for (
+      let filterSize = 1;
+      filterSize <= MAX_ACCEPTED_TOKEN_IDS;
+      filterSize++
+    ) {
+      for (
+        let numInitialIds = 0;
+        numInitialIds <= filterSize;
+        numInitialIds++
+      ) {
+        const { collectionPoolETH, tokenIdFilter } = await createFilteredPool(
+          filterSize,
+          numInitialIds
+        );
+
+        for (let subsetSize = 1; subsetSize <= filterSize; subsetSize++) {
+          const bannedIds = getBannedIds(tokenIdFilter, subsetSize);
+          const allowedSubset = pickRandomElements(
+            tokenIdFilter.tokens(),
+            subsetSize
+          ).map(BigInt);
+
+          const spoof = tokenIdFilter.proof(allowedSubset);
+          const { proof, proofFlags } = spoof;
+          expect(
+            await collectionPoolETH.acceptsTokenIDs(
+              bannedIds,
+              proof,
+              proofFlags
+            )
+          ).to.be.false;
         }
       }
     }
@@ -157,6 +218,63 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
           for (const tokenId of idsToSell) {
             success = success && poolHeldIds.has(tokenId.toString());
           }
+        }
+      }
+    }
+  });
+
+  it("Should not allow swapNFTsForToken for non accepted IDs", async function () {
+    for (
+      let filterSize = 1;
+      filterSize <= MAX_ACCEPTED_TOKEN_IDS;
+      filterSize++
+    ) {
+      for (
+        let initialHeldIds = 0;
+        initialHeldIds < filterSize;
+        initialHeldIds++
+      ) {
+        for (
+          let sellQty = 1;
+          sellQty <= filterSize - initialHeldIds;
+          sellQty++
+        ) {
+          const {
+            collectionPoolETH: pool,
+            acceptedTokenIds,
+            tokenIdFilter,
+            owner,
+            nft,
+          } = await createFilteredPool(filterSize, initialHeldIds);
+
+          const poolIds = (await pool.getAllHeldIds()).map((bn) =>
+            bn.toString()
+          );
+          const otherAcceptedIds = acceptedTokenIds.filter((tokenId) => {
+            return !poolIds.includes(tokenId);
+          });
+
+          const bannedIds = getBannedIds(tokenIdFilter, sellQty);
+          const spoofIds = pickRandomElements(otherAcceptedIds, sellQty).map(
+            BigInt
+          );
+          const spoof = tokenIdFilter.proof(spoofIds);
+          const { proof, proofFlags } = spoof;
+          const quote = ethers.BigNumber.from(0);
+          await nft.connect(owner).setApprovalForAll(pool.address, true);
+          await expect(
+            pool.connect(owner).swapNFTsForToken(
+              {
+                ids: bannedIds,
+                proof,
+                proofFlags,
+              },
+              quote,
+              owner.address,
+              false,
+              owner.address
+            )
+          ).to.be.reverted;
         }
       }
     }
@@ -238,6 +356,35 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
     }
   });
 
+  it("Should not acceptTokenID for non accepted IDs which are in the pool after setTokenIDFilter", async function () {
+    for (
+      let newFilterSize = 1;
+      newFilterSize <= MAX_ACCEPTED_TOKEN_IDS;
+      newFilterSize++
+    ) {
+      const {
+        collectionPoolETH,
+        nft,
+        tokenIdFilter: oldFilter,
+      } = await createFilteredPool(1, 0);
+
+      const { acceptedTokenIds, tokenIdFilter: newFilter } =
+        await createFilteredPool(newFilterSize, 0, nft);
+
+      await collectionPoolETH.setTokenIDFilter(
+        newFilter.root(),
+        newFilter.encode()
+      );
+
+      expect(
+        await collectionPoolETH.acceptsTokenID(
+          getBannedIds(newFilter, 1, oldFilter)[0],
+          WRONG_PROOF
+        )
+      ).to.be.false;
+    }
+  });
+
   it("Should acceptTokenIDs for accepted IDs which are in the pool after setTokenIDFilter", async function () {
     for (
       let filterSize = 1;
@@ -277,6 +424,55 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
               proofFlags
             )
           ).to.be.true;
+        }
+      }
+    }
+  });
+
+  it("Should not acceptTokenIDs for non accepted IDs which are in the pool after setTokenIDFilter", async function () {
+    for (
+      let filterSize = 1;
+      filterSize <= MAX_ACCEPTED_TOKEN_IDS;
+      filterSize++
+    ) {
+      for (
+        let newFilterSize = 1;
+        newFilterSize <= MAX_ACCEPTED_TOKEN_IDS;
+        newFilterSize++
+      ) {
+        const {
+          collectionPoolETH,
+          nft,
+          tokenIdFilter: oldFilter,
+        } = await createFilteredPool(filterSize, 0);
+
+        const { tokenIdFilter: newFilter } = await createFilteredPool(
+          newFilterSize,
+          0,
+          nft
+        );
+
+        await collectionPoolETH.setTokenIDFilter(
+          newFilter.root(),
+          newFilter.encode()
+        );
+
+        for (let subsetSize = 1; subsetSize <= newFilterSize; subsetSize++) {
+          const bannedIds = getBannedIds(newFilter, subsetSize, oldFilter);
+          const allowedSubset = pickRandomElements(
+            newFilter.tokens(),
+            subsetSize
+          ).map(BigInt);
+
+          const spoof = newFilter.proof(allowedSubset);
+          const { proof, proofFlags } = spoof;
+          expect(
+            await collectionPoolETH.acceptsTokenIDs(
+              bannedIds,
+              proof,
+              proofFlags
+            )
+          ).to.be.false;
         }
       }
     }
@@ -357,6 +553,88 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
           for (const tokenId of idsToSell) {
             success = success && poolHeldIds.has(tokenId.toString());
           }
+        }
+      }
+    }
+  });
+
+  it("Should not allow swapNFTsForToken for non accepted IDs which are not in the pool after setTokenIDFilter", async function () {
+    for (
+      let filterSize = 1;
+      filterSize <= MAX_ACCEPTED_TOKEN_IDS;
+      filterSize++
+    ) {
+      for (
+        let initialHeldIds = 0;
+        initialHeldIds < filterSize;
+        initialHeldIds++
+      ) {
+        for (
+          let sellQty = 1;
+          sellQty <= filterSize - initialHeldIds;
+          sellQty++
+        ) {
+          const {
+            collectionPoolETH: pool,
+            nft,
+            tokenIdFilter: oldFilter,
+          } = await createFilteredPool(filterSize, 0);
+
+          const {
+            tokenIdFilter: newFilter,
+            owner,
+            acceptedTokenIds,
+          } = await createFilteredPool(filterSize, 0, nft);
+          await nft.connect(owner).setApprovalForAll(pool.address, true);
+
+          // Transfer initial NFTs into pool
+          await pool.setTokenIDFilter(newFilter.root(), newFilter.encode());
+          const initialIds = pickRandomElements(
+            newFilter.tokens(),
+            initialHeldIds
+          );
+          for (const id of initialIds) {
+            const { proof, proofFlags } = newFilter.proof([id]);
+            await pool.connect(owner).swapNFTsForToken(
+              {
+                ids: newFilter.sort([id]),
+                proof,
+                proofFlags,
+              },
+              0,
+              owner.address,
+              false,
+              owner.address
+            );
+          }
+
+          const poolIds = (await pool.getAllHeldIds()).map((bn) =>
+            bn.toString()
+          );
+          const otherAcceptedIds = acceptedTokenIds.filter((tokenId) => {
+            return !poolIds.includes(tokenId);
+          });
+          const bannedIds = getBannedIds(newFilter, sellQty, oldFilter);
+          const spoofIds = pickRandomElements(otherAcceptedIds, sellQty).map(
+            BigInt
+          );
+          const spoof = newFilter.proof(spoofIds);
+          const { proof, proofFlags } = spoof;
+          const quote = ethers.BigNumber.from(0);
+
+          await expect(
+            pool.connect(owner).swapNFTsForToken(
+              {
+                ids: bannedIds,
+                proof,
+                proofFlags,
+              },
+              quote,
+              owner.address,
+              false,
+              owner.address
+            )
+          ).to.be.reverted;
         }
       }
     }
