@@ -186,7 +186,7 @@ export async function createPoolEth(
     nftTokenIds,
     value,
     royaltyNumerator,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
   }: Params & {
     spotPrice: BigNumberish;
     nftTokenIds: BigNumberish[];
@@ -194,7 +194,7 @@ export async function createPoolEth(
     props: any;
     state: any;
     royaltyNumerator: BigNumberish;
-    royaltyRecipientOverride: string;
+    royaltyRecipientFallback: string;
   }
 ): Promise<{
   dBalance: BigNumberish;
@@ -217,7 +217,7 @@ export async function createPoolEth(
     props,
     state,
     royaltyNumerator,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
     initialNFTIDs: nftTokenIds,
   };
 

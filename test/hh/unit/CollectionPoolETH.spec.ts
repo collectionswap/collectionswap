@@ -74,7 +74,7 @@ describe("CollectionPoolETH", function () {
       props,
       state,
       royaltyNumerator,
-      royaltyRecipientOverride: ethers.constants.AddressZero,
+      royaltyRecipientFallback: ethers.constants.AddressZero,
       initialNFTIDs: nftTokenIds,
     });
     const { newPoolAddress: poolAddress, newTokenId: lpTokenId } =

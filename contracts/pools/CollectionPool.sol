@@ -98,9 +98,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     uint256 public royaltyNumerator;
 
     // An address to which all royalties will be paid to if not address(0). This
-    // overrides ERC2981 royalties set by the NFT creator, and allows sending
-    // royalties to arbitrary addresses even if a collection does not support ERC2981.
-    address payable public royaltyRecipientOverride;
+    // is a fallback to ERC2981 royalties set by the NFT creator, and allows sending
+    // royalties to arbitrary addresses if a collection does not support ERC2981.
+    address payable public royaltyRecipientFallback;
     // token ID assigned to the pool instance
     uint256 public tokenId;
 
@@ -125,7 +125,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event PropsUpdate(bytes newProps);
     event StateUpdate(bytes newState);
     event RoyaltyNumeratorUpdate(uint256 newRoyaltyNumerator);
-    event RoyaltyRecipientOverrideUpdate(address payable newOverride);
+    event RoyaltyRecipientFallbackUpdate(address payable newFallback);
 
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
@@ -182,11 +182,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param _spotPrice The initial price to sell an asset into the pool
      * @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18
      * being sent to the account to which the traded NFT's royalties are awardable.
-     * Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
-     * @param _royaltyRecipientOverride An address to which all royalties will
-     * be paid to if not address(0). This overrides ERC2981 royalties set by
-     * the NFT creator, and allows sending royalties to arbitrary addresses
-     * even if a collection does not support ERC2981.
+     * Must be 0 if `_nft` is not IERC2981 and no recipient fallback is set.
+     * @param _royaltyRecipientFallback An address to which all royalties will be paid to if not address(0).
+     * This is a fallback to ERC2981 royalties set by the NFT creator, and allows sending royalties to
+     * arbitrary addresses if a collection does not support ERC2981.
      */
     function initialize(
         uint256 _tokenId,
@@ -197,7 +196,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         bytes calldata _props,
         bytes calldata _state,
         uint256 _royaltyNumerator,
-        address payable _royaltyRecipientOverride
+        address payable _royaltyRecipientFallback
     ) external payable validRoyaltyNumerator(_royaltyNumerator) {
         require(tokenId == 0, "Initialized");
         tokenId = _tokenId;
@@ -224,7 +223,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         props = _props;
         state = _state;
         royaltyNumerator = _royaltyNumerator;
-        royaltyRecipientOverride = _royaltyRecipientOverride;
+        royaltyRecipientFallback = _royaltyRecipientFallback;
     }
 
     /**
@@ -533,11 +532,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         }
 
         // No recipient from ERC2981 royaltyInfo method. Check if we have a fallback
-        if (royaltyRecipientOverride != address(0)) {
-            return royaltyRecipientOverride;
+        if (royaltyRecipientFallback != address(0)) {
+            return royaltyRecipientFallback;
         }
 
-        // No ERC2981 recipient or recipient fallback. Default to pool.
+        // No ERC2981 recipient or recipient fallback. Default to pool's assetRecipient.
         return getAssetRecipient();
     }
 
@@ -889,20 +888,20 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         validRoyaltyNumerator(newRoyaltyNumerator)
     {
         require(
-            _validRoyaltyState(newRoyaltyNumerator, royaltyRecipientOverride, nft()),
-            "Invalid royaltyNumerator or royaltyRecipientOverride"
+            _validRoyaltyState(newRoyaltyNumerator, royaltyRecipientFallback, nft()),
+            "Invalid royaltyNumerator or royaltyRecipientFallback"
         );
         royaltyNumerator = newRoyaltyNumerator;
         emit RoyaltyNumeratorUpdate(newRoyaltyNumerator);
     }
 
-    function changeRoyaltyRecipientOverride(address payable newOverride) external onlyOwner {
+    function changeRoyaltyRecipientFallback(address payable newFallback) external onlyOwner {
         require(
-            _validRoyaltyState(royaltyNumerator, newOverride, nft()),
-            "Invalid royaltyNumerator or royaltyRecipientOverride"
+            _validRoyaltyState(royaltyNumerator, newFallback, nft()),
+            "Invalid royaltyNumerator or royaltyRecipientFallback"
         );
-        royaltyRecipientOverride = newOverride;
-        emit RoyaltyRecipientOverrideUpdate(newOverride);
+        royaltyRecipientFallback = newFallback;
+        emit RoyaltyRecipientFallbackUpdate(newFallback);
     }
 
     /**
@@ -985,7 +984,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @notice Returns true if it's valid to set the contract variables to the
      * variables passed to this function.
      */
-    function _validRoyaltyState(uint256 _royaltyNumerator, address payable _royaltyRecipientOverride, IERC721 _nft)
+    function _validRoyaltyState(uint256 _royaltyNumerator, address payable _royaltyRecipientFallback, IERC721 _nft)
         internal
         view
         returns (bool)
@@ -994,8 +993,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         // Supports 2981 interface to tell us who gets royalties or
         (
             IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981)
-            // There is an override so we always know where to send royaltiers or
-            || _royaltyRecipientOverride != address(0)
+            // There is a fallback so we always know where to send royaltiers or
+            || _royaltyRecipientFallback != address(0)
             // Royalties will not be paid
             || _royaltyNumerator == 0
         );

@@ -51,7 +51,7 @@ const DEFAULT_CREATE_ETH_POOL_PARAMS: ICollectionPoolFactory.CreateETHPoolParams
     props: [],
     state: [],
     royaltyNumerator: 0,
-    royaltyRecipientOverride: ethers.constants.AddressZero,
+    royaltyRecipientFallback: ethers.constants.AddressZero,
     initialNFTIDs: [],
   };
 const DEFAULT_CREATE_ERC20_POOL_PARAMS: ICollectionPoolFactory.CreateERC20PoolParamsStruct =
@@ -227,7 +227,7 @@ describe("CollectionPoolFactory", function () {
             if (Math.random() < 0.5) {
               this[`create${key}PoolParams`].nft = test721Royalty.address;
             } else {
-              this[`create${key}PoolParams`].royaltyRecipientOverride =
+              this[`create${key}PoolParams`].royaltyRecipientFallback =
                 randomAddress();
             }
           });
@@ -257,14 +257,14 @@ describe("CollectionPoolFactory", function () {
 
         describe("Royalty state", function () {
           withRoyaltyNumerator(function () {
-            withERC2981(withRoyaltyRecipientOverride(shouldRevert))();
-            withRoyaltyRecipientOverride(withERC2981(shouldRevert))();
+            withERC2981(withroyaltyRecipientFallback(shouldRevert))();
+            withroyaltyRecipientFallback(withERC2981(shouldRevert))();
           })();
           withERC2981(function () {
-            withRoyaltyNumerator(withRoyaltyRecipientOverride(shouldRevert))();
-            withRoyaltyRecipientOverride(withRoyaltyNumerator(shouldRevert))();
+            withRoyaltyNumerator(withroyaltyRecipientFallback(shouldRevert))();
+            withroyaltyRecipientFallback(withRoyaltyNumerator(shouldRevert))();
           })();
-          withRoyaltyRecipientOverride(function () {
+          withroyaltyRecipientFallback(function () {
             withERC2981(withRoyaltyNumerator(shouldRevert))();
             withRoyaltyNumerator(withERC2981(shouldRevert))();
           })();
@@ -308,18 +308,18 @@ describe("CollectionPoolFactory", function () {
             };
           }
 
-          function withRoyaltyRecipientOverride(fn: () => void) {
+          function withroyaltyRecipientFallback(fn: () => void) {
             return function () {
-              context("With royalty recipient override", function () {
+              context("With royalty recipient fallback", function () {
                 it("Should not revert", async function () {
-                  this[`create${key}PoolParams`].royaltyRecipientOverride =
+                  this[`create${key}PoolParams`].royaltyRecipientFallback =
                     randomAddress();
 
                   await expect(createPool.bind(this)()).not.to.be.reverted;
                 });
               });
 
-              context("Without royalty recipient override", function () {
+              context("Without royalty recipient fallback", function () {
                 fn();
               });
             };
@@ -328,7 +328,7 @@ describe("CollectionPoolFactory", function () {
           function shouldRevert() {
             it("Should revert", async function () {
               await expect(createPool.bind(this)()).to.be.revertedWith(
-                "Nonzero royalty for non ERC2981 without override"
+                "Nonzero royalty for non ERC2981 without fallback"
               );
             });
           }

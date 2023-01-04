@@ -264,7 +264,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         bytes calldata _props,
         bytes calldata _state,
         uint256 _royaltyNumerator,
-        address payable _royaltyRecipientOverride,
+        address payable _royaltyRecipientFallback,
         uint256[] calldata _initialNFTIDs
     ) external payable returns (uint256 currTokenId) {
         // create pool with empty NFTs first
@@ -284,7 +284,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
                 props: _props,
                 state: _state,
                 royaltyNumerator: _royaltyNumerator,
-                royaltyRecipientOverride: _royaltyRecipientOverride,
+                royaltyRecipientFallback: _royaltyRecipientFallback,
                 initialNFTIDs: _emptyInitialNFTIDs
             })
         );

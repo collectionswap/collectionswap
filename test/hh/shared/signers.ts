@@ -17,7 +17,7 @@ export async function getSigners() {
     royaltyRecipient3,
     royaltyRecipient4,
     royaltyRecipient5,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
   ] = await ethers.getSigners();
   return {
     owner,
@@ -35,6 +35,6 @@ export async function getSigners() {
     royaltyRecipient3,
     royaltyRecipient4,
     royaltyRecipient5,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
   };
 }

@@ -4,7 +4,7 @@ import { ethers } from "hardhat";
 import {
   royaltyFixture,
   royaltyWithPoolFixture,
-  royaltyWithPoolAndOverrideFixture,
+  royaltyWithPoolAndFallbackFixture,
 } from "../shared/fixtures";
 import {
   changesEtherBalancesFuzzy,
@@ -571,8 +571,8 @@ describe("Royalties", function () {
         fee,
         protocolFee,
         royaltyNumerator,
-        royaltyRecipientOverride,
-      } = await royaltyWithPoolAndOverrideFixture();
+        royaltyRecipientFallback,
+      } = await royaltyWithPoolAndFallbackFixture();
 
       const initialNftsInPool = (await pool.getAllHeldIds()).length;
       const amountsDue = new Map<string, BigNumber>();
@@ -653,7 +653,7 @@ describe("Royalties", function () {
           const nftSold = nftsToSell[i];
           let recipient = (await nft.royaltyInfo(nftSold, 0))[0];
           if (recipient === ethers.constants.AddressZero.toString()) {
-            recipient = royaltyRecipientOverride.address;
+            recipient = royaltyRecipientFallback.address;
           }
 
           const amount = ethers.utils.parseEther(
@@ -716,7 +716,7 @@ describe("Royalties", function () {
           )[0];
           let recipient = (await nft.royaltyInfo(nftSold, 0))[0];
           if (recipient === ethers.constants.AddressZero.toString()) {
-            recipient = royaltyRecipientOverride.address;
+            recipient = royaltyRecipientFallback.address;
           }
 
           const amount = ethers.utils.parseEther(
@@ -777,7 +777,7 @@ describe("Royalties", function () {
           const nftSold = nftsToBuy[i];
           let recipient = (await nft.royaltyInfo(nftSold, 0))[0];
           if (recipient === ethers.constants.AddressZero.toString()) {
-            recipient = royaltyRecipientOverride.address;
+            recipient = royaltyRecipientFallback.address;
           }
 
           const amount = ethers.utils.parseEther(
@@ -832,7 +832,7 @@ describe("Royalties", function () {
         fee,
         protocolFee,
         royaltyNumerator,
-        royaltyRecipientOverride,
+        royaltyRecipientFallback,
         collectionPoolFactory,
         ethPoolParams,
         tokenIdsWithoutRoyalty,
@@ -845,7 +845,7 @@ describe("Royalties", function () {
             ...ethPoolParams,
             nft: nft.address,
             royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
-            royaltyRecipientOverride: royaltyRecipientOverride.address,
+            royaltyRecipientFallback: royaltyRecipientFallback.address,
             initialNFTIDs: tokenIdsWithoutRoyalty,
           },
           {
@@ -943,7 +943,7 @@ describe("Royalties", function () {
 
         // Maintain royalties due
         for (let i = 0; i < nftsToSell.length; i++) {
-          const recipient = royaltyRecipientOverride.address;
+          const recipient = royaltyRecipientFallback.address;
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -998,7 +998,7 @@ describe("Royalties", function () {
 
         // Maintain royalties due
         for (let i = 0; i < numNftsToBuy; i++) {
-          const recipient = royaltyRecipientOverride.address;
+          const recipient = royaltyRecipientFallback.address;
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1054,7 +1054,7 @@ describe("Royalties", function () {
 
         // Maintain royalties due
         for (let i = 0; i < nftsToBuy.length; i++) {
-          const recipient = royaltyRecipientOverride.address;
+          const recipient = royaltyRecipientFallback.address;
           const amount = ethers.utils.parseEther(
             expectedRoyalties[i].toFixed(18)
           );
@@ -1189,7 +1189,7 @@ describe("Royalties", function () {
         .true;
     });
 
-    it("Should revert if setting nonzero but no override and not ERC2981", async function () {
+    it("Should revert if setting nonzero but no fallback and not ERC2981", async function () {
       const {
         tokenIdsWithoutRoyalty,
         collectionPoolFactory,
@@ -1204,7 +1204,7 @@ describe("Royalties", function () {
             ...ethPoolParams,
             nft: nft.address,
             royaltyNumerator: ethers.BigNumber.from("0"),
-            royaltyRecipientOverride: ethers.constants.AddressZero,
+            royaltyRecipientFallback: ethers.constants.AddressZero,
             initialNFTIDs: tokenIdsWithoutRoyalty,
           },
           {
@@ -1225,12 +1225,12 @@ describe("Royalties", function () {
           .connect(initialOwner)
           .changeRoyaltyNumerator(ethers.BigNumber.from("1"))
       ).to.be.revertedWith(
-        "Invalid royaltyNumerator or royaltyRecipientOverride"
+        "Invalid royaltyNumerator or royaltyRecipientFallback"
       );
     });
   });
 
-  describe("RoyaltyRecipientOverride updates", function () {
+  describe("royaltyRecipientFallback updates", function () {
     it("Should revert if called by non-owner", async function () {
       const {
         recipients,
@@ -1241,7 +1241,7 @@ describe("Royalties", function () {
       const unauthorizedAccounts = recipients.concat(otherAccount1);
       for (const account of unauthorizedAccounts) {
         await expect(
-          pool.connect(account).changeRoyaltyRecipientOverride(account.address)
+          pool.connect(account).changeRoyaltyRecipientFallback(account.address)
         ).to.be.revertedWith("not authorized");
       }
     });
@@ -1256,13 +1256,13 @@ describe("Royalties", function () {
       await expect(
         pool
           .connect(initialOwner)
-          .changeRoyaltyRecipientOverride(otherAccount1.address)
+          .changeRoyaltyRecipientFallback(otherAccount1.address)
       )
-        .to.emit(pool, "RoyaltyRecipientOverrideUpdate")
+        .to.emit(pool, "RoyaltyRecipientFallbackUpdate")
         .withArgs(otherAccount1.address);
     });
 
-    it("Should result in royalties being sent to the override after update", async function () {
+    it("Should result in royalties being sent to the fallback after update", async function () {
       const {
         initialOwner,
         collectionPoolETH: pool,
@@ -1272,11 +1272,11 @@ describe("Royalties", function () {
         royaltyNumerator,
         traderNfts,
         nft2981,
-      } = await royaltyWithPoolAndOverrideFixture();
+      } = await royaltyWithPoolAndFallbackFixture();
 
       await pool
         .connect(initialOwner)
-        .changeRoyaltyRecipientOverride(initialOwner.address);
+        .changeRoyaltyRecipientFallback(initialOwner.address);
 
       const specificTokenIds = traderNfts;
 
@@ -1336,7 +1336,7 @@ describe("Royalties", function () {
         .true;
     });
 
-    it("Should revert if setting recipient override to 0 (deleting it) when token is not ERC2981 and has nonzero numerator", async function () {
+    it("Should revert if setting recipient fallback to 0 (deleting it) when token is not ERC2981 and has nonzero numerator", async function () {
       const {
         tokenIdsWithoutRoyalty,
         collectionPoolFactory,
@@ -1352,7 +1352,7 @@ describe("Royalties", function () {
             ...ethPoolParams,
             nft: nft.address,
             royaltyNumerator: ethers.BigNumber.from("1"),
-            royaltyRecipientOverride: trader.address,
+            royaltyRecipientFallback: trader.address,
             initialNFTIDs: tokenIdsWithoutRoyalty,
           },
           {
@@ -1371,9 +1371,9 @@ describe("Royalties", function () {
       await expect(
         pool
           .connect(initialOwner)
-          .changeRoyaltyRecipientOverride(ethers.constants.AddressZero)
+          .changeRoyaltyRecipientFallback(ethers.constants.AddressZero)
       ).to.be.revertedWith(
-        "Invalid royaltyNumerator or royaltyRecipientOverride"
+        "Invalid royaltyNumerator or royaltyRecipientFallback"
       );
     });
   });

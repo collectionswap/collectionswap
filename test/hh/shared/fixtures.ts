@@ -35,7 +35,7 @@ type EthPoolParams = {
   props: any;
   state: any;
   royaltyNumerator: BigNumber;
-  royaltyRecipientOverride: string;
+  royaltyRecipientFallback: string;
   receiver: string;
 };
 
@@ -464,7 +464,7 @@ export async function everythingFixture() {
       props,
       state,
       royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
-      royaltyRecipientOverride: ethers.constants.AddressZero,
+      royaltyRecipientFallback: ethers.constants.AddressZero,
     },
   };
 
@@ -540,7 +540,7 @@ export function makeRewardVaultFixture(nftFixture: NFTFixture) {
       props,
       state,
       royaltyNumerator,
-      royaltyRecipientOverride:
+      royaltyRecipientFallback:
         supportsERC2981 || royaltyNumerator === "0"
           ? ethers.constants.AddressZero
           : ethers.Wallet.createRandom().address,
@@ -604,7 +604,7 @@ export async function royaltyFixture(): Promise<{
   nftNon2981: IERC721;
   initialOwner: SignerWithAddress;
   recipients: SignerWithAddress[];
-  royaltyRecipientOverride: SignerWithAddress;
+  royaltyRecipientFallback: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
   tokenIdsWithoutRoyalty: string[];
   collectionPoolFactory: CollectionPoolFactory;
@@ -621,7 +621,7 @@ export async function royaltyFixture(): Promise<{
     owner,
     royaltyRecipient0,
     royaltyRecipient1,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
   } = await getSigners();
 
   const nftsWithRoyalty = await mintRandomNfts(nft, owner.address, 4);
@@ -664,7 +664,7 @@ export async function royaltyFixture(): Promise<{
     collectionPoolFactory,
     otherAccount1,
     ethPoolParams,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
     fee: ethers.BigNumber.from(fee),
     protocolFee: ethers.BigNumber.from(protocolFee),
     royaltyNumerator: DEFAULT_VALID_ROYALTY,
@@ -683,7 +683,7 @@ export async function royaltyWithPoolFixture(): Promise<{
   nft2981: Test721EnumerableRoyalty;
   initialOwner: SignerWithAddress;
   recipients: SignerWithAddress[];
-  royaltyRecipientOverride: SignerWithAddress;
+  royaltyRecipientFallback: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
   collectionPoolFactory: CollectionPoolFactory;
   otherAccount1: SignerWithAddress;
@@ -703,7 +703,7 @@ export async function royaltyWithPoolFixture(): Promise<{
     collectionPoolFactory,
     otherAccount1,
     ethPoolParams,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
     fee,
     protocolFee,
     royaltyNumerator,
@@ -714,7 +714,7 @@ export async function royaltyWithPoolFixture(): Promise<{
       ...ethPoolParams,
       nft: nft2981.address,
       royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
-      royaltyRecipientOverride: ethers.constants.AddressZero,
+      royaltyRecipientFallback: ethers.constants.AddressZero,
       initialNFTIDs: tokenIdsWithRoyalty,
     },
     {
@@ -769,15 +769,15 @@ export async function royaltyWithPoolFixture(): Promise<{
     protocolFee,
     royaltyNumerator,
     enumerateTrader,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
   };
 }
 
-export async function royaltyWithPoolAndOverrideFixture(): Promise<{
+export async function royaltyWithPoolAndFallbackFixture(): Promise<{
   nft2981: Test721Enumerable;
   initialOwner: SignerWithAddress;
   recipients: SignerWithAddress[];
-  royaltyRecipientOverride: SignerWithAddress;
+  royaltyRecipientFallback: SignerWithAddress;
   tokenIdsWithRoyalty: string[];
   collectionPoolFactory: CollectionPoolFactory;
   otherAccount1: SignerWithAddress;
@@ -796,7 +796,7 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
     collectionPoolFactory,
     otherAccount1,
     ethPoolParams,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
   } = await royaltyFixture();
 
   const royaltyNumerator = DEFAULT_VALID_ROYALTY;
@@ -806,7 +806,7 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
       ...ethPoolParams,
       nft: nft2981.address,
       royaltyNumerator: ethers.BigNumber.from(royaltyNumerator),
-      royaltyRecipientOverride: royaltyRecipientOverride.address,
+      royaltyRecipientFallback: royaltyRecipientFallback.address,
       initialNFTIDs: tokenIdsWithRoyalty,
     },
     {
@@ -852,6 +852,6 @@ export async function royaltyWithPoolAndOverrideFixture(): Promise<{
     fee: ethers.BigNumber.from(fee),
     protocolFee: ethers.BigNumber.from(protocolFee),
     royaltyNumerator,
-    royaltyRecipientOverride,
+    royaltyRecipientFallback,
   };
 }

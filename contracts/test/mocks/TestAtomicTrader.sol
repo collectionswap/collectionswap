@@ -35,7 +35,7 @@ contract TestAtomicTrader is IERC721Receiver {
                 props: abi.encode(1e18, 1e18),
                 state: abi.encode(0),
                 royaltyNumerator: 0,
-                royaltyRecipientOverride: payable(address(0)),
+                royaltyRecipientFallback: payable(address(0)),
                 initialNFTIDs: nftIDs
             })
         );

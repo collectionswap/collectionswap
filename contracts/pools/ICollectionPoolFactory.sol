@@ -54,11 +54,9 @@ interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
      * @param spotPrice The initial selling spot price
      * @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18
      * being sent to the account to which the traded NFT's royalties are awardable.
-     * Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
-     * @param royaltyRecipientOverride An address to which all royalties will
-     * be paid to if not address(0). This overrides ERC2981 royalties set by
-     * the NFT creator, and allows sending royalties to arbitrary addresses
-     * even if a collection does not support ERC2981.
+     * Must be 0 if `_nft` is not IERC2981 and no recipient fallback is set.
+     * @param royaltyRecipientFallback An address to which all royalties will
+     * be paid to if not address(0) and ERC2981 is not supported or ERC2981 recipient is not set. 
      * @param initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pool
      * @return pool The new pool
      */
@@ -74,7 +72,7 @@ interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
         bytes props;
         bytes state;
         uint256 royaltyNumerator;
-        address payable royaltyRecipientOverride;
+        address payable royaltyRecipientFallback;
         uint256[] initialNFTIDs;
     }
 
@@ -94,11 +92,9 @@ interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
      * @param spotPrice The initial selling spot price, in ETH
      * @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18
      * being sent to the account to which the traded NFT's royalties are awardable.
-     * Must be 0 if `_nft` is not IERC2981 and no recipient override is set.
-     * @param royaltyRecipientOverride An address to which all royalties will
-     * be paid to if not address(0). This overrides ERC2981 royalties set by
-     * the NFT creator, and allows sending royalties to arbitrary addresses
-     * even if a collection does not support ERC2981.
+     * Must be 0 if `_nft` is not IERC2981 and no recipient fallback is set.
+     * @param royaltyRecipientFallback An address to which all royalties will
+     * be paid to if not address(0) and ERC2981 is not supported or ERC2981 recipient is not set. 
      * @param initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pool
      * @param initialTokenBalance The initial token balance sent from the sender to the new pool
      * @return pool The new pool
@@ -116,7 +112,7 @@ interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
         bytes props;
         bytes state;
         uint256 royaltyNumerator;
-        address payable royaltyRecipientOverride;
+        address payable royaltyRecipientFallback;
         uint256[] initialNFTIDs;
         uint256 initialTokenBalance;
     }

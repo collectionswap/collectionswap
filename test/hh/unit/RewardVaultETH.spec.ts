@@ -1237,7 +1237,7 @@ describe("RewardVaultETH", function () {
               params.props,
               params.state,
               params.royaltyNumerator,
-              params.royaltyRecipientOverride,
+              params.royaltyRecipientFallback,
               newNftTokenIds,
               { value: params.value }
             );
@@ -1272,7 +1272,7 @@ describe("RewardVaultETH", function () {
               params.props,
               params.state,
               params.royaltyNumerator,
-              params.royaltyRecipientOverride,
+              params.royaltyRecipientFallback,
               newNftTokenIds,
               { value: params.value }
             );

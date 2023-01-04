@@ -335,8 +335,8 @@ contract CollectionPoolFactory is
 
         require(
             params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientOverride != address(0),
-            "Nonzero royalty for non ERC2981 without override"
+                || params.royaltyRecipientFallback != address(0),
+            "Nonzero royalty for non ERC2981 without fallback"
         );
 
         // Check to see if the NFT supports Enumerable to determine which template to use
@@ -371,7 +371,7 @@ contract CollectionPoolFactory is
             _params.props,
             _params.state,
             _params.royaltyNumerator,
-            _params.royaltyRecipientOverride
+            _params.royaltyRecipientFallback
         );
 
         // transfer initial ETH to pool
@@ -386,8 +386,8 @@ contract CollectionPoolFactory is
 
         require(
             params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientOverride != address(0),
-            "Nonzero royalty for non ERC2981 without override"
+                || params.royaltyRecipientFallback != address(0),
+            "Nonzero royalty for non ERC2981 without fallback"
         );
 
         // Check to see if the NFT supports Enumerable to determine which template to use
@@ -422,7 +422,7 @@ contract CollectionPoolFactory is
             _params.props,
             _params.state,
             _params.royaltyNumerator,
-            _params.royaltyRecipientOverride
+            _params.royaltyRecipientFallback
         );
 
         // transfer initial tokens to pool
