@@ -191,14 +191,23 @@ abstract contract CollectionPoolERC20 is CollectionPool {
      * @dev Only callable by the owner.
      */
     function withdrawAllERC20() external onlyAuthorized {
+        uint256 _accruedTradeFee = accruedTradeFee;
         accruedTradeFee = 0;
 
         ERC20 _token = token();
         uint256 amount = _token.balanceOf(address(this));
         _token.safeTransfer(owner(), amount);
 
+        if (_accruedTradeFee >= amount) {
+            _accruedTradeFee = amount;
+            amount = 0;
+        } else {
+            amount -= _accruedTradeFee;
+        }
+
         // emit event since it is the pool token
         emit TokenWithdrawal(amount);
+        emit AccruedTradeFeeWithdrawal(_accruedTradeFee);
     }
 
     /// @inheritdoc ICollectionPool
@@ -222,7 +231,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
             token().safeTransfer(msg.sender, _accruedTradeFee);
 
             // emit event since it is the pool token
-            emit TokenWithdrawal(_accruedTradeFee);
+            emit AccruedTradeFeeWithdrawal(_accruedTradeFee);
         }
     }
 }

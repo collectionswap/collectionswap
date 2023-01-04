@@ -117,9 +117,22 @@ abstract contract CollectionPoolETH is CollectionPool {
      * @dev Only callable by the owner.
      */
     function withdrawAllETH() external onlyAuthorized {
+        uint256 _accruedTradeFee = accruedTradeFee;
         accruedTradeFee = 0;
 
-        _withdrawETH(address(this).balance);
+        uint256 amount = address(this).balance;
+        payable(owner()).safeTransferETH(amount);
+
+        if (_accruedTradeFee >= amount) {
+            _accruedTradeFee = amount;
+            amount = 0;
+        } else {
+            amount -= _accruedTradeFee;
+        }
+
+        // emit event since ETH is the pool token
+        emit TokenWithdrawal(amount);
+        emit AccruedTradeFeeWithdrawal(_accruedTradeFee);
     }
 
     /**
@@ -131,7 +144,10 @@ abstract contract CollectionPoolETH is CollectionPool {
     function withdrawETH(uint256 amount) external onlyAuthorized {
         require(liquidity() >= amount, "Too little ETH");
 
-        _withdrawETH(amount);
+        payable(owner()).safeTransferETH(amount);
+
+        // emit event since ETH is the pool token
+        emit TokenWithdrawal(amount);
     }
 
     /// @inheritdoc ICollectionPool
@@ -145,7 +161,10 @@ abstract contract CollectionPoolETH is CollectionPool {
         if (_accruedTradeFee > 0) {
             accruedTradeFee = 0;
 
-            _withdrawETH(_accruedTradeFee);
+            payable(owner()).safeTransferETH(_accruedTradeFee);
+
+            // emit event since ETH is the pool token
+            emit AccruedTradeFeeWithdrawal(_accruedTradeFee);
         }
     }
 
@@ -165,12 +184,5 @@ abstract contract CollectionPoolETH is CollectionPool {
         // Only allow calls without function selector
         require(msg.data.length == _immutableParamsLength());
         emit TokenDeposit(msg.value);
-    }
-
-    function _withdrawETH(uint256 amount) internal {
-        payable(owner()).safeTransferETH(amount);
-
-        // emit event since ETH is the pool token
-        emit TokenWithdrawal(amount);
     }
 }

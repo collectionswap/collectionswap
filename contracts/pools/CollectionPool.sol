@@ -108,11 +108,16 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     uint256 private creationTimestamp;
 
     // Events
-    event SwapNFTInPool();
-    event SwapNFTOutPool();
+    event SwapNFTInPool(
+        uint256[] nftIds, uint256 inputAmount, uint256 tradeFee, uint256 protocolFee, RoyaltyDue[] royaltyDue
+    );
+    event SwapNFTOutPool(
+        uint256[] nftIds, uint256 outputAmount, uint256 tradeFee, uint256 protocolFee, RoyaltyDue[] royaltyDue
+    );
     event SpotPriceUpdate(uint128 newSpotPrice);
     event TokenDeposit(uint256 amount);
     event TokenWithdrawal(uint256 amount);
+    event AccruedTradeFeeWithdrawal(uint256 amount);
     event NFTWithdrawal();
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
@@ -316,7 +321,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         _refundTokenToSender(inputAmount);
 
-        emit SwapNFTOutPool();
+        emit SwapNFTOutPool(nftIds, inputAmount, fees.trade, fees.protocol, royaltiesDue);
     }
 
     /**
@@ -367,7 +372,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         _takeNFTsFromSender(nft(), nfts.ids, _factory, isRouter, routerCaller);
 
-        emit SwapNFTInPool();
+        emit SwapNFTInPool(nfts.ids, outputAmount, fees.trade, fees.protocol, royaltiesDue);
     }
 
     function balanceToFulfillBuyNFT(uint256 numNFTs)
