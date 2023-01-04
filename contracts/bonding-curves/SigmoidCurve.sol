@@ -109,74 +109,7 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
         override
         returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees)
     {
-        // We only calculate changes for buying 1 or more NFTs
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
-        }
-
-        // Extract information about the state of the pool
-        (int128 k, int256 deltaN, uint256 pMin, uint256 deltaP) =
-            getSigmoidParameters(params.delta, params.props, params.state);
-
-        // First, set new spotPrice and delta equal to old spotPrice and delta
-        // as neither changes for this curve
-        newParams.spotPrice = params.spotPrice;
-        newParams.delta = params.delta;
-
-        // Next, it is easy to compute the new delta. Only deltaN changes as
-        // it is the only stateful variable.
-
-        // Verify that the resulting deltaN is will be valid. First ensure that
-        // `numItems` fits in a 64 bit unsigned int. Then we can subtract
-        // unchecked and manually check if bounds are exceeded
-        if (numItems > 0x7FFFFFFFFFFFFFFF) {
-            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
-        }
-
-        int256 _numItems = int256(numItems);
-        // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
-        if (!valid64x64Int(deltaN - _numItems)) {
-            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
-        }
-
-        newParams.state = encodeState(deltaN - _numItems);
-
-        // To avoid arbitrage, buy prices are calculated with deltaN incremented by 1
-        // Iterate to calculate values. No closed form expression for discrete
-        // sigmoid steps
-        int128 kDeltaN;
-        int128 fraction;
-        uint256 itemCost; // The cost of the n-th item
-        uint256 itemRoyalty; // The royalty for the n-th item
-
-        fees.royalties = new uint256[](numItems);
-        uint256 totalRoyalty;
-
-        // Buying NFTs means no. of NFTs held by the pool is decreasing
-        // Hence we decrease by n iteratively to the new price at fixedPointN for each NFT bought
-        // ie. P(newDeltaN) = P_min + (P_max - P_min) / (1 + 2 ** k * newDeltaN))
-        // = P_min + deltaP / (1 + 2 ** k * (deltaN - n))
-        // = P_min + deltaP (1 / (1 + 2 ** k * (deltaN - n)))
-        // the loop calculates the sum of (1 / (1 + 2 ** k * (deltaN - n))) before we apply scaling by deltaP
-        for (int256 n = 1; n <= _numItems;) {
-            kDeltaN = ABDKMath64x64.fromInt(deltaN - n).mul(k);
-            // fraction = 1 / (1 + 2 ** (k * (deltaN - n)))
-            fraction = ONE_64_64.div(ONE_64_64.add(kDeltaN.exp_2()));
-            itemCost = pMin + fraction.mulu(deltaP);
-            inputValue += itemCost;
-            itemRoyalty = itemCost.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
-            fees.royalties[uint256(n) - 1] = itemRoyalty;
-            totalRoyalty += itemRoyalty;
-
-            unchecked {
-                ++n;
-            }
-        }
-
-        (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
-
-        // If we got all the way here, no math error happened
-        // Error defaults to Error.OK, no need assignment
+        return getInfo(true, params, numItems, feeMultipliers);
     }
 
     /**
@@ -187,7 +120,15 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
         pure
         returns (CurveErrorCodes.Error error, Params memory newParams, uint256 outputValue, Fees memory fees)
     {
-        // We only calculate changes for selling 1 or more NFTs.
+        return getInfo(false, params, numItems, feeMultipliers);
+    }
+
+    function getInfo(bool isBuy, Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
+        internal
+        pure
+        returns (CurveErrorCodes.Error error, Params memory newParams, uint256 value, Fees memory fees)
+    {
+        // We only calculate changes for buying/selling 1 or more NFTs.
         if (numItems == 0) {
             return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
@@ -211,37 +152,43 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
             return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
+        // The only difference between buying and selling is whether the number of items is being incremented or decremented.
+        // Since buying nfts from the pool results in the pool having less nfts, we decrease the number of items for all calculations.
+        // Vice versa for selling.
+        int256 sign = isBuy ? -1 : int8(1);
+
         int256 _numItems = int256(numItems);
-        // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
-        if (!valid64x64Int(deltaN + _numItems)) {
+        // Ensure deltaN -/+ _numItems can be safecasted for 64.64 bit computations
+        if (!valid64x64Int(deltaN + sign * _numItems)) {
             return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
-        newParams.state = encodeState(deltaN + _numItems);
+        newParams.state = encodeState(deltaN + sign * _numItems);
 
         // Iterate to calculate values. No closed form expression for discrete
         // sigmoid steps
-        int128 kDeltaN;
-        int128 fraction;
-        uint256 itemCost; // The cost of the n-th item
-        uint256 itemRoyalty; // The royalty for the n-th item
+        uint256 itemCost;
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
 
-        // Selling NFTs means no. of NFTs is increasing
-        // Hence we increase by n iteratively to the new price at fixedPointN for each NFT bought
+        // We decrease / increase by n iteratively to the new price at fixedPointN for each NFT bought
         // ie. P(newDeltaN) = P_min + (P_max - P_min) / (1 + 2 ** (k * newDeltaN))
-        // = P_min + deltaP / (1 + 2 ** (k * (deltaN + n)))
-        // = P_min + deltaP * (1 / (1 + 2 ** (k * (deltaN + n))))
+        // = P_min + deltaP / (1 + 2 ** (k * (deltaN -/+ n)))
+        // = P_min + deltaP * (1 / (1 + 2 ** (k * (deltaN -/+ n))))
         // the loop calculates the sum of 1 / (1 + 2 ** (k * (deltaN + n))) before we apply scaling by deltaP
         for (int256 n = 1; n <= _numItems;) {
-            kDeltaN = ABDKMath64x64.fromInt(n + deltaN).mul(k);
-            // fraction = 1 / (1 + 2 ** (k * (deltaN + n)))
-            fraction = ONE_64_64.div(ONE_64_64.add(kDeltaN.exp_2()));
-            itemCost = pMin + fraction.mulu(deltaP);
-            outputValue += itemCost;
-            itemRoyalty = itemCost.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
+            // Locally scoped to avoid stack too deep error
+            {
+                int128 kDeltaN = ABDKMath64x64.fromInt(deltaN + sign * n).mul(k);
+                // fraction = 1 / (1 + 2 ** (k * (deltaN + n)))
+                int128 fraction = ONE_64_64.div(ONE_64_64.add(kDeltaN.exp_2()));
+
+                itemCost = pMin + fraction.mulu(deltaP);
+                value += itemCost;
+            }
+
+            uint256 itemRoyalty = itemCost.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
             fees.royalties[uint256(n) - 1] = itemRoyalty;
             totalRoyalty += itemRoyalty;
 
@@ -250,7 +197,9 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
             }
         }
 
-        (outputValue, fees) = getOutputValueAndFees(feeMultipliers, outputValue, fees.royalties, totalRoyalty);
+        (value, fees) = isBuy
+            ? getInputValueAndFees(feeMultipliers, value, fees.royalties, totalRoyalty)
+            : getOutputValueAndFees(feeMultipliers, value, fees.royalties, totalRoyalty);
 
         // If we reached here, no math errors
         // Error defaults to Error.OK, no need assignment
