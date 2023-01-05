@@ -843,3 +843,17 @@ export async function getNftTransfersTo(
 export function toBigInt(bn: BigNumber): bigint {
   return bn.toBigInt();
 }
+
+function toString(bn: BigNumber): string {
+  return bn.toString();
+}
+
+/**
+ * Returns the difference of S and T. i.e. All the elements in S that are not in T.
+ */
+export function difference(S: BigNumber[], T: BigNumber[]) {
+  const set = new Set(T.map(toString));
+  return S.map(toString)
+    .filter((x) => !set.has(x))
+    .map((x) => BigNumber.from(x));
+}
