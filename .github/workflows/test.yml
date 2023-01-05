@@ -6,9 +6,9 @@ on: [pull_request]
 
 # Task list
 jobs:
-  test:
+  compile:
     # Task name
-    name: Compile contracts & run tests
+    name: Compile contracts
 
     # Run on a virtual machine with Ubuntu
     runs-on: ubuntu-latest
@@ -19,18 +19,57 @@ jobs:
       # By default, the branch whose changes caused the script to run is used
       - uses: actions/checkout@v3
 
-      # Configuring Node.js 14 to run on a virtual machine
+      # Configuring Node.js 18 to run on a virtual machine
       - name: Use Node.js 18
         uses: actions/setup-node@v3
         with:
           node-version: 18
+          cache: yarn
 
       # The described bash commands will be executed
       - name: Install Dependencies
-        run: yarn
+        run: yarn install --frozen-lockfile --immutable
+
+      - name: Cache Hardhat Artifacts
+        id: cache-artifacts-hardhat
+        uses: actions/cache@v3
+        with:
+          path: |
+            artifacts
+            cache
+          key: artifacts-${{ runner.os }}-hardhat-${{ hashFiles('contracts') }}
+
+      - name: Compile Contracts
+        if: steps.cache-artifacts-hardhat.outputs.cache-hit != 'true'
+        run: TESTING=true yarn compile
+  test:
+    needs: compile
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        curve: [ linear, exponential, sigmoid ]
+    steps:
+      - uses: actions/checkout@v3
+
+      # Configuring Node.js 18 to run on a virtual machine
+      - name: Use Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: yarn
+
+      # The described bash commands will be executed
+      - name: Install Dependencies
+        run: yarn install --frozen-lockfile --immutable
+
+      - name: Cache Hardhat Artifacts
+        id: cache-artifacts-hardhat
+        uses: actions/cache@v3
+        with:
+          path: |
+            artifacts
+            cache
+          key: artifacts-${{ runner.os }}-hardhat-${{ hashFiles('contracts') }}
 
       - name: Run Tests
-        run: |
-          CURVE_TYPE=linear yarn test:hh
-          CURVE_TYPE=exponential yarn test:hh
-          CURVE_TYPE=sigmoid yarn test:hh
+        run: CURVE_TYPE=${{ matrix.curve }} yarn test:hh --parallel
