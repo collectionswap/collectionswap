@@ -1,9 +1,40 @@
 import { ethers } from "hardhat";
 
-export async function getSigners() {
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+
+export interface Signers {
+  owner: SignerWithAddress;
+
+  /** The deployer of Collection contracts */
+  collectionDeployer: SignerWithAddress;
+  collection: SignerWithAddress;
+
+  protocol: SignerWithAddress;
+
+  /** The user buying (selling) nfts from (to) the pool **/
+  user: SignerWithAddress;
+  user1: SignerWithAddress;
+  user2: SignerWithAddress;
+
+  hypotheticalProtocolOwner: SignerWithAddress;
+  hypotheticalProtocolFactory: SignerWithAddress;
+
+  royaltyRecipient0: SignerWithAddress;
+  royaltyRecipient1: SignerWithAddress;
+  royaltyRecipient2: SignerWithAddress;
+  royaltyRecipient3: SignerWithAddress;
+  royaltyRecipient4: SignerWithAddress;
+  royaltyRecipient5: SignerWithAddress;
+  royaltyRecipientFallback: SignerWithAddress;
+
+  /** The owner of the pool */
+  poolOwner: SignerWithAddress;
+}
+
+export async function getSigners(): Promise<Signers> {
   const [
     owner,
-    ammDeployer,
+    collectionDeployer,
     collection,
     protocol,
     user,
@@ -18,10 +49,11 @@ export async function getSigners() {
     royaltyRecipient4,
     royaltyRecipient5,
     royaltyRecipientFallback,
+    poolOwner,
   ] = await ethers.getSigners();
   return {
     owner,
-    ammDeployer,
+    collectionDeployer,
     collection,
     protocol,
     user,
@@ -36,5 +68,6 @@ export async function getSigners() {
     royaltyRecipient4,
     royaltyRecipient5,
     royaltyRecipientFallback,
+    poolOwner,
   };
 }

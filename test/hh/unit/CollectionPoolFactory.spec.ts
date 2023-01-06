@@ -3,7 +3,13 @@ import { expect } from "chai";
 import { TokenIDs } from "filter_code";
 import { ethers } from "hardhat";
 
-import { NUM_INITIAL_NFTS } from "../shared/constants";
+import {
+  DEFAULT_CREATE_ERC20_POOL_PARAMS,
+  DEFAULT_CREATE_ETH_POOL_PARAMS,
+  NUM_INITIAL_NFTS,
+  PoolVariant,
+} from "../shared/constants";
+import { getGasToCost } from "../shared/ethGasReporter";
 import {
   collectionFixture,
   nftFixture,
@@ -29,6 +35,7 @@ import type {
   TestCurve,
   Test20,
   Test721,
+  Test721Enumerable,
   Test721Royalty,
 } from "../../../typechain-types";
 import type {
@@ -38,39 +45,22 @@ import type {
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumber, ContractTransaction } from "ethers";
 
-const DEFAULT_CREATE_ETH_POOL_PARAMS: ICollectionPoolFactory.CreateETHPoolParamsStruct =
-  {
-    nft: ethers.constants.AddressZero,
-    bondingCurve: ethers.constants.AddressZero,
-    assetRecipient: ethers.constants.AddressZero,
-    receiver: ethers.constants.AddressZero,
-    poolType: 0,
-    delta: 0,
-    fee: 0,
-    spotPrice: 0,
-    props: [],
-    state: [],
-    royaltyNumerator: 0,
-    royaltyRecipientFallback: ethers.constants.AddressZero,
-    initialNFTIDs: [],
-  };
-const DEFAULT_CREATE_ERC20_POOL_PARAMS: ICollectionPoolFactory.CreateERC20PoolParamsStruct =
-  {
-    ...DEFAULT_CREATE_ETH_POOL_PARAMS,
-    token: ethers.constants.AddressZero,
-    initialTokenBalance: ethers.constants.Zero,
-  };
-
 describe("CollectionPoolFactory", function () {
+  let gasToCost: (gasUsed: BigNumber) => number;
   let collectionPoolFactory: CollectionPoolFactory;
   let testCurve: TestCurve;
   let test20: Test20;
   let test721: Test721;
+  let test721Enumerable: Test721Enumerable;
   let test721Royalty: Test721Royalty;
+  let collectionDeployer: SignerWithAddress;
   let user: SignerWithAddress;
 
   before("Get signers", async function () {
-    ({ user } = await getSigners());
+    ({ collectionDeployer, user } = await getSigners());
+  });
+  before(async function () {
+    gasToCost = await getGasToCost();
   });
 
   beforeEach("Load collectionFixture", async function () {
@@ -79,98 +69,102 @@ describe("CollectionPoolFactory", function () {
       curves: { test: testCurve },
       test20,
       test721,
+      test721Enumerable,
       test721Royalty,
     } = await loadFixture(collectionPoolFactoryFixture));
     collectionPoolFactory = collectionPoolFactory.connect(user);
   });
 
   describe("Create Pools", function () {
-    describe("#createPoolETH", function () {
-      testCreatePoolETH();
-    });
-
-    describe("#createPoolETHFiltered", function () {
-      testCreatePoolETH(true);
-
-      testFilter("ETH");
-    });
-
-    describe("#createPoolERC20", function () {
-      testCreatePoolERC20();
-    });
-
-    describe("#createPoolERC20Filtered", function () {
-      testCreatePoolERC20(true);
-
-      testFilter("ERC20");
-    });
+    testCreatePoolETH();
+    testCreatePoolETH(true);
+    testCreatePoolERC20();
+    testCreatePoolERC20(true);
 
     function testCreatePoolETH(filtered = false) {
-      beforeEach("Reset createETHPoolParams", function () {
-        this.createETHPoolParams = {
-          ...DEFAULT_CREATE_ETH_POOL_PARAMS,
-          nft: test721.address,
-          bondingCurve: testCurve.address,
-          receiver: randomAddress(),
-        };
-      });
+      describe(`#createPoolETH${filtered ? "Filtered" : ""}`, function () {
+        beforeEach("Reset createETHPoolParams", function () {
+          this.createETHPoolParams = {
+            ...DEFAULT_CREATE_ETH_POOL_PARAMS,
+            nft: test721.address,
+            bondingCurve: testCurve.address,
+            receiver: randomAddress(),
+          };
+        });
 
-      it("Should transfer ETH to pool", async function () {
-        const value = randomEthValue();
-        const tx = await collectionPoolFactory.createPoolETH(
-          this.createETHPoolParams,
-          {
-            value,
-          }
-        );
-        const { newPoolAddress } = await getPoolAddress(tx);
-        await expect(tx).changeEtherBalances(
-          [user, newPoolAddress],
-          [value.mul(-1), value]
-        );
-      });
+        it("Should transfer ETH to pool", async function () {
+          const value = randomEthValue();
+          const tx = await collectionPoolFactory.createPoolETH(
+            this.createETHPoolParams,
+            {
+              value,
+            }
+          );
+          const { newPoolAddress } = await getPoolAddress(tx);
+          await expect(tx).changeEtherBalances(
+            [user, newPoolAddress],
+            [value.mul(-1), value]
+          );
+        });
 
-      testCreatePool("ETH", filtered);
+        testCreatePool("ETH", filtered);
+
+        testPoolVariant("ETH", filtered);
+
+        if (filtered) {
+          testFilter("ETH");
+        }
+      });
     }
 
     function testCreatePoolERC20(filtered = false) {
-      beforeEach("Reset createERC20PoolParams", function () {
-        this.createERC20PoolParams = {
-          ...DEFAULT_CREATE_ERC20_POOL_PARAMS,
-          token: test20.address,
-          nft: test721.address,
-          bondingCurve: testCurve.address,
-          receiver: randomAddress(),
-        };
-      });
-
-      it("Should transfer ERC20 to pool", async function () {
-        const amount = await mintAndApproveRandomAmountToken(
-          test20,
-          user,
-          collectionPoolFactory.address
-        );
-
-        const tx = await collectionPoolFactory.createPoolERC20({
-          ...this.createERC20PoolParams,
-          initialTokenBalance: amount,
+      describe(`#createPoolERC20${filtered ? "Filtered" : ""}`, function () {
+        beforeEach("Reset createERC20PoolParams", function () {
+          this.createERC20PoolParams = {
+            ...DEFAULT_CREATE_ERC20_POOL_PARAMS,
+            token: test20.address,
+            nft: test721.address,
+            bondingCurve: testCurve.address,
+            receiver: randomAddress(),
+          };
         });
-        const { newPoolAddress } = await getPoolAddress(tx);
-        await expect(tx).changeTokenBalances(
-          test20,
-          [user, newPoolAddress],
-          [amount.mul(-1), amount]
-        );
-      });
 
-      testCreatePool("ERC20", filtered);
+        it("Should transfer ERC20 to pool", async function () {
+          const amount = await mintAndApproveRandomAmountToken(
+            test20,
+            user,
+            collectionPoolFactory.address
+          );
+
+          const tx = await collectionPoolFactory.createPoolERC20({
+            ...this.createERC20PoolParams,
+            initialTokenBalance: amount,
+          });
+          const { newPoolAddress } = await getPoolAddress(tx);
+          await expect(tx).changeTokenBalances(
+            test20,
+            [user, newPoolAddress],
+            [amount.mul(-1), amount]
+          );
+        });
+
+        testCreatePool("ERC20", filtered);
+
+        testPoolVariant("ERC20", filtered);
+
+        if (filtered) {
+          testFilter("ERC20");
+        }
+      });
     }
 
     function testCreatePool(key: "ETH" | "ERC20", filtered = false) {
       describe("Bonding Curve", function () {
         context("With whitelisted bonding curve", function () {
           it("Should not revert", async function () {
-            await expect(createPool.bind(this)()).not.to.be.reverted;
+            await expect(
+              createPool.bind(this)(key, filtered)
+            ).not.to.be.reverted;
           });
         });
 
@@ -179,9 +173,9 @@ describe("CollectionPoolFactory", function () {
             this[`create${key}PoolParams`].bondingCurve =
               ethers.constants.AddressZero;
 
-            await expect(createPool.bind(this)()).to.be.revertedWith(
-              "Bonding curve not whitelisted"
-            );
+            await expect(
+              createPool.bind(this)(key, filtered)
+            ).to.be.revertedWith("Bonding curve not whitelisted");
           });
         });
       });
@@ -192,20 +186,22 @@ describe("CollectionPoolFactory", function () {
             this[`create${key}PoolParams`].receiver =
               ethers.constants.AddressZero;
 
-            await expect(createPool.bind(this)()).to.be.revertedWith(
-              "ERC721: mint to the zero address"
-            );
+            await expect(
+              createPool.bind(this)(key, filtered)
+            ).to.be.revertedWith("ERC721: mint to the zero address");
           });
         });
 
         context("With non-zero address receiver", function () {
           it("Should not revert", async function () {
-            await expect(createPool.bind(this)()).not.to.be.reverted;
+            await expect(
+              createPool.bind(this)(key, filtered)
+            ).not.to.be.reverted;
           });
         });
 
         it("Should emit lp token to receiver", async function () {
-          const tx = await createPool.bind(this)();
+          const tx = await createPool.bind(this)(key, filtered);
           const { newTokenId } = await getPoolAddress(tx);
           expect(await collectionPoolFactory.ownerOf(newTokenId)).to.equal(
             this[`create${key}PoolParams`].receiver
@@ -213,11 +209,11 @@ describe("CollectionPoolFactory", function () {
         });
 
         it("Should increment lp token id", async function () {
-          const tx = await createPool.bind(this)();
+          const tx = await createPool.bind(this)(key, filtered);
           const { newTokenId } = await getPoolAddress(tx);
-          expect((await callStaticCreatePool.bind(this)()).tokenId).to.equal(
-            newTokenId.add(ethers.constants.One)
-          );
+          expect(
+            (await callStaticCreatePool.bind(this)(key, filtered)).tokenId
+          ).to.equal(newTokenId.add(ethers.constants.One));
         });
       });
 
@@ -237,9 +233,9 @@ describe("CollectionPoolFactory", function () {
               this[`create${key}PoolParams`].royaltyNumerator =
                 ethers.utils.parseEther("1");
 
-              await expect(createPool.bind(this)()).to.be.revertedWith(
-                "royaltyNumerator must be < 1e18"
-              );
+              await expect(
+                createPool.bind(this)(key, filtered)
+              ).to.be.revertedWith("royaltyNumerator must be < 1e18");
             });
           });
 
@@ -248,9 +244,9 @@ describe("CollectionPoolFactory", function () {
               this[`create${key}PoolParams`].royaltyNumerator =
                 ethers.constants.MaxUint256.sub(randomEthValue(1));
 
-              await expect(createPool.bind(this)()).to.be.revertedWith(
-                "royaltyNumerator must be < 1e18"
-              );
+              await expect(
+                createPool.bind(this)(key, filtered)
+              ).to.be.revertedWith("royaltyNumerator must be < 1e18");
             });
           });
         });
@@ -273,7 +269,9 @@ describe("CollectionPoolFactory", function () {
             return function () {
               context("With zero royalty numerator", function () {
                 it("Should not revert", async function () {
-                  await expect(createPool.bind(this)()).not.to.be.reverted;
+                  await expect(
+                    createPool.bind(this)(key, filtered)
+                  ).not.to.be.reverted;
                 });
               });
 
@@ -298,7 +296,9 @@ describe("CollectionPoolFactory", function () {
                 it("Should not revert", async function () {
                   this[`create${key}PoolParams`].nft = test721Royalty.address;
 
-                  await expect(createPool.bind(this)()).not.to.be.reverted;
+                  await expect(
+                    createPool.bind(this)(key, filtered)
+                  ).not.to.be.reverted;
                 });
               });
 
@@ -315,7 +315,9 @@ describe("CollectionPoolFactory", function () {
                   this[`create${key}PoolParams`].royaltyRecipientFallback =
                     randomAddress();
 
-                  await expect(createPool.bind(this)()).not.to.be.reverted;
+                  await expect(
+                    createPool.bind(this)(key, filtered)
+                  ).not.to.be.reverted;
                 });
               });
 
@@ -327,7 +329,9 @@ describe("CollectionPoolFactory", function () {
 
           function shouldRevert() {
             it("Should revert", async function () {
-              await expect(createPool.bind(this)()).to.be.revertedWith(
+              await expect(
+                createPool.bind(this)(key, filtered)
+              ).to.be.revertedWith(
                 "Nonzero royalty for non ERC2981 without fallback"
               );
             });
@@ -335,9 +339,74 @@ describe("CollectionPoolFactory", function () {
         });
       });
 
+      describe.skip("Gas", function () {
+        context("With enumerable", function () {
+          beforeEach("Set enumerable nft", function () {
+            this.nft = test721Enumerable;
+          });
+
+          testGas();
+        });
+
+        context("With non-enumerable", function () {
+          beforeEach("Set non-enumerable nft", function () {
+            this.nft = test721;
+          });
+
+          testGas();
+        });
+
+        function testGas() {
+          for (let i = 0; i <= NUM_INITIAL_NFTS; i++) {
+            context(`With ${i} nfts`, function () {
+              it("Should be gas efficient", async function () {
+                const tokenIds = await mintAndApproveRandomNfts(
+                  this.nft,
+                  user,
+                  collectionPoolFactory.address,
+                  i
+                );
+
+                let filterParams;
+                if (tokenIds.length) {
+                  const biTokenIds = tokenIds.map(toBigInt);
+                  const tokenIDs = new TokenIDs(biTokenIds);
+                  const { proof: initialProof, proofFlags: initialProofFlags } =
+                    tokenIDs.proof(biTokenIds);
+                  filterParams = {
+                    merkleRoot: tokenIDs.root(),
+                    encodedTokenIDs: tokenIDs.encode(),
+                    initialProof,
+                    initialProofFlags,
+                  };
+                }
+
+                const tx = await createPool.bind(this)(
+                  key,
+                  filtered,
+                  {
+                    nft: this.nft.address,
+                    initialNFTIDs: tokenIds,
+                  },
+                  filterParams
+                );
+                const receipt = await tx.wait();
+                const { gasUsed } = receipt;
+                console.log(
+                  `Used ${gasUsed.toString()} gas, cost $${gasToCost(gasUsed)}`
+                );
+              });
+            });
+          }
+        }
+      });
+
       it("Should emit NewPool event", async function () {
-        const { pool, tokenId } = await callStaticCreatePool.bind(this)();
-        await expect(createPool.bind(this)())
+        const { pool, tokenId } = await callStaticCreatePool.bind(this)(
+          key,
+          filtered
+        );
+        await expect(createPool.bind(this)(key, filtered))
           .to.emit(collectionPoolFactory, "NewPool")
           .withArgs(pool, tokenId);
       });
@@ -349,42 +418,13 @@ describe("CollectionPoolFactory", function () {
           collectionPoolFactory.address,
           NUM_INITIAL_NFTS
         );
-        await expectAddressToOwnNFTs(user.address, test721, tokenIds);
-        this[`create${key}PoolParams`].initialNFTIDs = tokenIds;
 
-        const tx = await createPool.bind(this)();
+        const tx = await createPool.bind(this)(key, filtered, {
+          initialNFTIDs: tokenIds,
+        });
         const { newPoolAddress } = await getPoolAddress(tx);
         await expectAddressToOwnNFTs(newPoolAddress, test721, tokenIds);
       });
-
-      async function createPool(): Promise<ContractTransaction> {
-        if (filtered) {
-          return collectionPoolFactory[`createPool${key}Filtered`](
-            this[`create${key}PoolParams`],
-            this.filterParams
-          );
-        }
-
-        return collectionPoolFactory[`createPool${key}`](
-          this[`create${key}PoolParams`]
-        );
-      }
-
-      async function callStaticCreatePool(): Promise<{
-        pool: string;
-        tokenId: BigNumber;
-      }> {
-        if (filtered) {
-          return collectionPoolFactory.callStatic[`createPool${key}Filtered`](
-            this[`create${key}PoolParams`],
-            this.filterParams
-          );
-        }
-
-        return collectionPoolFactory.callStatic[`createPool${key}`](
-          this[`create${key}PoolParams`]
-        );
-      }
     }
 
     function testFilter(key: "ETH" | "ERC20") {
@@ -548,6 +588,131 @@ describe("CollectionPoolFactory", function () {
         });
       });
     }
+
+    /**
+     * Tests if the pools created are of the correct variant.
+     */
+    function testPoolVariant(key: "ETH" | "ERC20", filtered = false) {
+      context("With enumerable", function () {
+        beforeEach("Set enumerable nft", function () {
+          this[`create${key}PoolParams`].nft = test721Enumerable.address;
+        });
+
+        it(`Should be enumerable ${key} variant`, async function () {
+          const tx = await createPool.bind(this)(key, filtered);
+          const { newPoolAddress } = await getPoolAddress(tx);
+          const collectionPool = await ethers.getContractAt(
+            "CollectionPool",
+            newPoolAddress
+          );
+
+          expect(await collectionPool.poolVariant()).to.equal(
+            PoolVariant[`ENUMERABLE_${key}`]
+          );
+        });
+      });
+
+      context("With non-enumerable", function () {
+        it("Should be missing enumerable eth variant", async function () {
+          const tx = await createPool.bind(this)(key, filtered);
+          const { newPoolAddress } = await getPoolAddress(tx);
+          const collectionPool = await ethers.getContractAt(
+            "CollectionPool",
+            newPoolAddress
+          );
+
+          expect(await collectionPool.poolVariant()).to.equal(
+            PoolVariant[`MISSING_ENUMERABLE_${key}`]
+          );
+        });
+      });
+    }
+
+    async function createPool(
+      key: "ETH" | "ERC20",
+      filtered = false,
+      poolParamsOverride?:
+        | Partial<ICollectionPoolFactory.CreateETHPoolParamsStruct>
+        | Partial<ICollectionPoolFactory.CreateERC20PoolParamsStruct>,
+      filterParamsOverride?: Partial<ICollectionPoolFactory.NFTFilterParamsStruct>
+    ): Promise<ContractTransaction> {
+      const poolParams = {
+        ...this[`create${key}PoolParams`],
+        ...poolParamsOverride,
+      };
+      if (filtered) {
+        return collectionPoolFactory[`createPool${key}Filtered`](poolParams, {
+          ...this.filterParams,
+          filterParamsOverride,
+        });
+      }
+
+      return collectionPoolFactory[`createPool${key}`](poolParams);
+    }
+
+    async function callStaticCreatePool(
+      key: "ETH" | "ERC20",
+      filtered = false
+    ): Promise<{
+      pool: string;
+      tokenId: BigNumber;
+    }> {
+      if (filtered) {
+        return collectionPoolFactory.callStatic[`createPool${key}Filtered`](
+          this[`create${key}PoolParams`],
+          this.filterParams
+        );
+      }
+
+      return collectionPoolFactory.callStatic[`createPool${key}`](
+        this[`create${key}PoolParams`]
+      );
+    }
+  });
+
+  describe("URI", function () {
+    const baseURI = "https://collection.xyz/api/";
+
+    describe("#setBaseURI", function () {
+      context("With non-owner", function () {
+        it("Should revert", async function () {
+          await expect(
+            collectionPoolFactory.setBaseURI(baseURI)
+          ).to.be.reverted;
+        });
+      });
+      context("With owner", function () {
+        it("Should set base URI", async function () {
+          await collectionPoolFactory
+            .connect(collectionDeployer)
+            .setBaseURI(baseURI);
+
+          expect(await collectionPoolFactory.baseURI()).to.equal(baseURI);
+        });
+      });
+    });
+
+    describe("#tokenURI", function () {
+      it("Should be a concatenation of baseURI and tokenId", async function () {
+        // set base uri
+        await collectionPoolFactory
+          .connect(collectionDeployer)
+          .setBaseURI(baseURI);
+
+        // emit lp token
+        const tx = await collectionPoolFactory.createPoolETH({
+          ...DEFAULT_CREATE_ETH_POOL_PARAMS,
+          nft: test721.address,
+          bondingCurve: testCurve.address,
+          receiver: randomAddress(),
+        });
+        const { newTokenId: tokenId } = await getPoolAddress(tx);
+
+        expect(await collectionPoolFactory.tokenURI(tokenId)).to.equal(
+          baseURI + tokenId
+        );
+      });
+    });
   });
 });
 

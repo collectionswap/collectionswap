@@ -3,7 +3,7 @@ import { BigNumber } from "ethers";
 import { formatEther } from "ethers/lib/utils";
 import { assert, ethers } from "hardhat";
 
-import { CURVE_TYPE } from "./constants";
+import { CURVE_TYPE, PoolType } from "./constants";
 import { randomBigNumber } from "./random";
 
 import type {
@@ -32,18 +32,15 @@ import type {
 
 const SIGMOID_NORMALIZATION_CONSTANT = 1024;
 
-enum PoolType {
-  TOKEN,
-  NFT,
-  TRADE,
-}
-
 export async function mintNfts(
   nft: IERC721Mintable,
   to: string,
   tokenIds: BigNumber[]
 ): Promise<BigNumber[]> {
-  return Promise.all(tokenIds.map((tokenId) => nft.mint(to, tokenId)));
+  await Promise.all(tokenIds.map((tokenId) => nft.mint(to, tokenId)));
+  await expectAddressToOwnNFTs(to, nft, tokenIds);
+
+  return tokenIds;
 }
 
 export async function mintRandomNfts(
@@ -51,13 +48,16 @@ export async function mintRandomNfts(
   to: string,
   n = 1
 ): Promise<BigNumber[]> {
-  return Promise.all(
+  const tokenIds = await Promise.all(
     new Array(n).fill(0).map(async () => {
       const id = randomBigNumber();
       await nft.mint(to, id);
       return id;
     })
   );
+  await expectAddressToOwnNFTs(to, nft, tokenIds);
+
+  return tokenIds;
 }
 
 export async function mintAndApproveNfts(
@@ -210,7 +210,7 @@ export async function createPoolEth(
     bondingCurve: bondingCurve.address,
     assetRecipient: ethers.constants.AddressZero,
     receiver: await factory.signer.getAddress(),
-    poolType: 2, // TRADE
+    poolType: PoolType.TRADE,
     delta,
     fee,
     spotPrice,
@@ -242,6 +242,16 @@ export async function expectAddressToOwnNFTs(
 ): Promise<void> {
   for (const tokenId of tokenIds) {
     expect(await nft.ownerOf(tokenId)).to.equal(address);
+  }
+}
+
+export async function expectNFTsToBeApprovedTo(
+  nft: ERC721,
+  tokenIds: BigNumber[],
+  address: string
+): Promise<void> {
+  for (const tokenId of tokenIds) {
+    expect(await nft.getApproved(tokenId)).to.equal(address);
   }
 }
 

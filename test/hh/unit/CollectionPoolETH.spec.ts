@@ -2,6 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
+import { PoolType } from "../shared/constants";
 import {
   getCurveParameters,
   collectionFixture,
@@ -49,18 +50,18 @@ describe("CollectionPoolETH", function () {
 
   async function collectionETHFixture() {
     const { protocol, user, user1 } = await getSigners();
-    const { curve, factory, ammDeployer } = await collectionFixture();
+    const { curve, factory, collectionDeployer } = await collectionFixture();
     const { nft } = await nftFixture();
     const nftTokenIds = await mintRandomNfts(nft, user.address);
     await nft.connect(user).setApprovalForAll(factory.address, true);
 
-    const poolType = 2;
+    const poolType = PoolType.TRADE;
     const fee = ethers.utils.parseEther("0.89");
     const { delta, spotPrice, props, state, royaltyNumerator, protocolFee } =
       getCurveParameters();
 
     const baseURI = "https://collection.xyz/api/";
-    await factory.connect(ammDeployer).setBaseURI(baseURI);
+    await factory.connect(collectionDeployer).setBaseURI(baseURI);
 
     const resp = await factory.connect(user).createPoolETH({
       nft: nft.address,

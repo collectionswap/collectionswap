@@ -1,7 +1,7 @@
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers } from "hardhat";
 
-import { config, CURVE_TYPE } from "./constants";
+import { config, CURVE_TYPE, PoolType } from "./constants";
 import { createPoolEth, getPoolAddress, mintRandomNfts } from "./helpers";
 import { getSigners } from "./signers";
 
@@ -227,50 +227,53 @@ export async function non2981NftFixture() {
 
 export async function nftFixture() {
   const { nft: test721 } = await test721Fixture();
+  const { nft: test721Enumerable } = await test721EnumerableFixture();
   const { nft: test721Royalty } = await test721RoyaltyFixture();
   const MyERC721 = await ethers.getContractFactory("Test721EnumerableRoyalty");
   const myERC721 = await MyERC721.deploy();
-  return { nft: myERC721, test721, test721Royalty };
+  return { nft: myERC721, test721, test721Enumerable, test721Royalty };
 }
 
 export async function collectionFixture() {
-  const { ammDeployer } = await getSigners();
+  const { collectionDeployer } = await getSigners();
 
   const CollectionPoolEnumerableETH = await ethers.getContractFactory(
-    "CollectionPoolEnumerableETH"
+    "CollectionPoolEnumerableETH",
+    collectionDeployer
   );
-  const collectionPoolEnumerableETH = await CollectionPoolEnumerableETH.connect(
-    ammDeployer
-  ).deploy();
+  const collectionPoolEnumerableETH =
+    await CollectionPoolEnumerableETH.deploy();
 
   const CollectionPoolMissingEnumerableETH = await ethers.getContractFactory(
-    "CollectionPoolMissingEnumerableETH"
+    "CollectionPoolMissingEnumerableETH",
+    collectionDeployer
   );
   const collectionPoolMissingEnumerableETH =
-    await CollectionPoolMissingEnumerableETH.connect(ammDeployer).deploy();
+    await CollectionPoolMissingEnumerableETH.deploy();
 
   const CollectionPoolEnumerableERC20 = await ethers.getContractFactory(
-    "CollectionPoolEnumerableERC20"
+    "CollectionPoolEnumerableERC20",
+    collectionDeployer
   );
   const collectionPoolEnumerableERC20 =
-    await CollectionPoolEnumerableERC20.connect(ammDeployer).deploy();
+    await CollectionPoolEnumerableERC20.deploy();
 
   const CollectionPoolMissingEnumerableERC20 = await ethers.getContractFactory(
-    "CollectionPoolMissingEnumerableERC20"
+    "CollectionPoolMissingEnumerableERC20",
+    collectionDeployer
   );
   const collectionPoolMissingEnumerableERC20 =
-    await CollectionPoolMissingEnumerableERC20.connect(ammDeployer).deploy();
+    await CollectionPoolMissingEnumerableERC20.deploy();
 
   const protocolFeeRecipient = ethers.constants.AddressZero;
   const protocolFeeMultiplier = ethers.utils.parseEther("0.05");
   const carryFeeMultiplier = ethers.utils.parseEther("0.05");
 
   const CollectionPoolFactory = await ethers.getContractFactory(
-    "CollectionPoolFactory"
+    "CollectionPoolFactory",
+    collectionDeployer
   );
-  const collectionPoolFactory = await CollectionPoolFactory.connect(
-    ammDeployer
-  ).deploy(
+  const collectionPoolFactory = await CollectionPoolFactory.deploy(
     collectionPoolEnumerableETH.address,
     collectionPoolMissingEnumerableETH.address,
     collectionPoolEnumerableERC20.address,
@@ -282,26 +285,38 @@ export async function collectionFixture() {
 
   // Deploy all contract types and set them allowed. Return only the desired
   // curve
-  const ExponentialCurve = await ethers.getContractFactory("ExponentialCurve");
-  const exponentialCurve = await ExponentialCurve.connect(ammDeployer).deploy();
+  const ExponentialCurve = await ethers.getContractFactory(
+    "ExponentialCurve",
+    collectionDeployer
+  );
+  const exponentialCurve = await ExponentialCurve.deploy();
   await collectionPoolFactory.setBondingCurveAllowed(
     exponentialCurve.address,
     true
   );
 
-  const LinearCurve = await ethers.getContractFactory("LinearCurve");
-  const linearCurve = await LinearCurve.connect(ammDeployer).deploy();
+  const LinearCurve = await ethers.getContractFactory(
+    "LinearCurve",
+    collectionDeployer
+  );
+  const linearCurve = await LinearCurve.deploy();
   await collectionPoolFactory.setBondingCurveAllowed(linearCurve.address, true);
 
-  const SigmoidCurve = await ethers.getContractFactory("SigmoidCurve");
-  const sigmoidCurve = await SigmoidCurve.connect(ammDeployer).deploy();
+  const SigmoidCurve = await ethers.getContractFactory(
+    "SigmoidCurve",
+    collectionDeployer
+  );
+  const sigmoidCurve = await SigmoidCurve.deploy();
   await collectionPoolFactory.setBondingCurveAllowed(
     sigmoidCurve.address,
     true
   );
 
-  const TestCurve = await ethers.getContractFactory("TestCurve");
-  const testCurve = await TestCurve.connect(ammDeployer).deploy();
+  const TestCurve = await ethers.getContractFactory(
+    "TestCurve",
+    collectionDeployer
+  );
+  const testCurve = await TestCurve.deploy();
   await collectionPoolFactory.setBondingCurveAllowed(testCurve.address, true);
 
   const curves: { [key in curveType | "test"]: any } = {
@@ -312,7 +327,7 @@ export async function collectionFixture() {
   };
 
   return {
-    ammDeployer,
+    collectionDeployer,
     curve: curves[CURVE_TYPE!],
     curves,
     factory: collectionPoolFactory,
@@ -415,7 +430,7 @@ export async function everythingFixture() {
   const nftContractCollection = myERC721;
   const nftContractCollection1155 = myERC1155;
   const assetRecipient = ethers.constants.AddressZero;
-  const poolType = 2; // TRADE
+  const poolType = PoolType.TRADE;
 
   const initialNFTIDs = [...Array(3).keys()].map((num) => num + 1234);
   await collectionPoolFactory.setBondingCurveAllowed(curve.address, true);
