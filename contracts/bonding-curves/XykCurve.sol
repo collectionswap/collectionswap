@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {ICurve} from "./ICurve.sol";
+import {Curve} from "./Curve.sol";
 import {CurveErrorCodes} from "./CurveErrorCodes.sol";
 import {CollectionPool} from "../pools/CollectionPool.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -14,52 +14,20 @@ import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
     @notice Bonding curve logic for an x*y=k curve using virtual reserves.
     @dev    The virtual token reserve is stored in `spotPrice` and the virtual nft reserve is stored in `delta`.
             An LP can modify the virtual reserves by changing the `spotPrice` (tokens) or `delta` (nfts).*/
-contract XykCurve is ICurve, CurveErrorCodes {
+contract XykCurve is Curve, CurveErrorCodes {
     using FixedPointMathLib for uint256;
-
-    /**
-     * @dev See {ICurve-validateDelta}
-     */
-    function validateDelta(uint128) external pure override returns (bool) {
-        // all values are valid
-        return true;
-    }
-
-    /**
-     * @dev See {ICurve-validateSpotPrice}
-     */
-    function validateSpotPrice(uint128) external pure override returns (bool) {
-        // all values are valid
-        return true;
-    }
-
-    /**
-     * @dev See {ICurve-validateProps}
-     */
-    function validateProps(bytes calldata /*props*/ ) external pure override returns (bool valid) {
-        // all values are valid
-        return true;
-    }
-
-    /**
-     * @dev See {ICurve-validateState}
-     */
-    function validateState(bytes calldata /*state*/ ) external pure override returns (bool valid) {
-        // all values are valid
-        return true;
-    }
 
     /**
      * @dev See {ICurve-getBuyInfo}
      */
-    function getBuyInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
+    function getBuyInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         pure
         override
-        returns (Error error, ICurve.Params memory newParams, uint256 inputValue, ICurve.Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees)
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         // get the pool's virtual nft and eth/erc20 reserves
@@ -68,21 +36,11 @@ contract XykCurve is ICurve, CurveErrorCodes {
 
         // If numItems is too large, we will get divide by zero error
         if (numItems >= nftBalance) {
-            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         // calculate the amount to send in
         uint256 inputValueWithoutFee = (numItems * tokenBalance) / (nftBalance - numItems);
-
-        // add the fees to the amount to send in
-        fees.protocol = inputValueWithoutFee.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
-
-        fees.trade = inputValueWithoutFee.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
-
-        // Account for the carry fee, only for Trade pools
-        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-        fees.trade -= carryFee;
-        fees.protocol += carryFee;
 
         fees.royalties = new uint256[](numItems);
         // For XYK, every item has the same price so royalties have the same value
@@ -98,9 +56,7 @@ contract XykCurve is ICurve, CurveErrorCodes {
         // Get the total royalties after accounting for integer division
         uint256 totalRoyalties = royaltyAmount * numItems;
 
-        // Account for the trade fee (only for Trade pools), protocol fee, and
-        // royalties
-        inputValue = inputValueWithoutFee + fees.trade + fees.protocol + totalRoyalties;
+        (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValueWithoutFee, fees.royalties, totalRoyalties);
 
         // set the new virtual reserves
         newParams.spotPrice = uint128(params.spotPrice + inputValueWithoutFee); // token reserve
@@ -116,14 +72,14 @@ contract XykCurve is ICurve, CurveErrorCodes {
     /**
      * @dev See {ICurve-getSellInfo}
      */
-    function getSellInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
+    function getSellInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         pure
         override
-        returns (Error error, ICurve.Params memory newParams, uint256 outputValue, ICurve.Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees)
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         // get the pool's virtual nft and eth/erc20 balance
@@ -132,16 +88,6 @@ contract XykCurve is ICurve, CurveErrorCodes {
 
         // calculate the amount to send out
         uint256 outputValueWithoutFee = (numItems * tokenBalance) / (nftBalance + numItems);
-
-        // subtract fees from amount to send out
-        fees.protocol = outputValueWithoutFee.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
-
-        fees.trade = outputValueWithoutFee.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
-
-        // Account for the carry fee, only for Trade pools
-        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-        fees.trade -= carryFee;
-        fees.protocol += carryFee;
 
         fees.royalties = new uint256[](numItems);
         // For XYK, every item has the same price so royalties have the same value
@@ -157,9 +103,8 @@ contract XykCurve is ICurve, CurveErrorCodes {
         // Get the total royalties after accounting for integer division
         uint256 totalRoyalties = royaltyAmount * numItems;
 
-        // Account for the trade fee (only for Trade pools), protocol fee, and
-        // royalties
-        outputValue = outputValueWithoutFee - fees.trade - fees.protocol - totalRoyalties;
+        (outputValue, fees) =
+            getOutputValueAndFees(feeMultipliers, outputValueWithoutFee, fees.royalties, totalRoyalties);
 
         // set the new virtual reserves
         newParams.spotPrice = uint128(params.spotPrice - outputValueWithoutFee); // token reserve

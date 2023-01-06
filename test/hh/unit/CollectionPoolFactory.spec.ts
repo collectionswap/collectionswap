@@ -26,7 +26,7 @@ import {
 import { getSigners } from "../shared/signers";
 
 import type {
-  NoopCurve,
+  TestCurve,
   Test20,
   Test721,
   Test721Royalty,
@@ -63,7 +63,7 @@ const DEFAULT_CREATE_ERC20_POOL_PARAMS: ICollectionPoolFactory.CreateERC20PoolPa
 
 describe("CollectionPoolFactory", function () {
   let collectionPoolFactory: CollectionPoolFactory;
-  let noopCurve: NoopCurve;
+  let testCurve: TestCurve;
   let test20: Test20;
   let test721: Test721;
   let test721Royalty: Test721Royalty;
@@ -76,7 +76,7 @@ describe("CollectionPoolFactory", function () {
   beforeEach("Load collectionFixture", async function () {
     ({
       factory: collectionPoolFactory,
-      curves: { noop: noopCurve },
+      curves: { test: testCurve },
       test20,
       test721,
       test721Royalty,
@@ -110,7 +110,7 @@ describe("CollectionPoolFactory", function () {
         this.createETHPoolParams = {
           ...DEFAULT_CREATE_ETH_POOL_PARAMS,
           nft: test721.address,
-          bondingCurve: noopCurve.address,
+          bondingCurve: testCurve.address,
           receiver: randomAddress(),
         };
       });
@@ -139,7 +139,7 @@ describe("CollectionPoolFactory", function () {
           ...DEFAULT_CREATE_ERC20_POOL_PARAMS,
           token: test20.address,
           nft: test721.address,
-          bondingCurve: noopCurve.address,
+          bondingCurve: testCurve.address,
           receiver: randomAddress(),
         };
       });

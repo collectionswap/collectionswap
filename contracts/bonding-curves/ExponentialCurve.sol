@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {ICurve} from "./ICurve.sol";
+import {Curve} from "./Curve.sol";
 import {CurveErrorCodes} from "./CurveErrorCodes.sol";
 import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 
 /*
     @author Collection
     @notice Bonding curve logic for an exponential curve, where each buy/sell changes spot price by multiplying/dividing delta*/
-contract ExponentialCurve is ICurve, CurveErrorCodes {
+contract ExponentialCurve is Curve, CurveErrorCodes {
     using FixedPointMathLib for uint256;
 
     // minimum price to prevent numerical issues
@@ -29,34 +29,18 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
     }
 
     /**
-     * @dev See {ICurve-validateProps}
-     */
-    function validateProps(bytes calldata /*props*/ ) external pure override returns (bool valid) {
-        // For an exponential curve, all values of props are valid
-        return true;
-    }
-
-    /**
-     * @dev See {ICurve-validateState}
-     */
-    function validateState(bytes calldata /*state*/ ) external pure override returns (bool valid) {
-        // For an exponential curve, all values of state are valid
-        return true;
-    }
-
-    /**
      * @dev See {ICurve-getBuyInfo}
      */
-    function getBuyInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
+    function getBuyInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         pure
         override
-        returns (Error error, ICurve.Params memory newParams, uint256 inputValue, ICurve.Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees)
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         uint256 deltaPowN = uint256(params.delta).fpow(numItems, FixedPointMathLib.WAD);
@@ -64,7 +48,7 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
         // For an exponential curve, the spot price is multiplied by delta for each item bought
         uint256 newSpotPrice_ = uint256(params.spotPrice).fmul(deltaPowN, FixedPointMathLib.WAD);
         if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.SPOT_PRICE_OVERFLOW, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
         newParams.spotPrice = uint128(newSpotPrice_);
 
@@ -84,20 +68,6 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             FixedPointMathLib.WAD
         );
 
-        // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
-        fees.protocol = inputValue.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
-
-        // Account for the trade fee, only for Trade pools
-        fees.trade = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
-
-        // Locally scoped to avoid stack too deep
-        {
-            // Account for the carry fee, only for Trade pools
-            uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-            fees.trade -= carryFee;
-            fees.protocol += carryFee;
-        }
-
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems;) {
@@ -114,8 +84,7 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             }
         }
 
-        // Add the fees to the required input amount
-        inputValue += fees.trade + fees.protocol + totalRoyalty;
+        (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
 
         // Keep delta the same
         newParams.delta = params.delta;
@@ -133,17 +102,17 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
      * This is to prevent the spot price from ever becoming 0, which would decouple the price
      * from the bonding curve (since 0 * delta is still 0)
      */
-    function getSellInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
+    function getSellInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         pure
         override
-        returns (Error error, ICurve.Params memory newParams, uint256 outputValue, ICurve.Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees)
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
 
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         uint256 invDelta = FixedPointMathLib.WAD.fdiv(params.delta, FixedPointMathLib.WAD);
@@ -169,20 +138,6 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             );
         }
 
-        // Account for the protocol fee, a flat percentage of the sell amount
-        fees.protocol = outputValue.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
-
-        // Account for the trade fee, only for Trade pools
-        fees.trade = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
-
-        // Locally scoped to avoid stack too deep
-        {
-            // Account for the carry fee, only for Trade pools
-            uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-            fees.trade -= carryFee;
-            fees.protocol += carryFee;
-        }
-
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems;) {
@@ -199,9 +154,7 @@ contract ExponentialCurve is ICurve, CurveErrorCodes {
             }
         }
 
-        // Account for the trade fee (only for Trade pools), protocol fee, and
-        // royalties
-        outputValue -= fees.trade + fees.protocol + totalRoyalty;
+        (outputValue, fees) = getOutputValueAndFees(feeMultipliers, outputValue, fees.royalties, totalRoyalty);
 
         // Keep delta the same
         newParams.delta = params.delta;

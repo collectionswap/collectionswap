@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {ICurve} from "./ICurve.sol";
+import {Curve} from "./Curve.sol";
 import {CurveErrorCodes} from "./CurveErrorCodes.sol";
 import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 
@@ -45,7 +45,7 @@ import {ABDKMath64x64} from "../lib/ABDKMATH64x64.sol";
  *   because most useful curves have k between 0 and 8, with small changes to k
  *   (e.g. 1/128) producing significant changes to the curve
  */
-contract SigmoidCurve is ICurve, CurveErrorCodes {
+contract SigmoidCurve is Curve, CurveErrorCodes {
     using FixedPointMathLib for uint256;
     using ABDKMath64x64 for int128;
     /**
@@ -63,17 +63,9 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
     }
 
     /**
-     * @dev See {ICurve-validateSpotPrice}
-     */
-    function validateSpotPrice(uint128 /* newSpotPrice */ ) external pure override returns (bool) {
-        // For a sigmoid curve, spot price is unused.
-        return true;
-    }
-
-    /**
      * @dev See {ICurve-validateProps}
      */
-    function validateProps(bytes calldata props) external pure returns (bool valid) {
+    function validateProps(bytes calldata props) external pure override returns (bool valid) {
         // The only way for P_min and deltaP to be invalid is if P_min + deltaP
         // causes overflow (i.e. P_max not in uint256 space)
 
@@ -92,7 +84,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
     /**
      * @dev See {ICurve-validateState}
      */
-    function validateState(bytes calldata state) external pure returns (bool valid) {
+    function validateState(bytes calldata state) external pure override returns (bool valid) {
         // convert to uint256 first, then check it doesn't exceed upper and lower bounds of int64
         // modified from https://github.com/GNSPS/solidity-bytes-utils/blob/master/contracts/BytesLib.sol#L374-L383
         if (state.length < 32) return false;
@@ -111,15 +103,15 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
     /**
      * @dev See {ICurve-getBuyInfo}
      */
-    function getBuyInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
+    function getBuyInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         pure
         override
-        returns (Error error, ICurve.Params memory newParams, uint256 inputValue, ICurve.Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees)
     {
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         // Extract information about the state of the pool
@@ -138,13 +130,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // `numItems` fits in a 64 bit unsigned int. Then we can subtract
         // unchecked and manually check if bounds are exceeded
         if (numItems > 0x7FFFFFFFFFFFFFFF) {
-            return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         int256 _numItems = int256(numItems);
         // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
         if (!valid64x64Int(deltaN - _numItems)) {
-            return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         newParams.state = encodeState(deltaN - _numItems);
@@ -181,20 +173,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
             }
         }
 
-        // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
-        fees.protocol = inputValue.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
-
-        // Account for the trade fee, only for Trade pools
-        fees.trade = inputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
-
-        // Account for the carry fee, only for Trade pools
-        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-        fees.trade -= carryFee;
-        fees.protocol += carryFee;
-
-        // Account for the trade fee (only for Trade pools), protocol fee, and
-        // royalties
-        inputValue += fees.trade + fees.protocol + totalRoyalty;
+        (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
 
         // If we got all the way here, no math error happened
         // Error defaults to Error.OK, no need assignment
@@ -203,19 +182,14 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
     /**
      * @dev See {ICurve-getSellInfo}
      */
-    function getSellInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
+    function getSellInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         pure
-        returns (
-            CurveErrorCodes.Error error,
-            ICurve.Params memory newParams,
-            uint256 outputValue,
-            ICurve.Fees memory fees
-        )
+        returns (CurveErrorCodes.Error error, Params memory newParams, uint256 outputValue, Fees memory fees)
     {
         // We only calculate changes for selling 1 or more NFTs.
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         // Extract information about the state of the pool
@@ -234,13 +208,13 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
         // `numItems` fits in a 64 bit unsigned int. Then we can subtract
         // unchecked and manually check if bounds are exceeded
         if (numItems > 0x7FFFFFFFFFFFFFFF) {
-            return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         int256 _numItems = int256(numItems);
         // Ensure deltaN + _numItems can be safecasted for 64.64 bit computations
         if (!valid64x64Int(deltaN + _numItems)) {
-            return (Error.TOO_MANY_ITEMS, ICurve.Params(0, 0, "", ""), 0, ICurve.Fees(0, 0, new uint256[](0)));
+            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
         }
 
         newParams.state = encodeState(deltaN + _numItems);
@@ -276,20 +250,7 @@ contract SigmoidCurve is ICurve, CurveErrorCodes {
             }
         }
 
-        // Account for the protocol fee, a flat percentage of the sell amount, only for Non-Trade pools
-        fees.protocol = outputValue.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
-
-        // Account for the trade fee, only for Trade pools
-        fees.trade = outputValue.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
-
-        // Account for the carry fee, only for Trade pools
-        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
-        fees.trade -= carryFee;
-        fees.protocol += carryFee;
-
-        // Account for the trade fee (only for Trade pools), protocol fee, and
-        // royalties
-        outputValue -= fees.trade + fees.protocol + totalRoyalty;
+        (outputValue, fees) = getOutputValueAndFees(feeMultipliers, outputValue, fees.royalties, totalRoyalty);
 
         // If we reached here, no math errors
         // Error defaults to Error.OK, no need assignment

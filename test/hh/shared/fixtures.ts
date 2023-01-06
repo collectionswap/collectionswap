@@ -300,15 +300,15 @@ export async function collectionFixture() {
     true
   );
 
-  const NoopCurve = await ethers.getContractFactory("NoopCurve");
-  const noopCurve = await NoopCurve.connect(ammDeployer).deploy();
-  await collectionPoolFactory.setBondingCurveAllowed(noopCurve.address, true);
+  const TestCurve = await ethers.getContractFactory("TestCurve");
+  const testCurve = await TestCurve.connect(ammDeployer).deploy();
+  await collectionPoolFactory.setBondingCurveAllowed(testCurve.address, true);
 
-  const curves: { [key in curveType | "noop"]: any } = {
+  const curves: { [key in curveType | "test"]: any } = {
     linear: linearCurve,
     exponential: exponentialCurve,
     sigmoid: sigmoidCurve,
-    noop: noopCurve,
+    test: testCurve,
   };
 
   return {
