@@ -12,14 +12,14 @@ import type {
   ICurve,
   Collectionstaker,
   IERC20,
-  IERC721,
   RewardVaultETH,
-  ERC721,
   IValidator,
   Test721Enumerable,
   CollectionPool,
   CollectionPoolETH,
 } from "../../../typechain-types";
+import type { PromiseOrValue } from "../../../typechain-types/common";
+import type { IERC20Mintable, IERC721, IERC721Mintable } from "./types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type {
   BigNumberish,
@@ -28,6 +28,7 @@ import type {
   Signer,
   Wallet,
   ContractTransaction,
+  Event,
 } from "ethers";
 
 const SIGMOID_NORMALIZATION_CONSTANT = 1024;
@@ -37,8 +38,7 @@ export async function mintNfts(
   to: string,
   tokenIds: BigNumber[]
 ): Promise<BigNumber[]> {
-  await Promise.all(tokenIds.map((tokenId) => nft.mint(to, tokenId)));
-  await expectAddressToOwnNFTs(to, nft, tokenIds);
+  await Promise.all(tokenIds.map(async (tokenId) => nft.mint(to, tokenId)));
 
   return tokenIds;
 }
@@ -48,16 +48,13 @@ export async function mintRandomNfts(
   to: string,
   n = 1
 ): Promise<BigNumber[]> {
-  const tokenIds = await Promise.all(
+  return Promise.all(
     new Array(n).fill(0).map(async () => {
       const id = randomBigNumber();
       await nft.mint(to, id);
       return id;
     })
   );
-  await expectAddressToOwnNFTs(to, nft, tokenIds);
-
-  return tokenIds;
 }
 
 export async function mintAndApproveNfts(
@@ -93,15 +90,23 @@ async function approveNfts(
   );
 }
 
-export async function mintAndApproveRandomAmountToken(
-  token: IER20Mintable,
+export async function mintAndApproveAmountToken(
+  token: IERC20Mintable,
   to: SignerWithAddress,
-  approveTo: string
+  approveTo: string,
+  amount: BigNumber
 ): Promise<BigNumber> {
-  const amount = randomBigNumber();
   await token.mint(to.address, amount);
   await token.connect(to).approve(approveTo, amount);
   return amount;
+}
+
+export async function mintAndApproveRandomAmountToken(
+  token: IERC20Mintable,
+  to: SignerWithAddress,
+  approveTo: string
+): Promise<BigNumber> {
+  return mintAndApproveAmountToken(token, to, approveTo, randomBigNumber());
 }
 
 interface Params {
@@ -237,8 +242,8 @@ export async function createPoolEth(
 
 export async function expectAddressToOwnNFTs(
   address: string,
-  nft: ERC721,
-  tokenIds: BigNumber[]
+  nft: IERC721,
+  tokenIds: PromiseOrValue<BigNumberish>[]
 ): Promise<void> {
   for (const tokenId of tokenIds) {
     expect(await nft.ownerOf(tokenId)).to.equal(address);
@@ -246,7 +251,7 @@ export async function expectAddressToOwnNFTs(
 }
 
 export async function expectNFTsToBeApprovedTo(
-  nft: ERC721,
+  nft: IERC721,
   tokenIds: BigNumber[],
   address: string
 ): Promise<void> {
@@ -464,7 +469,6 @@ export async function sellToPool(
       ids: [nftToSell],
       proof: [],
       proofFlags: [],
-      proofLeaves: [],
     },
     bidInputAmount,
     externalTrader.address,
@@ -710,7 +714,6 @@ export async function prepareQuoteValues(
           ids: quantityOrIds as string[],
           proof: [],
           proofFlags: [],
-          proofLeaves: [],
         },
         quote,
         trader.address,
@@ -850,12 +853,18 @@ export async function getNftTransfersTo(
     .map((description) => description.args.tokenId);
 }
 
+// Helper methods to interop with the filter_code library
+
 export function toBigInt(bn: BigNumber): bigint {
   return bn.toBigInt();
 }
 
 function toString(bn: BigNumber): string {
   return bn.toString();
+}
+
+export function toBigNumber(bi: bigint): BigNumber {
+  return BigNumber.from(bi);
 }
 
 /**
@@ -866,4 +875,8 @@ export function difference(S: BigNumber[], T: BigNumber[]) {
   return S.map(toString)
     .filter((x) => !set.has(x))
     .map((x) => BigNumber.from(x));
+}
+
+export function byEvent(eventName: string): (event: Event) => boolean {
+  return (event: Event): boolean => event.event === eventName;
 }

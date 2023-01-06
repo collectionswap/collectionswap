@@ -11,7 +11,7 @@ import {
 } from "../shared/constants";
 import { getGasToCost } from "../shared/ethGasReporter";
 import {
-  collectionFixture,
+  deployPoolContracts,
   nftFixture,
   test20Fixture,
 } from "../shared/fixtures";
@@ -718,7 +718,7 @@ describe("CollectionPoolFactory", function () {
 
 async function collectionPoolFactoryFixture() {
   return {
-    ...(await collectionFixture()),
+    ...(await deployPoolContracts()),
     ...(await nftFixture()),
     test20: await test20Fixture(),
   };

@@ -2,6 +2,16 @@ import { ethers } from "hardhat";
 
 import type { BigNumber } from "ethers";
 
+/**
+ * Returns an element at random with equal probabilities
+ */
+export function randomElement<T>(...elements: T[]): T {
+  const n = elements.length;
+  const r = Math.random();
+  const i = Math.floor(r * n);
+  return elements[i];
+}
+
 export function randomAddress(): string {
   return ethers.Wallet.createRandom().address;
 }

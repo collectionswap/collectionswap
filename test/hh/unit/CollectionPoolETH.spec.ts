@@ -5,7 +5,7 @@ import { ethers } from "hardhat";
 import { PoolType } from "../shared/constants";
 import {
   getCurveParameters,
-  collectionFixture,
+  deployPoolContracts,
   nftFixture,
 } from "../shared/fixtures";
 import {
@@ -50,7 +50,7 @@ describe("CollectionPoolETH", function () {
 
   async function collectionETHFixture() {
     const { protocol, user, user1 } = await getSigners();
-    const { curve, factory, collectionDeployer } = await collectionFixture();
+    const { curve, factory, collectionDeployer } = await deployPoolContracts();
     const { nft } = await nftFixture();
     const nftTokenIds = await mintRandomNfts(nft, user.address);
     await nft.connect(user).setApprovalForAll(factory.address, true);

@@ -3,6 +3,7 @@ import { ethers } from "hardhat";
 
 import { config, CURVE_TYPE, PoolType } from "./constants";
 import { createPoolEth, getPoolAddress, mintRandomNfts } from "./helpers";
+import { randomAddress, randomEthValue } from "./random";
 import { getSigners } from "./signers";
 
 import type {
@@ -10,13 +11,15 @@ import type {
   IERC721,
   CollectionPoolETH,
   CollectionPoolFactory,
+  Test721,
   Test721Enumerable,
-  IERC721Mintable,
   Test721EnumerableRoyalty,
+  Test721Royalty,
 } from "../../../typechain-types";
 import type { curveType } from "./constants";
+import type { IERC721Mintable } from "./types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { BigNumber } from "ethers";
+import type { Contract, BigNumber } from "ethers";
 
 const NUM_REWARD_TOKENS = 2;
 const DAY_DURATION = 86400;
@@ -142,7 +145,7 @@ export async function integrationFixture() {
 export async function factoryFixture() {
   const { collection } = await getSigners();
 
-  const { curve, factory } = await collectionFixture();
+  const { curve, factory } = await deployPoolContracts();
 
   return { curve, factory, collection };
 }
@@ -195,14 +198,14 @@ export async function rewardTokenFixture() {
 
 export type NFTFixture = () => Promise<{ nft: IERC721Mintable }>;
 
-export async function test721Fixture(): Promise<{ nft: IERC721Mintable }> {
+export async function test721Fixture(): Promise<{ nft: Test721 }> {
   const Test721 = await ethers.getContractFactory("Test721");
   const test721 = await Test721.deploy();
   return { nft: test721 };
 }
 
 export async function test721EnumerableFixture(): Promise<{
-  nft: IERC721Mintable;
+  nft: Test721Enumerable;
 }> {
   const Test721Enumerable = await ethers.getContractFactory(
     "Test721Enumerable"
@@ -211,8 +214,18 @@ export async function test721EnumerableFixture(): Promise<{
   return { nft: test721Enumerable };
 }
 
+export async function test721EnumerableRoyaltyFixture(): Promise<{
+  nft: Test721EnumerableRoyalty;
+}> {
+  const Test721EnumerableRoyalty = await ethers.getContractFactory(
+    "Test721EnumerableRoyalty"
+  );
+  const test721EnumerableRoyalty = await Test721EnumerableRoyalty.deploy();
+  return { nft: test721EnumerableRoyalty };
+}
+
 export async function test721RoyaltyFixture(): Promise<{
-  nft: IERC721Mintable;
+  nft: Test721Royalty;
 }> {
   const Test721Royalty = await ethers.getContractFactory("Test721Royalty");
   const test721Royalty = await Test721Royalty.deploy();
@@ -229,12 +242,57 @@ export async function nftFixture() {
   const { nft: test721 } = await test721Fixture();
   const { nft: test721Enumerable } = await test721EnumerableFixture();
   const { nft: test721Royalty } = await test721RoyaltyFixture();
+  const { nft: test721EnumerableRoyalty } =
+    await test721EnumerableRoyaltyFixture();
   const MyERC721 = await ethers.getContractFactory("Test721EnumerableRoyalty");
   const myERC721 = await MyERC721.deploy();
-  return { nft: myERC721, test721, test721Enumerable, test721Royalty };
+  return {
+    nft: myERC721,
+    test721,
+    test721Enumerable,
+    test721EnumerableRoyalty,
+    test721Royalty,
+  };
 }
 
-export async function collectionFixture() {
+export async function deployCurveContracts(): Promise<{
+  [key in curveType | "test"]: Contract;
+}> {
+  const { collectionDeployer } = await getSigners();
+
+  const ExponentialCurve = await ethers.getContractFactory(
+    "ExponentialCurve",
+    collectionDeployer
+  );
+  const exponentialCurve = await ExponentialCurve.deploy();
+
+  const LinearCurve = await ethers.getContractFactory(
+    "LinearCurve",
+    collectionDeployer
+  );
+  const linearCurve = await LinearCurve.deploy();
+
+  const SigmoidCurve = await ethers.getContractFactory(
+    "SigmoidCurve",
+    collectionDeployer
+  );
+  const sigmoidCurve = await SigmoidCurve.deploy();
+
+  const TestCurve = await ethers.getContractFactory(
+    "TestCurve",
+    collectionDeployer
+  );
+  const testCurve = await TestCurve.deploy();
+
+  return {
+    linear: linearCurve,
+    exponential: exponentialCurve,
+    sigmoid: sigmoidCurve,
+    test: testCurve,
+  };
+}
+
+export async function deployPoolContracts() {
   const { collectionDeployer } = await getSigners();
 
   const CollectionPoolEnumerableETH = await ethers.getContractFactory(
@@ -265,9 +323,9 @@ export async function collectionFixture() {
   const collectionPoolMissingEnumerableERC20 =
     await CollectionPoolMissingEnumerableERC20.deploy();
 
-  const protocolFeeRecipient = ethers.constants.AddressZero;
-  const protocolFeeMultiplier = ethers.utils.parseEther("0.05");
-  const carryFeeMultiplier = ethers.utils.parseEther("0.05");
+  const protocolFeeRecipient = randomAddress();
+  const protocolFeeMultiplier = randomEthValue(0.1);
+  const carryFeeMultiplier = randomEthValue(0.5);
 
   const CollectionPoolFactory = await ethers.getContractFactory(
     "CollectionPoolFactory",
@@ -283,54 +341,18 @@ export async function collectionFixture() {
     carryFeeMultiplier
   );
 
-  // Deploy all contract types and set them allowed. Return only the desired
-  // curve
-  const ExponentialCurve = await ethers.getContractFactory(
-    "ExponentialCurve",
-    collectionDeployer
-  );
-  const exponentialCurve = await ExponentialCurve.deploy();
-  await collectionPoolFactory.setBondingCurveAllowed(
-    exponentialCurve.address,
-    true
-  );
-
-  const LinearCurve = await ethers.getContractFactory(
-    "LinearCurve",
-    collectionDeployer
-  );
-  const linearCurve = await LinearCurve.deploy();
-  await collectionPoolFactory.setBondingCurveAllowed(linearCurve.address, true);
-
-  const SigmoidCurve = await ethers.getContractFactory(
-    "SigmoidCurve",
-    collectionDeployer
-  );
-  const sigmoidCurve = await SigmoidCurve.deploy();
-  await collectionPoolFactory.setBondingCurveAllowed(
-    sigmoidCurve.address,
-    true
-  );
-
-  const TestCurve = await ethers.getContractFactory(
-    "TestCurve",
-    collectionDeployer
-  );
-  const testCurve = await TestCurve.deploy();
-  await collectionPoolFactory.setBondingCurveAllowed(testCurve.address, true);
-
-  const curves: { [key in curveType | "test"]: any } = {
-    linear: linearCurve,
-    exponential: exponentialCurve,
-    sigmoid: sigmoidCurve,
-    test: testCurve,
-  };
+  const curves = await deployCurveContracts();
+  for (const curve of Object.values(curves)) {
+    await collectionPoolFactory.setBondingCurveAllowed(curve.address, true);
+  }
 
   return {
     collectionDeployer,
     curve: curves[CURVE_TYPE!],
     curves,
     factory: collectionPoolFactory,
+    protocolFeeMultiplier,
+    carryFeeMultiplier,
   };
 }
 
@@ -546,7 +568,7 @@ export function makeRewardVaultFixture(nftFixture: NFTFixture) {
     nft = nft.connect(user);
     rewardVault = rewardVault.connect(user);
 
-    const supportsERC2981 = await nft.supportsInterface(0x2a55205a);
+    const supportsERC2981 = await nft.supportsInterface("0x2a55205a");
     const params = {
       bondingCurve: curve as unknown as ICurve,
       delta,

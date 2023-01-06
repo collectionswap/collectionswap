@@ -18,8 +18,8 @@ contract TestCurve is Curve {
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         for (uint256 i; i < numItems; ++i) {
-            // cast to uint248 to prevent overflow
-            value = uint256(uint248(uint256(keccak256(abi.encodePacked(value, "buy", "value", i)))));
+            // cast to uint192 to prevent overflow
+            value = uint256(uint192(uint256(keccak256(abi.encodePacked(value, "buy", "value", i)))));
             inputValue += value;
 
             uint256 royalty = value.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
@@ -43,8 +43,8 @@ contract TestCurve is Curve {
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         for (uint256 i; i < numItems; ++i) {
-            // cast to uint248 to prevent overflow
-            value = uint256(uint248(uint256(keccak256(abi.encodePacked(value, "sell", "value", i)))));
+            // cast to uint192 to prevent overflow
+            value = uint256(uint192(uint256(keccak256(abi.encodePacked(value, "sell", "value", i)))));
             outputValue += value;
 
             uint256 royalty = value.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
