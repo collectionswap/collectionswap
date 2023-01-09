@@ -1,12 +1,9 @@
 /* eslint-disable new-cap */
-import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import {
-  changesEtherBalancesFuzzy,
-  changesEtherBalancesFuzzyMultipleTransactions,
-} from "../shared/helpers";
+import { changesEtherBalancesFuzzy } from "../shared/helpers";
 import { getSigners } from "../shared/signers";
 
 import type {
@@ -93,39 +90,12 @@ describe("Testing testnet competition faucets", function () {
     ).to.be.revertedWith("Not an approved faucet user");
   });
 
-  it("Should revert during cooldown", async function () {
+  it("Should revert if user called before", async function () {
     await faucet.connect(user).freeMint(user.address);
 
     await expect(
       faucet.connect(user).freeMint(user.address)
-    ).to.be.revertedWith("cooldown in effect");
-  });
-
-  it("Should dispense again after cooldown", async function () {
-    const oldERC20Balance = await erc20Faucet.balanceOf(user.address);
-    const oldERC721Balance = await erc721Faucet.balanceOf(user.address);
-
-    const tx1 = await faucet.connect(user).freeMint(user.address);
-    await time.increase(await faucet.COOLDOWN());
-    const tx2 = await faucet.connect(user).freeMint(user.address);
-
-    const newERC20Balance = await erc20Faucet.balanceOf(user.address);
-    const newERC721Balance = await erc721Faucet.balanceOf(user.address);
-
-    expect(
-      // Account for gas fees
-      await changesEtherBalancesFuzzyMultipleTransactions(
-        [tx1, tx2],
-        [user.address],
-        [(await faucet.ETH_MINT_AMOUNT()).mul(2)]
-      )
-    ).to.be.true;
-    expect(newERC20Balance).to.be.equal(
-      oldERC20Balance.add((await faucet.ERC20_MINT_AMOUNT()).mul(2))
-    );
-    expect(newERC721Balance).to.be.equal(
-      oldERC721Balance.add((await faucet.ERC721_MINT_AMOUNT()).mul(2))
-    );
+    ).to.be.revertedWith("Caller already used");
   });
 
   it("Should allow deployer to add allowed users", async function () {

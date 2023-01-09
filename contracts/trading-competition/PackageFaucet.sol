@@ -93,8 +93,7 @@ contract PackageFaucet is Pausable, Ownable {
     uint256 public ERC721_MINT_AMOUNT = 12;
     uint256 public ETH_MINT_AMOUNT = 0.005 ether;
 
-    uint256 public COOLDOWN = 1 days;
-    mapping(address => uint256) public cooldown;
+    mapping(address => bool) public hasClaimed;
 
     /**
      * Only addresses where `allowed[address] == true` can call freeMint
@@ -142,8 +141,8 @@ contract PackageFaucet is Pausable, Ownable {
      */
     function freeMint(address to) external {
         require(allowed[msg.sender], "Not an approved faucet user");
-        require(cooldown[msg.sender] < block.timestamp, "cooldown in effect");
-        cooldown[msg.sender] = block.timestamp + COOLDOWN;
+        require(!hasClaimed[msg.sender], "Caller already used");
+        hasClaimed[msg.sender] = true;
 
         erc20Faucet.freeMint(to, ERC20_MINT_AMOUNT);
         uint256[] memory idsMinted = erc721Faucet.freeMint(to, ERC721_MINT_AMOUNT);
