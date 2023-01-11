@@ -34,7 +34,6 @@ contract CollectionPoolFactory is
     Ownable,
     ReentrancyGuard,
     ERC721,
-    ERC721Enumerable,
     ERC721URIStorage,
     ICollectionPoolFactory
 {
@@ -509,7 +508,7 @@ contract CollectionPoolFactory is
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
         internal
-        override (ERC721, ERC721Enumerable)
+        override (ERC721)
     {
         super._beforeTokenTransfer(from, to, tokenId);
     }
@@ -522,7 +521,7 @@ contract CollectionPoolFactory is
         public
         view
         virtual
-        override (IERC165, ERC721, ERC721Enumerable)
+        override (IERC165, ERC721)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);

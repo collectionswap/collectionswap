@@ -8,7 +8,7 @@ import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {ICollectionPool} from "../pools/ICollectionPool.sol";
 
-interface ICollectionPoolFactory is IERC721, IERC721Enumerable {
+interface ICollectionPoolFactory is IERC721 {
     enum PoolVariant {
         ENUMERABLE_ETH,
         MISSING_ENUMERABLE_ETH,
