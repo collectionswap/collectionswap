@@ -304,6 +304,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             require((nftIds.length > 0), "Must ask for > 0 NFTs");
         }
 
+        // Prevent users from making a ridiculous pool, buying out their "sucker"
+        // price, and then staking this pool with liquidity at really bad prices
+        // into a reward vault
         require(creationTimestamp != block.timestamp, "Trade blocked");
 
         // Call bonding curve for pricing information
@@ -354,6 +357,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             require(nfts.ids.length > 0, "Must ask for > 0 NFTs");
             require(acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags), "NFT not allowed");
         }
+
+        // Prevent users from making a ridiculous pool, buying out their "sucker"
+        // price, and then staking this pool with liquidity at really bad prices
+        // into a reward vault
+        require(creationTimestamp != block.timestamp, "Trade blocked");
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;

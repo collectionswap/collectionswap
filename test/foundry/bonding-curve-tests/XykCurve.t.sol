@@ -384,13 +384,12 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
     }
 
     function test_swapNFTsForToken() public {
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
-
         // arrange
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
         setUpEthPool(numNfts, value);
+        // skip 1 second so that trades are not in the same timestamp as pool creation
+        skip(1);
 
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         ethPool.changeFee((1 * 1e18) / 100); // 1%
