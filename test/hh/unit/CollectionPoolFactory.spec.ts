@@ -63,7 +63,7 @@ describe("CollectionPoolFactory", function () {
     gasToCost = await getGasToCost();
   });
 
-  beforeEach("Load collectionFixture", async function () {
+  beforeEach("Load factoryFixture ", async function () {
     ({
       factory: collectionPoolFactory,
       curves: { test: testCurve },

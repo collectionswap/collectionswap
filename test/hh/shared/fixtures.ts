@@ -1,8 +1,15 @@
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { TokenIDs } from "filter_code";
 import { ethers } from "hardhat";
 
 import { config, CURVE_TYPE, PoolType } from "./constants";
-import { createPoolEth, getPoolAddress, mintRandomNfts } from "./helpers";
+import {
+  createPoolEth,
+  getPoolAddress,
+  mintRandomNfts,
+  pickRandomElements,
+  toBigInt,
+} from "./helpers";
 import { randomAddress, randomEthValue } from "./random";
 import { getSigners } from "./signers";
 
@@ -26,6 +33,8 @@ const DAY_DURATION = 86400;
 const REWARD_DURATION = DAY_DURATION;
 const REWARDS = [ethers.utils.parseEther("5"), ethers.utils.parseEther("7")];
 export const DEFAULT_VALID_ROYALTY = ethers.utils.parseUnits("1", 15);
+
+export const TRADING_QUANTITY = 4;
 
 type EthPoolParams = {
   nft: string;
@@ -104,7 +113,7 @@ export async function integrationFixture() {
   const { factory, collectionstaker, curve } = await collectionstakerFixture();
   const { monotonicIncreasingValidator } = await validatorFixture();
   const rewardTokens = (await rewardTokenFixture()).slice(0, NUM_REWARD_TOKENS);
-  const { nft } = await nftFixture();
+  const { nft } = await test721Fixture();
 
   for (let i = 0; i < NUM_REWARD_TOKENS; i++) {
     await rewardTokens[i].mint(protocol.address, REWARDS[i]);
@@ -661,7 +670,11 @@ export async function royaltyFixture(): Promise<{
     royaltyRecipientFallback,
   } = await getSigners();
 
-  const nftsWithRoyalty = await mintRandomNfts(nft, owner.address, 4);
+  const nftsWithRoyalty = await mintRandomNfts(
+    nft,
+    owner.address,
+    TRADING_QUANTITY
+  );
   const { fee, protocolFee } = getCurveParameters();
 
   const nftNon2981 = (await non2981NftFixture()).nft as unknown as IERC721;
@@ -755,8 +768,7 @@ export async function royaltyWithPoolFixture(): Promise<{
       initialNFTIDs: tokenIdsWithRoyalty,
     },
     {
-      value: ethers.BigNumber.from(`${8e18}`),
-      gasLimit: 1000000,
+      value: ethers.BigNumber.from(`${20e18}`),
     }
   );
   const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
@@ -766,7 +778,11 @@ export async function royaltyWithPoolFixture(): Promise<{
   );
 
   // Give the trader some nfts so both directions can be tested
-  const traderNfts = await mintRandomNfts(nft2981, otherAccount1.address, 4);
+  const traderNfts = await mintRandomNfts(
+    nft2981,
+    otherAccount1.address,
+    TRADING_QUANTITY
+  );
 
   // Approve all for trading with the pool
   await nft2981
@@ -847,8 +863,7 @@ export async function royaltyWithPoolAndFallbackFixture(): Promise<{
       initialNFTIDs: tokenIdsWithRoyalty,
     },
     {
-      value: ethers.BigNumber.from(`${8e18}`),
-      gasLimit: 1000000,
+      value: ethers.BigNumber.from(`${20e18}`),
     }
   );
   const { newPoolAddress } = await getPoolAddress(collectionPoolETHContractTx);
@@ -890,5 +905,160 @@ export async function royaltyWithPoolAndFallbackFixture(): Promise<{
     protocolFee: ethers.BigNumber.from(protocolFee),
     royaltyNumerator,
     royaltyRecipientFallback,
+  };
+}
+
+/**
+ * For general trading purposes. Gives a pool, factory, pool owner, trader, and
+ * nfts to owner, trader and pool
+ */
+export async function genericTradingFixture(nftFixture: NFTFixture): Promise<{
+  pool: CollectionPoolETH;
+  trader: SignerWithAddress;
+  traderNfts: BigNumber[];
+  factory: CollectionPoolFactory;
+  owner: SignerWithAddress;
+  ownerNfts: BigNumber[];
+  nft: IERC721Mintable;
+  filter: undefined;
+}> {
+  const { delta, fee, spotPrice, props, state, royaltyNumerator } =
+    getCurveParameters();
+
+  const { factory, curve } = await factoryFixture();
+  const { nft } = await nftFixture();
+  const { owner, user1 } = await getSigners();
+  const tokenIds = await mintRandomNfts(
+    nft as any,
+    owner.address,
+    TRADING_QUANTITY
+  );
+  const initialIds = pickRandomElements(tokenIds, TRADING_QUANTITY);
+  const traderNfts = await mintRandomNfts(nft, user1.address, TRADING_QUANTITY);
+  const ownerNfts = await mintRandomNfts(nft, owner.address, TRADING_QUANTITY);
+  await nft.connect(owner).setApprovalForAll(factory.address, true);
+  await nft.connect(user1).setApprovalForAll(factory.address, true);
+
+  const poolParams = {
+    nft: nft.address,
+    bondingCurve: curve.address,
+    assetRecipient: ethers.constants.AddressZero,
+    receiver: owner.address,
+    poolType: 2,
+    delta,
+    fee,
+    spotPrice,
+    props,
+    state,
+    royaltyNumerator,
+    royaltyRecipientFallback: owner.address,
+    initialNFTIDs: initialIds,
+  };
+
+  const tx = await factory.connect(owner).createPoolETH(poolParams, {
+    value: ethers.utils.parseEther("20"),
+  });
+
+  const { newPoolAddress } = await getPoolAddress(tx);
+  const collectionPoolETH = await ethers.getContractAt(
+    "CollectionPoolETH",
+    newPoolAddress
+  );
+
+  await nft.connect(owner).setApprovalForAll(newPoolAddress, true);
+  await nft.connect(user1).setApprovalForAll(newPoolAddress, true);
+
+  return {
+    pool: collectionPoolETH,
+    trader: user1,
+    traderNfts,
+    factory,
+    owner,
+    ownerNfts,
+    nft,
+    filter: undefined,
+  };
+}
+
+export async function filteredTradingFixture(nftFixture: NFTFixture): Promise<{
+  pool: CollectionPoolETH;
+  trader: SignerWithAddress;
+  traderNfts: BigNumber[];
+  factory: CollectionPoolFactory;
+  owner: SignerWithAddress;
+  ownerNfts: BigNumber[];
+  nft: IERC721Mintable;
+  filter: TokenIDs;
+}> {
+  const { delta, fee, spotPrice, props, state, royaltyNumerator } =
+    getCurveParameters();
+
+  const { factory, curve } = await factoryFixture();
+  const { nft } = await nftFixture();
+  const { owner, user1 } = await getSigners();
+  const tokenIds = await mintRandomNfts(
+    nft as any,
+    owner.address,
+    TRADING_QUANTITY
+  );
+  const initialIds = pickRandomElements(tokenIds, TRADING_QUANTITY);
+  const traderNfts = await mintRandomNfts(nft, user1.address, TRADING_QUANTITY);
+  const ownerNfts = await mintRandomNfts(nft, owner.address, TRADING_QUANTITY);
+  await nft.connect(owner).setApprovalForAll(factory.address, true);
+  await nft.connect(user1).setApprovalForAll(factory.address, true);
+
+  const arr = tokenIds.concat(traderNfts).concat(ownerNfts).map(toBigInt);
+  const filter = new TokenIDs(arr);
+  const { proof: initialProof, proofFlags: initialProofFlags } = filter.proof(
+    initialIds.map(toBigInt)
+  );
+
+  const poolParams = {
+    nft: nft.address,
+    bondingCurve: curve.address,
+    assetRecipient: ethers.constants.AddressZero,
+    receiver: owner.address,
+    poolType: 2,
+    delta,
+    fee,
+    spotPrice,
+    props,
+    state,
+    royaltyNumerator,
+    royaltyRecipientFallback: owner.address,
+    initialNFTIDs: filter.sort(initialIds.map(toBigInt)),
+  };
+
+  const filterParams = {
+    merkleRoot: filter.root(),
+    encodedTokenIDs: filter.encode(),
+    initialProof,
+    initialProofFlags,
+  };
+
+  const tx = await factory
+    .connect(owner)
+    .createPoolETHFiltered(poolParams, filterParams, {
+      value: ethers.utils.parseEther("20"),
+    });
+
+  const { newPoolAddress } = await getPoolAddress(tx);
+  const collectionPoolETH = await ethers.getContractAt(
+    "CollectionPoolETH",
+    newPoolAddress
+  );
+
+  await nft.connect(owner).setApprovalForAll(newPoolAddress, true);
+  await nft.connect(user1).setApprovalForAll(newPoolAddress, true);
+
+  return {
+    pool: collectionPoolETH,
+    trader: user1,
+    traderNfts,
+    factory,
+    owner,
+    ownerNfts,
+    nft,
+    filter,
   };
 }

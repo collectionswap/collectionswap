@@ -376,8 +376,8 @@ contract CollectionPoolFactory is
         // transfer initial ETH to pool
         payable(address(_pool)).safeTransferETH(msg.value);
 
-        // transfer initial NFTs from sender to pool
-        TransferLib.bulkSafeTransferERC721From(_params.nft, msg.sender, address(_pool), _params.initialNFTIDs);
+        // transfer initial NFTs from sender to pool and notify pool
+        _depositNFTs(_params.nft, _params.initialNFTIDs, _pool, msg.sender);
     }
 
     function _createPoolERC20(CreateERC20PoolParams calldata params) internal returns (address pool, uint256 tokenId) {
@@ -427,34 +427,42 @@ contract CollectionPoolFactory is
         // transfer initial tokens to pool
         _params.token.safeTransferFrom(msg.sender, address(_pool), _params.initialTokenBalance);
 
-        // transfer initial NFTs from sender to pool
-        TransferLib.bulkSafeTransferERC721From(_params.nft, msg.sender, address(_pool), _params.initialNFTIDs);
+        // transfer initial NFTs from sender to pool and notify pool
+        _depositNFTs(_params.nft, _params.initialNFTIDs, _pool, msg.sender);
     }
 
     /**
      * @dev Used to deposit NFTs into a pool after creation and emit an event for indexing (if recipient is indeed a pool)
      */
     function depositNFTs(
-        IERC721 _nft,
         uint256[] calldata ids,
         bytes32[] calldata proof,
         bool[] calldata proofFlags,
-        address recipient
+        address recipient,
+        address from
     ) external {
         bool _isPool = isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.ENUMERABLE_ETH)
             || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20)
             || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ETH);
 
-        if (_isPool) {
-            require(CollectionPool(recipient).acceptsTokenIDs(ids, proof, proofFlags), "NFT not allowed");
-        }
+        require(_isPool, "Not a pool");
+
+        CollectionPool pool = CollectionPool(recipient);
+        require(pool.acceptsTokenIDs(ids, proof, proofFlags), "NFTs not allowed");
 
         // transfer NFTs from caller to recipient
-        TransferLib.bulkSafeTransferERC721From(_nft, msg.sender, recipient, ids);
+        _depositNFTs(pool.nft(), ids, pool, from);
 
-        if (_isPool) {
-            emit NFTDeposit(recipient);
-        }
+        emit NFTDeposit(recipient);
+    }
+
+    /**
+     * @dev Transfers NFTs from sender and notifies pool. `ids` must already have been verified
+     */
+    function _depositNFTs(IERC721 _nft, uint256[] calldata nftIds, CollectionPool pool, address from) internal {
+        // transfer NFTs from caller to recipient
+        TransferLib.bulkSafeTransferERC721From(_nft, from, address(pool), nftIds);
+        pool.depositNFTsNotification(nftIds);
     }
 
     /**
@@ -475,9 +483,11 @@ contract CollectionPoolFactory is
         require(_isApprovedOrOwner(spender, tokenId), "Not approved");
     }
 
-    /// @dev requires LP token owner to give allowance to this factory contract for asset withdrawals
-    /// @dev withdrawn assets are sent directly to the LPToken owner
-    /// @dev does not withdraw airdropped assets, that should be done prior to calling this function
+    /*
+     * @notice NFTs that don't match filter and any airdropped assets  must be rescued prior to calling this function.
+     * Requires LP token owner to give allowance to this factory contract for asset withdrawals
+     * which are sent directly to the LP token owner.
+     */
     function burn(uint256 tokenId) external nonReentrant {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Not approved");
         address poolAddress = poolAddressOf(tokenId);
@@ -486,7 +496,7 @@ contract CollectionPoolFactory is
 
         // withdraw all ETH / ERC20
         if (poolVariant == PoolVariant.ENUMERABLE_ETH || poolVariant == PoolVariant.MISSING_ENUMERABLE_ETH) {
-            // withdraw ETH, sent to owner of LPToken
+            // withdraw ETH, sent to owner of LP token
             CollectionPoolETH(payable(poolAddress)).withdrawAllETH();
         } else if (poolVariant == PoolVariant.ENUMERABLE_ERC20 || poolVariant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
             // withdraw ERC20

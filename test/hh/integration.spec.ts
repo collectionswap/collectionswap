@@ -67,7 +67,7 @@ describe("integration", function () {
       props,
       state,
       royaltyNumerator,
-      royaltyRecipientFallback: ethers.constants.AddressZero,
+      royaltyRecipientFallback: user.address,
     });
     const { lpTokenId, poolAddress } = result;
     let { dBalance } = result;

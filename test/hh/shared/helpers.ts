@@ -880,3 +880,9 @@ export function difference(S: BigNumber[], T: BigNumber[]) {
 export function byEvent(eventName: string): (event: Event) => boolean {
   return (event: Event): boolean => event.event === eventName;
 }
+
+export async function gasUsed(
+  txOrReceipt: ContractTransaction
+): Promise<BigNumber> {
+  return (await txOrReceipt.wait()).cumulativeGasUsed;
+}

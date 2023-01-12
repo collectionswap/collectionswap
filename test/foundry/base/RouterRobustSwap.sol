@@ -78,6 +78,12 @@ abstract contract RouterRobustSwap is
         // pool 1 has spot price of 0.1 TOKEN, then pool 2 has 0.2 TOKEN, and pool 3 has 0.3 TOKEN
         // Send 10 NFTs to each pool
         // (0-9), (10-19), (20-29)
+
+        // Pools must be properly notified of deposits
+        uint256[] memory nftIds = new uint256[](10);
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
         pool1 = this.setupPool{value: modifyInputAmount(10 ether)}(
             factory,
             test721,
@@ -93,9 +99,10 @@ abstract contract RouterRobustSwap is
         );
         for (uint256 j = 0; j < 10; j++) {
             test721.mint(address(this), nftIndex);
-            test721.safeTransferFrom(address(this), address(pool1), nftIndex);
+            nftIds[j] = nftIndex;
             nftIndex++;
         }
+        factory.depositNFTs(nftIds, proof, proofFlags, address(pool1), address(this));
 
         pool2 = this.setupPool{value: modifyInputAmount(10 ether)}(
             factory,
@@ -112,9 +119,10 @@ abstract contract RouterRobustSwap is
         );
         for (uint256 j = 0; j < 10; j++) {
             test721.mint(address(this), nftIndex);
-            test721.safeTransferFrom(address(this), address(pool2), nftIndex);
+            nftIds[j] = nftIndex;
             nftIndex++;
         }
+        factory.depositNFTs(nftIds, proof, proofFlags, address(pool2), address(this));
 
         pool3 = this.setupPool{value: modifyInputAmount(10 ether)}(
             factory,
@@ -131,9 +139,10 @@ abstract contract RouterRobustSwap is
         );
         for (uint256 j = 0; j < 10; j++) {
             test721.mint(address(this), nftIndex);
-            test721.safeTransferFrom(address(this), address(pool3), nftIndex);
+            nftIds[j] = nftIndex;
             nftIndex++;
         }
+        factory.depositNFTs(nftIds, proof, proofFlags, address(pool3), address(this));
 
         // Mint NFTs 30-39 to this contract
         for (uint256 i = 0; i < 10; i++) {

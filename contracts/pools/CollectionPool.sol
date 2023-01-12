@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
@@ -14,7 +15,6 @@ import {ICollectionPool} from "./ICollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {TokenIDFilter} from "../filter/TokenIDFilter.sol";
-import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 /// @title The base contract for an NFT/TOKEN AMM pool
 /// @author Collection
@@ -319,7 +319,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         _pullTokenInputAndPayProtocolFee(inputAmount, isRouter, routerCaller, _factory, fees.protocol, royaltiesDue);
 
-        _sendSpecificNFTsToRecipient(nft(), nftRecipient, nftIds);
+        _withdrawNFTs(nftRecipient, nftIds);
 
         _refundTokenToSender(inputAmount);
 
@@ -377,7 +377,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         _payProtocolFeeFromPool(_factory, fees.protocol);
 
-        _takeNFTsFromSender(nft(), nfts.ids, _factory, isRouter, routerCaller);
+        _takeNFTsFromSender(nfts.ids, _factory, isRouter, routerCaller);
 
         emit SwapNFTInPool(nfts.ids, outputAmount, fees.trade, fees.protocol, royaltiesDue);
     }
@@ -722,29 +722,14 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function _selectArbitraryNFTs(IERC721 _nft, uint256 numNFTs) internal virtual returns (uint256[] memory tokenIds);
 
     /**
-     * @notice Sends specific NFTs to a recipient address
-     * @dev Even though we specify the NFT address here, this internal function is only
-     * used to send NFTs associated with this specific pool.
-     * @param _nft The address of the NFT to send
-     * @param nftRecipient The receiving address for the NFTs
-     * @param nftIds The specific IDs of NFTs to send
-     */
-    function _sendSpecificNFTsToRecipient(IERC721 _nft, address nftRecipient, uint256[] memory nftIds)
-        internal
-        virtual;
-
-    /**
      * @notice Takes NFTs from the caller and sends them into the pool's asset recipient
      * @dev This is used by the CollectionPool's swapNFTForToken function.
-     * @param _nft The NFT collection to take from
      * @param nftIds The specific NFT IDs to take
-     * @param isRouter True if calling from CollectionRouter, false otherwise. Not used for
-     * ETH pools.
+     * @param isRouter True if calling from CollectionRouter, false otherwise. Not used for * ETH pools.
      * @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this address. Not used for
      * ETH pools.
      */
     function _takeNFTsFromSender(
-        IERC721 _nft,
         uint256[] calldata nftIds,
         ICollectionPoolFactory _factory,
         bool isRouter,
@@ -757,11 +742,17 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             if (isRouter) {
                 // Verify if router is allowed
                 CollectionRouter router = CollectionRouter(payable(msg.sender));
-                (bool routerAllowed,) = _factory.routerStatus(router);
-                require(routerAllowed, "Not router");
+
+                {
+                    (bool routerAllowed,) = _factory.routerStatus(router);
+                    require(routerAllowed, "Not router");
+                }
+
+                IERC721 _nft = nft();
 
                 // Call router to pull NFTs
-                // If more than 1 NFT is being transfered, we can do a balance check instead of an ownership check, as pools are indifferent between NFTs from the same collection
+                // If more than 1 NFT is being transfered, do balance check instead of ownership check,
+                // as pools are indifferent between NFTs from the same collection
                 if (numNFTs > 1) {
                     uint256 beforeBalance = _nft.balanceOf(_assetRecipient);
                     for (uint256 i = 0; i < numNFTs;) {
@@ -776,9 +767,17 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                     router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[0], poolVariant());
                     require(_nft.ownerOf(nftIds[0]) == _assetRecipient, "NFT not transferred");
                 }
+
+                if (_assetRecipient == address(this)) {
+                    _depositNFTsNotification(nftIds);
+                }
             } else {
                 // Pull NFTs directly from sender
-                TransferLib.bulkSafeTransferERC721From(_nft, msg.sender, _assetRecipient, nftIds);
+                if (_assetRecipient == address(this)) {
+                    _depositNFTs(msg.sender, nftIds);
+                } else {
+                    TransferLib.bulkSafeTransferERC721From(nft(), msg.sender, _assetRecipient, nftIds);
+                }
             }
         }
     }
@@ -800,6 +799,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     function withdrawERC1155(IERC1155 a, uint256[] calldata ids, uint256[] calldata amounts) external onlyAuthorized {
         a.safeBatchTransferFrom(address(this), owner(), ids, amounts, "");
+        // TODO update idSet or not?
     }
 
     /**
@@ -1007,4 +1007,31 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             || _royaltyNumerator == 0
         );
     }
+
+    function onERC721Received(address, address, uint256, bytes memory) public virtual returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    /// @inheritdoc ICollectionPool
+    function depositNFTsNotification(uint256[] calldata nftIds) external override {
+        require(msg.sender == address(factory()), "not authorized");
+        _depositNFTsNotification(nftIds);
+    }
+
+    /**
+     * @dev Deposit NFTs from given address. NFT IDs must have been validated against the filter.
+     */
+    function _depositNFTs(address from, uint256[] calldata nftIds) internal virtual;
+
+    /**
+     * @dev Used to indicate deposited NFTs.
+     */
+    function _depositNFTsNotification(uint256[] calldata nftIds) internal virtual;
+
+    /**
+     * @notice Sends specific NFTs to a recipient address
+     * @param to The receiving address for the NFTs
+     * @param nftIds The specific IDs of NFTs to send
+     */
+    function _withdrawNFTs(address to, uint256[] memory nftIds) internal virtual;
 }

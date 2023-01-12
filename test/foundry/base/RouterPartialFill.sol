@@ -13,6 +13,7 @@ import {CollectionPoolEnumerableETH} from "../../../contracts/pools/CollectionPo
 import {CollectionPoolMissingEnumerableETH} from "../../../contracts/pools/CollectionPoolMissingEnumerableETH.sol";
 import {CollectionPoolEnumerableERC20} from "../../../contracts/pools/CollectionPoolEnumerableERC20.sol";
 import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/pools/CollectionPoolMissingEnumerableERC20.sol";
+import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {CollectionRouter2} from "../../../contracts/routers/CollectionRouter2.sol";
 import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
@@ -364,11 +365,11 @@ abstract contract RouterPartialFill is
                 );
             string memory UNIMPLEMENTED = "Unimplemented";
 
-            // ** Set spor price to be updated as if numNFTSToBuyFirst got bought **
-            (, uint256 newSpotPrice, , , ) = pool.getBuyNFTQuote(
+            // ** Set spot price to be updated as if numNFTSToBuyFirst got bought **
+            (, ICurve.Params memory params, , , ) = pool.getBuyNFTQuote(
                 numNFTsToBuyFirst
             );
-            pool.changeSpotPrice(uint128(newSpotPrice));
+            pool.changeSpotPrice(uint128(params.spotPrice));
 
             // Get NFT balance now (after the partial fill)
             uint256 startNFTBalance = test721.balanceOf(address(this));

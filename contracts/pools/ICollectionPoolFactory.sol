@@ -44,8 +44,7 @@ interface ICollectionPoolFactory is IERC721 {
      * @param nft The NFT contract of the collection the pool trades
      * @param bondingCurve The bonding curve for the pool to price NFTs, must be whitelisted
      * @param assetRecipient The address that will receive the assets traders give during trades.
-     *                       If set to address(0), assets will be sent to the pool address.
-     *                       Not available to TRADE pools.
+     * If set to address(0), assets will be sent to the pool address. Not available to TRADE pools.
      * @param receiver Receiver of the LP token generated to represent ownership of the pool
      * @param poolType TOKEN, NFT, or TRADE
      * @param delta The delta value used by the bonding curve. The meaning of delta depends
@@ -56,7 +55,7 @@ interface ICollectionPoolFactory is IERC721 {
      * being sent to the account to which the traded NFT's royalties are awardable.
      * Must be 0 if `_nft` is not IERC2981 and no recipient fallback is set.
      * @param royaltyRecipientFallback An address to which all royalties will
-     * be paid to if not address(0) and ERC2981 is not supported or ERC2981 recipient is not set. 
+     * be paid to if not address(0) and ERC2981 is not supported or ERC2981 recipient is not set.
      * @param initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pool
      * @return pool The new pool
      */
@@ -82,19 +81,18 @@ interface ICollectionPoolFactory is IERC721 {
      * @param nft The NFT contract of the collection the pool trades
      * @param bondingCurve The bonding curve for the pool to price NFTs, must be whitelisted
      * @param assetRecipient The address that will receive the assets traders give during trades.
-     *                         If set to address(0), assets will be sent to the pool address.
-     *                         Not available to TRADE pools.
+     * If set to address(0), assets will be sent to the pool address. Not available to TRADE pools.
      * @param receiver Receiver of the LP token generated to represent ownership of the pool
      * @param poolType TOKEN, NFT, or TRADE
-     * @param delta The delta value used by the bonding curve. The meaning of delta depends
-     * on the specific curve.
+     * @param delta The delta value used by the bonding curve. The meaning of delta depends on the
+     * specific curve.
      * @param fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
      * @param spotPrice The initial selling spot price, in ETH
      * @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18
      * being sent to the account to which the traded NFT's royalties are awardable.
      * Must be 0 if `_nft` is not IERC2981 and no recipient fallback is set.
      * @param royaltyRecipientFallback An address to which all royalties will
-     * be paid to if not address(0) and ERC2981 is not supported or ERC2981 recipient is not set. 
+     * be paid to if not address(0) and ERC2981 is not supported or ERC2981 recipient is not set.
      * @param initialNFTIDs The list of IDs of NFTs to transfer from the sender to the pool
      * @param initialTokenBalance The initial token balance sent from the sender to the new pool
      * @return pool The new pool
@@ -137,6 +135,14 @@ interface ICollectionPoolFactory is IERC721 {
         returns (address pool, uint256 tokenId);
 
     function createPoolERC20(CreateERC20PoolParams calldata params) external returns (address pool, uint256 tokenId);
+
+    function depositNFTs(
+        uint256[] calldata ids,
+        bytes32[] calldata proof,
+        bool[] calldata proofFlags,
+        address recipient,
+        address from
+    ) external;
 
     function burn(uint256 tokenId) external;
 

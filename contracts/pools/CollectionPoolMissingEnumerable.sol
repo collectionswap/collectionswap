@@ -19,15 +19,17 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
     EnumerableSet.UintSet private idSet;
 
     /// @inheritdoc CollectionPool
-    function _selectArbitraryNFTs(IERC721, uint256 numNFTs) internal override returns (uint256[] memory tokenIds) {
-        tokenIds = new uint256[](numNFTs);
-        // We're missing enumerable, so we also update the pool's own ID set
-        // NOTE: We start from last index to first index to save on gas
+    function _selectArbitraryNFTs(IERC721, uint256 numNFTs) internal view override returns (uint256[] memory nftIds) {
+        nftIds = new uint256[](numNFTs);
+
+        // NOTE: We start from last index to first index to save on gas when we eventully _withdrawNFTs on results
+        // crash if nothing to select (numNFTs is always > 1)
         uint256 lastIndex = idSet.length() - 1;
+
         for (uint256 i; i < numNFTs;) {
+            // will throw if numNFTs > length due to underflow
             uint256 nftId = idSet.at(lastIndex);
-            tokenIds[i] = nftId;
-            idSet.remove(nftId);
+            nftIds[i] = nftId;
 
             unchecked {
                 --lastIndex;
@@ -37,49 +39,8 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
     }
 
     /// @inheritdoc CollectionPool
-    function _sendSpecificNFTsToRecipient(IERC721 _nft, address nftRecipient, uint256[] memory nftIds)
-        internal
-        override
-    {
-        // Send NFTs to caller
-        // If missing enumerable, update pool's own ID set
-        uint256 numNFTs = nftIds.length;
-        for (uint256 i; i < numNFTs;) {
-            _nft.safeTransferFrom(address(this), nftRecipient, nftIds[i]);
-            // Remove from id set
-            idSet.remove(nftIds[i]);
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /// @inheritdoc CollectionPool
-    function getAllHeldIds() public view override returns (uint256[] memory) {
-        uint256 numNFTs = idSet.length();
-        uint256[] memory ids = new uint256[](numNFTs);
-        for (uint256 i; i < numNFTs;) {
-            ids[i] = idSet.at(i);
-
-            unchecked {
-                ++i;
-            }
-        }
-        return ids;
-    }
-
-    /**
-     * @dev When safeTransfering an ERC721 in, we add ID to the idSet
-     * if it's the same collection used by pool. (As it doesn't auto-track because no ERC721Enumerable)
-     */
-    function onERC721Received(address, address, uint256 id, bytes memory) public virtual returns (bytes4) {
-        IERC721 _nft = nft();
-        // If it's from the pool's NFT, add the ID to ID set
-        if (msg.sender == address(_nft)) {
-            idSet.add(id);
-        }
-        return this.onERC721Received.selector;
+    function getAllHeldIds() public view override returns (uint256[] memory nftIds) {
+        nftIds = idSet.values();
     }
 
     /// @inheritdoc ICollectionPool
@@ -93,9 +54,58 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
         }
         // Otherwise, withdraw and also remove the ID from the ID set
         else {
-            _sendSpecificNFTsToRecipient(_nft, owner, nftIds);
+            _withdrawNFTs(owner, nftIds);
 
             emit NFTWithdrawal();
         }
+    }
+
+    /// @inheritdoc CollectionPool
+    function _depositNFTs(address from, uint256[] calldata nftIds) internal override {
+        // transfer NFTs to this pool and update set
+        IERC721 _nft = nft();
+        uint256 length = nftIds.length;
+        for (uint256 i; i < length;) {
+            uint256 nftId = nftIds[i];
+            _nft.safeTransferFrom(from, address(this), nftId);
+            idSet.add(nftId);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc CollectionPool
+    function _depositNFTsNotification(uint256[] calldata nftIds) internal override {
+        uint256 length = nftIds.length;
+        for (uint256 i; i < length;) {
+            idSet.add(nftIds[i]);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc CollectionPool
+    function _withdrawNFTs(address to, uint256[] memory nftIds) internal override {
+        IERC721 _nft = nft();
+
+        // Send NFTs to given addres and update valid set
+        uint256 numNFTs = nftIds.length;
+        for (uint256 i; i < numNFTs;) {
+            _nft.safeTransferFrom(address(this), to, nftIds[i]);
+            idSet.remove(nftIds[i]);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc ICollectionPool
+    function NFTsLength() external view returns (uint256) {
+        return idSet.length();
     }
 }

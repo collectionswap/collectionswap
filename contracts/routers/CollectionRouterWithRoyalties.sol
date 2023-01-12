@@ -888,7 +888,7 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
 
             RoyaltyType royaltyType = _fetchRoyaltyType(swap.pool);
 
-            ICollectionPoolFactory.PoolVariant poolVariant = swap.pool.poolVariant();
+            // TODO: ICollectionPoolFactory.PoolVariant poolVariant = swap.pool.poolVariant();
 
             if (royaltyType == RoyaltyType.ERC20) {
                 // avoids using _issueTokenRoyalties internal function because needs ERC20 token for reimbursing to tokenRecipient

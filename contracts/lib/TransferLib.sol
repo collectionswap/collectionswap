@@ -26,22 +26,6 @@ library TransferLib {
     }
 
     /**
-     * @notice Safe transfer N token ids of 1 ERC721
-     * @dev This is a duplicate of bulkSafeTransferERC721From but with memory tokenIds
-     */
-    function bulkSafeTransferERC721FromMemory(IERC721 token, address from, address to, uint256[] memory tokenIds)
-        internal
-    {
-        uint256 length = tokenIds.length;
-        for (uint256 i; i < length;) {
-            token.safeTransferFrom(from, to, tokenIds[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
      * @notice safe transfer N ERC20
      * @dev The length of tokens and values are assumed to be the same and should be checked before calling.
      */

@@ -213,17 +213,17 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
     }
 
     function buyAndSellWithPartialFill(
-        CollectionRouter2 router,
-        CollectionRouter2.PoolSwapSpecificPartialFill[] calldata buyList,
-        CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata sellList
+        CollectionRouter2 /*router*/,
+        CollectionRouter2.PoolSwapSpecificPartialFill[] calldata /*buyList*/,
+        CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata /*sellList*/
     ) public payable override returns (uint256) {
-        require(false, "Unimplemented");
+        revert("Unimplemented");
     }
 
     function swapETHForSpecificNFTs(
-        CollectionRouter2 router,
-        CollectionRouter2.RobustPoolSwapSpecific[] calldata buyList
+        CollectionRouter2 /*router*/,
+        CollectionRouter2.RobustPoolSwapSpecific[] calldata /*buyList*/
     ) public payable override returns (uint256) {
-        require(false, "Unimplemented");
+        revert("Unimplemented");
     }
 }

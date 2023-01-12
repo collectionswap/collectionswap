@@ -28,6 +28,9 @@ interface ICollectionPool is ITokenIDFilter {
 
     function bondingCurve() external view returns (ICurve);
 
+    /**
+     * @notice Only tracked IDs are returned
+     */
     function getAllHeldIds() external view returns (uint256[] memory);
 
     function delta() external view returns (uint128);
@@ -54,7 +57,7 @@ interface ICollectionPool is ITokenIDFilter {
 
     /**
      * @notice Rescues a specified set of NFTs owned by the pool to the owner address. (onlyOwnable modifier is in the implemented function)
-     * @dev If the NFT is the pool's collection, we also remove it from the id tracking (if the NFT is missing enumerable).
+     * @dev If the NFT is the pool's collection, we also remove it from the id tracking
      * @param a The NFT to transfer
      * @param nftIds The list of IDs of the NFTs to send to the owner
      */
@@ -79,6 +82,17 @@ interface ICollectionPool is ITokenIDFilter {
             uint256 outputAmount,
             ICurve.Fees memory fees
         );
+
+    /**
+     * @dev Used by factory to indicate deposited NFTs.
+     * @dev Must only be called by factory. NFT IDs must have been validated against the filter.
+     */
+    function depositNFTsNotification(uint256[] calldata nftIds) external;
+
+    /**
+     * @notice Returns number of NFTs in pool that matches filter
+     */
+    function NFTsLength() external view returns (uint256);
 }
 
 interface ICollectionPoolETH is ICollectionPool {

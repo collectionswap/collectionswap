@@ -290,7 +290,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         );
 
         // transfer NFTs into pool
-        TransferLib.bulkSafeTransferERC721From(_nft, msg.sender, pool, _initialNFTIDs);
+        lpToken.depositNFTs(_initialNFTIDs, new bytes32[](0), new bool[](0), pool, msg.sender);
 
         stake(currTokenId);
     }

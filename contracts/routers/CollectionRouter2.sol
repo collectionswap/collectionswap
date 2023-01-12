@@ -91,7 +91,7 @@ contract CollectionRouter2 {
         ICurve _bondingCurve = pool.bondingCurve();
         ICurve.Params memory params = pool.curveParams();
         bytes memory props = params.props;
-        uint256 fee = pool.fee();
+        // TODO: uint256 fee = pool.fee();
         ICurve.FeeMultipliers memory feeMultipliers = pool.feeMultipliers();
         for (uint256 i; i < numNFTs; i++) {
             uint256 price;
@@ -281,14 +281,14 @@ contract CollectionRouter2 {
     }
 
     function _findMaxFillableAmtForETHSell(
-        CollectionPool pool,
-        uint256 maxNumNFTs,
-        uint256[] memory minOutputPerNumNFTs
-    ) internal view returns (uint256 numNFTs, uint256 price) {
-        uint256 poolBalance = address(pool).balance;
+        CollectionPool /*pool*/,
+        uint256 /*maxNumNFTs*/,
+        uint256[] memory /*minOutputPerNumNFTs*/
+    ) internal view returns (uint256 /*numNFTs*/, uint256 /*price*/) {
+        // uint256 poolBalance = address(pool).balance;
         // Start and end indices
-        uint256 start = 0;
-        uint256 end = maxNumNFTs - 1;
+        // uint256 start = 0;
+        // uint256 end = maxNumNFTs - 1;
         // while (start <= end) {
         //     // Get price of mid number of items
         //     uint256 mid = start + (end - start + 1) / 2;
