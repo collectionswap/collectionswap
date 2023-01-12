@@ -51,7 +51,7 @@ export async function verifyEtherscanCollectionSet(
     address: contracts.CollectionPoolFactory,
     constructorArguments: [
       ...templates.map(([_, address]) => address),
-      hre.ethers.constants.AddressZero, // Payout address
+      deployerAddress, // Payout address
       hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
       hre.ethers.utils.parseEther(config.CARRY_FEE_MULTIPLIER),
     ],

@@ -1,22 +1,22 @@
 {
   "contracts": {
-    "CollectionPoolEnumerableETH": "0xED75bf4b293D0606Bb4e231b2A80FD37eB9740Ff",
-    "CollectionPoolMissingEnumerableETH": "0x445AB37b1097BCA55fe9CBFa0dB896CE4BFb7AcD",
-    "CollectionPoolEnumerableERC20": "0xC2Da25a3B2F4861f8ad0a46629E2133bcD750219",
-    "CollectionPoolMissingEnumerableERC20": "0x6e452Fd3a8B8f489FDbCC35DAcF2C6dcB1AB5752",
-    "LinearCurve": "0x5135E66cE6093c024E95d7dDB1c719093F6c91Ef",
-    "ExponentialCurve": "0x3DdF0062a5B6b645C880a0897Dd4D3609563f609",
-    "XykCurve": "0x422b519D37AAE40990C80d21d64c236b2D99fCA1",
-    "SigmoidCurve": "0x43b581c8953500bF3E1868715854c245636fAf68",
-    "CollectionPoolFactory": "0xC1633D39DCF4652B8cAaFa0F35f11AefDb87F271",
-    "CollectionRouter": "0x2DEBA6cd1E1CA695f1D51892833685361bcEc20A",
-    "Collectionstaker": "0x879fdaBa7F29D472D66Abf0217b42289579d8E6b",
-    "SortitionTreeManager": "0x4461ac35e802EB565ac238FC379CedbA0f0CEd0A",
-    "RewardVaultETH": "0xd993D685E91ecee830E17993Ac4C35be90d8a362",
-    "RewardVaultETHDraw": "0x8754556214c5d9371108Fd88D7463726B82F36C6",
-    "RNGChainlinkV2": "0xBdC11f9e686aF6C21726cd6b730d0Eb1f7928A21",
-    "MonotonicIncreasingValidator": "0x399feA5c9e8Ec0BB120B6e3879c43CDd82F7F688"
+    "CollectionPoolEnumerableETH": "0xa3459C26d19Eee09C9175498bE7758e4ac2E8a17",
+    "CollectionPoolMissingEnumerableETH": "0x740D00bC79332a0CCe26DC16bC9dC546f803ECb0",
+    "CollectionPoolEnumerableERC20": "0x444B8f41BeA82518e285974AdfdEceB79442c48D",
+    "CollectionPoolMissingEnumerableERC20": "0x1A74A6C1Fd6fdfB6CDe4D1349554CaBe2676fAf1",
+    "LinearCurve": "0x2b420CcEd502B0B9892618D9ea6AB717f80bD802",
+    "ExponentialCurve": "0x7F3D359e685586b043b2B19708CB4E72ab1fADda",
+    "XykCurve": "0xBeC62a44834f997f916e7585a3FCC93314c517F0",
+    "SigmoidCurve": "0xD1D8d23c8a04BF94e1ccd5747a34cbd3784Dc07A",
+    "CollectionPoolFactory": "0x4F7D823fA19e4860018f6F4e78D2404987EB042B",
+    "CollectionRouter": "0x29Fd59643770879a33f9bf521e25cc2F5A2AAB85",
+    "Collectionstaker": "0x56f515907B875F4A5A5AB6c4fa646a3B0f3243D7",
+    "SortitionTreeManager": "0x5C9FEaFCbD4877B3b639a661e1B3694ACaf05a84",
+    "RewardVaultETH": "0x888ab492049aE38221250be333F2f707379f3fDE",
+    "RewardVaultETHDraw": "0xB992BC357146FD864042F9eC8385fC8abe582936",
+    "RNGChainlinkV2": "0xc3eE28aAb33c272413041d970e19365C4eAb02eB",
+    "MonotonicIncreasingValidator": "0xD8EA6e45248F90Df518D0B54B2ab1188170a76cc"
   },
   "deployer": "0xfAA7a22A0898BD687dC5aF8b344ddcCC0645D165",
-  "commit": "4801a7d04f0fe3d77553d6f75bb7739b27c5ff70"
+  "commit": "586df330b1a73c2ce2e00dca61ca1a3637b78db6"
 }
