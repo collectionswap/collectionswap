@@ -10,4 +10,8 @@ contract Test20 is ERC20, IERC20Mintable {
     function mint(address to, uint256 amount) public {
         _mint(to, amount);
     }
+
+    function burn(address from, uint256 amount) public {
+        _burn(from, amount);
+    }
 }

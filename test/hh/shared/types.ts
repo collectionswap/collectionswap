@@ -1,5 +1,6 @@
 import type { PromiseOrValue } from "../../../typechain-types/common";
 import type {
+  BigNumber,
   BytesLike,
   CallOverrides,
   BaseContract,
@@ -29,6 +30,12 @@ export interface IERC20Mintable extends IERC20 {
     amount: PromiseOrValue<BigNumberish>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
+
+  burn(
+    from: PromiseOrValue<string>,
+    amount: PromiseOrValue<BigNumberish>,
+    overrides?: Overrides & { from?: PromiseOrValue<string> }
+  ): Promise<ContractTransaction>;
 }
 
 export interface IERC721 extends IERC165 {
@@ -38,6 +45,10 @@ export interface IERC721 extends IERC165 {
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
+  balanceOf(
+    owner: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<BigNumber>;
   getApproved(
     tokenId: PromiseOrValue<BigNumberish>,
     overrides?: CallOverrides

@@ -44,6 +44,7 @@ import type {
 } from "../../../typechain-types/contracts/pools/CollectionPoolFactory";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumber, ContractTransaction } from "ethers";
+import type { Context } from "mocha";
 
 describe("CollectionPoolFactory", function () {
   let gasToCost: (gasUsed: BigNumber) => number;
@@ -163,7 +164,7 @@ describe("CollectionPoolFactory", function () {
         context("With whitelisted bonding curve", function () {
           it("Should not revert", async function () {
             await expect(
-              createPool.bind(this)(key, filtered)
+              createPool.call(this, key, filtered)
             ).not.to.be.reverted;
           });
         });
@@ -174,7 +175,7 @@ describe("CollectionPoolFactory", function () {
               ethers.constants.AddressZero;
 
             await expect(
-              createPool.bind(this)(key, filtered)
+              createPool.call(this, key, filtered)
             ).to.be.revertedWith("Bonding curve not whitelisted");
           });
         });
@@ -187,7 +188,7 @@ describe("CollectionPoolFactory", function () {
               ethers.constants.AddressZero;
 
             await expect(
-              createPool.bind(this)(key, filtered)
+              createPool.call(this, key, filtered)
             ).to.be.revertedWith("ERC721: mint to the zero address");
           });
         });
@@ -195,13 +196,13 @@ describe("CollectionPoolFactory", function () {
         context("With non-zero address receiver", function () {
           it("Should not revert", async function () {
             await expect(
-              createPool.bind(this)(key, filtered)
+              createPool.call(this, key, filtered)
             ).not.to.be.reverted;
           });
         });
 
         it("Should emit lp token to receiver", async function () {
-          const tx = await createPool.bind(this)(key, filtered);
+          const tx = await createPool.call(this, key, filtered);
           const { newTokenId } = await getPoolAddress(tx);
           expect(await collectionPoolFactory.ownerOf(newTokenId)).to.equal(
             this[`create${key}PoolParams`].receiver
@@ -209,10 +210,10 @@ describe("CollectionPoolFactory", function () {
         });
 
         it("Should increment lp token id", async function () {
-          const tx = await createPool.bind(this)(key, filtered);
+          const tx = await createPool.call(this, key, filtered);
           const { newTokenId } = await getPoolAddress(tx);
           expect(
-            (await callStaticCreatePool.bind(this)(key, filtered)).tokenId
+            (await callStaticCreatePool.call(this, key, filtered)).tokenId
           ).to.equal(newTokenId.add(ethers.constants.One));
         });
       });
@@ -234,7 +235,7 @@ describe("CollectionPoolFactory", function () {
                 ethers.utils.parseEther("1");
 
               await expect(
-                createPool.bind(this)(key, filtered)
+                createPool.call(this, key, filtered)
               ).to.be.revertedWith("royaltyNumerator must be < 1e18");
             });
           });
@@ -245,7 +246,7 @@ describe("CollectionPoolFactory", function () {
                 ethers.constants.MaxUint256.sub(randomEthValue(1));
 
               await expect(
-                createPool.bind(this)(key, filtered)
+                createPool.call(this, key, filtered)
               ).to.be.revertedWith("royaltyNumerator must be < 1e18");
             });
           });
@@ -270,7 +271,7 @@ describe("CollectionPoolFactory", function () {
               context("With zero royalty numerator", function () {
                 it("Should not revert", async function () {
                   await expect(
-                    createPool.bind(this)(key, filtered)
+                    createPool.call(this, key, filtered)
                   ).not.to.be.reverted;
                 });
               });
@@ -297,7 +298,7 @@ describe("CollectionPoolFactory", function () {
                   this[`create${key}PoolParams`].nft = test721Royalty.address;
 
                   await expect(
-                    createPool.bind(this)(key, filtered)
+                    createPool.call(this, key, filtered)
                   ).not.to.be.reverted;
                 });
               });
@@ -316,7 +317,7 @@ describe("CollectionPoolFactory", function () {
                     randomAddress();
 
                   await expect(
-                    createPool.bind(this)(key, filtered)
+                    createPool.call(this, key, filtered)
                   ).not.to.be.reverted;
                 });
               });
@@ -330,7 +331,7 @@ describe("CollectionPoolFactory", function () {
           function shouldRevert() {
             it("Should revert", async function () {
               await expect(
-                createPool.bind(this)(key, filtered)
+                createPool.call(this, key, filtered)
               ).to.be.revertedWith(
                 "Nonzero royalty for non ERC2981 without fallback"
               );
@@ -381,7 +382,8 @@ describe("CollectionPoolFactory", function () {
                   };
                 }
 
-                const tx = await createPool.bind(this)(
+                const tx = await createPool.call(
+                  this,
                   key,
                   filtered,
                   {
@@ -402,11 +404,12 @@ describe("CollectionPoolFactory", function () {
       });
 
       it("Should emit NewPool event", async function () {
-        const { pool, tokenId } = await callStaticCreatePool.bind(this)(
+        const { pool, tokenId } = await callStaticCreatePool.call(
+          this,
           key,
           filtered
         );
-        await expect(createPool.bind(this)(key, filtered))
+        await expect(createPool.call(this, key, filtered))
           .to.emit(collectionPoolFactory, "NewPool")
           .withArgs(pool, tokenId);
       });
@@ -419,7 +422,7 @@ describe("CollectionPoolFactory", function () {
           NUM_INITIAL_NFTS
         );
 
-        const tx = await createPool.bind(this)(key, filtered, {
+        const tx = await createPool.call(this, key, filtered, {
           initialNFTIDs: tokenIds,
         });
         const { newPoolAddress } = await getPoolAddress(tx);
@@ -599,7 +602,7 @@ describe("CollectionPoolFactory", function () {
         });
 
         it(`Should be enumerable ${key} variant`, async function () {
-          const tx = await createPool.bind(this)(key, filtered);
+          const tx = await createPool.call(this, key, filtered);
           const { newPoolAddress } = await getPoolAddress(tx);
           const collectionPool = await ethers.getContractAt(
             "CollectionPool",
@@ -614,7 +617,7 @@ describe("CollectionPoolFactory", function () {
 
       context("With non-enumerable", function () {
         it("Should be missing enumerable eth variant", async function () {
-          const tx = await createPool.bind(this)(key, filtered);
+          const tx = await createPool.call(this, key, filtered);
           const { newPoolAddress } = await getPoolAddress(tx);
           const collectionPool = await ethers.getContractAt(
             "CollectionPool",
@@ -629,6 +632,7 @@ describe("CollectionPoolFactory", function () {
     }
 
     async function createPool(
+      this: Context,
       key: "ETH" | "ERC20",
       filtered = false,
       poolParamsOverride?:
@@ -651,6 +655,7 @@ describe("CollectionPoolFactory", function () {
     }
 
     async function callStaticCreatePool(
+      this: Context,
       key: "ETH" | "ERC20",
       filtered = false
     ): Promise<{

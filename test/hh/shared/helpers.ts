@@ -85,8 +85,9 @@ async function approveNfts(
   approveTo: string,
   tokenIds: BigNumber[]
 ) {
+  nft = nft.connect(to) as IERC721;
   return Promise.all(
-    tokenIds.map(async (tokenId) => nft.connect(to).approve(approveTo, tokenId))
+    tokenIds.map(async (tokenId) => nft.approve(approveTo, tokenId))
   );
 }
 
