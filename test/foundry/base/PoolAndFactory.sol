@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {DSTest} from "../lib/ds-test/test.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
+import {Test} from "forge-std/Test.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
+
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
@@ -25,7 +26,7 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {Test1155} from "../../../contracts/test/mocks/Test1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
-abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurable, ERC1155Holder {
+abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable, ERC1155Holder {
     uint128 delta = 1.1 ether;
     uint128 spotPrice = 1 ether;
     uint256 tokenAmount = 10 ether;
@@ -272,8 +273,8 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     function testFail_swapForNFTNotInPool() public {
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
 
         (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
             .getBuyInfo(
@@ -301,8 +302,8 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     function testFail_swapForAnyNFTsPastBalance() public {
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
 
         (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
             .getBuyInfo(
@@ -337,8 +338,8 @@ abstract contract PoolAndFactory is StdCheats, DSTest, ERC721Holder, Configurabl
     }
 
     function test_withdrawFees() public {
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
 
         uint256 totalProtocolFee;
         uint256 factoryEndBalance;

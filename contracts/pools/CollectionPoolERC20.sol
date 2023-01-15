@@ -18,7 +18,7 @@ import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 abstract contract CollectionPoolERC20 is CollectionPool {
     using SafeTransferLib for ERC20;
 
-    uint256 internal constant IMMUTABLE_PARAMS_LENGTH = 81;
+    uint256 internal constant IMMUTABLE_PARAMS_LENGTH = 85;
 
     /**
      * @notice Returns the ERC20 token associated with the pool
@@ -27,7 +27,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     function token() public pure returns (ERC20 _token) {
         uint256 paramsLength = _immutableParamsLength();
         assembly {
-            _token := shr(0x60, calldataload(add(sub(calldatasize(), paramsLength), 61)))
+            _token := shr(0x60, calldataload(add(sub(calldatasize(), paramsLength), 65)))
         }
     }
 

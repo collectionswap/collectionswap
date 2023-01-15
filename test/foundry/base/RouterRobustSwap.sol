@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {LinearCurve} from "../../../contracts/bonding-curves/LinearCurve.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
@@ -19,13 +19,12 @@ import {CollectionPoolEnumerableERC20} from "../../../contracts/pools/Collection
 import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/pools/CollectionPoolMissingEnumerableERC20.sol";
 import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
-import {Hevm} from "../utils/Hevm.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
 
 abstract contract RouterRobustSwap is
     StdCheats,
-    DSTest,
+    Test,
     ERC721Holder,
     Configurable,
     RouterCaller
@@ -150,8 +149,8 @@ abstract contract RouterRobustSwap is
             nftIndex++;
         }
 
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
     }
 
     // Test where pool 1 and pool 2 swap tokens for NFT succeed but pool 3 fails

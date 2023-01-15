@@ -1,12 +1,11 @@
-// SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {RoyaltyRegistry} from "@manifoldxyz/royalty-registry-solidity/contracts/RoyaltyRegistry.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
@@ -25,7 +24,7 @@ import {RouterCaller} from "../mixins/RouterCaller.sol";
 
 abstract contract RouterSinglePoolWithRoyalties is
     StdCheats,
-    DSTest,
+    Test,
     ERC721Holder,
     ConfigurableWithRoyalties,
     RouterCaller
@@ -102,8 +101,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             test721.mint(address(this), i);
         }
 
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
     }
 
     function test_swapTokenForSingleAnyNFT() public {

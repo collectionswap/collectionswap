@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -25,6 +24,8 @@ library CollectionPoolCloner {
         IERC721 nft,
         uint8 poolType
     ) internal returns (address instance) {
+        uint256 blockNumber = block.number;
+
         assembly {
             let ptr := mload(0x40)
 
@@ -33,7 +34,7 @@ library CollectionPoolCloner {
             // -------------------------------------------------------------------------------------------------------------
 
             // creation size = 09
-            // runtime size = 72
+            // runtime size = 76
             // 60 runtime  | PUSH1 runtime (r)     | r                       | –
             // 3d          | RETURNDATASIZE        | 0 r                     | –
             // 81          | DUP2                  | r 0 r                   | –
@@ -43,10 +44,10 @@ library CollectionPoolCloner {
             // f3          | RETURN                |                         | [0-runSize): runtime code
 
             // -------------------------------------------------------------------------------------------------------------
-            // RUNTIME (53 bytes of code + 61 bytes of extra data = 114 bytes)
+            // RUNTIME (53 bytes of code + 65 bytes of extra data = 118 bytes)
             // -------------------------------------------------------------------------------------------------------------
 
-            // extra data size = 3d
+            // extra data size = 41
             // 3d          | RETURNDATASIZE        | 0                       | –
             // 3d          | RETURNDATASIZE        | 0 0                     | –
             // 3d          | RETURNDATASIZE        | 0 0 0                   | –
@@ -66,7 +67,7 @@ library CollectionPoolCloner {
             // 73 addr     | PUSH20 0x123…         | addr 0 cds 0 0 0 0      | [0, cds) = calldata, [cds, cds+0x35) = extraData
             mstore(
                 ptr,
-                hex"60_72_3d_81_60_09_3d_39_f3_3d_3d_3d_3d_36_3d_3d_37_60_3d_60_35_36_39_36_60_3d_01_3d_73_00_00_00"
+                hex"60_76_3d_81_60_09_3d_39_f3_3d_3d_3d_3d_36_3d_3d_37_60_41_60_35_36_39_36_60_41_01_3d_73_00_00_00"
             )
             mstore(add(ptr, 0x1d), shl(0x60, implementation))
 
@@ -88,15 +89,16 @@ library CollectionPoolCloner {
             )
 
             // -------------------------------------------------------------------------------------------------------------
-            // EXTRA DATA (61 bytes)
+            // EXTRA DATA (65 bytes)
             // -------------------------------------------------------------------------------------------------------------
 
             mstore(add(ptr, 0x3e), shl(0x60, factory))
             mstore(add(ptr, 0x52), shl(0x60, bondingCurve))
             mstore(add(ptr, 0x66), shl(0x60, nft))
             mstore8(add(ptr, 0x7a), poolType)
+            mstore(add(ptr, 0x7b), shl(0xe0, blockNumber)) // lower 32 bits only
 
-            instance := create(0, ptr, 0x7b)
+            instance := create(0, ptr, 0x7f)
         }
     }
 
@@ -116,6 +118,8 @@ library CollectionPoolCloner {
         uint8 poolType,
         ERC20 token
     ) internal returns (address instance) {
+        uint256 blockNumber = block.number;
+
         assembly {
             let ptr := mload(0x40)
 
@@ -124,7 +128,7 @@ library CollectionPoolCloner {
             // -------------------------------------------------------------------------------------------------------------
 
             // creation size = 09
-            // runtime size = 86
+            // runtime size = 8a
             // 60 runtime  | PUSH1 runtime (r)     | r                       | –
             // 3d          | RETURNDATASIZE        | 0 r                     | –
             // 81          | DUP2                  | r 0 r                   | –
@@ -134,10 +138,10 @@ library CollectionPoolCloner {
             // f3          | RETURN                |                         | [0-runSize): runtime code
 
             // -------------------------------------------------------------------------------------------------------------
-            // RUNTIME (53 bytes of code + 81 bytes of extra data = 134 bytes)
+            // RUNTIME (53 bytes of code + 85 bytes of extra data = 138 bytes)
             // -------------------------------------------------------------------------------------------------------------
 
-            // extra data size = 51
+            // extra data size = 55
             // 3d          | RETURNDATASIZE        | 0                       | –
             // 3d          | RETURNDATASIZE        | 0 0                     | –
             // 3d          | RETURNDATASIZE        | 0 0 0                   | –
@@ -157,7 +161,7 @@ library CollectionPoolCloner {
             // 73 addr     | PUSH20 0x123…         | addr 0 cds 0 0 0 0      | [0, cds) = calldata, [cds, cds+0x35) = extraData
             mstore(
                 ptr,
-                hex"60_86_3d_81_60_09_3d_39_f3_3d_3d_3d_3d_36_3d_3d_37_60_51_60_35_36_39_36_60_51_01_3d_73_00_00_00"
+                hex"60_8a_3d_81_60_09_3d_39_f3_3d_3d_3d_3d_36_3d_3d_37_60_55_60_35_36_39_36_60_55_01_3d_73_00_00_00"
             )
             mstore(add(ptr, 0x1d), shl(0x60, implementation))
 
@@ -179,16 +183,17 @@ library CollectionPoolCloner {
             )
 
             // -------------------------------------------------------------------------------------------------------------
-            // EXTRA DATA (81 bytes)
+            // EXTRA DATA (85 bytes)
             // -------------------------------------------------------------------------------------------------------------
 
             mstore(add(ptr, 0x3e), shl(0x60, factory))
             mstore(add(ptr, 0x52), shl(0x60, bondingCurve))
             mstore(add(ptr, 0x66), shl(0x60, nft))
             mstore8(add(ptr, 0x7a), poolType)
-            mstore(add(ptr, 0x7b), shl(0x60, token))
+            mstore(add(ptr, 0x7b), shl(0xe0, blockNumber)) // lower 32 bits only
+            mstore(add(ptr, 0x7f), shl(0x60, token))
 
-            instance := create(0, ptr, 0x8f)
+            instance := create(0, ptr, 0x93)
         }
     }
 
@@ -210,7 +215,7 @@ library CollectionPoolCloner {
             let ptr := mload(0x40)
             mstore(
                 ptr,
-                hex"3d_3d_3d_3d_36_3d_3d_37_60_3d_60_35_36_39_36_60_3d_01_3d_73_00_00_00_00_00_00_00_00_00_00_00_00"
+                hex"3d_3d_3d_3d_36_3d_3d_37_60_41_60_35_36_39_36_60_41_01_3d_73_00_00_00_00_00_00_00_00_00_00_00_00"
             )
             mstore(add(ptr, 0x14), shl(0x60, implementation))
             mstore(
@@ -249,7 +254,7 @@ library CollectionPoolCloner {
             let ptr := mload(0x40)
             mstore(
                 ptr,
-                hex"3d_3d_3d_3d_36_3d_3d_37_60_51_60_35_36_39_36_60_51_01_3d_73_00_00_00_00_00_00_00_00_00_00_00_00"
+                hex"3d_3d_3d_3d_36_3d_3d_37_60_55_60_35_36_39_36_60_55_01_3d_73_00_00_00_00_00_00_00_00_00_00_00_00"
             )
             mstore(add(ptr, 0x14), shl(0x60, implementation))
             mstore(

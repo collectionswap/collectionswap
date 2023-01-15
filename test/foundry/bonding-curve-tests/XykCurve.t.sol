@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {DSTest} from "../lib/ds-test/test.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
+import {Test} from "forge-std/Test.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
@@ -22,9 +22,7 @@ import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Hol
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {Test721} from "../../../contracts/test/mocks/Test721.sol";
 
-import {Hevm} from "../utils/Hevm.sol";
-
-contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
+contract XykCurveTest is StdCheats, Test, ERC721Holder {
     using FixedPointMathLib for uint256;
 
     uint256 constant MIN_PRICE = 1 gwei;
@@ -329,8 +327,8 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         uint256 value = 0.8 ether;
         setUpEthPool(numNfts, value);
 
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
 
         uint256 numItemsToBuy = 2;
         uint256 ethBalanceBefore = address(this).balance;
@@ -388,8 +386,8 @@ contract XykCurveTest is StdCheats, DSTest, ERC721Holder {
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
         setUpEthPool(numNfts, value);
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
 
         factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
         ethPool.changeFee((1 * 1e18) / 100); // 1%

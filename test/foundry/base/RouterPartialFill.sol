@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {Test} from "forge-std/Test.sol";
+
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
@@ -25,7 +26,7 @@ import "../utils/console.sol";
 >  $ forge test --match-contract RPF.*ETH -vvvvv
 */
 abstract contract RouterPartialFill is
-    DSTest,
+    Test,
     ERC721Holder,
     Configurable,
     RouterCaller

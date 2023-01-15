@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {DSTest} from "../lib/ds-test/test.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
@@ -24,7 +24,7 @@ import {RouterCaller} from "../mixins/RouterCaller.sol";
 // Gives more realistic scenarios where swaps have to go through multiple pools, for more accurate gas profiling
 abstract contract RouterMultiPool is
     StdCheats,
-    DSTest,
+    Test,
     ERC721Holder,
     Configurable,
     RouterCaller
@@ -92,8 +92,8 @@ abstract contract RouterMultiPool is
             );
         }
 
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
     }
 
     function test_swapTokenForAny5NFTs() public {

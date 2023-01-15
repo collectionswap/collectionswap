@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {DSTest} from "../lib/ds-test/test.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {ExponentialCurve} from "../../../contracts/bonding-curves/ExponentialCurve.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
-
-import {Hevm} from "../utils/Hevm.sol";
 import {FixedPointMathLib} from "../../../contracts/lib/FixedPointMathLib.sol";
 
-contract ExponentialCurveTest is DSTest {
+contract ExponentialCurveTest is Test {
     using FixedPointMathLib for uint256;
 
     uint256 constant MIN_PRICE = 1 gwei;

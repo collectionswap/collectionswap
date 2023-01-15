@@ -17,7 +17,7 @@ abstract contract CollectionPoolETH is CollectionPool {
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
 
-    uint256 internal constant IMMUTABLE_PARAMS_LENGTH = 61;
+    uint256 internal constant IMMUTABLE_PARAMS_LENGTH = 65;
 
     /// @inheritdoc ICollectionPool
     function liquidity() public view returns (uint256) {

@@ -104,9 +104,6 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     // token ID assigned to the pool instance
     uint256 public tokenId;
 
-    // creation timestamp, to prevent trades in the same time / block as pool creation
-    uint256 private creationTimestamp;
-
     // Events
     event SwapNFTInPool(
         uint256[] nftIds, uint256 inputAmount, uint256 tradeFee, uint256 protocolFee, RoyaltyDue[] royaltyDue
@@ -200,7 +197,6 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     ) external payable validRoyaltyNumerator(_royaltyNumerator) {
         require(tokenId == 0, "Initialized");
         tokenId = _tokenId;
-        creationTimestamp = block.timestamp;
         __ReentrancyGuard_init();
 
         ICurve _bondingCurve = bondingCurve();
@@ -304,10 +300,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             require((nftIds.length > 0), "Must ask for > 0 NFTs");
         }
 
-        // Prevent users from making a ridiculous pool, buying out their "sucker"
-        // price, and then staking this pool with liquidity at really bad prices
-        // into a reward vault
-        require(creationTimestamp != block.timestamp, "Trade blocked");
+        // Prevent users from making a ridiculous pool, buying out their "sucker" price, and
+        // then staking this pool with liquidity at really bad prices into a reward vault.
+        require(!isInCreationBlock(), "Trade blocked");
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;
@@ -358,10 +353,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             require(acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags), "NFT not allowed");
         }
 
-        // Prevent users from making a ridiculous pool, buying out their "sucker"
-        // price, and then staking this pool with liquidity at really bad prices
-        // into a reward vault
-        require(creationTimestamp != block.timestamp, "Trade blocked");
+        // Prevent users from making a ridiculous pool, buying out their "sucker" price, and
+        // then staking this pool with liquidity at really bad prices into a reward vault
+        require(!isInCreationBlock(), "Trade blocked");
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;
@@ -522,6 +516,18 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         assembly {
             _poolType := shr(0xf8, calldataload(add(sub(calldatasize(), paramsLength), 60)))
         }
+    }
+
+    function isInCreationBlock() private view returns (bool _isInCreationBlock) {
+        uint256 paramsLength = _immutableParamsLength();
+        uint256 _creationBlockNumber;
+
+        assembly {
+            _creationBlockNumber := shr(0xe0, calldataload(add(sub(calldatasize(), paramsLength), 61)))
+        }
+        // Only the (lower) 32 bits are stored (~2000 years with 15s blocks). We compare with uint32(block.number)
+       // so we can still detect if we're in the same block in the unlikely event of an overflow
+        _isInCreationBlock = uint32(_creationBlockNumber) == uint32(block.number);
     }
 
     /**

@@ -3,17 +3,18 @@ pragma solidity ^0.8.0;
 
 import {Configurable, IERC721, CollectionPool, ICurve, IERC721Mintable, CollectionPoolFactory} from "./Configurable.sol";
 
-import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
-import {Test2981} from "../../../contracts/test/mocks/Test2981.sol";
 import {RoyaltyRegistry} from "@manifoldxyz/royalty-registry-solidity/contracts/RoyaltyRegistry.sol";
+import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
+import {Test} from "forge-std/Test.sol";
+
+import {Test2981} from "../../../contracts/test/mocks/Test2981.sol";
 import {TestRoyaltyRegistry} from "../../../contracts/test/mocks/TestRoyaltyRegistry.sol";
-import {DSTest} from "../lib/ds-test/test.sol";
 
 interface IVM {
     function etch(address where, bytes memory what) external;
 }
 
-abstract contract ConfigurableWithRoyalties is Configurable, DSTest {
+abstract contract ConfigurableWithRoyalties is Configurable, Test {
     address public constant ROYALTY_RECEIVER = address(420);
     uint96 public constant BPS = 30;
     uint96 public constant BASE = 10_000;

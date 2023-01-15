@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
-import {DSTest} from "../lib/ds-test/test.sol";
 import {Configurable} from "../mixins/Configurable.sol";
+import {Test} from "forge-std/Test.sol";
 
 import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
@@ -20,7 +20,7 @@ import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 
-abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configurable {
+abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurable {
     uint256[] idList;
     uint256 startingId;
     IERC721Mintable test721;
@@ -50,8 +50,8 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
         test721.setApprovalForAll(address(factory), true);
         factory.setBondingCurveAllowed(bondingCurve, true);
 
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
     }
 
     /**
@@ -100,8 +100,8 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
             startingId += 1;
         }
 
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
 
         uint256 startBalance;
         uint256 endBalance;
@@ -227,8 +227,8 @@ abstract contract NoArbBondingCurve is StdCheats, DSTest, ERC721Holder, Configur
         );
         test721.setApprovalForAll(address(pool), true);
 
-        // skip 1 second so that trades are not in the same timestamp as pool creation
-        skip(1);
+        // skip 1 block so that trades are not in the same block as pool creation
+        vm.roll(block.number + 1);
 
         uint256 startBalance;
         uint256 endBalance;
