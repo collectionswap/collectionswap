@@ -55,23 +55,6 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
         return _selectArbitraryNFTs(nft(), idLength);
     }
 
-    /// @inheritdoc ICollectionPool
-    function withdrawERC721(IERC721 a, uint256[] calldata nftIds) external override onlyAuthorized {
-        IERC721 _nft = nft();
-        address owner = owner();
-
-        // If it's not the pool's NFT, just withdraw normally
-        if (a != _nft) {
-            TransferLib.bulkSafeTransferERC721From(a, address(this), owner, nftIds);
-        }
-        // Otherwise, withdraw and also remove the ID from the ID set
-        else {
-            _withdrawNFTs(owner, nftIds);
-
-            emit NFTWithdrawal();
-        }
-    }
-
     /// @inheritdoc CollectionPool
     function _depositNFTs(address from, uint256[] calldata nftIds) internal override {
         // transfer NFTs to this pool and update map/size
