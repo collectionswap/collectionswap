@@ -1,6 +1,7 @@
 {
   "scripts": {
     "compile": "hardhat compile",
+    "coverage": "TESTING=true RUN_COVERAGE=true hardhat coverage",
     "format": "bash -c 'forge fmt contracts/{bonding-curves,filter,pools,rng,routers,tree,validators,vaults,lib/TransferLib.sol,test,trading-competition} $(find contracts -maxdepth 1 -type f)'",
     "test:foundry": "forge test",
     "test:hh": "TESTING=true hardhat test",
