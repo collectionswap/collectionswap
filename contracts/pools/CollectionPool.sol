@@ -559,7 +559,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * the nft does not implement IERC2981.
      * @return The address to which royalties should be paid
      */
-    function getRoyaltyRecipient(address payable erc2981Recipient) internal view returns (address payable) {
+    function getRoyaltyRecipient(address payable erc2981Recipient) public view returns (address payable) {
         if (erc2981Recipient != address(0)) {
             return erc2981Recipient;
         }
