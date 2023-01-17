@@ -49,6 +49,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
+    bool private initialized;
+
     /**
      * @dev The MAX_FEE constant specifies the maximum fee you, the user, are allowed to charge for this AMM pool.
      * It is used to limit the amount of fees that can be charged by the AMM pool contract on NFT/token swaps.
@@ -65,6 +67,21 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     uint24 internal constant MAX_FEE = 0.9e6;
 
+    // The spread between buy and sell prices, set to be a multiplier we apply to the buy price
+    // Fee is only relevant for TRADE pools
+    // Units are in base 1e6
+    uint24 public fee;
+
+    // For every NFT swapped, a fraction of the cost will be sent to the
+    // ERC2981 payable address for the NFT swapped. The fraction is equal to
+    // `royaltyNumerator / 1e6`
+    uint24 public royaltyNumerator;
+
+    // An address to which all royalties will be paid to if not address(0). This
+    // is a fallback to ERC2981 royalties set by the NFT creator, and allows sending
+    // royalties to arbitrary addresses if a collection does not support ERC2981.
+    address payable public royaltyRecipientFallback;
+
     uint256 internal constant POOL_SWAP_PAUSE = 0;
 
     // The current price of the NFT
@@ -76,11 +93,6 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     // The parameter for the pool's bonding curve.
     // Units and meaning are bonding curve dependent.
     uint128 public delta;
-
-    // The spread between buy and sell prices, set to be a multiplier we apply to the buy price
-    // Fee is only relevant for TRADE pools
-    // Units are in base 1e6
-    uint24 public fee;
 
     // If set to 0, NFTs/tokens sent by traders during trades will be sent to the pool.
     // Otherwise, assets will be sent to the set address. Not available for TRADE pools.
@@ -94,18 +106,6 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     // The state used by the pool's bonding curve.
     bytes public state;
-
-    // For every NFT swapped, a fraction of the cost will be sent to the
-    // ERC2981 payable address for the NFT swapped. The fraction is equal to
-    // `royaltyNumerator / 1e6`
-    uint24 public royaltyNumerator;
-
-    // An address to which all royalties will be paid to if not address(0). This
-    // is a fallback to ERC2981 royalties set by the NFT creator, and allows sending
-    // royalties to arbitrary addresses if a collection does not support ERC2981.
-    address payable public royaltyRecipientFallback;
-
-    bool private initialized;
 
     // Events
     event SwapNFTInPool(
