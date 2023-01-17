@@ -8,7 +8,6 @@ import { TokenIDs } from "filter_code";
 import { ethers, expect } from "hardhat";
 
 import {
-  DEFAULT_CREATE_ETH_POOL_PARAMS,
   FEE_DECIMALS,
   NUM_INITIAL_NFTS,
   PoolType,
@@ -19,11 +18,14 @@ import {
   test20Fixture,
 } from "../../shared/fixtures";
 import {
+  createPoolToSwapNFTs,
+  createPoolToSwapToken,
+} from "../../shared/fixtures/CollectionPool";
+import {
   byEvent,
   difference,
   expectAddressToOwnNFTs,
   getNftTransfersTo,
-  getPoolAddress,
   mintAndApproveAmountToken,
   mintAndApproveNfts,
   mintAndApproveRandomNfts,
@@ -35,7 +37,6 @@ import {
   randomAddress,
   randomBigNumber,
   randomBigNumbers,
-  randomElement,
   randomFee,
 } from "../../shared/random";
 import { getSigners } from "../../shared/signers";
@@ -46,6 +47,7 @@ import type {
   SwapNFTInPoolEventObject,
   SwapNFTOutPoolEventObject,
 } from "../../../../typechain-types/contracts/pools/CollectionPool";
+import type { CreatePoolOptions } from "../../shared/fixtures/CollectionPool";
 import type { IERC721Mintable } from "../../shared/types";
 import type { BigNumber, ContractTransaction } from "ethers";
 import type { Context } from "mocha";
@@ -304,9 +306,13 @@ export function testSwapToken(
 
     context("With ERC2981", function () {
       beforeEach("Set collection pool", async function () {
-        ({ collectionPool, heldIds, nft } = await createPool.call(this, {
-          nft: enumerable ? this.test721EnumerableRoyalty : this.test721Royalty,
-        }));
+        ({ collectionPool, heldIds, nft } = await createPool.call(
+          this,
+          undefined,
+          {
+            royalty: true,
+          }
+        ));
       });
 
       beforeEach("Set royalty numerator", async function () {
@@ -356,11 +362,15 @@ export function testSwapToken(
 
     context("With non-ERC2981 and royalty recipient fallback", function () {
       beforeEach("Set collection pool", async function () {
-        const { test721, test721Enumerable, poolOwner } = this;
+        const { poolOwner } = this;
 
-        ({ collectionPool, heldIds, nft } = await createPool.call(this, {
-          nft: enumerable ? test721Enumerable : test721,
-        }));
+        ({ collectionPool, heldIds, nft } = await createPool.call(
+          this,
+          undefined,
+          {
+            royalty: false,
+          }
+        ));
 
         const royaltyRecipientFallback = randomAddress();
         await collectionPool
@@ -505,17 +515,21 @@ export function testSwapToken(
 
   async function createPool(
     this: Context,
-    overrides?: Partial<{
-      nft?: IERC721Mintable;
-      poolType?: number;
-      filtered?: boolean;
-    }>
+    overrides?: {
+      poolType: PoolType;
+    },
+    options?: Partial<CreatePoolOptions>
   ) {
-    return createBasePool.call(this, key, enumerable, {
-      nft: overrides?.nft,
-      poolType:
-        overrides?.poolType ?? randomElement(PoolType.NFT, PoolType.TRADE),
-    });
+    return createPoolToSwapToken(
+      // @ts-ignore
+      this,
+      key,
+      { poolType: overrides?.poolType },
+      {
+        ...options,
+        enumerable,
+      }
+    );
   }
 }
 
@@ -728,10 +742,8 @@ export function testSwapNFTsForToken(
     context("With ERC2981", function () {
       beforeEach("Set collection pool", async function () {
         ({ collectionPool, nft, heldIds, tokenIDFilter } =
-          await createPool.call(this, {
-            nft: enumerable
-              ? this.test721EnumerableRoyalty
-              : this.test721Royalty,
+          await createPool.call(this, undefined, {
+            royalty: true,
           }));
       });
 
@@ -786,11 +798,11 @@ export function testSwapNFTsForToken(
 
     context("With non-ERC2981 and royalty recipient fallback", function () {
       beforeEach("Set collection pool", async function () {
-        const { test721, test721Enumerable, poolOwner } = this;
+        const { poolOwner } = this;
 
         ({ collectionPool, nft, heldIds, tokenIDFilter } =
-          await createPool.call(this, {
-            nft: enumerable ? test721Enumerable : test721,
+          await createPool.call(this, undefined, {
+            royalty: false,
           }));
 
         const royaltyRecipientFallback = randomAddress();
@@ -868,7 +880,7 @@ export function testSwapNFTsForToken(
     context("With token id filter", function () {
       beforeEach("Set collection pool", async function () {
         ({ collectionPool, nft, heldIds, tokenIDFilter } =
-          await createPool.call(this, {
+          await createPool.call(this, undefined, {
             filtered: true,
           }));
 
@@ -973,102 +985,22 @@ export function testSwapNFTsForToken(
 
   async function createPool(
     this: Context,
-    overrides?: Partial<{
-      nft: IERC721Mintable;
-      poolType: number;
-      filtered: boolean;
-    }>
+    overrides?: {
+      poolType: PoolType;
+    },
+    options?: Partial<CreatePoolOptions>
   ) {
-    return createBasePool.call(this, key, enumerable, {
-      nft: overrides?.nft,
-      poolType:
-        overrides?.poolType ?? randomElement(PoolType.TOKEN, PoolType.TRADE),
-      filtered: overrides?.filtered,
-    });
-  }
-}
-
-async function createBasePool(
-  this: Context,
-  key: "ETH" | "ERC20",
-  enumerable: boolean,
-  overrides: Partial<{
-    nft?: IERC721Mintable;
-    poolType: number;
-    filtered: boolean;
-  }>
-) {
-  const {
-    collectionPoolFactory,
-    curve,
-    test20,
-    test721,
-    test721Enumerable,
-    test721EnumerableRoyalty,
-    test721Royalty,
-    poolOwner,
-    user,
-  } = this;
-
-  const nft =
-    overrides?.nft ??
-    (enumerable
-      ? randomElement(test721Enumerable, test721EnumerableRoyalty)
-      : randomElement(test721, test721Royalty));
-
-  const heldIds = await mintAndApproveRandomNfts(
-    nft,
-    poolOwner,
-    collectionPoolFactory.address,
-    NUM_INITIAL_NFTS
-  );
-
-  const poolParams = {
-    ...DEFAULT_CREATE_ETH_POOL_PARAMS,
-    nft: nft.address,
-    bondingCurve: curve.address,
-    receiver: poolOwner.address,
-    poolType: overrides.poolType,
-    initialNFTIDs: heldIds,
-  };
-  if (key === "ERC20") {
-    // @ts-ignore
-    poolParams.token = test20.address;
-    // @ts-ignore
-    poolParams.initialTokenBalance = 0;
-  }
-
-  let tx: ContractTransaction;
-  let tokenIDFilter;
-  if (overrides?.filtered ?? Math.random() < 0.5) {
-    tokenIDFilter = new TokenIDs(
-      [...heldIds, ...randomBigNumbers(NUM_INITIAL_NFTS)].map(toBigInt)
+    return createPoolToSwapNFTs(
+      // @ts-ignore
+      this,
+      key,
+      { poolType: overrides?.poolType },
+      {
+        ...options,
+        enumerable,
+      }
     );
-
-    const biTokenIds = heldIds.map(toBigInt);
-    // @ts-ignore
-    poolParams.initialNFTIDs = tokenIDFilter.sort(biTokenIds);
-    const { proof: initialProof, proofFlags: initialProofFlags } =
-      tokenIDFilter.proof(biTokenIds);
-
-    tx = await collectionPoolFactory[`createPool${key}Filtered`](poolParams, {
-      merkleRoot: tokenIDFilter.root(),
-      encodedTokenIDs: tokenIDFilter.encode(),
-      initialProof,
-      initialProofFlags,
-    });
-  } else {
-    tx = await collectionPoolFactory[`createPool${key}`](poolParams);
   }
-
-  const { newPoolAddress } = await getPoolAddress(tx);
-  const collectionPool = (await ethers.getContractAt(
-    `CollectionPool${enumerable ? "" : "Missing"}Enumerable${key}`,
-    newPoolAddress,
-    user
-  )) as CollectionPool;
-
-  return { collectionPool, nft, heldIds, tokenIDFilter };
 }
 
 async function expectTxToChangeBalances(
