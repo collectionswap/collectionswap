@@ -269,7 +269,7 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     }
 
     function testFail_reInitPool() public {
-        pool.initialize(0, payable(address(0)), 0, 0, 0, "", "", 0, payable(address(0)));
+        pool.initialize(payable(address(0)), 0, 0, 0, "", "", 0, payable(address(0)));
     }
 
     function testFail_swapForNFTNotInPool() public {

@@ -867,8 +867,8 @@ export async function getPoolAddress(
   const newPoolEvent = receipt.events?.find(
     (event) => event.event === "NewPool"
   );
-  const { poolAddress: newPoolAddress, tokenId: newTokenId } =
-    newPoolEvent!.args!;
+  const { poolAddress: newPoolAddress } = newPoolEvent!.args!;
+  const newTokenId = BigNumber.from(newPoolAddress);
   return { newPoolAddress, newTokenId };
 }
 

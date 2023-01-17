@@ -572,7 +572,6 @@ describe("Collectionswap", function () {
     });
 
     it("Should return an empty string if baseURI has not been set", async function () {
-      const tokenId = 1;
       const {
         collectionPoolFactory,
         nftContractCollection,
@@ -588,17 +587,18 @@ describe("Collectionswap", function () {
         collectionPoolFactory
       );
 
-      await collectionPoolFactory.createPoolETH({
+      const tx = await collectionPoolFactory.createPoolETH({
         ...ethPoolParams,
         initialNFTIDs: nftList,
       });
+
+      const { newTokenId: tokenId } = await getPoolAddress(tx);
 
       expect(await collectionPoolFactory.tokenURI(tokenId)).to.be.equal("");
     });
 
     it("Should return baseURI + tokenID if tokenURI has not been set by the owner", async function () {
       const baseURI = "api.collectionswap.xyz/";
-      const tokenId = 1;
       const {
         collectionPoolFactory,
         nftContractCollection,
@@ -614,21 +614,25 @@ describe("Collectionswap", function () {
         collectionPoolFactory
       );
 
-      await collectionPoolFactory.createPoolETH({
+      const tx = await collectionPoolFactory.createPoolETH({
         ...ethPoolParams,
         initialNFTIDs: nftList,
       });
 
+      const { newTokenId: tokenId, newPoolAddress } = await getPoolAddress(tx);
+
       await collectionPoolFactory.setBaseURI(baseURI);
 
       expect(await collectionPoolFactory.tokenURI(tokenId)).to.be.equal(
-        baseURI.concat("1")
+        baseURI.concat(
+          // Needs to be decimal string
+          ethers.BigNumber.from(newPoolAddress).toString()
+        )
       );
     });
 
     it("Should have the tokenURI set by the owner", async function () {
       const tokenURI = "api.collectionswap.xyz/tokenInfo/1";
-      const tokenId = 1;
       const {
         collectionPoolFactory,
         nftContractCollection,
@@ -644,10 +648,12 @@ describe("Collectionswap", function () {
         collectionPoolFactory
       );
 
-      await collectionPoolFactory.createPoolETH({
+      const tx = await collectionPoolFactory.createPoolETH({
         ...ethPoolParams,
         initialNFTIDs: nftList,
       });
+
+      const { newTokenId: tokenId } = await getPoolAddress(tx);
 
       await collectionPoolFactory.setTokenURI(tokenURI, tokenId);
 

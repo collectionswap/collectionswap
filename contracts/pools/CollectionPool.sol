@@ -104,8 +104,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     // is a fallback to ERC2981 royalties set by the NFT creator, and allows sending
     // royalties to arbitrary addresses if a collection does not support ERC2981.
     address payable public royaltyRecipientFallback;
-    // token ID assigned to the pool instance
-    uint256 public tokenId;
+
+    bool private initialized;
 
     // Events
     event SwapNFTInPool(
@@ -156,7 +156,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     /// @dev Returns the address of the current owner.
     function owner() public view virtual returns (address) {
-        return IERC721(address(factory())).ownerOf(tokenId);
+        return IERC721(address(factory())).ownerOf(tokenId());
     }
 
     /// @dev Throws if called by any account other than the owner.
@@ -167,7 +167,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     /// @dev Throws if called by accounts that were not authorized by the owner.
     modifier onlyAuthorized() {
-        factory().requireAuthorizedForToken(msg.sender, tokenId);
+        factory().requireAuthorizedForToken(msg.sender, tokenId());
         _;
     }
 
@@ -176,7 +176,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /// When ownership is transferred, if the new owner implements IOwnershipTransferCallback, we make a callback
     /// Can only be called by the current owner.
     function transferOwnership(address newOwner) public virtual onlyOwner {
-        IERC721(address(factory())).safeTransferFrom(msg.sender, newOwner, tokenId);
+        IERC721(address(factory())).safeTransferFrom(msg.sender, newOwner, tokenId());
     }
 
     /**
@@ -185,7 +185,6 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * We verify this by making sure that the current owner is address(0).
      * The Ownable library we use disallows setting the owner to be address(0), so this condition
      * should only be valid before the first initialize call.
-     * @param _tokenId The token id of the pool
      * @param _assetRecipient The address that will receive the TOKEN or NFT sent to this pool during swaps.
      * NOTE: If set to address(0), they will go to the pool itself.
      * @param _delta The initial delta of the bonding curve
@@ -199,7 +198,6 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * arbitrary addresses if a collection does not support ERC2981.
      */
     function initialize(
-        uint256 _tokenId,
         address payable _assetRecipient,
         uint128 _delta,
         uint24 _fee,
@@ -209,8 +207,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint24 _royaltyNumerator,
         address payable _royaltyRecipientFallback
     ) external payable validRoyaltyNumerator(_royaltyNumerator) {
-        require(tokenId == 0, "Initialized");
-        tokenId = _tokenId;
+        require(!initialized, "Initialized");
+        initialized = true;
         __ReentrancyGuard_init();
 
         ICurve _bondingCurve = bondingCurve();
@@ -489,6 +487,13 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @notice Returns all NFT IDs held by the pool
      */
     function getAllHeldIds() external view virtual returns (uint256[] memory);
+
+    /**
+     * @notice Returns LP token ID for this pool
+     */
+    function tokenId() public view returns (uint256 _tokenId) {
+        _tokenId = uint256(uint160(address(this)));
+    }
 
     /**
      * @notice Returns the pool's variant (NFT is enumerable or not, pool uses ETH or ERC20)
@@ -814,15 +819,15 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /// @inheritdoc ICollectionPool
     function withdrawERC721(IERC721 a, uint256[] calldata nftIds) external override onlyAuthorized {
         IERC721 _nft = nft();
-        address owner = owner();
+        address _owner = owner();
 
         // If it's not the pool's NFT, just withdraw normally
         if (a != _nft) {
-            TransferLib.bulkSafeTransferERC721From(a, address(this), owner, nftIds);
+            TransferLib.bulkSafeTransferERC721From(a, address(this), _owner, nftIds);
         }
         // Otherwise, withdraw and also remove the ID from the ID set
         else {
-            _withdrawNFTs(owner, nftIds);
+            _withdrawNFTs(_owner, nftIds);
 
             emit NFTWithdrawal();
         }

@@ -36,7 +36,6 @@ import {
   randomBigNumber,
   randomBigNumbers,
   randomElement,
-  randomEthValue,
   randomFee,
 } from "../../shared/random";
 import { getSigners } from "../../shared/signers";

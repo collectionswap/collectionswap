@@ -101,8 +101,9 @@ describe("RewardVaultETH", function () {
         const description = descriptions.find(
           (description) => description.name === "NewPool"
         );
-        const { poolAddress: newPoolAddress, tokenId: newTokenId } =
-          description!.args;
+        const { poolAddress: newPoolAddress } = description!.args;
+
+        const newTokenId = ethers.BigNumber.from(newPoolAddress);
 
         expect(stakedTokenId).to.equal(newTokenId);
 

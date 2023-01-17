@@ -213,12 +213,10 @@ describe("CollectionPoolFactory", function () {
           );
         });
 
-        it("Should increment lp token id", async function () {
+        it("LP Token ID should equal pool address", async function () {
           const tx = await createPool.call(this, key, filtered);
-          const { newTokenId } = await getPoolAddress(tx);
-          expect(
-            (await callStaticCreatePool.call(this, key, filtered)).tokenId
-          ).to.equal(newTokenId.add(ethers.constants.One));
+          const { newTokenId, newPoolAddress } = await getPoolAddress(tx);
+          expect(ethers.BigNumber.from(newPoolAddress)).to.equal(newTokenId);
         });
       });
 
@@ -409,14 +407,10 @@ describe("CollectionPoolFactory", function () {
       });
 
       it("Should emit NewPool event", async function () {
-        const { pool, tokenId } = await callStaticCreatePool.call(
-          this,
-          key,
-          filtered
-        );
+        const { pool } = await callStaticCreatePool.call(this, key, filtered);
         await expect(createPool.call(this, key, filtered))
           .to.emit(collectionPoolFactory, "NewPool")
-          .withArgs(pool, tokenId);
+          .withArgs(this[`create${key}PoolParams`].nft, pool);
       });
 
       it("Should transfer NFTs to pool", async function () {

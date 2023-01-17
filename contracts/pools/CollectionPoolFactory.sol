@@ -64,12 +64,6 @@ contract CollectionPoolFactory is
      */
     uint256 internal constant MAX_CARRY_FEE = 0.5e6; // 50%
 
-    // Mapping from token ID to pool address
-    mapping(uint256 => address) private _poolAddresses;
-
-    /// @dev The ID of the next token that will be minted. Skips 0
-    uint256 internal _nextTokenId;
-
     address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     CollectionPoolEnumerableETH public immutable enumerableETHTemplate;
     CollectionPoolMissingEnumerableETH public immutable missingEnumerableETHTemplate;
@@ -100,7 +94,7 @@ contract CollectionPoolFactory is
         _;
     }
 
-    event NewPool(address poolAddress, uint256 tokenId);
+    event NewPool(address collection, address poolAddress);
     event TokenDeposit(address poolAddress);
     event NFTDeposit(address poolAddress);
     event ProtocolFeeRecipientUpdate(address recipientAddress);
@@ -147,8 +141,8 @@ contract CollectionPoolFactory is
     /**
      * @dev See {ICollectionPoolFactory-poolAddressOf}.
      */
-    function poolAddressOf(uint256 tokenId) public view returns (address) {
-        return _poolAddresses[tokenId];
+    function poolAddressOf(uint256 tokenId) public pure returns (address) {
+        return address(uint160(tokenId));
     }
 
     /**
@@ -203,7 +197,7 @@ contract CollectionPoolFactory is
     {
         (pool, tokenId) = _createPoolETH(params);
 
-        _initializePoolETH(CollectionPoolETH(payable(pool)), params, tokenId);
+        _initializePoolETH(CollectionPoolETH(payable(pool)), params);
     }
 
     /**
@@ -229,7 +223,7 @@ contract CollectionPoolFactory is
             "NFT not allowed"
         );
 
-        _initializePoolETH(_pool, params, tokenId);
+        _initializePoolETH(_pool, params);
     }
 
     function createPoolERC20(CreateERC20PoolParams calldata params)
@@ -239,7 +233,7 @@ contract CollectionPoolFactory is
     {
         (pool, tokenId) = _createPoolERC20(params);
 
-        _initializePoolERC20(CollectionPoolERC20(payable(pool)), params, tokenId);
+        _initializePoolERC20(CollectionPoolERC20(payable(pool)), params);
     }
 
     function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams)
@@ -258,7 +252,7 @@ contract CollectionPoolFactory is
             "NFT not allowed"
         );
 
-        _initializePoolERC20(_pool, params, tokenId);
+        _initializePoolERC20(_pool, params);
     }
 
     /**
@@ -330,7 +324,6 @@ contract CollectionPoolFactory is
         // then withdraw NFTs
         pool.withdrawERC721(pool.nft(), pool.getAllHeldIds());
 
-        delete _poolAddresses[tokenId];
         _burn(tokenId);
     }
 
@@ -482,20 +475,14 @@ contract CollectionPoolFactory is
         pool = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
 
         // issue new token
-        tokenId = mint(params.receiver);
+        tokenId = mint(params.receiver, CollectionPool(pool));
 
-        // save pool address in mapping
-        _poolAddresses[tokenId] = pool;
-
-        emit NewPool(pool, tokenId);
+        emit NewPool(address(params.nft), pool);
     }
 
-    function _initializePoolETH(CollectionPoolETH _pool, CreateETHPoolParams calldata _params, uint256 tokenId)
-        internal
-    {
+    function _initializePoolETH(CollectionPoolETH _pool, CreateETHPoolParams calldata _params) internal {
         // initialize pool
         _pool.initialize(
-            tokenId,
             _params.assetRecipient,
             _params.delta,
             _params.fee,
@@ -533,20 +520,14 @@ contract CollectionPoolFactory is
         pool = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
 
         // issue new token
-        tokenId = mint(params.receiver);
+        tokenId = mint(params.receiver, CollectionPool(pool));
 
-        // save pool address in mapping
-        _poolAddresses[tokenId] = pool;
-
-        emit NewPool(pool, tokenId);
+        emit NewPool(address(params.nft), pool);
     }
 
-    function _initializePoolERC20(CollectionPoolERC20 _pool, CreateERC20PoolParams calldata _params, uint256 tokenId)
-        internal
-    {
+    function _initializePoolERC20(CollectionPoolERC20 _pool, CreateERC20PoolParams calldata _params) internal {
         // initialize pool
         _pool.initialize(
-            tokenId,
             _params.assetRecipient,
             _params.delta,
             _params.fee,
@@ -573,8 +554,12 @@ contract CollectionPoolFactory is
         pool.depositNFTsNotification(nftIds);
     }
 
-    function mint(address recipient) internal returns (uint256 tokenId) {
-        _safeMint(recipient, (tokenId = ++_nextTokenId));
+    /*
+     * @dev Mints LP token using pool address as Token ID
+     */
+    function mint(address recipient, CollectionPool pool) internal returns (uint256 tokenId) {
+        tokenId = uint256(uint160(address(pool)));
+        _safeMint(recipient, tokenId);
     }
 
     /**
