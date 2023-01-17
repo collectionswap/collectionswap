@@ -188,7 +188,7 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
                 value += itemCost;
             }
 
-            uint256 itemRoyalty = itemCost.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
+            uint256 itemRoyalty = itemCost.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[uint256(n) - 1] = itemRoyalty;
             totalRoyalty += itemRoyalty;
 

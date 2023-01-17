@@ -34,8 +34,8 @@ abstract contract RouterSinglePool is
     CollectionRouter router;
     CollectionPool pool;
     address payable constant feeRecipient = payable(address(69));
-    uint256 constant protocolFeeMultiplier = 3e15;
-    uint256 constant carryFeeMultiplier = 3e15;
+    uint24 constant protocolFeeMultiplier = 0.003e6;
+    uint24 constant carryFeeMultiplier = 0.003e6;
     uint256 constant numInitialNFTs = 10;
 
     function setUp() public {

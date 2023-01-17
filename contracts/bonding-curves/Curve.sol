@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.0;
 
 import {ICurve} from "./ICurve.sol";
@@ -5,6 +6,8 @@ import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 
 abstract contract Curve is ICurve {
     using FixedPointMathLib for uint256;
+
+    uint24 constant FEE_DENOMINATOR = 1e6;
 
     /**
      * @dev See {ICurve-validateDelta}
@@ -75,13 +78,13 @@ abstract contract Curve is ICurve {
         returns (Fees memory fees)
     {
         // Account for the protocol fee, a flat percentage of the buy amount, only for Non-Trade pools
-        fees.protocol = valueWithoutFee.fmul(feeMultipliers.protocol, FixedPointMathLib.WAD);
+        fees.protocol = valueWithoutFee.fmul(feeMultipliers.protocol, FEE_DENOMINATOR);
 
         // Account for the trade fee, only for Trade pools
-        fees.trade = valueWithoutFee.fmul(feeMultipliers.trade, FixedPointMathLib.WAD);
+        fees.trade = valueWithoutFee.fmul(feeMultipliers.trade, FEE_DENOMINATOR);
 
         // Account for the carry fee, only for Trade pools
-        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FixedPointMathLib.WAD);
+        uint256 carryFee = fees.trade.fmul(feeMultipliers.carry, FEE_DENOMINATOR);
         fees.trade -= carryFee;
         fees.protocol += carryFee;
 

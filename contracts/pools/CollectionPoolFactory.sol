@@ -30,13 +30,7 @@ import {CollectionPoolMissingEnumerableETH} from "./CollectionPoolMissingEnumera
 import {CollectionPoolMissingEnumerableERC20} from "./CollectionPoolMissingEnumerableERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-contract CollectionPoolFactory is
-    Ownable,
-    ReentrancyGuard,
-    ERC721,
-    ERC721URIStorage,
-    ICollectionPoolFactory
-{
+contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URIStorage, ICollectionPoolFactory {
     using CollectionPoolCloner for address;
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
@@ -51,13 +45,13 @@ contract CollectionPoolFactory is
      * and it is used to cover the costs associated with running the AMM pool contract and providing liquidity to the decentralized exchange.
      * This is used for NFT/TOKEN trading pools, that have a limited amount of dry powder
      */
-    uint256 internal constant MAX_PROTOCOL_FEE = 0.1e18; // 10%, must <= 1 - MAX_FEE
+    uint256 internal constant MAX_PROTOCOL_FEE = 0.1e6; // 10%, must <= 1 - MAX_FEE
     /**
      * @dev The MAX_CARRY_FEE constant specifies the maximum fee that can be charged by the AMM pool contract for facilitating token
      * or NFT swaps on the decentralized exchange. This fee is charged as a percentage of the fee set by the trading pool creator,
      * which is itself a percentage of the final traded price. This is used for TRADE pools, that form a continuous liquidity pool
      */
-    uint256 internal constant MAX_CARRY_FEE = 0.5e18; // 50%
+    uint256 internal constant MAX_CARRY_FEE = 0.5e6; // 50%
 
     // Mapping from token ID to pool address
     mapping(uint256 => address) private _poolAddresses;
@@ -72,11 +66,11 @@ contract CollectionPoolFactory is
     CollectionPoolMissingEnumerableERC20 public immutable missingEnumerableERC20Template;
     address payable public override protocolFeeRecipient;
 
-    // Units are in base 1e18
-    uint256 public override protocolFeeMultiplier;
+    // Units are in base 1e6
+    uint24 public override protocolFeeMultiplier;
 
-    // Units are in base 1e18
-    uint256 public override carryFeeMultiplier;
+    // Units are in base 1e6
+    uint24 public override carryFeeMultiplier;
 
     mapping(ICurve => bool) public bondingCurveAllowed;
     mapping(address => bool) public override callAllowed;
@@ -94,8 +88,8 @@ contract CollectionPoolFactory is
     event TokenDeposit(address poolAddress);
     event NFTDeposit(address poolAddress);
     event ProtocolFeeRecipientUpdate(address recipientAddress);
-    event ProtocolFeeMultiplierUpdate(uint256 newMultiplier);
-    event CarryFeeMultiplierUpdate(uint256 newMultiplier);
+    event ProtocolFeeMultiplierUpdate(uint24 newMultiplier);
+    event CarryFeeMultiplierUpdate(uint24 newMultiplier);
     event BondingCurveStatusUpdate(ICurve bondingCurve, bool isAllowed);
     event CallTargetStatusUpdate(address target, bool isAllowed);
     event RouterStatusUpdate(CollectionRouter router, bool isAllowed);
@@ -106,8 +100,8 @@ contract CollectionPoolFactory is
         CollectionPoolEnumerableERC20 _enumerableERC20Template,
         CollectionPoolMissingEnumerableERC20 _missingEnumerableERC20Template,
         address payable _protocolFeeRecipient,
-        uint256 _protocolFeeMultiplier,
-        uint256 _carryFeeMultiplier
+        uint24 _protocolFeeMultiplier,
+        uint24 _carryFeeMultiplier
     ) ERC721("Collectionswap", "CollectionLP") {
         enumerableETHTemplate = _enumerableETHTemplate;
         missingEnumerableETHTemplate = _missingEnumerableETHTemplate;
@@ -265,7 +259,7 @@ contract CollectionPoolFactory is
      * @notice Changes the protocol fee multiplier. Only callable by the owner.
      * @param _protocolFeeMultiplier The new fee multiplier, 18 decimals
      */
-    function changeProtocolFeeMultiplier(uint256 _protocolFeeMultiplier) external onlyOwner {
+    function changeProtocolFeeMultiplier(uint24 _protocolFeeMultiplier) external onlyOwner {
         require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Fee too large");
         protocolFeeMultiplier = _protocolFeeMultiplier;
         emit ProtocolFeeMultiplierUpdate(_protocolFeeMultiplier);
@@ -275,7 +269,7 @@ contract CollectionPoolFactory is
      * @notice Changes the carry fee multiplier. Only callable by the owner.
      * @param _carryFeeMultiplier The new fee multiplier, 18 decimals
      */
-    function changeCarryFeeMultiplier(uint256 _carryFeeMultiplier) external onlyOwner {
+    function changeCarryFeeMultiplier(uint24 _carryFeeMultiplier) external onlyOwner {
         require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Fee too large");
         carryFeeMultiplier = _carryFeeMultiplier;
         emit CarryFeeMultiplierUpdate(_carryFeeMultiplier);
@@ -516,10 +510,7 @@ contract CollectionPoolFactory is
     // overrides required by Solidiity for ERC721 contract
     // The following functions are overrides required by Solidity.
 
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
-        internal
-        override (ERC721)
-    {
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override (ERC721) {
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
@@ -527,13 +518,7 @@ contract CollectionPoolFactory is
         super._burn(tokenId);
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override (IERC165, ERC721)
-        returns (bool)
-    {
+    function supportsInterface(bytes4 interfaceId) public view virtual override (IERC165, ERC721) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 

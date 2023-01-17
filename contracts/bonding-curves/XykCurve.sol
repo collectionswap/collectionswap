@@ -44,8 +44,7 @@ contract XykCurve is Curve, CurveErrorCodes {
 
         fees.royalties = new uint256[](numItems);
         // For XYK, every item has the same price so royalties have the same value
-        uint256 royaltyAmount =
-            (inputValueWithoutFee / numItems).fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
+        uint256 royaltyAmount = (inputValueWithoutFee / numItems).fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
         for (uint256 i = 0; i < numItems;) {
             fees.royalties[i] = royaltyAmount;
 
@@ -92,7 +91,7 @@ contract XykCurve is Curve, CurveErrorCodes {
         fees.royalties = new uint256[](numItems);
         // For XYK, every item has the same price so royalties have the same value
         uint256 royaltyAmount =
-            (outputValueWithoutFee / numItems).fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
+            (outputValueWithoutFee / numItems).fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
         for (uint256 i = 0; i < numItems;) {
             fees.royalties[i] = royaltyAmount;
 

@@ -6,6 +6,7 @@ import { ethers } from "hardhat";
 import {
   DEFAULT_CREATE_ERC20_POOL_PARAMS,
   DEFAULT_CREATE_ETH_POOL_PARAMS,
+  FEE_DECIMALS,
   NUM_INITIAL_NFTS,
   PoolVariant,
 } from "../shared/constants";
@@ -28,6 +29,7 @@ import {
   randomAddress,
   randomBigNumbers,
   randomEthValue,
+  randomFee,
 } from "../shared/random";
 import { getSigners } from "../shared/signers";
 
@@ -45,6 +47,8 @@ import type {
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumber, ContractTransaction } from "ethers";
 import type { Context } from "mocha";
+
+const MAX_UINT_24 = ethers.BigNumber.from(0xffffff);
 
 describe("CollectionPoolFactory", function () {
   let gasToCost: (gasUsed: BigNumber) => number;
@@ -232,22 +236,23 @@ describe("CollectionPoolFactory", function () {
           context("With non-zero royalty numerator = 1e18", function () {
             it("should revert", async function () {
               this[`create${key}PoolParams`].royaltyNumerator =
-                ethers.utils.parseEther("1");
+                ethers.utils.parseUnits("1", FEE_DECIMALS);
 
               await expect(
                 createPool.call(this, key, filtered)
-              ).to.be.revertedWith("royaltyNumerator must be < 1e18");
+              ).to.be.revertedWith("royaltyNumerator must be < 1e6");
             });
           });
 
           context("With non-zero royalty numerator >= 1e18", function () {
             it("should revert", async function () {
-              this[`create${key}PoolParams`].royaltyNumerator =
-                ethers.constants.MaxUint256.sub(randomEthValue(1));
+              this[`create${key}PoolParams`].royaltyNumerator = MAX_UINT_24.sub(
+                randomFee(1)
+              );
 
               await expect(
                 createPool.call(this, key, filtered)
-              ).to.be.revertedWith("royaltyNumerator must be < 1e18");
+              ).to.be.revertedWith("royaltyNumerator must be < 1e6");
             });
           });
         });
@@ -278,9 +283,9 @@ describe("CollectionPoolFactory", function () {
 
               context("With non-zero royalty numerator < 1e18", function () {
                 beforeEach("Set random royalty numerator < 1e18", function () {
-                  const royaltyNumerator = randomEthValue(1);
+                  const royaltyNumerator = randomFee(1);
                   expect(royaltyNumerator).to.lessThan(
-                    ethers.utils.parseEther("1")
+                    ethers.utils.parseUnits("1", FEE_DECIMALS)
                   );
                   this[`create${key}PoolParams`].royaltyNumerator =
                     royaltyNumerator;

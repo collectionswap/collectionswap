@@ -42,8 +42,8 @@ abstract contract RouterRobustSwap is
     address payable constant feeRecipient = payable(address(69));
 
     // Set protocol fee to be 10%
-    uint256 constant protocolFeeMultiplier = 1e17;
-    uint256 constant carryFeeMultiplier = 1e17;
+    uint24 constant protocolFeeMultiplier = 0.1e6;
+    uint24 constant carryFeeMultiplier = 0.1e6;
 
     function setUp() public {
         // Create contracts

@@ -1,9 +1,9 @@
 import { expect } from "chai";
 import { BigNumber } from "ethers";
-import { formatEther } from "ethers/lib/utils";
+import { formatEther, formatUnits } from "ethers/lib/utils";
 import { assert, ethers } from "hardhat";
 
-import { CURVE_TYPE, PoolType } from "./constants";
+import { CURVE_TYPE, FEE_DECIMALS, PoolType } from "./constants";
 import { randomBigNumber } from "./random";
 
 import type {
@@ -510,6 +510,36 @@ export async function hasProtocolFee(pool: CollectionPool): Promise<boolean> {
   return [PoolType.NFT, PoolType.TOKEN].includes(poolType);
 }
 
+export async function poolParamsToNumbers(
+  pool: CollectionPool,
+  _spot: BigNumber,
+  _delta: BigNumber,
+  _props: any,
+  _fee: BigNumber,
+  _protocolFee: BigNumber,
+  royaltyNumerator: number
+): Promise<{
+  spot: number;
+  delta: number;
+  fee: number;
+  protocolFee: number;
+  royaltyMultiplier: number;
+}> {
+  const [spot, delta] = [_spot, _delta].map((bigNumber) => {
+    return Number(formatEther(bigNumber));
+  });
+
+  const fee = Number(formatUnits(_fee, FEE_DECIMALS));
+
+  const protocolFee = (await hasProtocolFee(pool))
+    ? Number(formatUnits(_protocolFee, FEE_DECIMALS))
+    : 0;
+
+  const royaltyMultiplier = royaltyNumerator / 10 ** FEE_DECIMALS;
+
+  return { spot, delta, fee, protocolFee, royaltyMultiplier };
+}
+
 /**
  * @notice spot, delta, props should all be taken from the pool at creation
  * time. This function accounts for all variable changes due to buying/selling
@@ -525,16 +555,18 @@ export async function calculateAsk(
   _protocolFee: BigNumber,
   royaltyNumerator: number
 ): Promise<[number, number]> {
-  const [spot, delta, fee] = [_spot, _delta, _fee].map((bigNumber) => {
-    return Number(formatEther(bigNumber));
-  });
-
-  const protocolFee = (await hasProtocolFee(pool))
-    ? Number(formatEther(_protocolFee))
-    : 0;
-
-  const royaltyMultiplier = royaltyNumerator / 1e18;
-  const finalMultiplier = 1 + fee + protocolFee + royaltyNumerator / 1e18;
+  const { spot, delta, fee, protocolFee, royaltyMultiplier } =
+    await poolParamsToNumbers(
+      pool,
+      _spot,
+      _delta,
+      _props,
+      _fee,
+      _protocolFee,
+      royaltyNumerator
+    );
+  const finalMultiplier =
+    1 + fee + protocolFee + royaltyNumerator / 10 ** FEE_DECIMALS;
 
   // Use quantity as -changeInItemsInPool since asks decrease the number in the pool
   if (CURVE_TYPE === "exponential") {
@@ -572,16 +604,18 @@ export async function calculateBid(
   _protocolFee: BigNumber,
   royaltyNumerator: number
 ): Promise<[number, number]> {
-  const [spot, delta, fee] = [_spot, _delta, _fee].map((bigNumber) => {
-    return Number(formatEther(bigNumber));
-  });
-
-  const protocolFee = (await hasProtocolFee(pool))
-    ? Number(formatEther(_protocolFee))
-    : 0;
-
-  const royaltyMultiplier = royaltyNumerator / 1e18;
-  const finalMultiplier = 1 - fee - protocolFee - royaltyNumerator / 1e18;
+  const { spot, delta, fee, protocolFee, royaltyMultiplier } =
+    await poolParamsToNumbers(
+      pool,
+      _spot,
+      _delta,
+      _props,
+      _fee,
+      _protocolFee,
+      royaltyNumerator
+    );
+  const finalMultiplier =
+    1 - fee - protocolFee - royaltyNumerator / 10 ** FEE_DECIMALS;
 
   if (CURVE_TYPE === "exponential") {
     const rawPrice = spot / delta ** changeInItemsInPool;

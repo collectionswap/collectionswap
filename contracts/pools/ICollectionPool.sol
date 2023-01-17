@@ -35,7 +35,7 @@ interface ICollectionPool is ITokenIDFilter {
 
     function delta() external view returns (uint128);
 
-    function fee() external view returns (uint96);
+    function fee() external view returns (uint24);
 
     function nft() external view returns (IERC721);
 
@@ -43,7 +43,7 @@ interface ICollectionPool is ITokenIDFilter {
 
     function spotPrice() external view returns (uint128);
 
-    function royaltyNumerator() external view returns (uint256);
+    function royaltyNumerator() external view returns (uint24);
 
     /**
      * @notice The usable balance of the pool. This is the amount the pool needs to have to buy NFTs and pay out royalties.

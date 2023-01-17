@@ -1,7 +1,8 @@
 {
-  "bigPctProtocolFee": "5000000000000000",
-  "bigPctCarryFee": "5000000000000000",
-  "bigPctFee": "10000000000000000",
+  "bigPctProtocolFee": "5000",
+  "bigPctCarryFee": "5000",
+  "bigPctFee": "10000",
+  "royaltyNumerator": "10000",
   "bigDelta": "640",
   "rawSpot": 0,
   "bigSpot": "0",
@@ -19,7 +20,6 @@
   "rawState": [
     "0"
   ],
-  "royaltyNumerator": "10000000000000000",
   "spotComments": "Spot price is unused",
   "deltaComments": "This delta encodes k = 640 (before dividing by 1024)",
   "propsComments": "This props encodes a min price of 1 ETH and a price range of 1 ETH",

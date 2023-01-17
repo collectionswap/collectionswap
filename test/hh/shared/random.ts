@@ -1,6 +1,8 @@
 import BN from "bn.js";
 import { BigNumber, constants, utils, Wallet } from "ethers";
 
+import { FEE_DECIMALS } from "./constants";
+
 import type { BigNumberish } from "@ethersproject/bignumber/src.ts/bignumber";
 
 /**
@@ -81,4 +83,8 @@ function toBN(value: BigNumberish): BN {
   }
 
   return new BN(hex.substring(2), 16);
+}
+
+export function randomFee(max: number): BigNumber {
+  return randomEthValue(max / 10 ** (18 - FEE_DECIMALS));
 }

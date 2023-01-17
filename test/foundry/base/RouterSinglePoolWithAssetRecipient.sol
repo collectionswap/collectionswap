@@ -37,8 +37,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
     address payable constant feeRecipient = payable(address(69));
     address payable constant sellPoolRecipient = payable(address(1));
     address payable constant buyPoolRecipient = payable(address(2));
-    uint256 constant protocolFeeMultiplier = 0;
-    uint256 constant carryFeeMultiplier = 0;
+    uint24 constant protocolFeeMultiplier = 0;
+    uint24 constant carryFeeMultiplier = 0;
     uint256 constant numInitialNFTs = 10;
 
     function setUp() public {
@@ -355,7 +355,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
 
     function test_swapSingleNFTForTokenWithProtocolFee() public {
         // Set protocol fee to be 10%
-        factory.changeProtocolFeeMultiplier(0.1e18);
+        factory.changeProtocolFeeMultiplier(0.1e6);
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = numInitialNFTs * 2 + 1;
         CollectionRouter.PoolSwapSpecific[]
@@ -379,7 +379,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
 
     function test_swapTokenForSingleSpecificNFTWithProtocolFee() public {
         // Set protocol fee to be 10%
-        factory.changeProtocolFeeMultiplier(0.1e18);
+        factory.changeProtocolFeeMultiplier(0.1e6);
         uint256[] memory nftIds = new uint256[](1);
         nftIds[0] = 1;
         CollectionRouter.PoolSwapSpecific[]
@@ -410,7 +410,7 @@ abstract contract RouterSinglePoolWithAssetRecipient is
 
     function test_swapTokenForSingleAnyNFTWithProtocolFee() public {
         // Set protocol fee to be 10%
-        factory.changeProtocolFeeMultiplier(0.1e18);
+        factory.changeProtocolFeeMultiplier(0.1e6);
         CollectionRouter.PoolSwapAny[]
             memory swapList = new CollectionRouter.PoolSwapAny[](1);
         swapList[0] = CollectionRouter.PoolSwapAny({pool: sellPool, numItems: 1});

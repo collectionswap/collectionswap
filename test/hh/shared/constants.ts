@@ -11,6 +11,7 @@ const IMPLEMENTED_CURVES = ["linear", "exponential", "sigmoid"] as const;
 export type curveType = typeof IMPLEMENTED_CURVES[number];
 export const CURVE_TYPE: curveType = process.env.CURVE_TYPE as curveType;
 export let config = {} as any;
+export const FEE_DECIMALS = 6;
 
 export const DEFAULT_CREATE_ETH_POOL_PARAMS: ICollectionPoolFactory.CreateETHPoolParamsStruct =
   {

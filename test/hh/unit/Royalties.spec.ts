@@ -20,7 +20,7 @@ import {
 
 import type { BigNumber, providers } from "ethers";
 
-const newRoyaltyNumerator = ethers.utils.parseEther("0.5");
+const newRoyaltyNumerator = ethers.utils.parseUnits("0.5", 6);
 
 describe("Royalties", function () {
   describe("Royalties should be awarded upon swaps", function () {

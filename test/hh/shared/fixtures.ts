@@ -32,7 +32,7 @@ const NUM_REWARD_TOKENS = 2;
 const DAY_DURATION = 86400;
 const REWARD_DURATION = DAY_DURATION;
 const REWARDS = [ethers.utils.parseEther("5"), ethers.utils.parseEther("7")];
-export const DEFAULT_VALID_ROYALTY = ethers.utils.parseUnits("1", 15);
+export const DEFAULT_VALID_ROYALTY = ethers.utils.parseUnits("1", 3);
 
 export const TRADING_QUANTITY = 4;
 
@@ -333,8 +333,8 @@ export async function deployPoolContracts() {
     await CollectionPoolMissingEnumerableERC20.deploy();
 
   const protocolFeeRecipient = randomAddress();
-  const protocolFeeMultiplier = randomEthValue(0.1);
-  const carryFeeMultiplier = randomEthValue(0.5);
+  const protocolFeeMultiplier = randomEthValue(0.1e-12);
+  const carryFeeMultiplier = randomEthValue(0.5e-12);
 
   const CollectionPoolFactory = await ethers.getContractFactory(
     "CollectionPoolFactory",

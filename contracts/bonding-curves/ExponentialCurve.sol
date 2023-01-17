@@ -74,7 +74,7 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
             uint256 deltaPowI = uint256(params.delta).fpow(i, FixedPointMathLib.WAD);
             uint256 royaltyAmount = (buySpotPrice * deltaPowI).fmul(
                 feeMultipliers.royaltyNumerator,
-                FixedPointMathLib.WAD * FixedPointMathLib.WAD // (delta ^ i) is still in units of ether
+                FixedPointMathLib.WAD * FEE_DENOMINATOR // (delta ^ i) is still in units of ether, royaltyNumerator in FEE_DENOMINATOR
             );
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
@@ -144,7 +144,7 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
             uint256 invDeltaPowI = invDelta.fpow(i, FixedPointMathLib.WAD);
             uint256 royaltyAmount = (params.spotPrice * invDeltaPowI).fmul(
                 feeMultipliers.royaltyNumerator,
-                FixedPointMathLib.WAD * FixedPointMathLib.WAD // (delta ^ i) is still in units of ether
+                FixedPointMathLib.WAD * FEE_DENOMINATOR // (delta ^ i) is still in units of ether, royaltyNumerator in FEE_DENOMINATOR
             );
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;

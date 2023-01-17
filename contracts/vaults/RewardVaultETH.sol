@@ -259,11 +259,11 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
         IERC721 _nft,
         ICurve _bondingCurve,
         uint128 _delta,
-        uint96 _fee,
+        uint24 _fee,
         uint128 _spotPrice,
         bytes calldata _props,
         bytes calldata _state,
-        uint256 _royaltyNumerator,
+        uint24 _royaltyNumerator,
         address payable _royaltyRecipientFallback,
         uint256[] calldata _initialNFTIDs
     ) external payable returns (uint256 currTokenId) {

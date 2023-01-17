@@ -62,7 +62,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * and it is paid to the contract owner or to a designated fee recipient. The exact fee rate and fee recipient can be configured by the
      * contract owner when the AMM pool contract is deployed.
      */
-    uint256 internal constant MAX_FEE = 0.9e18;
+    uint24 internal constant MAX_FEE = 0.9e6;
 
     // The current price of the NFT
     // @dev This is generally used to mean the immediate sell price for the next marginal NFT.
@@ -76,8 +76,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     // The spread between buy and sell prices, set to be a multiplier we apply to the buy price
     // Fee is only relevant for TRADE pools
-    // Units are in base 1e18
-    uint96 public fee;
+    // Units are in base 1e6
+    uint24 public fee;
 
     // If set to 0, NFTs/tokens sent by traders during trades will be sent to the pool.
     // Otherwise, assets will be sent to the set address. Not available for TRADE pools.
@@ -94,8 +94,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     // For every NFT swapped, a fraction of the cost will be sent to the
     // ERC2981 payable address for the NFT swapped. The fraction is equal to
-    // `royaltyNumerator / 1e18`
-    uint256 public royaltyNumerator;
+    // `royaltyNumerator / 1e6`
+    uint24 public royaltyNumerator;
 
     // An address to which all royalties will be paid to if not address(0). This
     // is a fallback to ERC2981 royalties set by the NFT creator, and allows sending
@@ -121,7 +121,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event AssetRecipientChange(address a);
     event PropsUpdate(bytes newProps);
     event StateUpdate(bytes newState);
-    event RoyaltyNumeratorUpdate(uint256 newRoyaltyNumerator);
+    event RoyaltyNumeratorUpdate(uint24 newRoyaltyNumerator);
     event RoyaltyRecipientFallbackUpdate(address payable newFallback);
 
     // Parameterized Errors
@@ -131,8 +131,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /**
      * @dev Use this whenever modifying the value of royaltyNumerator.
      */
-    modifier validRoyaltyNumerator(uint256 _royaltyNumerator) {
-        require(_royaltyNumerator < 1e18, "royaltyNumerator must be < 1e18");
+    modifier validRoyaltyNumerator(uint24 _royaltyNumerator) {
+        require(_royaltyNumerator < 1e6, "royaltyNumerator must be < 1e6");
         _;
     }
 
@@ -177,7 +177,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param _delta The initial delta of the bonding curve
      * @param _fee The initial % fee taken, if this is a trade pool
      * @param _spotPrice The initial price to sell an asset into the pool
-     * @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18
+     * @param _royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e6
      * being sent to the account to which the traded NFT's royalties are awardable.
      * Must be 0 if `_nft` is not IERC2981 and no recipient fallback is set.
      * @param _royaltyRecipientFallback An address to which all royalties will be paid to if not address(0).
@@ -188,11 +188,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint256 _tokenId,
         address payable _assetRecipient,
         uint128 _delta,
-        uint96 _fee,
+        uint24 _fee,
         uint128 _spotPrice,
         bytes calldata _props,
         bytes calldata _state,
-        uint256 _royaltyNumerator,
+        uint24 _royaltyNumerator,
         address payable _royaltyRecipientFallback
     ) external payable validRoyaltyNumerator(_royaltyNumerator) {
         require(tokenId == 0, "Initialized");
@@ -579,8 +579,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     }
 
     function feeMultipliers() public view returns (ICurve.FeeMultipliers memory) {
-        uint256 protocolFeeMultiplier;
-        uint256 carryFeeMultiplier;
+        uint24 protocolFeeMultiplier;
+        uint24 carryFeeMultiplier;
 
         PoolType _poolType = poolType();
         if ((_poolType == PoolType.TOKEN) || (_poolType == PoolType.NFT)) {
@@ -889,7 +889,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * MAX_FEE.
      * @param newFee The new LP fee percentage, 18 decimals
      */
-    function changeFee(uint96 newFee) external onlyOwner {
+    function changeFee(uint24 newFee) external onlyOwner {
         PoolType _poolType = poolType();
         require(_poolType == PoolType.TRADE, "Only for Trade pools");
         require(newFee < MAX_FEE, "Trade fee must be less than 90%");
@@ -913,7 +913,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         }
     }
 
-    function changeRoyaltyNumerator(uint256 newRoyaltyNumerator)
+    function changeRoyaltyNumerator(uint24 newRoyaltyNumerator)
         external
         onlyOwner
         validRoyaltyNumerator(newRoyaltyNumerator)

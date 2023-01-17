@@ -21,9 +21,9 @@ interface ICollectionPoolFactory is IERC721 {
         address bondingCurveAddress;
         address tokenAddress;
         address payable poolAddress;
-        uint96 fee;
+        uint24 fee;
         uint128 delta;
-        uint256 royaltyNumerator;
+        uint24 royaltyNumerator;
     }
 
     /**
@@ -51,7 +51,7 @@ interface ICollectionPoolFactory is IERC721 {
      * on the specific curve.
      * @param fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
      * @param spotPrice The initial selling spot price
-     * @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18
+     * @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e6
      * being sent to the account to which the traded NFT's royalties are awardable.
      * Must be 0 if `_nft` is not IERC2981 and no recipient fallback is set.
      * @param royaltyRecipientFallback An address to which all royalties will
@@ -66,11 +66,11 @@ interface ICollectionPoolFactory is IERC721 {
         address receiver;
         ICollectionPool.PoolType poolType;
         uint128 delta;
-        uint96 fee;
+        uint24 fee;
         uint128 spotPrice;
         bytes props;
         bytes state;
-        uint256 royaltyNumerator;
+        uint24 royaltyNumerator;
         address payable royaltyRecipientFallback;
         uint256[] initialNFTIDs;
     }
@@ -88,7 +88,7 @@ interface ICollectionPoolFactory is IERC721 {
      * specific curve.
      * @param fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
      * @param spotPrice The initial selling spot price, in ETH
-     * @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e18
+     * @param royaltyNumerator All trades will result in `royaltyNumerator` * <trade amount> / 1e6
      * being sent to the account to which the traded NFT's royalties are awardable.
      * Must be 0 if `_nft` is not IERC2981 and no recipient fallback is set.
      * @param royaltyRecipientFallback An address to which all royalties will
@@ -105,21 +105,21 @@ interface ICollectionPoolFactory is IERC721 {
         address receiver;
         ICollectionPool.PoolType poolType;
         uint128 delta;
-        uint96 fee;
+        uint24 fee;
         uint128 spotPrice;
         bytes props;
         bytes state;
-        uint256 royaltyNumerator;
+        uint24 royaltyNumerator;
         address payable royaltyRecipientFallback;
         uint256[] initialNFTIDs;
         uint256 initialTokenBalance;
     }
 
-    function protocolFeeMultiplier() external view returns (uint256);
+    function protocolFeeMultiplier() external view returns (uint24);
 
     function protocolFeeRecipient() external view returns (address payable);
 
-    function carryFeeMultiplier() external view returns (uint256);
+    function carryFeeMultiplier() external view returns (uint24);
 
     function callAllowed(address target) external view returns (bool);
 

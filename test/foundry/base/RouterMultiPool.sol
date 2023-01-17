@@ -35,8 +35,8 @@ abstract contract RouterMultiPool is
     CollectionRouter router;
     mapping(uint256 => CollectionPool) pools;
     address payable constant feeRecipient = payable(address(69));
-    uint256 constant protocolFeeMultiplier = 3e15;
-    uint256 constant carryFeeMultiplier = 3e15;
+    uint24 constant protocolFeeMultiplier = 0.003e6;
+    uint24 constant carryFeeMultiplier = 0.003e6;
     uint256 numInitialNFTs = 10;
 
     function setUp() public {

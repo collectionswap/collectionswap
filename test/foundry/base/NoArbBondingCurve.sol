@@ -27,9 +27,9 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
     ICurve bondingCurve;
     CollectionPoolFactory factory;
     address payable constant feeRecipient = payable(address(69));
-    uint256 constant protocolFeeMultiplier = 3e15;
-    uint256 constant royaltyNumerator = 0;
-    uint256 constant carryFeeMultiplier = 5e15;
+    uint24 constant protocolFeeMultiplier = 0.003e6;
+    uint24 constant royaltyNumerator = 0;
+    uint24 constant carryFeeMultiplier = 0.005e6;
 
     function setUp() public {
         bondingCurve = setupCurve();

@@ -30,7 +30,7 @@ contract TestAtomicTrader is IERC721Receiver {
                 receiver: msg.sender,
                 poolType: ICollectionPool.PoolType.TRADE,
                 delta: 15e17,
-                fee: 5e16,
+                fee: 0.05e6,
                 spotPrice: 1e18,
                 props: abi.encode(1e18, 1e18),
                 state: abi.encode(0),

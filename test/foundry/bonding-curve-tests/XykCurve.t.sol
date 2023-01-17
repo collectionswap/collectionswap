@@ -270,7 +270,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
         setUpEthPool(numNfts, value);
-        factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
+        factory.changeProtocolFeeMultiplier((2 * 1e6) / 100); // 2%
         uint256 numItemsToBuy = 3;
         uint256 expectedProtocolFee = ethPool.poolType() == ICollectionPool.PoolType.TRADE
             ? 0
@@ -298,7 +298,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         uint256 numNfts = 5;
         uint256 value = 0.8 ether;
         setUpEthPool(numNfts, value);
-        factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
+        factory.changeProtocolFeeMultiplier((2 * 1e6) / 100); // 2%
         uint256 numItemsToSell = 3;
         uint256 expectedProtocolFee = ethPool.poolType() == ICollectionPool.PoolType.TRADE
             ? 0
@@ -334,8 +334,8 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         uint256 ethBalanceBefore = address(this).balance;
         uint256 nftBalanceBefore = nft.balanceOf(address(this));
 
-        factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
-        ethPool.changeFee((1 * 1e18) / 100); // 1%
+        factory.changeProtocolFeeMultiplier((2 * 1e6) / 100); // 2%
+        ethPool.changeFee((1 * 1e6) / 100); // 1%
 
         (CurveErrorCodes.Error error, , , uint256 inputValue, ) = ethPool
             .getBuyNFTQuote(numItemsToBuy);
@@ -366,11 +366,11 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
             "Should have received NFTs"
         );
 
-        uint256 withoutFeeInputAmount = (inputAmount * 1e18) / 101e16;
+        uint256 withoutFeeInputAmount = (inputAmount * 1e18) / 1.01e18;
         assertEq(
             ethPool.spotPrice(),
             uint128(address(ethPool).balance) -
-                (withoutFeeInputAmount * 1e16) /
+                (withoutFeeInputAmount * 0.01e18) /
                 1e18,
             "Spot price should match eth balance - fee after swap"
         );
@@ -389,8 +389,8 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         // skip 1 block so that trades are not in the same block as pool creation
         vm.roll(block.number + 1);
 
-        factory.changeProtocolFeeMultiplier((2 * 1e18) / 100); // 2%
-        ethPool.changeFee((1 * 1e18) / 100); // 1%
+        factory.changeProtocolFeeMultiplier((2 * 1e6) / 100); // 2%
+        ethPool.changeFee((1 * 1e6) / 100); // 1%
 
         uint256 numItemsToSell = 2;
         (CurveErrorCodes.Error error, , , uint256 outputValue, ) = ethPool

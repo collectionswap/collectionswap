@@ -36,10 +36,10 @@ interface ICurve {
      * @param carryFeeMultiplier Determines how much carry fee the protocol takes from this trade, 18 decimals
      */
     struct FeeMultipliers {
-        uint256 trade;
-        uint256 protocol;
-        uint256 royaltyNumerator;
-        uint256 carry;
+        uint24 trade;
+        uint24 protocol;
+        uint24 royaltyNumerator;
+        uint24 carry;
     }
 
     /**

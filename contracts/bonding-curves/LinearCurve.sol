@@ -50,7 +50,7 @@ contract LinearCurve is Curve, CurveErrorCodes {
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems;) {
             uint256 royaltyAmount =
-                (buySpotPrice + (params.delta * i)).fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
+                (buySpotPrice + (params.delta * i)).fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
 
@@ -113,7 +113,7 @@ contract LinearCurve is Curve, CurveErrorCodes {
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems;) {
             uint256 royaltyAmount =
-                (params.spotPrice - (params.delta * i)).fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
+                (params.spotPrice - (params.delta * i)).fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
 

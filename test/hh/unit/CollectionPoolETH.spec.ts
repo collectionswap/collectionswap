@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import { PoolType } from "../shared/constants";
+import { FEE_DECIMALS, PoolType } from "../shared/constants";
 import {
   getCurveParameters,
   deployPoolContracts,
@@ -56,7 +56,7 @@ describe("CollectionPoolETH", function () {
     await nft.connect(user).setApprovalForAll(factory.address, true);
 
     const poolType = PoolType.TRADE;
-    const fee = ethers.utils.parseEther("0.89");
+    const fee = ethers.utils.parseUnits("0.89", FEE_DECIMALS);
     const { delta, spotPrice, props, state, royaltyNumerator, protocolFee } =
       getCurveParameters();
 

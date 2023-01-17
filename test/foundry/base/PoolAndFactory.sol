@@ -38,9 +38,9 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     ICurve bondingCurve;
     CollectionPoolFactory factory;
     address payable constant feeRecipient = payable(address(69));
-    uint256 constant protocolFeeMultiplier = 3e15;
-    uint256 constant carryFeeMultiplier = 3e15;
-    uint256 constant royaltyNumerator = 500;
+    uint24 constant protocolFeeMultiplier = 0.003e6;
+    uint24 constant carryFeeMultiplier = 0.003e6;
+    uint24 constant royaltyNumerator = 0.005e6;
     CollectionPool pool;
 
     function setUp() public {
@@ -129,7 +129,7 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     }
 
     function testFail_tradePoolChangeFeePastMax() public {
-        pool.changeFee(100 ether);
+        pool.changeFee(1e6 + 1);
     }
 
     function test_verifyPoolParams() public {
@@ -159,19 +159,19 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         assertEq(pool.delta(), 2.2 ether);
 
         // // changing fee works as expected
-        pool.changeFee(0.2 ether);
-        assertEq(pool.fee(), 0.2 ether);
+        pool.changeFee(0.2e6);
+        assertEq(pool.fee(), 0.2e6);
     }
 
     function test_multicallModifyPoolParams() public {
         bytes[] memory calls = new bytes[](3);
         calls[0] = abi.encodeCall(pool.changeSpotPrice, (1 ether));
         calls[1] = abi.encodeCall(pool.changeDelta, (2 ether));
-        calls[2] = abi.encodeCall(pool.changeFee, (0.3 ether));
+        calls[2] = abi.encodeCall(pool.changeFee, (0.3e6));
         pool.multicall(calls, true);
         assertEq(pool.spotPrice(), 1 ether);
         assertEq(pool.delta(), 2 ether);
-        assertEq(pool.fee(), 0.3 ether);
+        assertEq(pool.fee(), 0.3e6);
     }
 
     function testFail_multicallChangeOwnership() public {
@@ -250,7 +250,7 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     }
 
     function testFail_changeFeeAboveMax() public {
-        pool.changeFee(100 ether);
+        pool.changeFee(1e6 + 1);
     }
 
     function testFail_changeSpotNotOwner() public {
@@ -265,7 +265,7 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
 
     function testFail_changeFeeNotOwner() public {
         transferOwnership(address(1000));
-        pool.changeFee(0.2 ether);
+        pool.changeFee(0.2e6);
     }
 
     function testFail_reInitPool() public {
@@ -384,8 +384,8 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     }
 
     function test_changeFeeMultiplier() public {
-        factory.changeProtocolFeeMultiplier(5e15);
-        assertEq(factory.protocolFeeMultiplier(), 5e15);
+        factory.changeProtocolFeeMultiplier(0.005e6);
+        assertEq(factory.protocolFeeMultiplier(), 0.005e6);
     }
 
     function transferOwnership(address newOwner) internal {

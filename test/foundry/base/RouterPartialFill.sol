@@ -37,8 +37,8 @@ abstract contract RouterPartialFill is
     CollectionRouter2 router;
     CollectionPool pool;
     address payable constant feeRecipient = payable(address(69));
-    uint256 constant protocolFeeMultiplier = 0;
-    uint256 constant carryFeeMultiplier = 0;
+    uint24 constant protocolFeeMultiplier = 0;
+    uint24 constant carryFeeMultiplier = 0;
     uint256 numInitialNFTs = 10;
     uint128 SPOT_PRICE;
 

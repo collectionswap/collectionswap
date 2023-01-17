@@ -9,6 +9,7 @@ import { ethers, expect } from "hardhat";
 
 import {
   DEFAULT_CREATE_ETH_POOL_PARAMS,
+  FEE_DECIMALS,
   NUM_INITIAL_NFTS,
   PoolType,
 } from "../../shared/constants";
@@ -36,6 +37,7 @@ import {
   randomBigNumbers,
   randomElement,
   randomEthValue,
+  randomFee,
 } from "../../shared/random";
 import { getSigners } from "../../shared/signers";
 
@@ -48,6 +50,8 @@ import type {
 import type { IERC721Mintable } from "../../shared/types";
 import type { BigNumber, ContractTransaction } from "ethers";
 import type { Context } from "mocha";
+
+const FEE_NORMALIZER = ethers.BigNumber.from(10 ** FEE_DECIMALS);
 
 export function setUpCollectionPoolContext() {
   before("Get signers", async function () {
@@ -147,7 +151,7 @@ export function testSwapToken(
       expect(this.carryFeeMultiplier).greaterThan(0);
       const expectedProtocolFee = inputAmountWithoutFee
         .mul(this.protocolFeeMultiplier)
-        .div(constants.WeiPerEther);
+        .div(FEE_NORMALIZER);
       expect(protocolFee).to.equal(expectedProtocolFee);
 
       expect(tradeFee).to.equal(0);
@@ -170,7 +174,7 @@ export function testSwapToken(
         poolType: PoolType.TRADE,
       }));
 
-      feeMultiplier = randomEthValue(0.9);
+      feeMultiplier = randomFee(0.9);
       await collectionPool.connect(this.poolOwner).changeFee(feeMultiplier);
 
       ({ inputAmount, numNFTs, nftIds } = await getBuyNFTQuoteAndMintToken.call(
@@ -198,13 +202,13 @@ export function testSwapToken(
       const expectedProtocolFee = inputAmountWithoutFee
         .mul(feeMultiplier)
         .mul(carryFeeMultiplier)
-        .div(constants.WeiPerEther)
-        .div(constants.WeiPerEther);
+        .div(FEE_NORMALIZER)
+        .div(FEE_NORMALIZER);
       expect(protocolFee).to.closeTo(expectedProtocolFee, 1);
 
       const expectedTradeFee = inputAmountWithoutFee
         .mul(feeMultiplier)
-        .div(constants.WeiPerEther)
+        .div(FEE_NORMALIZER)
         .sub(protocolFee);
       expect(tradeFee).to.equal(expectedTradeFee);
       expect(tradeFee).to.greaterThan(0);
@@ -307,7 +311,7 @@ export function testSwapToken(
       });
 
       beforeEach("Set royalty numerator", async function () {
-        royaltyNumerator = randomEthValue(1);
+        royaltyNumerator = randomFee(1);
         await collectionPool
           .connect(this.poolOwner)
           .changeRoyaltyNumerator(royaltyNumerator);
@@ -366,7 +370,7 @@ export function testSwapToken(
 
         await collectionPool
           .connect(poolOwner)
-          .changeRoyaltyNumerator(randomEthValue(1));
+          .changeRoyaltyNumerator(randomFee(1));
 
         ({ inputAmount, numNFTs, nftIds } =
           await getBuyNFTQuoteAndMintToken.call(this));
@@ -597,7 +601,7 @@ export function testSwapNFTsForToken(
       expect(carryFeeMultiplier).greaterThan(0);
       const expectedProtocolFee = outputAmountWithoutFee
         .mul(protocolFeeMultiplier)
-        .div(constants.WeiPerEther);
+        .div(FEE_NORMALIZER);
       expect(protocolFee).to.equal(expectedProtocolFee);
 
       expect(tradeFee).to.equal(0);
@@ -627,7 +631,7 @@ export function testSwapNFTsForToken(
         }
       ));
 
-      feeMultiplier = randomEthValue(0.9);
+      feeMultiplier = randomFee(0.9);
       await collectionPool.connect(this.poolOwner).changeFee(feeMultiplier);
 
       ({ outputAmount, nfts } = await getSellNFTQuoteAndMint.call(this));
@@ -658,13 +662,13 @@ export function testSwapNFTsForToken(
       const expectedProtocolFee = outputAmountWithoutFee
         .mul(feeMultiplier)
         .mul(carryFeeMultiplier)
-        .div(constants.WeiPerEther)
-        .div(constants.WeiPerEther);
+        .div(FEE_NORMALIZER)
+        .div(FEE_NORMALIZER);
       expect(protocolFee).to.closeTo(expectedProtocolFee, 1);
 
       const expectedTradeFee = outputAmountWithoutFee
         .mul(feeMultiplier)
-        .div(constants.WeiPerEther)
+        .div(FEE_NORMALIZER)
         .sub(protocolFee);
       expect(tradeFee).to.equal(expectedTradeFee);
       expect(tradeFee).to.greaterThan(0);
@@ -733,7 +737,7 @@ export function testSwapNFTsForToken(
       });
 
       beforeEach("Set royalty numerator", async function () {
-        royaltyNumerator = randomEthValue(1);
+        royaltyNumerator = randomFee(1);
         await collectionPool
           .connect(this.poolOwner)
           .changeRoyaltyNumerator(royaltyNumerator);
@@ -798,7 +802,7 @@ export function testSwapNFTsForToken(
 
         await collectionPool
           .connect(poolOwner)
-          .changeRoyaltyNumerator(randomEthValue(1));
+          .changeRoyaltyNumerator(randomFee(1));
 
         ({ outputAmount, nfts } = await getSellNFTQuoteAndMint.call(this));
       });

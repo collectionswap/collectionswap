@@ -45,8 +45,8 @@ abstract contract RouterRobustSwapWithAssetRecipient is
     address payable constant feeRecipient = payable(address(69));
     address payable constant sellPoolRecipient = payable(address(1));
     address payable constant buyPoolRecipient = payable(address(2));
-    uint256 constant protocolFeeMultiplier = 0;
-    uint256 constant carryFeeMultiplier = 0;
+    uint24 constant protocolFeeMultiplier = 0;
+    uint24 constant carryFeeMultiplier = 0;
     uint256 constant numInitialNFTs = 10;
 
     function setUp() public {

@@ -19,9 +19,9 @@ contract LinearCurveTest is Test {
         uint128 spotPrice = 3 ether;
         uint128 delta = 0.1 ether;
         uint256 numItems = 5;
-        uint256 feeMultiplier = (FixedPointMathLib.WAD * 5) / 1000; // 0.5%
-        uint256 protocolFeeMultiplier = (FixedPointMathLib.WAD * 3) / 1000; // 0.3%
-        uint256 royaltyNumerator = 0;
+        uint24 feeMultiplier = (1e6 * 5) / 1000; // 0.5%
+        uint24 protocolFeeMultiplier = (1e6 * 3) / 1000; // 0.3%
+        uint24 royaltyNumerator = 0;
         (
             CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
@@ -102,9 +102,9 @@ contract LinearCurveTest is Test {
         uint128 spotPrice = 3 ether;
         uint128 delta = 0.1 ether;
         uint256 numItems = 5;
-        uint256 feeMultiplier = (FixedPointMathLib.WAD * 5) / 1000; // 0.5%
-        uint256 protocolFeeMultiplier = (FixedPointMathLib.WAD * 3) / 1000; // 0.3%
-        uint256 royaltyNumerator = 0;
+        uint24 feeMultiplier = (1e6 * 5) / 1000; // 0.5%
+        uint24 protocolFeeMultiplier = (1e6 * 3) / 1000; // 0.3%
+        uint24 royaltyNumerator = 0;
         (
             CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
