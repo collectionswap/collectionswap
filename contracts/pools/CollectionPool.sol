@@ -15,11 +15,12 @@ import {ICollectionPool} from "./ICollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {TokenIDFilter} from "../filter/TokenIDFilter.sol";
+import {MultiPauser} from "../lib/MultiPauser.sol";
 
 /// @title The base contract for an NFT/TOKEN AMM pool
 /// @author Collection
 /// @notice This implements the core swap logic from NFT to TOKEN
-abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilter, ICollectionPool {
+abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilter, MultiPauser, ICollectionPool {
     /**
      * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps.
      * It contains two fields:
@@ -63,6 +64,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * contract owner when the AMM pool contract is deployed.
      */
     uint24 internal constant MAX_FEE = 0.9e6;
+
+    uint256 internal constant POOL_SWAP_PAUSE = 0;
 
     // The current price of the NFT
     // @dev This is generally used to mean the immediate sell price for the next marginal NFT.
@@ -123,6 +126,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event StateUpdate(bytes newState);
     event RoyaltyNumeratorUpdate(uint24 newRoyaltyNumerator);
     event RoyaltyRecipientFallbackUpdate(address payable newFallback);
+    event PoolSwapPaused();
+    event PoolSwapUnpaused();
 
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
@@ -134,6 +139,15 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     modifier validRoyaltyNumerator(uint24 _royaltyNumerator) {
         require(_royaltyNumerator < 1e6, "royaltyNumerator must be < 1e6");
         _;
+    }
+
+    modifier whenPoolSwapsNotPaused() {
+        require(!poolSwapsPaused(), "Swaps are paused");
+        _;
+    }
+
+    function poolSwapsPaused() public view returns (bool) {
+        return factory().swapPaused() || isPaused(POOL_SWAP_PAUSE);
     }
 
     /**
@@ -259,7 +273,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address nftRecipient,
         bool isRouter,
         address routerCaller
-    ) external payable virtual returns (uint256 inputAmount) {
+    ) external payable virtual whenPoolSwapsNotPaused returns (uint256 inputAmount) {
         IERC721 _nft = nft();
         require((numNFTs > 0) && (numNFTs <= _nft.balanceOf(address(this))), "Ask for > 0 and <= balanceOf NFTs");
 
@@ -288,7 +302,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address nftRecipient,
         bool isRouter,
         address routerCaller
-    ) public payable virtual nonReentrant returns (uint256 inputAmount) {
+    ) public payable virtual nonReentrant whenPoolSwapsNotPaused returns (uint256 inputAmount) {
         // Store locally to remove extra calls
         ICollectionPoolFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
@@ -340,7 +354,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address payable tokenRecipient,
         bool isRouter,
         address routerCaller
-    ) external virtual nonReentrant returns (uint256 outputAmount) {
+    ) external virtual nonReentrant whenPoolSwapsNotPaused returns (uint256 outputAmount) {
         // Store locally to remove extra calls
         ICollectionPoolFactory _factory = factory();
         ICurve _bondingCurve = bondingCurve();
@@ -526,7 +540,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             _creationBlockNumber := shr(0xe0, calldataload(add(sub(calldatasize(), paramsLength), 61)))
         }
         // Only the (lower) 32 bits are stored (~2000 years with 15s blocks). We compare with uint32(block.number)
-       // so we can still detect if we're in the same block in the unlikely event of an overflow
+        // so we can still detect if we're in the same block in the unlikely event of an overflow
         _isInCreationBlock = uint32(_creationBlockNumber) == uint32(block.number);
     }
 
@@ -830,6 +844,14 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @dev Only callable by the owner.
      */
     function withdrawAccruedTradeFee() external virtual;
+
+    function pausePoolSwaps() external onlyOwner {
+        pause(POOL_SWAP_PAUSE);
+    }
+
+    function unpausePoolSwaps() external onlyOwner {
+        unpause(POOL_SWAP_PAUSE);
+    }
 
     /**
      * @notice Updates the selling spot price. Only callable by the owner.

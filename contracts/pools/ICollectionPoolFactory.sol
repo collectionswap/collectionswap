@@ -129,6 +129,10 @@ interface ICollectionPoolFactory is IERC721 {
 
     function requireAuthorizedForToken(address spender, uint256 tokenId) external view;
 
+    function swapPaused() external view returns (bool);
+
+    function creationPaused() external view returns (bool);
+
     function createPoolETH(CreateETHPoolParams calldata params)
         external
         payable

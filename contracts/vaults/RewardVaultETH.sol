@@ -313,6 +313,7 @@ contract RewardVaultETH is IERC721Receiver, Initializable {
 
         address poolAddress = _lpToken.poolAddressOf(tokenId);
         ICollectionPool _pool = ICollectionPool(poolAddress);
+        require(!_pool.poolSwapsPaused(), "Swaps are paused");
         IERC721 _nft = nft;
         if (
             _pool.nft() != _nft || address(_pool.bondingCurve()) != bondingCurve

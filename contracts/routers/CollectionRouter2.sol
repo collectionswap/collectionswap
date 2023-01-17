@@ -281,10 +281,10 @@ contract CollectionRouter2 {
     }
 
     function _findMaxFillableAmtForETHSell(
-        CollectionPool /*pool*/,
-        uint256 /*maxNumNFTs*/,
+        CollectionPool, /*pool*/
+        uint256, /*maxNumNFTs*/
         uint256[] memory /*minOutputPerNumNFTs*/
-    ) internal view returns (uint256 /*numNFTs*/, uint256 /*price*/) {
+    ) internal view returns (uint256, /*numNFTs*/ uint256 /*price*/ ) {
         // uint256 poolBalance = address(pool).balance;
         // Start and end indices
         // uint256 start = 0;

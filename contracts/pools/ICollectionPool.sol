@@ -45,6 +45,8 @@ interface ICollectionPool is ITokenIDFilter {
 
     function royaltyNumerator() external view returns (uint24);
 
+    function poolSwapsPaused() external view returns (bool);
+
     /**
      * @notice The usable balance of the pool. This is the amount the pool needs to have to buy NFTs and pay out royalties.
      */

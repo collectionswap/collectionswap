@@ -357,7 +357,7 @@ export async function deployPoolContracts() {
 
   return {
     collectionDeployer,
-    curve: curves[CURVE_TYPE!],
+    curve: curves[CURVE_TYPE!] as ICurve,
     curves,
     factory: collectionPoolFactory,
     protocolFeeMultiplier,

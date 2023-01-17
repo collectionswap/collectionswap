@@ -28,15 +28,26 @@ import {CollectionPoolEnumerableETH} from "./CollectionPoolEnumerableETH.sol";
 import {CollectionPoolEnumerableERC20} from "./CollectionPoolEnumerableERC20.sol";
 import {CollectionPoolMissingEnumerableETH} from "./CollectionPoolMissingEnumerableETH.sol";
 import {CollectionPoolMissingEnumerableERC20} from "./CollectionPoolMissingEnumerableERC20.sol";
+import {MultiPauser} from "../lib/MultiPauser.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
-contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URIStorage, ICollectionPoolFactory {
+contract CollectionPoolFactory is
+    Ownable,
+    ReentrancyGuard,
+    ERC721,
+    ERC721URIStorage,
+    MultiPauser,
+    ICollectionPoolFactory
+{
     using CollectionPoolCloner for address;
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
     bytes4 private constant INTERFACE_ID_ERC721_ENUMERABLE = type(IERC721Enumerable).interfaceId;
+
+    uint256 private constant CREATION_PAUSE = 0;
+    uint256 private constant SWAP_PAUSE = 1;
 
     /**
      * @dev The MAX_PROTOCOL_FEE constant specifies the maximum fee that can be charged by the AMM pool contract
@@ -84,6 +95,11 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URISto
 
     string public baseURI;
 
+    modifier whenCreationNotPaused() {
+        require(!creationPaused(), "Pool creation is paused");
+        _;
+    }
+
     event NewPool(address poolAddress, uint256 tokenId);
     event TokenDeposit(address poolAddress);
     event NFTDeposit(address poolAddress);
@@ -93,6 +109,10 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URISto
     event BondingCurveStatusUpdate(ICurve bondingCurve, bool isAllowed);
     event CallTargetStatusUpdate(address target, bool isAllowed);
     event RouterStatusUpdate(CollectionRouter router, bool isAllowed);
+    event CreationPaused();
+    event CreationUnpaused();
+    event SwapPaused();
+    event SwapUnpaused();
 
     constructor(
         CollectionPoolEnumerableETH _enumerableETHTemplate,
@@ -117,74 +137,11 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URISto
     }
 
     /**
-     * External functions
+     * External view functions. Not pausable.
      */
 
-    function setBaseURI(string calldata _uri) external onlyOwner {
-        baseURI = _uri;
-    }
-
-    function setTokenURI(string calldata _uri, uint256 tokenId) external onlyOwner {
-        _setTokenURI(tokenId, _uri);
-    }
-
-    function createPoolETH(CreateETHPoolParams calldata params)
-        external
-        payable
-        returns (address pool, uint256 tokenId)
-    {
-        (pool, tokenId) = _createPoolETH(params);
-
-        _initializePoolETH(CollectionPoolETH(payable(pool)), params, tokenId);
-    }
-
-    /**
-     * @notice Creates a filtered pool contract using EIP-1167.
-     * @param params The parameters to create ETH pool
-     * @param filterParams The parameters needed for the filtering functionality
-     * @return pool The new pool
-     */
-    function createPoolETHFiltered(CreateETHPoolParams calldata params, NFTFilterParams calldata filterParams)
-        external
-        payable
-        returns (address pool, uint256 tokenId)
-    {
-        (pool, tokenId) = _createPoolETH(params);
-
-        // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
-        // If not, we could re-use createPoolETH and check later.
-        CollectionPoolETH _pool = CollectionPoolETH(payable(pool));
-        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
-        require(
-            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
-            "NFT not allowed"
-        );
-
-        _initializePoolETH(_pool, params, tokenId);
-    }
-
-    function createPoolERC20(CreateERC20PoolParams calldata params) external returns (address pool, uint256 tokenId) {
-        (pool, tokenId) = _createPoolERC20(params);
-
-        _initializePoolERC20(CollectionPoolERC20(payable(pool)), params, tokenId);
-    }
-
-    function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams)
-        external
-        returns (address pool, uint256 tokenId)
-    {
-        (pool, tokenId) = _createPoolERC20(params);
-
-        // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
-        // If not, we could re-use createPoolERC20 and check later.
-        CollectionPoolERC20 _pool = CollectionPoolERC20(payable(pool));
-        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
-        require(
-            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
-            "NFT not allowed"
-        );
-
-        _initializePoolERC20(_pool, params, tokenId);
+    function requireAuthorizedForToken(address spender, uint256 tokenId) external view {
+        require(_isApprovedOrOwner(spender, tokenId), "Not approved");
     }
 
     /**
@@ -219,14 +176,188 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URISto
         }
     }
 
-    /**
-     * @notice Allows receiving ETH in order to receive protocol fees
-     */
-    receive() external payable {}
+    function tokenURI(uint256 tokenId) public view override (ERC721, ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override (IERC165, ERC721) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function swapPaused() external view returns (bool) {
+        return isPaused(SWAP_PAUSE);
+    }
+
+    function creationPaused() public view returns (bool) {
+        return isPaused(CREATION_PAUSE);
+    }
 
     /**
-     * Admin functions
+     * Pool creation functions. Pausable
      */
+    function createPoolETH(CreateETHPoolParams calldata params)
+        external
+        payable
+        whenCreationNotPaused
+        returns (address pool, uint256 tokenId)
+    {
+        (pool, tokenId) = _createPoolETH(params);
+
+        _initializePoolETH(CollectionPoolETH(payable(pool)), params, tokenId);
+    }
+
+    /**
+     * @notice Creates a filtered pool contract using EIP-1167.
+     * @param params The parameters to create ETH pool
+     * @param filterParams The parameters needed for the filtering functionality
+     * @return pool The new pool
+     */
+    function createPoolETHFiltered(CreateETHPoolParams calldata params, NFTFilterParams calldata filterParams)
+        external
+        payable
+        whenCreationNotPaused
+        returns (address pool, uint256 tokenId)
+    {
+        (pool, tokenId) = _createPoolETH(params);
+
+        // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
+        // If not, we could re-use createPoolETH and check later.
+        CollectionPoolETH _pool = CollectionPoolETH(payable(pool));
+        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
+        require(
+            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
+            "NFT not allowed"
+        );
+
+        _initializePoolETH(_pool, params, tokenId);
+    }
+
+    function createPoolERC20(CreateERC20PoolParams calldata params)
+        external
+        whenCreationNotPaused
+        returns (address pool, uint256 tokenId)
+    {
+        (pool, tokenId) = _createPoolERC20(params);
+
+        _initializePoolERC20(CollectionPoolERC20(payable(pool)), params, tokenId);
+    }
+
+    function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams)
+        external
+        whenCreationNotPaused
+        returns (address pool, uint256 tokenId)
+    {
+        (pool, tokenId) = _createPoolERC20(params);
+
+        // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
+        // If not, we could re-use createPoolERC20 and check later.
+        CollectionPoolERC20 _pool = CollectionPoolERC20(payable(pool));
+        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
+        require(
+            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
+            "NFT not allowed"
+        );
+
+        _initializePoolERC20(_pool, params, tokenId);
+    }
+
+    /**
+     * Deposit functions. Not pausable
+     */
+
+    /**
+     * @dev Used to deposit NFTs into a pool after creation and emit an event for indexing (if recipient is indeed a pool)
+     */
+    function depositNFTs(
+        uint256[] calldata ids,
+        bytes32[] calldata proof,
+        bool[] calldata proofFlags,
+        address recipient,
+        address from
+    ) external {
+        bool _isPool = isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.ENUMERABLE_ETH)
+            || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20)
+            || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ETH);
+
+        require(_isPool, "Not a pool");
+
+        CollectionPool pool = CollectionPool(recipient);
+        require(pool.acceptsTokenIDs(ids, proof, proofFlags), "NFTs not allowed");
+
+        // transfer NFTs from caller to recipient
+        _depositNFTs(pool.nft(), ids, pool, from);
+
+        emit NFTDeposit(recipient);
+    }
+
+    /**
+     * @dev Used to deposit ERC20s into a pool after creation and emit an event for indexing (if recipient is indeed an ERC20 pool
+     * and the token matches)
+     */
+    function depositERC20(ERC20 token, address recipient, uint256 amount) external {
+        token.safeTransferFrom(msg.sender, recipient, amount);
+        if (isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20))
+        {
+            if (token == CollectionPoolERC20(recipient).token()) {
+                emit TokenDeposit(recipient);
+            }
+        }
+    }
+
+    /**
+     * Withdrawal functions. Not pausable.
+     */
+
+    /*
+     * @notice NFTs that don't match filter and any airdropped assets  must be rescued prior to calling this function.
+     * Requires LP token owner to give allowance to this factory contract for asset withdrawals
+     * which are sent directly to the LP token owner.
+     */
+    function burn(uint256 tokenId) external nonReentrant {
+        require(_isApprovedOrOwner(msg.sender, tokenId), "Not approved");
+        address poolAddress = poolAddressOf(tokenId);
+        CollectionPool pool = CollectionPool(poolAddress);
+        PoolVariant poolVariant = pool.poolVariant();
+
+        // withdraw all ETH / ERC20
+        if (poolVariant == PoolVariant.ENUMERABLE_ETH || poolVariant == PoolVariant.MISSING_ENUMERABLE_ETH) {
+            // withdraw ETH, sent to owner of LP token
+            CollectionPoolETH(payable(poolAddress)).withdrawAllETH();
+        } else if (poolVariant == PoolVariant.ENUMERABLE_ERC20 || poolVariant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
+            // withdraw ERC20
+            CollectionPoolERC20(poolAddress).withdrawAllERC20();
+        }
+        // then withdraw NFTs
+        pool.withdrawERC721(pool.nft(), pool.getAllHeldIds());
+
+        delete _poolAddresses[tokenId];
+        _burn(tokenId);
+    }
+
+    /**
+     * Admin functions. Not pausable. Pointless because pauser/unpauser is owner
+     * and all admin functions are onlyOwner.
+     */
+
+    function pauseCreation() external onlyOwner {
+        pause(CREATION_PAUSE);
+        emit CreationPaused();
+    }
+
+    function unpauseCreation() external onlyOwner {
+        unpause(CREATION_PAUSE);
+        emit CreationUnpaused();
+    }
+
+    function pauseSwap() external onlyOwner {
+        pause(SWAP_PAUSE);
+        emit SwapPaused();
+    }
+
+    function unpauseSwap() external onlyOwner {
+        unpause(SWAP_PAUSE);
+        emit SwapUnpaused();
+    }
 
     /**
      * @notice Withdraws the ETH balance to the protocol fee recipient.
@@ -314,6 +445,14 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URISto
         routerStatus[_router] = RouterStatus({allowed: isAllowed, wasEverAllowed: true});
 
         emit RouterStatusUpdate(_router, isAllowed);
+    }
+
+    function setBaseURI(string calldata _uri) external onlyOwner {
+        baseURI = _uri;
+    }
+
+    function setTokenURI(string calldata _uri, uint256 tokenId) external onlyOwner {
+        _setTokenURI(tokenId, _uri);
     }
 
     /**
@@ -426,31 +565,6 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URISto
     }
 
     /**
-     * @dev Used to deposit NFTs into a pool after creation and emit an event for indexing (if recipient is indeed a pool)
-     */
-    function depositNFTs(
-        uint256[] calldata ids,
-        bytes32[] calldata proof,
-        bool[] calldata proofFlags,
-        address recipient,
-        address from
-    ) external {
-        bool _isPool = isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.ENUMERABLE_ETH)
-            || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20)
-            || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ETH);
-
-        require(_isPool, "Not a pool");
-
-        CollectionPool pool = CollectionPool(recipient);
-        require(pool.acceptsTokenIDs(ids, proof, proofFlags), "NFTs not allowed");
-
-        // transfer NFTs from caller to recipient
-        _depositNFTs(pool.nft(), ids, pool, from);
-
-        emit NFTDeposit(recipient);
-    }
-
-    /**
      * @dev Transfers NFTs from sender and notifies pool. `ids` must already have been verified
      */
     function _depositNFTs(IERC721 _nft, uint256[] calldata nftIds, CollectionPool pool, address from) internal {
@@ -459,56 +573,18 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URISto
         pool.depositNFTsNotification(nftIds);
     }
 
-    /**
-     * @dev Used to deposit ERC20s into a pool after creation and emit an event for indexing (if recipient is indeed an ERC20 pool
-     * and the token matches)
-     */
-    function depositERC20(ERC20 token, address recipient, uint256 amount) external {
-        token.safeTransferFrom(msg.sender, recipient, amount);
-        if (isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20))
-        {
-            if (token == CollectionPoolERC20(recipient).token()) {
-                emit TokenDeposit(recipient);
-            }
-        }
-    }
-
-    function requireAuthorizedForToken(address spender, uint256 tokenId) external view {
-        require(_isApprovedOrOwner(spender, tokenId), "Not approved");
-    }
-
-    /*
-     * @notice NFTs that don't match filter and any airdropped assets  must be rescued prior to calling this function.
-     * Requires LP token owner to give allowance to this factory contract for asset withdrawals
-     * which are sent directly to the LP token owner.
-     */
-    function burn(uint256 tokenId) external nonReentrant {
-        require(_isApprovedOrOwner(msg.sender, tokenId), "Not approved");
-        address poolAddress = poolAddressOf(tokenId);
-        CollectionPool pool = CollectionPool(poolAddress);
-        PoolVariant poolVariant = pool.poolVariant();
-
-        // withdraw all ETH / ERC20
-        if (poolVariant == PoolVariant.ENUMERABLE_ETH || poolVariant == PoolVariant.MISSING_ENUMERABLE_ETH) {
-            // withdraw ETH, sent to owner of LP token
-            CollectionPoolETH(payable(poolAddress)).withdrawAllETH();
-        } else if (poolVariant == PoolVariant.ENUMERABLE_ERC20 || poolVariant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
-            // withdraw ERC20
-            CollectionPoolERC20(poolAddress).withdrawAllERC20();
-        }
-        // then withdraw NFTs
-        pool.withdrawERC721(pool.nft(), pool.getAllHeldIds());
-
-        delete _poolAddresses[tokenId];
-        _burn(tokenId);
-    }
-
     function mint(address recipient) internal returns (uint256 tokenId) {
         _safeMint(recipient, (tokenId = ++_nextTokenId));
     }
 
-    // overrides required by Solidiity for ERC721 contract
-    // The following functions are overrides required by Solidity.
+    /**
+     * Required override functions
+     */
+
+    /**
+     * @notice Allows receiving ETH in order to receive protocol fees
+     */
+    receive() external payable {}
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override (ERC721) {
         super._beforeTokenTransfer(from, to, tokenId);
@@ -516,13 +592,5 @@ contract CollectionPoolFactory is Ownable, ReentrancyGuard, ERC721, ERC721URISto
 
     function _burn(uint256 tokenId) internal override (ERC721, ERC721URIStorage) {
         super._burn(tokenId);
-    }
-
-    function supportsInterface(bytes4 interfaceId) public view virtual override (IERC165, ERC721) returns (bool) {
-        return super.supportsInterface(interfaceId);
-    }
-
-    function tokenURI(uint256 tokenId) public view override (ERC721, ERC721URIStorage) returns (string memory) {
-        return super.tokenURI(tokenId);
     }
 }
