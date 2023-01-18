@@ -872,10 +872,11 @@ export async function getPoolAddress(
   return { newPoolAddress, newTokenId };
 }
 
-export async function getNftTransfersTo(
+export async function getNftTransfers(
   tx: ContractTransaction,
   nft: IERC721,
-  to: string
+  from?: string,
+  to?: string
 ): Promise<BigNumber[]> {
   const receipt = await tx.wait();
   return receipt
@@ -883,9 +884,19 @@ export async function getNftTransfersTo(
     .map((event) => nft.interface.parseLog(event))
     .filter(
       (description) =>
-        description.name === "Transfer" && description.args.to === to
+        description.name === "Transfer" &&
+        (!from || description.args.from === from) &&
+        (!to || description.args.to === to)
     )
     .map((description) => description.args.tokenId);
+}
+
+export async function getNftTransfersTo(
+  tx: ContractTransaction,
+  nft: IERC721,
+  to: string
+): Promise<BigNumber[]> {
+  return getNftTransfers(tx, nft, undefined, to);
 }
 
 // Helper methods to interop with the filter_code library

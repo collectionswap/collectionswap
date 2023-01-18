@@ -29,6 +29,9 @@ export interface Signers {
 
   /** The owner of the pool */
   poolOwner: SignerWithAddress;
+  poolOwner1: SignerWithAddress;
+  poolOwner2: SignerWithAddress;
+  poolOwners: SignerWithAddress[];
 }
 
 export async function getSigners(): Promise<Signers> {
@@ -50,6 +53,8 @@ export async function getSigners(): Promise<Signers> {
     royaltyRecipient5,
     royaltyRecipientFallback,
     poolOwner,
+    poolOwner1,
+    poolOwner2,
   ] = await ethers.getSigners();
   return {
     owner,
@@ -69,5 +74,8 @@ export async function getSigners(): Promise<Signers> {
     royaltyRecipient5,
     royaltyRecipientFallback,
     poolOwner,
+    poolOwner1,
+    poolOwner2,
+    poolOwners: [poolOwner, poolOwner1, poolOwner2],
   };
 }

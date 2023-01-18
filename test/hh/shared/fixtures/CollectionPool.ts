@@ -5,12 +5,24 @@ import {
   DEFAULT_CREATE_ETH_POOL_PARAMS,
   NUM_INITIAL_NFTS,
   PoolType,
+  PoolVariant,
 } from "../constants";
-import { getPoolAddress, mintAndApproveRandomNfts, toBigInt } from "../helpers";
+import {
+  difference,
+  getPoolAddress,
+  mintAndApproveNfts,
+  mintAndApproveRandomNfts,
+  pickRandomElements,
+  toBigInt,
+  toBigNumber,
+} from "../helpers";
 import { randomBigNumbers, randomElement } from "../random";
 
 import type { ICurve } from "../../../../typechain-types/contracts/bonding-curves";
-import type { CollectionPool } from "../../../../typechain-types/contracts/pools/CollectionPool";
+import type {
+  CollectionPool,
+  ICollectionPool,
+} from "../../../../typechain-types/contracts/pools/CollectionPool";
 import type {
   CollectionPoolFactory,
   ICollectionPoolFactory,
@@ -22,6 +34,7 @@ import type {
   Test721EnumerableRoyalty,
   Test721Royalty,
 } from "../../../../typechain-types/contracts/test/mocks";
+import type { IERC721Mintable } from "../types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { BigNumber, ContractTransaction } from "ethers";
 
@@ -44,6 +57,11 @@ export interface CreatePoolContext
   user: SignerWithAddress;
 }
 
+export interface CreatePoolOverrides {
+  poolType: PoolType;
+  poolOwner?: SignerWithAddress;
+}
+
 export interface CreatePoolOptions {
   filtered: boolean;
   enumerable: boolean;
@@ -52,21 +70,33 @@ export interface CreatePoolOptions {
 
 export type TokenType = "ETH" | "ERC20";
 
+export type AnyNFT =
+  | Test721
+  | Test721Enumerable
+  | Test721EnumerableRoyalty
+  | Test721Royalty;
+
+export interface Pool {
+  collectionPool: CollectionPool;
+  nft: AnyNFT;
+  heldIds: BigNumber[];
+  tokenIDFilter?: TokenIDs;
+}
+
 /**
  * Creates a pool specifically for calling swapNFTsForToken
  */
 export async function createPoolToSwapNFTs(
   ctx: CreatePoolContext,
   tokenType: TokenType,
-  overrides?: {
-    poolType: PoolType;
-  },
+  overrides?: Partial<CreatePoolOverrides>,
   options?: Partial<CreatePoolOptions>
 ) {
   return createPool(
     ctx,
     tokenType,
     {
+      ...overrides,
       poolType:
         overrides?.poolType ?? randomElement(PoolType.TOKEN, PoolType.TRADE),
     },
@@ -80,15 +110,14 @@ export async function createPoolToSwapNFTs(
 export async function createPoolToSwapToken(
   ctx: CreatePoolContext,
   tokenType: TokenType,
-  overrides?: {
-    poolType: PoolType;
-  },
+  overrides?: Partial<CreatePoolOverrides>,
   options?: Partial<CreatePoolOptions>
 ) {
   return createPool(
     ctx,
     tokenType,
     {
+      ...overrides,
       poolType:
         overrides?.poolType ?? randomElement(PoolType.NFT, PoolType.TRADE),
     },
@@ -108,17 +137,16 @@ async function createPool(
     test721Enumerable,
     test721EnumerableRoyalty,
     test721Royalty,
-    poolOwner,
+    poolOwner: _poolOwner,
     user,
   }: CreatePoolContext,
   tokenType: TokenType,
-  overrides: {
-    poolType: PoolType;
-  },
+  overrides: CreatePoolOverrides,
   options?: Partial<CreatePoolOptions>
 ): Promise<{
   collectionPool: CollectionPool;
-  nft: Test721 | Test721Enumerable | Test721EnumerableRoyalty | Test721Royalty;
+  tokenType: TokenType;
+  nft: AnyNFT;
   heldIds: BigNumber[];
   tokenIDFilter?: TokenIDs;
 }> {
@@ -127,6 +155,7 @@ async function createPool(
     options?.enumerable,
     options?.royalty
   );
+  const poolOwner = overrides?.poolOwner ?? _poolOwner;
 
   const heldIds = await mintAndApproveRandomNfts(
     nft,
@@ -165,19 +194,23 @@ async function createPool(
     const { proof: initialProof, proofFlags: initialProofFlags } =
       tokenIDFilter.proof(biTokenIds);
 
-    tx = await collectionPoolFactory[`createPool${tokenType}Filtered`](
-      // @ts-ignore
-      poolParams,
-      {
-        merkleRoot: tokenIDFilter.root(),
-        encodedTokenIDs: tokenIDFilter.encode(),
-        initialProof,
-        initialProofFlags,
-      }
-    );
+    tx = await collectionPoolFactory
+      .connect(poolOwner)
+      [`createPool${tokenType}Filtered`](
+        // @ts-ignore
+        poolParams,
+        {
+          merkleRoot: tokenIDFilter.root(),
+          encodedTokenIDs: tokenIDFilter.encode(),
+          initialProof,
+          initialProofFlags,
+        }
+      );
   } else {
-    // @ts-ignore
-    tx = await collectionPoolFactory[`createPool${tokenType}`](poolParams);
+    tx = await collectionPoolFactory.connect(poolOwner)[
+      `createPool${tokenType}`
+      // @ts-ignore
+    ](poolParams);
   }
 
   const enumerable = [test721Enumerable, test721EnumerableRoyalty].includes(
@@ -191,7 +224,7 @@ async function createPool(
     user
   )) as CollectionPool;
 
-  return { collectionPool, nft, heldIds, tokenIDFilter };
+  return { collectionPool, tokenType, nft, heldIds, tokenIDFilter };
 }
 
 /**
@@ -260,4 +293,105 @@ function getNFT(
     test721EnumerableRoyalty,
     test721Royalty
   );
+}
+
+/**
+ * Returns the quote amount and nfts to buy.
+ * @param collectionPool The pool to buy from.
+ * @param heldIds The nft ids held by the pool. Should be equivalent to collectionPool.getAllHeldIds().
+ * @param any If true, only numNFTs is returned. Otherwise, the nft ids are returned as well.
+ */
+export async function getBuyNFTQuote(
+  collectionPool: CollectionPool,
+  heldIds: BigNumber[],
+  any: boolean
+): Promise<{
+  inputAmount: BigNumber;
+  numNFTs: number;
+  nftIds: BigNumber[] | undefined;
+}> {
+  const numNFTs = heldIds.length / 2;
+  const nftIds = any ? undefined : pickRandomElements(heldIds, numNFTs);
+
+  const { inputAmount } = await collectionPool.getBuyNFTQuote(numNFTs);
+
+  return { inputAmount, numNFTs, nftIds };
+}
+
+export function getTokenType(poolVariant: number): TokenType {
+  if (
+    poolVariant === PoolVariant.ENUMERABLE_ETH ||
+    poolVariant === PoolVariant.MISSING_ENUMERABLE_ETH
+  ) {
+    return "ETH";
+  }
+
+  if (
+    poolVariant === PoolVariant.ENUMERABLE_ERC20 ||
+    poolVariant === PoolVariant.MISSING_ENUMERABLE_ERC20
+  ) {
+    return "ERC20";
+  }
+
+  throw new Error(`Unknown pool variant: ${poolVariant}`);
+}
+
+/**
+ * Returns the quote amount and nfts to sell.
+ * @param collectionPool The pool to sell to.
+ * @param nft The nft of the pool. Should be equivalent to collectionPool.nft().
+ * @param heldIds The nft ids held by the pool. Should be equivalent to collectionPool.getAllHeldIds().
+ * @param to The address to receive the nfts to be sold to the pool.
+ * @param tokenIDFilter The tokenIDFilter of the pool if it exists.
+ * @param _approveTo The address to approve to spend the nfts. If omitted, then it is the pool.
+ */
+export async function getSellNFTQuoteAndMintNFTs(
+  collectionPool: CollectionPool,
+  nft: IERC721Mintable,
+  heldIds: BigNumber[],
+  to: SignerWithAddress,
+  tokenIDFilter?: TokenIDs,
+  _approveTo?: string
+): Promise<{
+  totalAmount: BigNumber;
+  outputAmount: BigNumber;
+  nfts: ICollectionPool.NFTsStruct;
+}> {
+  const approveTo = _approveTo ?? collectionPool.address;
+  let nfts;
+  if (tokenIDFilter) {
+    let tokenIds = difference(tokenIDFilter.tokens().map(toBigNumber), heldIds);
+    tokenIds = await mintAndApproveNfts(
+      nft,
+      to,
+      approveTo,
+      pickRandomElements(tokenIds, tokenIds.length / 2)
+    );
+    const biTokenIds = tokenIds.map(toBigInt);
+
+    const { proof, proofFlags } = tokenIDFilter.proof(biTokenIds);
+    nfts = {
+      ids: tokenIDFilter.sort(biTokenIds),
+      proof,
+      proofFlags,
+    };
+  } else {
+    const tokenIds = await mintAndApproveRandomNfts(
+      nft,
+      to,
+      approveTo,
+      NUM_INITIAL_NFTS / 2
+    );
+    nfts = {
+      ids: tokenIds,
+      proof: [],
+      proofFlags: [],
+    };
+  }
+
+  const { totalAmount, outputAmount } = await collectionPool.getSellNFTQuote(
+    nfts.ids.length
+  );
+
+  return { totalAmount, outputAmount, nfts };
 }

@@ -7,11 +7,7 @@ import { constants } from "ethers";
 import { TokenIDs } from "filter_code";
 import { ethers, expect } from "hardhat";
 
-import {
-  FEE_DECIMALS,
-  NUM_INITIAL_NFTS,
-  PoolType,
-} from "../../shared/constants";
+import { FEE_DECIMALS, PoolType } from "../../shared/constants";
 import {
   deployPoolContracts,
   nftFixture,
@@ -20,18 +16,15 @@ import {
 import {
   createPoolToSwapNFTs,
   createPoolToSwapToken,
+  getBuyNFTQuote,
+  getSellNFTQuoteAndMintNFTs,
 } from "../../shared/fixtures/CollectionPool";
 import {
   byEvent,
-  difference,
   expectAddressToOwnNFTs,
   getNftTransfersTo,
   mintAndApproveAmountToken,
-  mintAndApproveNfts,
-  mintAndApproveRandomNfts,
-  pickRandomElements,
   toBigInt,
-  toBigNumber,
 } from "../../shared/helpers";
 import {
   randomAddress,
@@ -233,7 +226,9 @@ export function testSwapToken(
       ));
     });
 
-    it("Should transfer the specific NFTs to the nft recipient", async function () {
+    it(`Should transfer ${
+      any ? "any" : "the specific"
+    } NFTs to the nft recipient`, async function () {
       const tx = await swapToken();
       if (any) {
         nftIds = await getNftTransfersTo(tx, nft, nftRecipient);
@@ -495,10 +490,11 @@ export function testSwapToken(
   }> {
     const { test20, user } = this;
 
-    const numNFTs = heldIds.length / 2;
-    const nftIds = any ? undefined : pickRandomElements(heldIds, numNFTs);
-
-    const { inputAmount } = await collectionPool.getBuyNFTQuote(numNFTs);
+    const { inputAmount, numNFTs, nftIds } = await getBuyNFTQuote(
+      collectionPool,
+      heldIds,
+      any
+    );
     if (key === "ETH") {
       await setBalance(user.address, inputAmount.mul(2));
     } else if (key === "ERC20") {
@@ -936,43 +932,14 @@ export function testSwapNFTsForToken(
   }> {
     const { test20, user } = this;
 
-    let nfts;
-    if (tokenIDFilter) {
-      let tokenIds = difference(
-        tokenIDFilter.tokens().map(toBigNumber),
-        heldIds
-      );
-      tokenIds = await mintAndApproveNfts(
+    const { totalAmount, outputAmount, nfts } =
+      await getSellNFTQuoteAndMintNFTs(
+        collectionPool,
         nft,
+        heldIds,
         user,
-        collectionPool.address,
-        pickRandomElements(tokenIds, tokenIds.length / 2)
+        tokenIDFilter
       );
-      const biTokenIds = tokenIds.map(toBigInt);
-
-      const { proof, proofFlags } = tokenIDFilter.proof(biTokenIds);
-      nfts = {
-        ids: tokenIDFilter.sort(biTokenIds),
-        proof,
-        proofFlags,
-      };
-    } else {
-      const tokenIds = await mintAndApproveRandomNfts(
-        nft,
-        user,
-        collectionPool.address,
-        NUM_INITIAL_NFTS / 2
-      );
-      nfts = {
-        ids: tokenIds,
-        proof: [],
-        proofFlags: [],
-      };
-    }
-
-    const { totalAmount, outputAmount } = await collectionPool.getSellNFTQuote(
-      nfts.ids.length
-    );
 
     if (key === "ETH") {
       await setBalance(collectionPool.address, totalAmount);
@@ -1017,7 +984,7 @@ async function expectTxToChangeBalances(
   }
 }
 
-async function collectionPoolFixture() {
+export async function collectionPoolFixture() {
   const {
     factory: collectionPoolFactory,
     protocolFeeMultiplier,
