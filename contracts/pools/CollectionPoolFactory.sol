@@ -94,9 +94,8 @@ contract CollectionPoolFactory is
         _;
     }
 
-    event NewPool(address collection, address poolAddress);
+    event NewPool(address indexed collection, address poolAddress);
     event TokenDeposit(address poolAddress);
-    event NFTDeposit(address poolAddress);
     event ProtocolFeeRecipientUpdate(address recipientAddress);
     event ProtocolFeeMultiplierUpdate(uint24 newMultiplier);
     event CarryFeeMultiplierUpdate(uint24 newMultiplier);
@@ -280,8 +279,6 @@ contract CollectionPoolFactory is
 
         // transfer NFTs from caller to recipient
         _depositNFTs(pool.nft(), ids, pool, from);
-
-        emit NFTDeposit(recipient);
     }
 
     /**

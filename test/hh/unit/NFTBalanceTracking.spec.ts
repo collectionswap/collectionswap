@@ -162,7 +162,7 @@ function testDepositNFTs(
         pool.address,
         owner.address
       );
-    await expect(tx).to.emit(factory, "NFTDeposit").withArgs(pool.address);
+    await expect(tx).to.emit(pool, "NFTDeposit").withArgs(tokenIds.length);
     const finalBalance = await pool.getAllHeldIds();
     expect(finalBalance.slice().sort()).deep.equal(
       initialBalance.concat(tokenIds.map(ethers.BigNumber.from)).slice().sort()
@@ -196,8 +196,8 @@ function testDepositNFTs(
           trader.address
         )
     )
-      .to.emit(factory, "NFTDeposit")
-      .withArgs(pool.address);
+      .to.emit(pool, "NFTDeposit")
+      .withArgs(tokenIds.length);
     const finalBalance = await pool.getAllHeldIds();
     expect(finalBalance.slice().sort()).deep.equal(
       initialBalance.concat(tokenIds.map(ethers.BigNumber.from)).slice().sort()
@@ -248,7 +248,7 @@ function testWithdrawERC721(
         nft.address,
         filter?.sort(tokenIds.map(BigInt)) ?? tokenIds
       );
-    await expect(tx).to.emit(pool, "NFTWithdrawal");
+    await expect(tx).to.emit(pool, "NFTWithdrawal").withArgs(tokenIds.length);
     if (!withdrawBeforeTest) {
       await pool.connect(owner).withdrawERC721(nft.address, idsToSneakIn);
     }

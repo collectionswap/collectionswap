@@ -118,7 +118,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event TokenDeposit(uint256 amount);
     event TokenWithdrawal(uint256 amount);
     event AccruedTradeFeeWithdrawal(uint256 amount);
-    event NFTWithdrawal();
+    event NFTDeposit(uint256 numNFTs);
+    event NFTWithdrawal(uint256 numNFTs);
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
     event AssetRecipientChange(address a);
@@ -829,7 +830,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         else {
             _withdrawNFTs(_owner, nftIds);
 
-            emit NFTWithdrawal();
+            emit NFTWithdrawal(nftIds.length);
         }
     }
 
@@ -1066,6 +1067,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function depositNFTsNotification(uint256[] calldata nftIds) external override {
         require(msg.sender == address(factory()), "not authorized");
         _depositNFTsNotification(nftIds);
+
+        emit NFTDeposit(nftIds.length);
     }
 
     /**
