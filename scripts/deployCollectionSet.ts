@@ -15,6 +15,7 @@ import type {
 } from "../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
+import { FEE_DECIMALS } from "../test/hh/shared/constants";
 
 export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   const networkId = hre.network.config.chainId as number;
@@ -43,8 +44,8 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     templateAddresses[2],
     templateAddresses[3],
     await deployer.getAddress(), // Payout address
-    hre.ethers.utils.parseEther(config.PROTOCOL_FEE_MULTIPLIER),
-    hre.ethers.utils.parseEther(config.CARRY_FEE_MULTIPLIER)
+    hre.ethers.utils.parseUnits(config.PROTOCOL_FEE_MULTIPLIER, FEE_DECIMALS),
+    hre.ethers.utils.parseUnits(config.CARRY_FEE_MULTIPLIER, FEE_DECIMALS)
   );
   await factory.deployed();
   console.log(`Factory address: ${factory.address}`);

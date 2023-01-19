@@ -14,8 +14,8 @@ type Config = {
 
 const baseConfig = {
   USE_LEDGER: false,
-  PROTOCOL_FEE_MULTIPLIER: "0.005",
-  CARRY_FEE_MULTIPLIER: "0.2",
+  PROTOCOL_FEE_MULTIPLIER: "0",
+  CARRY_FEE_MULTIPLIER: "0",
 };
 
 export const configs: { [key: number]: Config } = {
