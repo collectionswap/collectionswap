@@ -7,7 +7,12 @@ import { constants } from "ethers";
 import { TokenIDs } from "filter_code";
 import { ethers, expect } from "hardhat";
 
-import { FEE_DECIMALS, PoolType } from "../../shared/constants";
+import {
+  FEE_DECIMALS,
+  NUM_INITIAL_NFTS,
+  PoolType,
+} from "../../shared/constants";
+import { reportGasCost, setUpGasToCost } from "../../shared/ethGasReporter";
 import {
   deployPoolContracts,
   nftFixture,
@@ -65,6 +70,8 @@ export function setUpCollectionPoolContext() {
       test721Royalty: this.test721Royalty,
     } = await loadFixture(collectionPoolFixture));
   });
+
+  setUpGasToCost();
 }
 
 export function testSwapTokenForAnyNFTs(
@@ -453,6 +460,21 @@ export function testSwapToken(
     }
   });
 
+  describe("Gas", function () {
+    for (let i = 1; i <= NUM_INITIAL_NFTS; i++) {
+      context(`With ${i} nfts`, function () {
+        reportGasCost(async function (this: Context) {
+          ({ collectionPool, heldIds, nft } = await createPool.call(this));
+
+          ({ inputAmount, numNFTs, nftIds } =
+            await getBuyNFTQuoteAndMintToken.call(this, i));
+
+          return swapToken();
+        });
+      });
+    }
+  });
+
   async function swapToken(
     this: any,
     overrides?: Partial<{
@@ -483,7 +505,10 @@ export function testSwapToken(
     );
   }
 
-  async function getBuyNFTQuoteAndMintToken(this: Context): Promise<{
+  async function getBuyNFTQuoteAndMintToken(
+    this: Context,
+    _numNFTs?: number
+  ): Promise<{
     inputAmount: BigNumber;
     numNFTs: number;
     nftIds: BigNumber[] | undefined;
@@ -493,7 +518,8 @@ export function testSwapToken(
     const { inputAmount, numNFTs, nftIds } = await getBuyNFTQuote(
       collectionPool,
       heldIds,
-      any
+      any,
+      _numNFTs
     );
     if (key === "ETH") {
       await setBalance(user.address, inputAmount.mul(2));
@@ -911,6 +937,21 @@ export function testSwapNFTsForToken(
     });
   });
 
+  describe("Gas", function () {
+    for (let i = 1; i <= NUM_INITIAL_NFTS; i++) {
+      context(`With ${i} nfts`, function () {
+        reportGasCost(async function (this: Context) {
+          ({ collectionPool, nft, heldIds, tokenIDFilter } =
+            await createPool.call(this));
+
+          ({ outputAmount, nfts } = await getSellNFTQuoteAndMint.call(this, i));
+
+          return swapNFTsForToken();
+        });
+      });
+    }
+  });
+
   async function swapNFTsForToken(
     overrides?: Partial<{
       minExpectedTokenOutput: BigNumber;
@@ -926,7 +967,10 @@ export function testSwapNFTsForToken(
     );
   }
 
-  async function getSellNFTQuoteAndMint(this: Context): Promise<{
+  async function getSellNFTQuoteAndMint(
+    this: Context,
+    numNFTs?: number
+  ): Promise<{
     outputAmount: BigNumber;
     nfts: ICollectionPool.NFTsStruct;
   }> {
@@ -938,7 +982,9 @@ export function testSwapNFTsForToken(
         nft,
         heldIds,
         user,
-        tokenIDFilter
+        tokenIDFilter,
+        undefined,
+        numNFTs
       );
 
     if (key === "ETH") {

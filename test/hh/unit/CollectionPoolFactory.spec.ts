@@ -10,7 +10,7 @@ import {
   NUM_INITIAL_NFTS,
   PoolVariant,
 } from "../shared/constants";
-import { getGasToCost } from "../shared/ethGasReporter";
+import { reportGasCost, setUpGasToCost } from "../shared/ethGasReporter";
 import {
   deployPoolContracts,
   nftFixture,
@@ -51,7 +51,6 @@ import type { Context } from "mocha";
 const MAX_UINT_24 = ethers.BigNumber.from(0xffffff);
 
 describe("CollectionPoolFactory", function () {
-  let gasToCost: (gasUsed: BigNumber) => number;
   let collectionPoolFactory: CollectionPoolFactory;
   let testCurve: TestCurve;
   let test20: Test20;
@@ -61,11 +60,10 @@ describe("CollectionPoolFactory", function () {
   let collectionDeployer: SignerWithAddress;
   let user: SignerWithAddress;
 
+  setUpGasToCost();
+
   before("Get signers", async function () {
     ({ collectionDeployer, user } = await getSigners());
-  });
-  before(async function () {
-    gasToCost = await getGasToCost();
   });
 
   beforeEach("Load factoryFixture ", async function () {
@@ -343,7 +341,7 @@ describe("CollectionPoolFactory", function () {
         });
       });
 
-      describe.skip("Gas", function () {
+      describe("Gas", function () {
         context("With enumerable", function () {
           beforeEach("Set enumerable nft", function () {
             this.nft = test721Enumerable;
@@ -363,7 +361,7 @@ describe("CollectionPoolFactory", function () {
         function testGas() {
           for (let i = 0; i <= NUM_INITIAL_NFTS; i++) {
             context(`With ${i} nfts`, function () {
-              it("Should be gas efficient", async function () {
+              reportGasCost(async function (this: Context) {
                 const tokenIds = await mintAndApproveRandomNfts(
                   this.nft,
                   user,
@@ -385,7 +383,7 @@ describe("CollectionPoolFactory", function () {
                   };
                 }
 
-                const tx = await createPool.call(
+                return createPool.call(
                   this,
                   key,
                   filtered,
@@ -394,11 +392,6 @@ describe("CollectionPoolFactory", function () {
                     initialNFTIDs: tokenIds,
                   },
                   filterParams
-                );
-                const receipt = await tx.wait();
-                const { gasUsed } = receipt;
-                console.log(
-                  `Used ${gasUsed.toString()} gas, cost $${gasToCost(gasUsed)}`
                 );
               });
             });

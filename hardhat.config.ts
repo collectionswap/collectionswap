@@ -125,6 +125,10 @@ const config: HardhatUserConfig = {
   paths: {
     tests: "./test/hh",
   },
+  mocha: {
+    grep: "Gas",
+    invert: process.env.RUN_GAS?.toLowerCase() !== "true",
+  },
 };
 
 export default config;

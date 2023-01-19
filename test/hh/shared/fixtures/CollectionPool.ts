@@ -304,13 +304,14 @@ function getNFT(
 export async function getBuyNFTQuote(
   collectionPool: CollectionPool,
   heldIds: BigNumber[],
-  any: boolean
+  any: boolean,
+  _numNFTs?: number
 ): Promise<{
   inputAmount: BigNumber;
   numNFTs: number;
   nftIds: BigNumber[] | undefined;
 }> {
-  const numNFTs = heldIds.length / 2;
+  const numNFTs = _numNFTs ?? heldIds.length / 2;
   const nftIds = any ? undefined : pickRandomElements(heldIds, numNFTs);
 
   const { inputAmount } = await collectionPool.getBuyNFTQuote(numNFTs);
@@ -351,7 +352,8 @@ export async function getSellNFTQuoteAndMintNFTs(
   heldIds: BigNumber[],
   to: SignerWithAddress,
   tokenIDFilter?: TokenIDs,
-  _approveTo?: string
+  _approveTo?: string,
+  _numNFTs?: number
 ): Promise<{
   totalAmount: BigNumber;
   outputAmount: BigNumber;
@@ -361,11 +363,12 @@ export async function getSellNFTQuoteAndMintNFTs(
   let nfts;
   if (tokenIDFilter) {
     let tokenIds = difference(tokenIDFilter.tokens().map(toBigNumber), heldIds);
+    const numNFTs = _numNFTs ?? tokenIds.length / 2;
     tokenIds = await mintAndApproveNfts(
       nft,
       to,
       approveTo,
-      pickRandomElements(tokenIds, tokenIds.length / 2)
+      pickRandomElements(tokenIds, numNFTs)
     );
     const biTokenIds = tokenIds.map(toBigInt);
 
@@ -376,11 +379,12 @@ export async function getSellNFTQuoteAndMintNFTs(
       proofFlags,
     };
   } else {
+    const numNFTs = _numNFTs ?? NUM_INITIAL_NFTS / 2;
     const tokenIds = await mintAndApproveRandomNfts(
       nft,
       to,
       approveTo,
-      NUM_INITIAL_NFTS / 2
+      numNFTs
     );
     nfts = {
       ids: tokenIds,
