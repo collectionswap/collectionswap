@@ -1,4 +1,6 @@
 {
+  "name": "collectionswap",
+  "version": "0.0.1",
   "scripts": {
     "compile": "hardhat compile",
     "coverage": "TESTING=true RUN_COVERAGE=true hardhat coverage",
