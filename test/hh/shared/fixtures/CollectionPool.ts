@@ -1,4 +1,4 @@
-import { TokenIDs } from "filter_code";
+import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
 import {
@@ -190,9 +190,12 @@ async function createPool(
 
     const biTokenIds = heldIds.map(toBigInt);
     // @ts-ignore
-    poolParams.initialNFTIDs = tokenIDFilter.sort(biTokenIds);
-    const { proof: initialProof, proofFlags: initialProofFlags } =
-      tokenIDFilter.proof(biTokenIds);
+    const {
+      proof: initialProof,
+      proofFlags: initialProofFlags,
+      leaves,
+    } = tokenIDFilter.proof(biTokenIds);
+    poolParams.initialNFTIDs = leaves;
 
     tx = await collectionPoolFactory
       .connect(poolOwner)
@@ -372,9 +375,9 @@ export async function getSellNFTQuoteAndMintNFTs(
     );
     const biTokenIds = tokenIds.map(toBigInt);
 
-    const { proof, proofFlags } = tokenIDFilter.proof(biTokenIds);
+    const { proof, proofFlags, leaves: ids } = tokenIDFilter.proof(biTokenIds);
     nfts = {
-      ids: tokenIDFilter.sort(biTokenIds),
+      ids,
       proof,
       proofFlags,
     };

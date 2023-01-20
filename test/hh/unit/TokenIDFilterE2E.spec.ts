@@ -1,5 +1,5 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { TokenIDs as TokenIds } from "filter_code";
+import { TokenIDs as TokenIds } from "fummpel";
 import { ethers, expect } from "hardhat";
 
 import { everythingFixture, nftFixture } from "../shared/fixtures";
@@ -38,7 +38,7 @@ function getBannedIds(filter: TokenIds, n: number, hint?: TokenIds): bigint[] {
   return Array.from(output).slice(0, n);
 }
 
-describe("Testing filter_code library is consistent with TokenIdFilter contract", function () {
+describe("Testing fummpel library is consistent with TokenIdFilter contract", function () {
   it("Should be able to create pool with subset of allowed ids as initial ids", async function () {
     for (
       let filterSize = 1;
@@ -119,13 +119,9 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
             tokenIdFilter.tokens(),
             subsetSize
           ).map(BigInt);
-          const { proof, proofFlags } = tokenIdFilter.proof(subset);
+          const { proof, proofFlags, leaves } = tokenIdFilter.proof(subset);
           expect(
-            await collectionPoolETH.acceptsTokenIDs(
-              tokenIdFilter.sort(subset),
-              proof,
-              proofFlags
-            )
+            await collectionPoolETH.acceptsTokenIDs(leaves, proof, proofFlags)
           ).to.be.true;
         }
       }
@@ -197,12 +193,12 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
           const idsToSell = pickRandomElements(otherAcceptedIds, sellQty).map(
             toBigInt
           );
-          const { proof, proofFlags } = tokenIdFilter.proof(idsToSell);
+          const { proof, proofFlags, leaves } = tokenIdFilter.proof(idsToSell);
           const quote = (await pool.getSellNFTQuote(sellQty))[3];
           await nft.connect(owner).setApprovalForAll(pool.address, true);
           await pool.connect(owner).swapNFTsForToken(
             {
-              ids: tokenIdFilter.sort(idsToSell),
+              ids: leaves,
               proof,
               proofFlags,
             },
@@ -422,13 +418,9 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
           const subset = pickRandomElements(newFilter.tokens(), subsetSize).map(
             BigInt
           );
-          const { proof, proofFlags } = newFilter.proof(subset);
+          const { proof, proofFlags, leaves } = newFilter.proof(subset);
           expect(
-            await collectionPoolETH.acceptsTokenIDs(
-              newFilter.sort(subset),
-              proof,
-              proofFlags
-            )
+            await collectionPoolETH.acceptsTokenIDs(leaves, proof, proofFlags)
           ).to.be.true;
         }
       }
@@ -523,10 +515,10 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
             initialHeldIds
           );
           for (const id of initialIds) {
-            const { proof, proofFlags } = newFilter.proof([id]);
+            const { proof, proofFlags, leaves } = newFilter.proof([id]);
             await pool.connect(owner).swapNFTsForToken(
               {
-                ids: newFilter.sort([id]),
+                ids: leaves,
                 proof,
                 proofFlags,
               },
@@ -541,12 +533,12 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
             newFilter.tokens().filter((id) => !initialIds.includes(id)),
             sellQty
           ).map(BigInt);
-          const { proof, proofFlags } = newFilter.proof(idsToSell);
+          const { proof, proofFlags, leaves: ids } = newFilter.proof(idsToSell);
           const quote = (await pool.getSellNFTQuote(1))[3];
 
           await pool.connect(owner).swapNFTsForToken(
             {
-              ids: newFilter.sort(idsToSell),
+              ids,
               proof,
               proofFlags,
             },
@@ -605,10 +597,10 @@ describe("Testing filter_code library is consistent with TokenIdFilter contract"
             initialHeldIds
           );
           for (const id of initialIds) {
-            const { proof, proofFlags } = newFilter.proof([id]);
+            const { proof, proofFlags, leaves: ids } = newFilter.proof([id]);
             await pool.connect(owner).swapNFTsForToken(
               {
-                ids: newFilter.sort([id]),
+                ids,
                 proof,
                 proofFlags,
               },
@@ -805,11 +797,11 @@ async function getFilteredNFTs(
     acceptedTokenIds,
     numInitial
   ).map(toBigInt);
-  const { proof: initialProof, proofFlags: initialProofFlags } =
-    tokenIdFilter.proof(initialPoolTokenIds);
-
-  // TokenIds need to be sorted before any legitimate addition to the pool
-  const initialNFTIDs = tokenIdFilter.sort(initialPoolTokenIds);
+  const {
+    proof: initialProof,
+    proofFlags: initialProofFlags,
+    leaves: initialNFTIDs,
+  } = tokenIdFilter.proof(initialPoolTokenIds);
 
   return {
     acceptedTokenIds,

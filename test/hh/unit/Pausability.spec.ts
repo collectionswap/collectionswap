@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { TokenIDs } from "filter_code";
+import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
 import { PoolType } from "../shared/constants";
@@ -28,7 +28,7 @@ import type {
   Test20,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { ContractTransaction } from "ethers";
+import { BigNumber, ContractTransaction } from "ethers";
 
 describe("Pausability", function () {
   let factory: CollectionPoolFactory;
@@ -89,11 +89,12 @@ describe("Pausability", function () {
     const params: any[] = [createPoolParams];
     if (isFiltered) {
       const filter = new TokenIDs(nftTokenIds.map(toBigInt));
-      const { proof: initialProof, proofFlags: initialProofFlags } =
-        filter.proof(nftTokenIds.map(toBigInt));
-      createPoolParams.initialNFTIDs = filter
-        .sort(createPoolParams.initialNFTIDs.map(toBigInt))
-        .map(ethers.BigNumber.from);
+      const {
+        proof: initialProof,
+        proofFlags: initialProofFlags,
+        leaves,
+      } = filter.proof(nftTokenIds.map(toBigInt));
+      createPoolParams.initialNFTIDs = leaves.map(BigNumber.from);
       params.push({
         merkleRoot: filter.root(),
         encodedTokenIDs: filter.encode(),

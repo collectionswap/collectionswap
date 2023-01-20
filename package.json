@@ -64,7 +64,7 @@
     "eslint-config-xo": "^0.42.0",
     "eslint-plugin-prettier": "^4.2.1",
     "ethers": "^5.7.0",
-    "filter_code": "git+https://github.com/collectionswap/fummpel.git#commonjs-mode",
+    "fummpel": "^0.0.4",
     "solmate": "^6.5.0"
   }
 }

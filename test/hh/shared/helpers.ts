@@ -899,7 +899,7 @@ export async function getNftTransfersTo(
   return getNftTransfers(tx, nft, undefined, to);
 }
 
-// Helper methods to interop with the filter_code library
+// Helper methods to interop with the fummpel library
 
 export function toBigInt(bn: BigNumber): bigint {
   return bn.toBigInt();

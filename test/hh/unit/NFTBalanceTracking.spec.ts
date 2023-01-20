@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { TokenIDs } from "filter_code";
+import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
 import {
@@ -104,11 +104,14 @@ function testPoolCreation(
       const tokenIdFilter = new TokenIDs(tokenIds.map(toBigInt));
       const merkleRoot = tokenIdFilter.root();
       const encodedTokenIDs = tokenIdFilter.encode();
-      const { proof: initialProof, proofFlags: initialProofFlags } =
-        tokenIdFilter.proof(initialIds.map(toBigInt));
+      const {
+        proof: initialProof,
+        proofFlags: initialProofFlags,
+        leaves,
+      } = tokenIdFilter.proof(initialIds.map(toBigInt));
 
       // Don't forget to sort the initial token IDs if it's a filtered pool
-      poolParams.initialNFTIDs = tokenIdFilter.sort(initialIds.map(toBigInt));
+      poolParams.initialNFTIDs = leaves;
 
       args.push({
         merkleRoot,
@@ -156,7 +159,7 @@ function testDepositNFTs(
     const tx = await factory
       .connect(owner)
       .depositNFTs(
-        filter?.sort(tokenIds.map(toBigInt)) ?? tokenIds,
+        multiproof?.leaves ?? tokenIds,
         multiproof?.proof ?? [],
         multiproof?.proofFlags ?? [],
         pool.address,
@@ -189,7 +192,7 @@ function testDepositNFTs(
       await factory
         .connect(trader)
         .depositNFTs(
-          filter?.sort(tokenIds.map(toBigInt)) ?? tokenIds,
+          multiproof?.leaves ?? tokenIds,
           multiproof?.proof ?? [],
           multiproof?.proofFlags ?? [],
           pool.address,
@@ -242,12 +245,7 @@ function testWithdrawERC721(
       await pool.connect(owner).withdrawERC721(nft.address, idsToSneakIn);
     }
 
-    const tx = await pool
-      .connect(owner)
-      .withdrawERC721(
-        nft.address,
-        filter?.sort(tokenIds.map(BigInt)) ?? tokenIds
-      );
+    const tx = await pool.connect(owner).withdrawERC721(nft.address, tokenIds);
     await expect(tx).to.emit(pool, "NFTWithdrawal").withArgs(tokenIds.length);
     if (!withdrawBeforeTest) {
       await pool.connect(owner).withdrawERC721(nft.address, idsToSneakIn);
@@ -290,7 +288,7 @@ function testSell(
     const minExpectedTokenOutput = (await pool.getSellNFTQuote(numSold + 1))[3];
     const tx = await pool.connect(trader).swapNFTsForToken(
       {
-        ids: filter?.sort(tokenIds.map(toBigInt)) ?? tokenIds,
+        ids: multiproof?.leaves ?? tokenIds,
         proof: multiproof?.proof ?? [],
         proofFlags: multiproof?.proofFlags ?? [],
       },
@@ -345,7 +343,7 @@ function testBuySpecific(
     const tx = await pool
       .connect(trader)
       .swapTokenForSpecificNFTs(
-        filter?.sort(tokenIds.map(toBigInt)) ?? tokenIds,
+        tokenIds,
         maxExpectedTokenInput,
         trader.address,
         false,

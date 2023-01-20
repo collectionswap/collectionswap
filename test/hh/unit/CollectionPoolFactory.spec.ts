@@ -1,6 +1,6 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { TokenIDs } from "filter_code";
+import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
 import {
@@ -473,14 +473,17 @@ describe("CollectionPoolFactory", function () {
               );
 
               const biTokenIds = tokenIds.map(toBigInt);
-              const { proof: initialProof, proofFlags: initialProofFlags } =
-                this.tokenIDs.proof(biTokenIds);
+              const {
+                proof: initialProof,
+                proofFlags: initialProofFlags,
+                leaves: initialNFTIDs,
+              } = this.tokenIDs.proof(biTokenIds);
 
               await expect(
                 collectionPoolFactory[`createPool${key}Filtered`](
                   {
                     ...this[`create${key}PoolParams`],
-                    initialNFTIDs: this.tokenIDs.sort(biTokenIds),
+                    initialNFTIDs,
                   },
                   {
                     ...this.filterParams,
@@ -502,14 +505,15 @@ describe("CollectionPoolFactory", function () {
               );
 
               const biTokenIds = this.tokenIds.map(toBigInt);
-              const { proof: initialProof, proofFlags: initialProofFlags } =
+              const { proof: initialProof, proofFlags: initialProofFlags,
+                leaves: initialNFTIDs, } =
                 this.tokenIDs.proof(biTokenIds);
 
               await expect(
                 collectionPoolFactory[`createPool${key}Filtered`](
                   {
                     ...this[`create${key}PoolParams`],
-                    initialNFTIDs: this.tokenIDs.sort(biTokenIds),
+                    initialNFTIDs,
                   },
                   {
                     ...this.filterParams,

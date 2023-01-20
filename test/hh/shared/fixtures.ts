@@ -1,5 +1,5 @@
 import { time } from "@nomicfoundation/hardhat-network-helpers";
-import { TokenIDs } from "filter_code";
+import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
 import { config, CURVE_TYPE, PoolType } from "./constants";
@@ -1009,9 +1009,11 @@ export async function filteredTradingFixture(nftFixture: NFTFixture): Promise<{
 
   const arr = tokenIds.concat(traderNfts).concat(ownerNfts).map(toBigInt);
   const filter = new TokenIDs(arr);
-  const { proof: initialProof, proofFlags: initialProofFlags } = filter.proof(
-    initialIds.map(toBigInt)
-  );
+  const {
+    proof: initialProof,
+    proofFlags: initialProofFlags,
+    leaves: initialNFTIDs,
+  } = filter.proof(initialIds.map(toBigInt));
 
   const poolParams = {
     nft: nft.address,
@@ -1026,7 +1028,7 @@ export async function filteredTradingFixture(nftFixture: NFTFixture): Promise<{
     state,
     royaltyNumerator,
     royaltyRecipientFallback: owner.address,
-    initialNFTIDs: filter.sort(initialIds.map(toBigInt)),
+    initialNFTIDs,
   };
 
   const filterParams = {
