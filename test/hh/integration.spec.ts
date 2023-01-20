@@ -3,11 +3,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { integrationFixture } from "./shared/fixtures";
-import {
-  createIncentiveEth,
-  createPoolEth,
-  mintRandomNfts,
-} from "./shared/helpers";
+import { createPoolEth, mintRandomNfts } from "./shared/helpers";
 
 import type { IERC721 } from "../../typechain-types";
 
@@ -19,8 +15,6 @@ describe("integration", function () {
   it("Should integrate", async function () {
     const {
       factory,
-      collectionstaker,
-      monotonicIncreasingValidator,
       curve,
       rewardTokens,
       rewards,
@@ -95,65 +89,19 @@ describe("integration", function () {
 
     const startTime = (await time.latest()) + 10;
     const endTime = startTime + 3600;
-    let { rewardVault } = await createIncentiveEth(collectionstaker, {
-      ...params,
-      validator: monotonicIncreasingValidator,
-      rewardTokens,
-      rewards,
-      startTime,
-      endTime,
-    });
-
-    // Reward pool should now have the reward tokens
-    for (let i = 0; i < numRewardTokens; i++) {
-      expect(await rewardTokens[i].balanceOf(rewardVault.address)).to.equal(
-        rewards[i]
-      );
-      expect(await rewardTokens[i].balanceOf(protocol.address)).to.equal(0);
-    }
-
-    rewardVault = rewardVault.connect(user);
 
     // User should have the lp token
     expect(await factory.ownerOf(lpTokenId)).to.equal(user.address);
-
-    await factory.approve(rewardVault.address, lpTokenId);
-    await rewardVault.stake(lpTokenId);
-
-    // Reward pool should now have the lp token
-    expect(await factory.ownerOf(lpTokenId)).to.equal(rewardVault.address);
 
     // Time passes to halfway of incentive
     const period = endTime - startTime;
     await time.increaseTo(startTime + period / 2 - 1);
 
-    await rewardVault.getReward();
-
-    // User should get half the rewards
-    for (let i = 0; i < numRewardTokens; i++) {
-      const rewardRate = await rewardVault.rewardRates(rewardTokens[i].address);
-      expect(await rewardTokens[i].balanceOf(user.address)).to.approximately(
-        rewardRate.mul(period).div(2),
-        removePrecision
-      );
-    }
-
     // Time passes to end of incentive
     await time.increaseTo(endTime);
 
-    await rewardVault.exit(lpTokenId);
-
     // User should get back lp token
     expect(await factory.ownerOf(lpTokenId)).to.equal(user.address);
-
-    // User should get all the rewards
-    for (let i = 0; i < numRewardTokens; i++) {
-      const rewardRate = await rewardVault.rewardRates(rewardTokens[i].address);
-      expect(await rewardTokens[i].balanceOf(user.address)).to.approximately(
-        rewardRate.mul(period),
-        removePrecision
-      );
-    }
 
     await factory.setApprovalForAll(factory.address, true);
     prevBalance = await user.getBalance();

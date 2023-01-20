@@ -5,6 +5,8 @@ import path from "path";
 
 import { LedgerSigner } from "@anders-t/ethers-ledger";
 
+import { FEE_DECIMALS } from "../test/hh/shared/constants";
+
 import { configs } from "./config";
 
 import type {
@@ -15,7 +17,6 @@ import type {
 } from "../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
-import { FEE_DECIMALS } from "../test/hh/shared/constants";
 
 export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   const networkId = hre.network.config.chainId as number;
@@ -66,43 +67,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     await factory.setRouterAllowed(routerAddresses[i], true);
   }
 
-  console.log(`Deploying Collectionstaker...`);
-  const collectionStakerFactory = (await hre.ethers.getContractFactory(
-    "Collectionstaker",
-    {
-      signer: deployer,
-    }
-  )) as Collectionstaker__factory;
-  const collectionStaker = await collectionStakerFactory.deploy(
-    factory.address
-  );
-  await collectionStaker.deployed();
-  console.log(`Collectionstaker address: ${collectionStaker.address}`);
-
-  const { validatorNames, validatorAddresses } = await deployValidators(
-    hre,
-    deployer
-  );
-
-  const rng = await deployChainlink(hre, deployer);
-
-  console.log(`Setting RNG in staker...`);
-  // Set RNG in staker
-  await collectionStaker.setRNG(rng.address);
-
-  console.log(`Allow staker to call RNG...`);
-  await rng.setAllowedCaller(collectionStaker.address);
-
   console.log("exporting addresses...");
-  const [
-    sortitionTreeManagerAddress,
-    rewardVaultETHAddress,
-    rewardVaultETHDrawAddress,
-  ] = await Promise.all([
-    collectionStaker.treeManager(),
-    collectionStaker.rewardVaultETHLogic(),
-    collectionStaker.rewardVaultETHDrawLogic(),
-  ]);
 
   const zip = (a: string[], b: string[]) => a.map((k, i) => [k, b[i]]);
 
@@ -112,12 +77,6 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
       ...Object.fromEntries(zip(curveNames, curveAddresses)),
       CollectionPoolFactory: factory.address,
       ...Object.fromEntries(zip(routerNames, routerAddresses)),
-      Collectionstaker: collectionStaker.address,
-      SortitionTreeManager: sortitionTreeManagerAddress,
-      RewardVaultETH: rewardVaultETHAddress,
-      RewardVaultETHDraw: rewardVaultETHDrawAddress,
-      RNGChainlinkV2: rng.address,
-      ...Object.fromEntries(zip(validatorNames, validatorAddresses)),
     },
     deployer: deployerAddress,
   };
@@ -230,56 +189,4 @@ export async function deployRouters(
   console.log(`------------------------------`);
 
   return { routerNames, routerAddresses };
-}
-
-export async function deployValidators(
-  hre: HardhatRuntimeEnvironment,
-  deployer: LedgerSigner | SignerWithAddress
-): Promise<{ validatorNames: string[]; validatorAddresses: string[] }> {
-  // Validators
-  const validatorNames = ["MonotonicIncreasingValidator"];
-  const validatorAddresses: string[] = [];
-
-  console.log(`--------------------------------`);
-  console.log(`------- Deploying Validators -------`);
-  console.log(`--------------------------------`);
-
-  for (const validatorName of validatorNames) {
-    console.log(`Deploying ${validatorName}`);
-    const deployFactory = await hre.ethers.getContractFactory(
-      validatorName,
-      deployer
-    );
-    const deployedValidator = await deployFactory.deploy();
-    await deployedValidator.deployed();
-    console.log(`${validatorName} address: ${deployedValidator.address}`);
-    validatorAddresses.push(deployedValidator.address);
-  }
-
-  console.log(`------------------------------`);
-
-  return { validatorNames, validatorAddresses };
-}
-
-export async function deployChainlink(
-  hre: HardhatRuntimeEnvironment,
-  deployer: LedgerSigner | SignerWithAddress
-): Promise<RNGChainlinkV2> {
-  const config = configs[hre.network.config.chainId!];
-
-  console.log(`Deploying ChainlinkRNGv2...`);
-  const rngFactory = (await hre.ethers.getContractFactory(
-    "RNGChainlinkV2",
-    deployer
-  )) as RNGChainlinkV2__factory;
-  const rng = await rngFactory.deploy(
-    await deployer.getAddress(),
-    config.VRF_COORDINATOR,
-    config.SUBSCRIPTION_ID,
-    config.KEY_HASH
-  );
-  await rng.deployed();
-  console.log(`Chainlink RNG address: ${rng.address}`);
-
-  return rng;
 }

@@ -7,7 +7,6 @@ import {
   filteredTradingFixture,
   genericTradingFixture,
   getCurveParameters,
-  makeRewardVaultFixture,
   test721EnumerableFixture,
   TRADING_QUANTITY,
 } from "../shared/fixtures";
@@ -484,55 +483,6 @@ function balanceTrackingSuite(nftFixture: NFTFixture) {
             }
           }
         }
-      });
-    }
-
-    for (let i = 1; i <= TRADING_QUANTITY; i++) {
-      it(`Should increase upon atomicPoolAndVault with ${i} initial tokenIds`, async function () {
-        const { factory, nft, rewardVault, owner, user, params } =
-          await makeRewardVaultFixture(nftFixture as NFTFixture)();
-        const newNftTokenIds = await mintRandomNfts(
-          nft.connect(owner),
-          user.address,
-          i
-        );
-        await nft.connect(user).setApprovalForAll(factory.address, true);
-        await factory
-          .connect(user)
-          .setApprovalForAll(rewardVault.address, true);
-        const currTokenIdTx = await rewardVault
-          .connect(user)
-          .atomicPoolAndVault(
-            nft.address,
-            params.bondingCurve.address,
-            params.delta,
-            params.fee,
-            params.spotPrice,
-            params.props,
-            params.state,
-            params.royaltyNumerator,
-            params.royaltyRecipientFallback,
-            newNftTokenIds,
-            { value: params.value }
-          );
-        const receipt = await currTokenIdTx.wait();
-        const newPoolEvent = receipt
-          .events!.map((event) => {
-            try {
-              return factory.interface.parseLog(event);
-            } catch (e) {
-              return null;
-            }
-          })
-          .find((event) => event?.name === "NewPool");
-        const { poolAddress: newPoolAddress } = newPoolEvent!.args!;
-        const collectionPoolETH = await ethers.getContractAt(
-          "CollectionPoolETH",
-          newPoolAddress
-        );
-        expect((await collectionPoolETH.getAllHeldIds()).length).to.be.equal(
-          newNftTokenIds.length
-        );
       });
     }
 

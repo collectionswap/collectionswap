@@ -76,39 +76,4 @@ export async function verifyEtherscanCollectionSet(
       constructorArguments: [contracts.CollectionPoolFactory],
     });
   }
-
-  await verify("Collectionstaker", {
-    address: contracts.Collectionstaker,
-    constructorArguments: [contracts.CollectionPoolFactory],
-  });
-
-  await verify("SortitionTreeManager", {
-    address: contracts.SortitionTreeManager,
-    constructorArguments: [],
-  });
-
-  await verify("RewardVaultETH", {
-    address: contracts.RewardVaultETH,
-    constructorArguments: [],
-  });
-
-  await verify("RewardVaultETHDraw", {
-    address: contracts.RewardVaultETHDraw,
-    constructorArguments: [],
-  });
-
-  await verify("MonotonicIncreasingValidator", {
-    address: contracts.MonotonicIncreasingValidator,
-    constructorArguments: [],
-  });
-
-  await verify("RNGChainlinkV2", {
-    address: contracts.RNGChainlinkV2,
-    constructorArguments: [
-      deployerAddress,
-      config.VRF_COORDINATOR,
-      config.SUBSCRIPTION_ID,
-      config.KEY_HASH,
-    ],
-  });
 }

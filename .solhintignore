@@ -1,6 +1,3 @@
 contracts/lib
 contracts/mocks
-contracts/rng/RNGServiceMockChainlink.sol
 contracts/test
-contracts/SortitionSumTreeFactory.sol
-contracts/TestSortitionTree.sol

@@ -1,10 +1,8 @@
-import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
 import { config, CURVE_TYPE, PoolType } from "./constants";
 import {
-  createPoolEth,
   getPoolAddress,
   mintRandomNfts,
   pickRandomElements,
@@ -29,8 +27,6 @@ import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { Contract, BigNumber } from "ethers";
 
 const NUM_REWARD_TOKENS = 2;
-const DAY_DURATION = 86400;
-const REWARD_DURATION = DAY_DURATION;
 const REWARDS = [ethers.utils.parseEther("5"), ethers.utils.parseEther("7")];
 export const DEFAULT_VALID_ROYALTY = ethers.utils.parseUnits("1", 3);
 
@@ -110,8 +106,7 @@ export function getCurveParameters(): {
 
 export async function integrationFixture() {
   const { owner, protocol, user } = await getSigners();
-  const { factory, collectionstaker, curve } = await collectionstakerFixture();
-  const { monotonicIncreasingValidator } = await validatorFixture();
+  const { factory, curve } = await factoryFixture();
   const rewardTokens = (await rewardTokenFixture()).slice(0, NUM_REWARD_TOKENS);
   const { nft } = await test721Fixture();
 
@@ -130,8 +125,6 @@ export async function integrationFixture() {
 
   return {
     factory: factory.connect(user),
-    collectionstaker: collectionstaker.connect(protocol),
-    monotonicIncreasingValidator,
     curve: curve as unknown as ICurve,
     rewardTokens: rewardTokens.map((rewardToken) =>
       rewardToken.connect(protocol)
@@ -157,36 +150,6 @@ export async function factoryFixture() {
   const { curve, factory } = await deployPoolContracts();
 
   return { curve, factory, collection };
-}
-
-export async function collectionstakerFixture() {
-  const { factory, collection, curve } = await factoryFixture();
-  const Collectionstaker = await ethers.getContractFactory("Collectionstaker");
-  const collectionstaker = await Collectionstaker.connect(collection).deploy(
-    factory.address
-  );
-  return { factory, collectionstaker, curve, collection };
-}
-
-export async function collectionstakerWithRewardsFixture() {
-  const { protocol } = await getSigners();
-  const { collectionstaker, curve, collection } =
-    await collectionstakerFixture();
-  const { monotonicIncreasingValidator } = await validatorFixture();
-  const rewardTokens = (await rewardTokenFixture()).slice(0, NUM_REWARD_TOKENS);
-  const { nft } = await nftFixture();
-
-  return {
-    collectionstaker: collectionstaker.connect(protocol),
-    monotonicIncreasingValidator,
-    collection,
-    curve,
-    rewardTokens,
-    rewards: REWARDS,
-    numRewardTokens: NUM_REWARD_TOKENS,
-    nft,
-    protocol,
-  };
 }
 
 export async function test20Fixture() {
@@ -515,127 +478,6 @@ export async function everythingFixture() {
   };
 
   return ret;
-}
-
-export function makeRewardVaultFixture(nftFixture: NFTFixture) {
-  // eslint-disable-next-line func-names
-  return async function rewardVaultFixture() {
-    const { owner, user, user1, collection } = await getSigners();
-
-    let { factory, curve } = await factoryFixture();
-    const { monotonicIncreasingValidator } = await validatorFixture();
-    const allRewardTokens = await rewardTokenFixture();
-    const rewardTokens = allRewardTokens.slice(0, NUM_REWARD_TOKENS);
-    let { nft } = await nftFixture();
-
-    const startTime = (await time.latest()) + 1000;
-    const endTime = startTime + REWARD_DURATION;
-    const rewardRates = REWARDS.map((reward) =>
-      reward.div(endTime - startTime)
-    );
-    // EndTime = startTime - 1000
-    // console.log(rewardTokens.map((rewardToken) => rewardToken.address))
-    const { delta, fee, spotPrice, props, state, royaltyNumerator } =
-      getCurveParameters();
-
-    const RewardVault = await ethers.getContractFactory("RewardVaultETH");
-    let rewardVault = await RewardVault.connect(factory.signer).deploy();
-
-    const Clones = await ethers.getContractFactory("TestClones");
-    const clones = await Clones.deploy();
-    const rewardVaultAddress = await clones.callStatic.clone(
-      rewardVault.address
-    );
-    await clones.clone(rewardVault.address);
-    rewardVault = RewardVault.attach(rewardVaultAddress);
-
-    await rewardVault.initialize(
-      collection.address,
-      owner.address,
-      factory.address,
-      monotonicIncreasingValidator.address,
-      nft.address,
-      curve.address,
-      { spotPrice: 0, delta, props: [], state: [] },
-      fee,
-      royaltyNumerator,
-      ethers.constants.HashZero,
-      rewardTokens.map((rewardToken) => rewardToken.address),
-      rewardRates,
-      startTime,
-      endTime
-    );
-
-    for (let i = 0; i < NUM_REWARD_TOKENS; i++) {
-      await rewardTokens[i].mint(rewardVault.address, REWARDS[i]);
-    }
-
-    const nftTokenIds = await mintRandomNfts(nft, user.address);
-    const nftTokenIds1 = await mintRandomNfts(nft, user1.address);
-
-    factory = factory.connect(user);
-    nft = nft.connect(user);
-    rewardVault = rewardVault.connect(user);
-
-    const supportsERC2981 = await nft.supportsInterface("0x2a55205a");
-    const params = {
-      bondingCurve: curve as unknown as ICurve,
-      delta,
-      fee,
-      spotPrice,
-      props,
-      state,
-      royaltyNumerator,
-      royaltyRecipientFallback:
-        supportsERC2981 || royaltyNumerator === "0"
-          ? ethers.constants.AddressZero
-          : ethers.Wallet.createRandom().address,
-      value: ethers.utils.parseEther("2"),
-    };
-
-    const { lpTokenId } = await createPoolEth(factory, {
-      ...params,
-      nft: nft as unknown as IERC721,
-      nftTokenIds,
-    });
-
-    const { lpTokenId: lpTokenId1 } = await createPoolEth(
-      factory.connect(user1),
-      {
-        ...params,
-        nft: nft.connect(user1) as unknown as IERC721,
-        nftTokenIds: nftTokenIds1,
-      }
-    );
-
-    return {
-      factory,
-      monotonicIncreasingValidator,
-      allRewardTokens,
-      rewardTokens,
-      rewards: REWARDS,
-      nft,
-      curve,
-      lpTokenId,
-      lpTokenId1,
-      rewardVault,
-      owner,
-      user,
-      user1,
-      collection,
-      params,
-    };
-  };
-}
-
-export async function validatorFixture() {
-  const MonotonicIncreasingValidator = await ethers.getContractFactory(
-    "MonotonicIncreasingValidator"
-  );
-  const monotonicIncreasingValidator =
-    await MonotonicIncreasingValidator.deploy();
-
-  return { monotonicIncreasingValidator };
 }
 
 /**
