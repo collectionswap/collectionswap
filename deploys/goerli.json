@@ -1,22 +1,16 @@
 {
   "contracts": {
-    "CollectionPoolEnumerableETH": "0xa3459C26d19Eee09C9175498bE7758e4ac2E8a17",
-    "CollectionPoolMissingEnumerableETH": "0x740D00bC79332a0CCe26DC16bC9dC546f803ECb0",
-    "CollectionPoolEnumerableERC20": "0x444B8f41BeA82518e285974AdfdEceB79442c48D",
-    "CollectionPoolMissingEnumerableERC20": "0x1A74A6C1Fd6fdfB6CDe4D1349554CaBe2676fAf1",
-    "LinearCurve": "0x2b420CcEd502B0B9892618D9ea6AB717f80bD802",
-    "ExponentialCurve": "0x7F3D359e685586b043b2B19708CB4E72ab1fADda",
-    "XykCurve": "0xBeC62a44834f997f916e7585a3FCC93314c517F0",
-    "SigmoidCurve": "0xD1D8d23c8a04BF94e1ccd5747a34cbd3784Dc07A",
-    "CollectionPoolFactory": "0x4F7D823fA19e4860018f6F4e78D2404987EB042B",
-    "CollectionRouter": "0x29Fd59643770879a33f9bf521e25cc2F5A2AAB85",
-    "Collectionstaker": "0x56f515907B875F4A5A5AB6c4fa646a3B0f3243D7",
-    "SortitionTreeManager": "0x5C9FEaFCbD4877B3b639a661e1B3694ACaf05a84",
-    "RewardVaultETH": "0x888ab492049aE38221250be333F2f707379f3fDE",
-    "RewardVaultETHDraw": "0xB992BC357146FD864042F9eC8385fC8abe582936",
-    "RNGChainlinkV2": "0xc3eE28aAb33c272413041d970e19365C4eAb02eB",
-    "MonotonicIncreasingValidator": "0xD8EA6e45248F90Df518D0B54B2ab1188170a76cc"
+    "CollectionPoolEnumerableETH": "0xf4699Fb4178B5c1B8A099D5Fbf99002C7d78B5C2",
+    "CollectionPoolMissingEnumerableETH": "0x6cf66919FCf6c57F1bd24a8b9aa52503D7E1B33a",
+    "CollectionPoolEnumerableERC20": "0x4AD85635773090D22298F7eeb6c7FCd44FAbEA56",
+    "CollectionPoolMissingEnumerableERC20": "0x5dbFC357Fe85b79FD9987b190eE9e25a888a9E3E",
+    "LinearCurve": "0xa7132eb8533EE213Cb9C6e3268A7bF0e1D3b072A",
+    "ExponentialCurve": "0xB75ecF134a70565F985F2Bb95a547336F4189Da9",
+    "XykCurve": "0x3a6BE6a8459d1E5eB321BFA3218E801Dbf017dD2",
+    "SigmoidCurve": "0xf3e24Af851c60e36FD46B43B5594a2fE6B1EC7AE",
+    "CollectionPoolFactory": "0x3021B1d885fe859Ec77dFDAF53493DeD2d4f2E10",
+    "CollectionRouter": "0x7269D174029B65d3604CaE50323848041408B034"
   },
   "deployer": "0xfAA7a22A0898BD687dC5aF8b344ddcCC0645D165",
-  "commit": "586df330b1a73c2ce2e00dca61ca1a3637b78db6"
+  "commit": "0271ac4ccc665a564d9c2b7bc3f535dcab97c105"
 }
