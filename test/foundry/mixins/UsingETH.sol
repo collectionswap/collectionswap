@@ -27,7 +27,11 @@ abstract contract UsingETH is Configurable, RouterCaller {
     }
 
     function sendTokens(CollectionPool pool, uint256 amount) public override {
-        payable(address(pool)).transfer(amount);
+        (bool success,) = payable(address(pool)).call{value: amount}("");
+
+        if (!success) {
+            revert("Transfer failed");
+        }
     }
 
     function setupPool(

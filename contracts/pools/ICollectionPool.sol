@@ -86,6 +86,11 @@ interface ICollectionPool is ITokenIDFilter {
         );
 
     /**
+     * @dev Deposit NFTs into pool and emit event for indexing.
+     */
+    function depositNFTs(uint256[] calldata ids, bytes32[] calldata proof, bool[] calldata proofFlags) external;
+
+    /**
      * @dev Used by factory to indicate deposited NFTs.
      * @dev Must only be called by factory. NFT IDs must have been validated against the filter.
      */

@@ -9,12 +9,7 @@ import { FEE_DECIMALS } from "../test/hh/shared/constants";
 
 import { configs } from "./config";
 
-import type {
-  Collectionstaker__factory,
-  CollectionPoolFactory__factory,
-  RNGChainlinkV2__factory,
-  RNGChainlinkV2,
-} from "../typechain-types";
+import type { CollectionPoolFactory__factory } from "../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { HardhatRuntimeEnvironment } from "hardhat/types";
 

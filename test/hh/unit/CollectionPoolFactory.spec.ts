@@ -4,6 +4,7 @@ import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
 import {
+  COLLECTION_POOL_INTERFACE,
   DEFAULT_CREATE_ERC20_POOL_PARAMS,
   DEFAULT_CREATE_ETH_POOL_PARAMS,
   FEE_DECIMALS,
@@ -229,18 +230,21 @@ describe("CollectionPoolFactory", function () {
             }
           });
 
-          context("With non-zero royalty numerator = 1e18", function () {
+          context("With non-zero royalty numerator = 1e6", function () {
             it("should revert", async function () {
               this[`create${key}PoolParams`].royaltyNumerator =
                 ethers.utils.parseUnits("1", FEE_DECIMALS);
 
               await expect(
                 createPool.call(this, key, filtered)
-              ).to.be.revertedWith("royaltyNumerator must be < 1e6");
+              ).to.be.revertedWithCustomError(
+                { interface: COLLECTION_POOL_INTERFACE },
+                "RoyaltyNumeratorOverflow"
+              );
             });
           });
 
-          context("With non-zero royalty numerator >= 1e18", function () {
+          context("With non-zero royalty numerator >= 1e6", function () {
             it("should revert", async function () {
               this[`create${key}PoolParams`].royaltyNumerator = MAX_UINT_24.sub(
                 randomFee(1)
@@ -248,7 +252,10 @@ describe("CollectionPoolFactory", function () {
 
               await expect(
                 createPool.call(this, key, filtered)
-              ).to.be.revertedWith("royaltyNumerator must be < 1e6");
+              ).to.be.revertedWithCustomError(
+                { interface: COLLECTION_POOL_INTERFACE },
+                "RoyaltyNumeratorOverflow"
+              );
             });
           });
         });
@@ -505,9 +512,11 @@ describe("CollectionPoolFactory", function () {
               );
 
               const biTokenIds = this.tokenIds.map(toBigInt);
-              const { proof: initialProof, proofFlags: initialProofFlags,
-                leaves: initialNFTIDs, } =
-                this.tokenIDs.proof(biTokenIds);
+              const {
+                proof: initialProof,
+                proofFlags: initialProofFlags,
+                leaves: initialNFTIDs,
+              } = this.tokenIDs.proof(biTokenIds);
 
               await expect(
                 collectionPoolFactory[`createPool${key}Filtered`](
@@ -717,7 +726,7 @@ describe("CollectionPoolFactory", function () {
   });
 });
 
-async function collectionPoolFactoryFixture() {
+export async function collectionPoolFactoryFixture() {
   return {
     ...(await deployPoolContracts()),
     ...(await nftFixture()),

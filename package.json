@@ -7,6 +7,7 @@
     "format": "bash -c 'forge fmt contracts/{bonding-curves,filter,pools,rng,routers,tree,validators,vaults,lib/TransferLib.sol,test,trading-competition} $(find contracts -maxdepth 1 -type f)'",
     "gas": "RUN_GAS=true yarn test:hh",
     "test:foundry": "forge test",
+    "test:foundry:parallel": "scripts/forge-test-parallel",
     "test:hh": "TESTING=true hardhat test",
     "lint": "yarn lint:ci --fix",
     "lint:ci": "eslint scripts test hardhat.config.ts --ext .ts",

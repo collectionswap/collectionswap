@@ -85,6 +85,7 @@ interface ICurve {
      * @return newParams The updated parameters of the pool that affect the bonding curve.
      * @return inputValue The amount that the user should pay, in tokens
      * @return fees The amount of fees
+     * @return lastSwapPrice The swap price of the last NFT traded with fees applied
      */
     function getBuyInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
         external
@@ -93,7 +94,8 @@ interface ICurve {
             CurveErrorCodes.Error error,
             ICurve.Params calldata newParams,
             uint256 inputValue,
-            ICurve.Fees calldata fees
+            ICurve.Fees calldata fees,
+            uint256 lastSwapPrice
         );
 
     /**
@@ -109,6 +111,7 @@ interface ICurve {
      * @return newParams The updated parameters of the pool that affect the bonding curve.
      * @return outputValue The amount that the user should receive, in tokens
      * @return fees The amount of fees
+     * @return lastSwapPrice The swap price of the last NFT traded with fees applied
      */
     function getSellInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
         external
@@ -117,6 +120,7 @@ interface ICurve {
             CurveErrorCodes.Error error,
             ICurve.Params calldata newParams,
             uint256 outputValue,
-            ICurve.Fees calldata fees
+            ICurve.Fees calldata fees,
+            uint256 lastSwapPrice
         );
 }

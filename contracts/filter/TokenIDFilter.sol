@@ -10,8 +10,6 @@ contract TokenIDFilter is ITokenIDFilter {
     // Merkle root
     bytes32 public tokenIDFilterRoot;
 
-    uint32[999] _padding;
-
     function _setRootAndEmitAcceptedIDs(address collection, bytes32 root, bytes calldata data) internal {
         tokenIDFilterRoot = root;
         emit AcceptsTokenIDs(collection, tokenIDFilterRoot, data);

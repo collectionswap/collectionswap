@@ -3,6 +3,8 @@ import * as path from "path";
 
 import { ethers } from "hardhat";
 
+import { CollectionPool__factory as collectionPoolContractFactory } from "../../../typechain-types";
+
 import type { ICollectionPoolFactory } from "../../../typechain-types/contracts/pools/CollectionPoolFactory";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import type { Contract } from "ethers";
@@ -12,6 +14,9 @@ export type curveType = typeof IMPLEMENTED_CURVES[number];
 export const CURVE_TYPE: curveType = process.env.CURVE_TYPE as curveType;
 export let config = {} as any;
 export const FEE_DECIMALS = 6;
+
+export const COLLECTION_POOL_INTERFACE =
+  collectionPoolContractFactory.createInterface();
 
 export const DEFAULT_CREATE_ETH_POOL_PARAMS: ICollectionPoolFactory.CreateETHPoolParamsStruct =
   {

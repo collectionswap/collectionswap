@@ -16,6 +16,7 @@ import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {TokenIDFilter} from "../filter/TokenIDFilter.sol";
 import {MultiPauser} from "../lib/MultiPauser.sol";
+import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
 
 /// @title The base contract for an NFT/TOKEN AMM pool
 /// @author Collection
@@ -115,11 +116,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint256[] nftIds, uint256 outputAmount, uint256 tradeFee, uint256 protocolFee, RoyaltyDue[] royaltyDue
     );
     event SpotPriceUpdate(uint128 newSpotPrice);
-    event TokenDeposit(uint256 amount);
-    event TokenWithdrawal(uint256 amount);
-    event AccruedTradeFeeWithdrawal(uint256 amount);
-    event NFTDeposit(uint256 numNFTs);
-    event NFTWithdrawal(uint256 numNFTs);
+    event TokenDeposit(address indexed collection, address indexed token, uint256 amount);
+    event TokenWithdrawal(address indexed collection, address indexed token, uint256 amount);
+    event AccruedTradeFeeWithdrawal(address indexed collection, address indexed token, uint256 amount);
+    event NFTDeposit(address indexed collection, uint256 numNFTs);
+    event NFTWithdrawal(address indexed collection, uint256 numNFTs);
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
     event AssetRecipientChange(address a);
@@ -133,17 +134,29 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
     error InsufficientLiquidity(uint256 balance, uint256 accruedTradeFee);
+    error RoyaltyNumeratorOverflow();
+    error SwapsArePaused();
+    error InvalidPoolParams();
+    error NotAuthorized();
+    error InvalidModification();
+    error InvalidSwapQuantity();
+    error InvalidSwap();
+    error SlippageExceeded();
+    error RouterNotTrusted();
+    error NFTsNotAccepted();
+    error CallError();
+    error MulticallError();
 
     /**
      * @dev Use this whenever modifying the value of royaltyNumerator.
      */
     modifier validRoyaltyNumerator(uint24 _royaltyNumerator) {
-        require(_royaltyNumerator < 1e6, "royaltyNumerator must be < 1e6");
+        if (_royaltyNumerator >= 1e6) revert RoyaltyNumeratorOverflow();
         _;
     }
 
     modifier whenPoolSwapsNotPaused() {
-        require(!poolSwapsPaused(), "Swaps are paused");
+        if (poolSwapsPaused()) revert SwapsArePaused();
         _;
     }
 
@@ -162,7 +175,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     /// @dev Throws if called by any account other than the owner.
     modifier onlyOwner() {
-        require(msg.sender == owner(), "not authorized");
+        if (msg.sender != owner()) revert NotAuthorized();
         _;
     }
 
@@ -208,7 +221,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint24 _royaltyNumerator,
         address payable _royaltyRecipientFallback
     ) external payable validRoyaltyNumerator(_royaltyNumerator) {
-        require(!initialized, "Initialized");
+        // Do not initialize if already initialized
+        if (initialized) revert InvalidPoolParams();
         initialized = true;
         __ReentrancyGuard_init();
 
@@ -216,17 +230,20 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         PoolType _poolType = poolType();
 
         if ((_poolType == PoolType.TOKEN) || (_poolType == PoolType.NFT)) {
-            require(_fee == 0, "Only Trade Pools can have nonzero fee");
+            // Only Trade Pools can have nonzero fee
+            if (_fee != 0) revert InvalidPoolParams();
             assetRecipient = _assetRecipient;
         } else if (_poolType == PoolType.TRADE) {
-            require(_fee < MAX_FEE, "Trade fee must be less than 90%");
-            require(_assetRecipient == address(0), "Trade pools can't set asset recipient");
+            // Trade fee must be less than 90%
+            if (_fee >= MAX_FEE) revert InvalidPoolParams();
+            // Trade pools can't set asset recipient
+            if (_assetRecipient != address(0)) revert InvalidPoolParams();
             fee = _fee;
         }
-        require(_bondingCurve.validateDelta(_delta), "Invalid delta for curve");
-        require(_bondingCurve.validateSpotPrice(_spotPrice), "Invalid new spot price for curve");
-        require(_bondingCurve.validateProps(_props), "Invalid props for curve");
-        require(_bondingCurve.validateState(_state), "Invalid state for curve");
+        if (!_bondingCurve.validateDelta(_delta)) revert InvalidPoolParams();
+        if (!_bondingCurve.validateSpotPrice(_spotPrice)) revert InvalidPoolParams();
+        if (!_bondingCurve.validateProps(_props)) revert InvalidPoolParams();
+        if (!_bondingCurve.validateState(_state)) revert InvalidPoolParams();
         delta = _delta;
         spotPrice = _spotPrice;
         props = _props;
@@ -246,8 +263,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param encodedTokenIDs Opaque encoded list of token IDs
      */
     function setTokenIDFilter(bytes32 merkleRoot, bytes calldata encodedTokenIDs) external {
-        require(msg.sender == address(factory()) || msg.sender == owner(), "not authorized");
-        require(nft().balanceOf(address(this)) == 0, "pool not empty");
+        if (msg.sender != address(factory()) && msg.sender != owner()) revert NotAuthorized();
+        // Pool must be empty to change filter
+        if (nft().balanceOf(address(this)) != 0) revert InvalidModification();
         _setRootAndEmitAcceptedIDs(address(nft()), merkleRoot, encodedTokenIDs);
     }
 
@@ -274,7 +292,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address routerCaller
     ) external payable virtual whenPoolSwapsNotPaused returns (uint256 inputAmount) {
         IERC721 _nft = nft();
-        require((numNFTs > 0) && (numNFTs <= _nft.balanceOf(address(this))), "Ask for > 0 and <= balanceOf NFTs");
+        // 0 < Swap quantity <= NFT balance
+        if ((numNFTs <= 0) || (numNFTs > _nft.balanceOf(address(this)))) revert InvalidSwapQuantity();
 
         uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
         inputAmount = swapTokenForSpecificNFTs(tokenIds, maxExpectedTokenInput, nftRecipient, isRouter, routerCaller);
@@ -309,17 +328,19 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         // Input validation
         {
             PoolType _poolType = poolType();
-            require(_poolType == PoolType.NFT || _poolType == PoolType.TRADE, "Wrong Pool type");
-            require((nftIds.length > 0), "Must ask for > 0 NFTs");
+            // Can only buy from NFT or two sided pools
+            if (_poolType == PoolType.TOKEN) revert InvalidSwap();
+            if (nftIds.length <= 0) revert InvalidSwapQuantity();
         }
 
         // Prevent users from making a ridiculous pool, buying out their "sucker" price, and
         // then staking this pool with liquidity at really bad prices into a reward vault.
-        require(!isInCreationBlock(), "Trade blocked");
+        if (isInCreationBlock()) revert InvalidSwap();
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;
-        (inputAmount, fees) =
+        uint256 lastSwapPrice;
+        (inputAmount, fees, lastSwapPrice) =
             _calculateBuyInfoAndUpdatePoolParams(nftIds.length, maxExpectedTokenInput, _bondingCurve, _factory);
 
         accruedTradeFee += fees.trade;
@@ -332,6 +353,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         _refundTokenToSender(inputAmount);
 
         emit SwapNFTOutPool(nftIds, inputAmount, fees.trade, fees.protocol, royaltiesDue);
+
+        notifySwap(IPoolActivityMonitor.EventType.BOUGHT_NFT_FROM_POOL, nftIds.length, lastSwapPrice, inputAmount);
     }
 
     /**
@@ -361,18 +384,20 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         // Input validation
         {
             PoolType _poolType = poolType();
-            require(_poolType == PoolType.TOKEN || _poolType == PoolType.TRADE, "Wrong Pool type");
-            require(nfts.ids.length > 0, "Must ask for > 0 NFTs");
-            require(acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags), "NFT not allowed");
+            // Can only sell to Token / 2-sided pools
+            if (_poolType == PoolType.NFT) revert InvalidSwap();
+            if (nfts.ids.length <= 0) revert InvalidSwapQuantity();
+            if (!acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags)) revert NFTsNotAccepted();
         }
 
         // Prevent users from making a ridiculous pool, buying out their "sucker" price, and
         // then staking this pool with liquidity at really bad prices into a reward vault
-        require(!isInCreationBlock(), "Trade blocked");
+        if (isInCreationBlock()) revert InvalidSwap();
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;
-        (outputAmount, fees) =
+        uint256 lastSwapPrice;
+        (outputAmount, fees, lastSwapPrice) =
             _calculateSellInfoAndUpdatePoolParams(nfts.ids.length, minExpectedTokenOutput, _bondingCurve);
 
         // Accrue trade fees before sending token output. This ensures that the balance is always sufficient for trade fee withdrawal.
@@ -387,16 +412,13 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         _takeNFTsFromSender(nfts.ids, _factory, isRouter, routerCaller);
 
         emit SwapNFTInPool(nfts.ids, outputAmount, fees.trade, fees.protocol, royaltiesDue);
-    }
 
-    function balanceToFulfillBuyNFT(uint256 numNFTs)
-        external
-        view
-        returns (CurveErrorCodes.Error error, uint256 balance)
-    {
-        uint256 totalAmount;
-        (error,, totalAmount,,) = getBuyNFTQuote(numNFTs);
-        balance = accruedTradeFee + totalAmount;
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = nfts.ids.length;
+        amounts[1] = lastSwapPrice;
+        amounts[2] = outputAmount;
+
+        notifySwap(IPoolActivityMonitor.EventType.SOLD_NFT_TO_POOL, nfts.ids.length, lastSwapPrice, outputAmount);
     }
 
     function balanceToFulfillSellNFT(uint256 numNFTs)
@@ -451,7 +473,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             ICurve.Fees memory fees
         )
     {
-        (error, newParams, inputAmount, fees) = bondingCurve().getBuyInfo(curveParams(), numNFTs, feeMultipliers());
+        (error, newParams, inputAmount, fees,) = bondingCurve().getBuyInfo(curveParams(), numNFTs, feeMultipliers());
 
         // Since inputAmount is already inclusive of fees.
         totalAmount = inputAmount;
@@ -472,7 +494,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             ICurve.Fees memory fees
         )
     {
-        (error, newParams, outputAmount, fees) = bondingCurve().getSellInfo(curveParams(), numNFTs, feeMultipliers());
+        (error, newParams, outputAmount, fees,) = bondingCurve().getSellInfo(curveParams(), numNFTs, feeMultipliers());
 
         totalAmount = outputAmount + fees.trade + fees.protocol;
         uint256 length = fees.royalties.length;
@@ -623,17 +645,19 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * amount is greater than this value, the transaction will be reverted.
      * @return inputAmount The amount of tokens total tokens receive
      * @return fees The amount of tokens to send as fees
+     * @return lastSwapPrice The swap price of the last NFT traded with fees applied
      */
     function _calculateBuyInfoAndUpdatePoolParams(
         uint256 numNFTs,
         uint256 maxExpectedTokenInput,
         ICurve _bondingCurve,
         ICollectionPoolFactory
-    ) internal returns (uint256 inputAmount, ICurve.Fees memory fees) {
+    ) internal returns (uint256 inputAmount, ICurve.Fees memory fees, uint256 lastSwapPrice) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
-        (error, newParams, inputAmount, fees) = _bondingCurve.getBuyInfo(params, numNFTs, feeMultipliers());
+        (error, newParams, inputAmount, fees, lastSwapPrice) =
+            _bondingCurve.getBuyInfo(params, numNFTs, feeMultipliers());
 
         // Revert if bonding curve had an error
         if (error != CurveErrorCodes.Error.OK) {
@@ -641,7 +665,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         }
 
         // Revert if input is more than expected
-        require(inputAmount <= maxExpectedTokenInput, "In too many tokens");
+        if (inputAmount > maxExpectedTokenInput) revert SlippageExceeded();
 
         _updatePoolParams(params, newParams);
     }
@@ -654,16 +678,18 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param _bondingCurve The bonding curve used to fetch pricing information from
      * @return outputAmount The amount of tokens total tokens receive
      * @return fees The amount of tokens to send as fees
+     * @return lastSwapPrice The swap price of the last NFT traded with fees applied
      */
     function _calculateSellInfoAndUpdatePoolParams(
         uint256 numNFTs,
         uint256 minExpectedTokenOutput,
         ICurve _bondingCurve
-    ) internal returns (uint256 outputAmount, ICurve.Fees memory fees) {
+    ) internal returns (uint256 outputAmount, ICurve.Fees memory fees, uint256 lastSwapPrice) {
         CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
-        (error, newParams, outputAmount, fees) = _bondingCurve.getSellInfo(params, numNFTs, feeMultipliers());
+        (error, newParams, outputAmount, fees, lastSwapPrice) =
+            _bondingCurve.getSellInfo(params, numNFTs, feeMultipliers());
 
         // Revert if bonding curve had an error
         if (error != CurveErrorCodes.Error.OK) {
@@ -671,7 +697,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         }
 
         // Revert if output is too little
-        require(outputAmount >= minExpectedTokenOutput, "Out too little tokens");
+        if (outputAmount < minExpectedTokenOutput) revert SlippageExceeded();
 
         _updatePoolParams(params, newParams);
     }
@@ -771,7 +797,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
                 {
                     (bool routerAllowed,) = _factory.routerStatus(router);
-                    require(routerAllowed, "Not router");
+                    if (!routerAllowed) revert RouterNotTrusted();
                 }
 
                 IERC721 _nft = nft();
@@ -788,10 +814,12 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                             ++i;
                         }
                     }
-                    require((_nft.balanceOf(_assetRecipient) - beforeBalance) == numNFTs, "NFTs not transferred");
+                    // Check if NFT was transferred
+                    if ((_nft.balanceOf(_assetRecipient) - beforeBalance) != numNFTs) revert RouterNotTrusted();
                 } else {
                     router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[0], poolVariant());
-                    require(_nft.ownerOf(nftIds[0]) == _assetRecipient, "NFT not transferred");
+                    // Check if NFT was transferred
+                    if (_nft.ownerOf(nftIds[0]) != _assetRecipient) revert RouterNotTrusted();
                 }
 
                 if (_assetRecipient == address(this)) {
@@ -830,7 +858,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         else {
             _withdrawNFTs(_owner, nftIds);
 
-            emit NFTWithdrawal(nftIds.length);
+            emit NFTWithdrawal(address(_nft), nftIds.length);
+            /// @dev No need to notify pool monitors as pool monitors own the pool,
+            /// thus only the monitor can withdraw from the pool and notifications
+            /// are redundant
         }
     }
 
@@ -865,7 +896,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     function changeSpotPrice(uint128 newSpotPrice) external onlyOwner {
         ICurve _bondingCurve = bondingCurve();
-        require(_bondingCurve.validateSpotPrice(newSpotPrice), "Invalid new spot price for curve");
+        if (!_bondingCurve.validateSpotPrice(newSpotPrice)) revert InvalidModification();
         if (spotPrice != newSpotPrice) {
             spotPrice = newSpotPrice;
             emit SpotPriceUpdate(newSpotPrice);
@@ -878,7 +909,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     function changeDelta(uint128 newDelta) external onlyOwner {
         ICurve _bondingCurve = bondingCurve();
-        require(_bondingCurve.validateDelta(newDelta), "Invalid delta for curve");
+        if (!_bondingCurve.validateDelta(newDelta)) revert InvalidModification();
         if (delta != newDelta) {
             delta = newDelta;
             emit DeltaUpdate(newDelta);
@@ -891,7 +922,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     function changeProps(bytes calldata newProps) external onlyOwner {
         ICurve _bondingCurve = bondingCurve();
-        require(_bondingCurve.validateProps(newProps), "Invalid props for curve");
+        if (!_bondingCurve.validateProps(newProps)) revert InvalidModification();
         if (keccak256(props) != keccak256(newProps)) {
             props = newProps;
             emit PropsUpdate(newProps);
@@ -904,7 +935,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     function changeState(bytes calldata newState) external onlyOwner {
         ICurve _bondingCurve = bondingCurve();
-        require(_bondingCurve.validateState(newState), "Invalid state for curve");
+        if (!_bondingCurve.validateState(newState)) revert InvalidModification();
         if (keccak256(state) != keccak256(newState)) {
             state = newState;
             emit StateUpdate(newState);
@@ -919,8 +950,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     function changeFee(uint24 newFee) external onlyOwner {
         PoolType _poolType = poolType();
-        require(_poolType == PoolType.TRADE, "Only for Trade pools");
-        require(newFee < MAX_FEE, "Trade fee must be less than 90%");
+        // Only trade pools can set fee. Max fee must be strictly greater too.
+        if (_poolType != PoolType.TRADE || newFee >= MAX_FEE) revert InvalidModification();
         if (fee != newFee) {
             fee = newFee;
             emit FeeUpdate(newFee);
@@ -934,7 +965,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     function changeAssetRecipient(address payable newRecipient) external onlyOwner {
         PoolType _poolType = poolType();
-        require(_poolType != PoolType.TRADE, "Not for Trade pools");
+        // Trade pools cannot set asset recipient
+        if (_poolType == PoolType.TRADE) revert InvalidModification();
         if (assetRecipient != newRecipient) {
             assetRecipient = newRecipient;
             emit AssetRecipientChange(newRecipient);
@@ -946,19 +978,14 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         onlyOwner
         validRoyaltyNumerator(newRoyaltyNumerator)
     {
-        require(
-            _validRoyaltyState(newRoyaltyNumerator, royaltyRecipientFallback, nft()),
-            "Invalid royaltyNumerator or royaltyRecipientFallback"
-        );
+        // Check whether the resulting combination of numerator and fallback is valid
+        if (!_validRoyaltyState(newRoyaltyNumerator, royaltyRecipientFallback, nft())) revert InvalidModification();
         royaltyNumerator = newRoyaltyNumerator;
         emit RoyaltyNumeratorUpdate(newRoyaltyNumerator);
     }
 
     function changeRoyaltyRecipientFallback(address payable newFallback) external onlyOwner {
-        require(
-            _validRoyaltyState(royaltyNumerator, newFallback, nft()),
-            "Invalid royaltyNumerator or royaltyRecipientFallback"
-        );
+        if (!_validRoyaltyState(royaltyNumerator, newFallback, nft())) revert InvalidModification();
         royaltyRecipientFallback = newFallback;
         emit RoyaltyRecipientFallbackUpdate(newFallback);
     }
@@ -971,9 +998,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
     function call(address payable target, bytes calldata data) external onlyAuthorized {
         ICollectionPoolFactory _factory = factory();
-        require(_factory.callAllowed(target), "Target must be whitelisted");
+        // Only whitelisted targets can be called
+        if (!_factory.callAllowed(target)) revert CallError();
         (bool result,) = target.call{value: 0}(data);
-        require(result, "Call failed");
+        if (!result) revert CallError();
     }
 
     /**
@@ -995,7 +1023,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         }
 
         // Prevent multicall from malicious frontend sneaking in ownership change
-        require(owner() == msg.sender, "Ownership cannot be changed in multicall");
+        if (owner() != msg.sender) revert MulticallError();
     }
 
     /**
@@ -1059,16 +1087,68 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         );
     }
 
+    function notifySwap(IPoolActivityMonitor.EventType eventType, uint256 numNFTs, uint256 lastSwapPrice, uint256 swapValue)
+        internal
+    {
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = numNFTs;
+        amounts[1] = lastSwapPrice;
+        amounts[2] = swapValue;
+
+        notifyChanges(eventType, amounts);
+    }
+
+    function notifyDeposit(IPoolActivityMonitor.EventType eventType, uint256 amount) internal {
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = amount;
+
+        notifyChanges(eventType, amounts);
+    }
+
+    /**
+     * @dev The only limitation of this function is that contracts calling `isContract`
+     * from within their constructor will have extcodesize 0 and thus return false.
+     * Thus, note that this function should not be used indirectly by any contract
+     * constructors
+     */
+    function isContract(address _addr) private view returns (bool) {
+        uint32 size;
+        assembly {
+            size := extcodesize(_addr)
+        }
+        return (size > 0);
+    }
+
+    function notifyChanges(IPoolActivityMonitor.EventType eventType, uint256[] memory amounts) internal {
+        if (isContract(owner())) {
+            try IERC165(owner()).supportsInterface(type(IPoolActivityMonitor).interfaceId) returns (bool isMonitored) {
+                if (isMonitored) {
+                    IPoolActivityMonitor(owner()).onBalancesChanged(address(this), eventType, amounts);
+                }
+            } catch {}
+        }
+    }
+
     function onERC721Received(address, address, uint256, bytes memory) public virtual returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
     /// @inheritdoc ICollectionPool
     function depositNFTsNotification(uint256[] calldata nftIds) external override {
-        require(msg.sender == address(factory()), "not authorized");
+        if (msg.sender != address(factory())) revert NotAuthorized();
         _depositNFTsNotification(nftIds);
 
-        emit NFTDeposit(nftIds.length);
+        emit NFTDeposit(address(nft()), nftIds.length);
+        notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
+    }
+
+    function depositNFTs(uint256[] calldata nftIds, bytes32[] calldata proof, bool[] calldata proofFlags) external {
+        if (!acceptsTokenIDs(nftIds, proof, proofFlags)) revert NFTsNotAccepted();
+        _depositNFTs(msg.sender, nftIds);
+
+        emit NFTDeposit(address(nft()), nftIds.length);
+
+        notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
     }
 
     /**

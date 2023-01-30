@@ -8,10 +8,6 @@ import { createPoolEth, mintRandomNfts } from "./shared/helpers";
 import type { IERC721 } from "../../typechain-types";
 
 describe("integration", function () {
-  // Removing the last few digits when comparing, since we have 18
-  // so this should be fine
-  const removePrecision = 1000000;
-
   it("Should integrate", async function () {
     const {
       factory,

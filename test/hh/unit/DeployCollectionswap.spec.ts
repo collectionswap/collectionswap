@@ -2,7 +2,10 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-import { mintTokensAndApprove } from "../shared/constants";
+import {
+  COLLECTION_POOL_INTERFACE,
+  mintTokensAndApprove,
+} from "../shared/constants";
 import { everythingFixture } from "../shared/fixtures";
 import {
   buyFromPool,
@@ -523,7 +526,10 @@ describe("Collectionswap", function () {
             nftContractCollection.address,
             externalTraderNftsIHave
           )
-      ).to.be.revertedWith("Trade blocked");
+      ).to.be.revertedWithCustomError(
+        { interface: COLLECTION_POOL_INTERFACE },
+        "InvalidSwap"
+      );
     });
 
     it("Should revert if unauthorized users attempt to set the baseURI", async function () {

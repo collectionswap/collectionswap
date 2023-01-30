@@ -155,16 +155,16 @@ function testDepositNFTs(
     await nft.connect(owner).setApprovalForAll(factory.address, true);
     const tokenIds = pickRandomElements(ownerNfts, numDeposited);
     const multiproof = filter?.proof(tokenIds.map(toBigInt));
-    const tx = await factory
+    const tx = await pool
       .connect(owner)
       .depositNFTs(
         multiproof?.leaves ?? tokenIds,
         multiproof?.proof ?? [],
-        multiproof?.proofFlags ?? [],
-        pool.address,
-        owner.address
+        multiproof?.proofFlags ?? []
       );
-    await expect(tx).to.emit(pool, "NFTDeposit").withArgs(tokenIds.length);
+    await expect(tx)
+      .to.emit(pool, "NFTDeposit")
+      .withArgs(nft.address, tokenIds.length);
     const finalBalance = await pool.getAllHeldIds();
     expect(finalBalance.slice().sort()).deep.equal(
       initialBalance.concat(tokenIds.map(ethers.BigNumber.from)).slice().sort()
@@ -188,18 +188,16 @@ function testDepositNFTs(
     const multiproof = filter?.proof(tokenIds.map(toBigInt));
     await nft.connect(trader).setApprovalForAll(factory.address, true);
     await expect(
-      await factory
+      await pool
         .connect(trader)
         .depositNFTs(
           multiproof?.leaves ?? tokenIds,
           multiproof?.proof ?? [],
-          multiproof?.proofFlags ?? [],
-          pool.address,
-          trader.address
+          multiproof?.proofFlags ?? []
         )
     )
       .to.emit(pool, "NFTDeposit")
-      .withArgs(tokenIds.length);
+      .withArgs(nft.address, tokenIds.length);
     const finalBalance = await pool.getAllHeldIds();
     expect(finalBalance.slice().sort()).deep.equal(
       initialBalance.concat(tokenIds.map(ethers.BigNumber.from)).slice().sort()
@@ -219,7 +217,7 @@ function testWithdrawERC721(
   }filtered pool with ${invalidIds} invalid ids withdrawn ${
     withdrawBeforeTest ? "before" : "afterwards"
   }`, async function () {
-    const { pool, owner, nft, filter, ownerNfts } = isFiltered
+    const { pool, owner, nft, ownerNfts } = isFiltered
       ? await filteredTradingFixture(nftFixture)
       : await genericTradingFixture(nftFixture);
 
@@ -245,7 +243,9 @@ function testWithdrawERC721(
     }
 
     const tx = await pool.connect(owner).withdrawERC721(nft.address, tokenIds);
-    await expect(tx).to.emit(pool, "NFTWithdrawal").withArgs(tokenIds.length);
+    await expect(tx)
+      .to.emit(pool, "NFTWithdrawal")
+      .withArgs(nft.address, tokenIds.length);
     if (!withdrawBeforeTest) {
       await pool.connect(owner).withdrawERC721(nft.address, idsToSneakIn);
     }
@@ -317,7 +317,7 @@ function testBuySpecific(
   }filtered pool with ${invalidIds} invalid ids withdrawn ${
     withdrawBeforeTest ? "before" : "afterwards"
   }`, async function () {
-    const { pool, trader, filter, ownerNfts, nft, owner } = isFiltered
+    const { pool, trader, ownerNfts, nft, owner } = isFiltered
       ? await filteredTradingFixture(nftFixture)
       : await genericTradingFixture(nftFixture);
     // Pick the tokenIds to sneak in with a low level transfer

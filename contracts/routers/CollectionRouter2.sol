@@ -95,7 +95,7 @@ contract CollectionRouter2 {
         ICurve.FeeMultipliers memory feeMultipliers = pool.feeMultipliers();
         for (uint256 i; i < numNFTs; i++) {
             uint256 price;
-            (, params, price,) = _bondingCurve.getBuyInfo(params, 1, feeMultipliers);
+            (, params, price,,) = _bondingCurve.getBuyInfo(params, 1, feeMultipliers);
             params.props = props;
             prices[i] = price;
         }

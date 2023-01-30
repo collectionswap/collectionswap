@@ -282,20 +282,6 @@ contract CollectionPoolFactory is
     }
 
     /**
-     * @dev Used to deposit ERC20s into a pool after creation and emit an event for indexing (if recipient is indeed an ERC20 pool
-     * and the token matches)
-     */
-    function depositERC20(ERC20 token, address recipient, uint256 amount) external {
-        token.safeTransferFrom(msg.sender, recipient, amount);
-        if (isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20))
-        {
-            if (token == CollectionPoolERC20(recipient).token()) {
-                emit TokenDeposit(recipient);
-            }
-        }
-    }
-
-    /**
      * Withdrawal functions. Not pausable.
      */
 

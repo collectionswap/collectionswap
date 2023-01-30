@@ -18,17 +18,17 @@ contract LinearCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
         // For a linear curve, the spot price increases by delta for each item bought
         uint256 newSpotPrice_ = params.spotPrice + params.delta * numItems;
         if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.SPOT_PRICE_OVERFLOW, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
         newParams.spotPrice = uint128(newSpotPrice_);
 
@@ -49,10 +49,15 @@ contract LinearCurve is Curve, CurveErrorCodes {
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems;) {
-            uint256 royaltyAmount =
-                (buySpotPrice + (params.delta * i)).fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+            uint256 rawAmount = buySpotPrice + (params.delta * i);
+            uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
+
+            if (i == numItems - 1) {
+                /// @dev royalty breakdown not needed if fees aren't used
+                (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
+            }
 
             unchecked {
                 ++i;
@@ -78,11 +83,11 @@ contract LinearCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // We only calculate changes for selling 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
         // We first calculate the change in spot price after selling all of the items
@@ -112,10 +117,15 @@ contract LinearCurve is Curve, CurveErrorCodes {
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems;) {
-            uint256 royaltyAmount =
-                (params.spotPrice - (params.delta * i)).fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+            uint256 rawAmount = params.spotPrice - (params.delta * i);
+            uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
+
+            if (i == numItems - 1) {
+                /// @dev royalty breakdown not needed if fee return value not used
+                (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
+            }
 
             unchecked {
                 ++i;

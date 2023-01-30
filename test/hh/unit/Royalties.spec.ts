@@ -47,7 +47,7 @@ describe("Royalties", function () {
             gasLimit: 1500000,
           }
         )
-      ).to.be.revertedWith("Must ask for > 0 NFTs");
+      ).to.be.revertedWithCustomError(collectionPoolETH, "InvalidSwapQuantity");
 
       const finalBalances = await Promise.all(
         recipients.map(async (recipient) => recipient.getBalance())
@@ -79,7 +79,7 @@ describe("Royalties", function () {
           false,
           ethers.constants.AddressZero
         )
-      ).to.be.revertedWith("Must ask for > 0 NFTs");
+      ).to.be.revertedWithCustomError(collectionPoolETH, "InvalidSwapQuantity");
 
       const finalBalances = await Promise.all(
         recipients.map(async (recipient) => recipient.getBalance())
@@ -1115,7 +1115,7 @@ describe("Royalties", function () {
         if (poolOwner === account.address) continue;
         await expect(
           pool.connect(account).changeRoyaltyNumerator(newRoyaltyNumerator)
-        ).to.be.revertedWith("not authorized");
+        ).to.be.revertedWithCustomError(pool, "NotAuthorized");
       }
     });
 
@@ -1224,9 +1224,7 @@ describe("Royalties", function () {
         pool
           .connect(initialOwner)
           .changeRoyaltyNumerator(ethers.BigNumber.from("1"))
-      ).to.be.revertedWith(
-        "Invalid royaltyNumerator or royaltyRecipientFallback"
-      );
+      ).to.be.revertedWithCustomError(pool, "InvalidModification");
     });
   });
 
@@ -1242,7 +1240,7 @@ describe("Royalties", function () {
       for (const account of unauthorizedAccounts) {
         await expect(
           pool.connect(account).changeRoyaltyRecipientFallback(account.address)
-        ).to.be.revertedWith("not authorized");
+        ).to.be.revertedWithCustomError(pool, "NotAuthorized");
       }
     });
 
@@ -1372,9 +1370,7 @@ describe("Royalties", function () {
         pool
           .connect(initialOwner)
           .changeRoyaltyRecipientFallback(ethers.constants.AddressZero)
-      ).to.be.revertedWith(
-        "Invalid royaltyNumerator or royaltyRecipientFallback"
-      );
+      ).to.be.revertedWithCustomError(pool, "InvalidModification");
     });
   });
 });

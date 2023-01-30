@@ -10,7 +10,13 @@ contract TestCurve is Curve {
     function getBuyInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         view
-        returns (CurveErrorCodes.Error error, Params memory newParams, uint256 inputValue, Fees memory fees)
+        returns (
+            CurveErrorCodes.Error error,
+            Params memory newParams,
+            uint256 inputValue,
+            Fees memory fees,
+            uint256 lastSwapPrice
+        )
     {
         // use value as seed to generate pseudorandom numbers
         uint256 value = uint256(bytes32(params.state));
@@ -25,6 +31,11 @@ contract TestCurve is Curve {
             uint256 royalty = value.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
             fees.royalties[i] = royalty;
             totalRoyalty += royalty;
+
+            if (i == numItems - 1) {
+                /// @dev royalty breakdown not needed if fees aren't used
+                (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, value, new uint256[](0), royalty);
+            }
         }
 
         (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
@@ -35,7 +46,13 @@ contract TestCurve is Curve {
     function getSellInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         view
-        returns (CurveErrorCodes.Error error, Params memory newParams, uint256 outputValue, Fees memory fees)
+        returns (
+            CurveErrorCodes.Error error,
+            Params memory newParams,
+            uint256 outputValue,
+            Fees memory fees,
+            uint256 lastSwapPrice
+        )
     {
         // use value as seed to generate pseudorandom numbers
         uint256 value = uint256(bytes32(params.state));
@@ -50,6 +67,11 @@ contract TestCurve is Curve {
             uint256 royalty = value.fmul(feeMultipliers.royaltyNumerator, FixedPointMathLib.WAD);
             fees.royalties[i] = royalty;
             totalRoyalty += royalty;
+
+            if (i == numItems - 1) {
+                /// @dev royalty breakdown not needed if fees aren't used
+                (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, value, new uint256[](0), royalty);
+            }
         }
 
         (outputValue, fees) = getOutputValueAndFees(feeMultipliers, outputValue, fees.royalties, totalRoyalty);

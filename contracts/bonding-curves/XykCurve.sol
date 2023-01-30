@@ -24,10 +24,10 @@ contract XykCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
         // get the pool's virtual nft and eth/erc20 reserves
@@ -36,7 +36,7 @@ contract XykCurve is Curve, CurveErrorCodes {
 
         // If numItems is too large, we will get divide by zero error
         if (numItems >= nftBalance) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
         // calculate the amount to send in
@@ -44,7 +44,8 @@ contract XykCurve is Curve, CurveErrorCodes {
 
         fees.royalties = new uint256[](numItems);
         // For XYK, every item has the same price so royalties have the same value
-        uint256 royaltyAmount = (inputValueWithoutFee / numItems).fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+        uint256 rawAmount = inputValueWithoutFee / numItems;
+        uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
         for (uint256 i = 0; i < numItems;) {
             fees.royalties[i] = royaltyAmount;
 
@@ -52,6 +53,10 @@ contract XykCurve is Curve, CurveErrorCodes {
                 ++i;
             }
         }
+
+        /// @dev royalty breakdown not needed if fees aren't used
+        (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
+
         // Get the total royalties after accounting for integer division
         uint256 totalRoyalties = royaltyAmount * numItems;
 
@@ -75,10 +80,10 @@ contract XykCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
         // get the pool's virtual nft and eth/erc20 balance
@@ -90,8 +95,8 @@ contract XykCurve is Curve, CurveErrorCodes {
 
         fees.royalties = new uint256[](numItems);
         // For XYK, every item has the same price so royalties have the same value
-        uint256 royaltyAmount =
-            (outputValueWithoutFee / numItems).fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+        uint256 rawAmount = outputValueWithoutFee / numItems;
+        uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
         for (uint256 i = 0; i < numItems;) {
             fees.royalties[i] = royaltyAmount;
 
@@ -99,6 +104,10 @@ contract XykCurve is Curve, CurveErrorCodes {
                 ++i;
             }
         }
+
+        /// @dev royalty breakdown not needed if fee return value not used
+        (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
+
         // Get the total royalties after accounting for integer division
         uint256 totalRoyalties = royaltyAmount * numItems;
 

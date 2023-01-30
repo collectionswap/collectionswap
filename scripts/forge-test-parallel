@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# fast profile in foundry.toml has less optimizations
+export FOUNDRY_PROFILE=fast
+
+# use all cores
+CORES=`nproc`
+echo "$CORES cores detected"
+
+# test all but test-cases
+forge test --silent --match-path "*/foundry/filter/*.t.sol" $* &
+forge test --silent --match-path "*/foundry/bonding-curve-tests/*.t.sol" $* &
+
+# test test-cases
+cd $(dirname -- "$0")/../test/foundry/test-cases
+find *.t.sol | # find all tests
+  paste -d, - - - - - - - - | # 4 files at a time
+  xargs -P $CORES -I _ forge test --silent --match-path "*/{_}*" $*
+
+# in case first 2 tests are still running
+fg 2&> /dev/null
+fg 2&> /dev/null

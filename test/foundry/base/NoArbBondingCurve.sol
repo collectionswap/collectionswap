@@ -112,7 +112,7 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
                 ,
                 ICurve.Params memory newParams,
                 uint256 outputAmount,
-                ICurve.Fees memory fees
+                ICurve.Fees memory fees,
             ) = bondingCurve.getSellInfo(
                     ICurve.Params(
                         spotPrice,
@@ -151,7 +151,7 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
 
         // buy back the NFTs just sold to the pool
         {
-            (, , uint256 inputAmount, ) = bondingCurve.getBuyInfo(
+            (, , uint256 inputAmount, ,) = bondingCurve.getBuyInfo(
                 ICurve.Params(
                     spotPrice,
                     delta,
@@ -235,7 +235,7 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
 
         // buy all NFTs
         {
-            (, ICurve.Params memory newParams, uint256 inputAmount, ) = bondingCurve
+            (, ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
                 .getBuyInfo(
                     ICurve.Params(
                         spotPrice,

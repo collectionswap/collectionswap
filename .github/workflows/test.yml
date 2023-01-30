@@ -37,6 +37,7 @@ jobs:
           path: |
             artifacts
             cache
+            typechain-types
           key: artifacts-${{ runner.os }}-hardhat-${{ hashFiles('contracts') }}
 
       - name: Compile Contracts
@@ -47,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        curve: [ linear, exponential, sigmoid ]
+        curve: [linear, exponential, sigmoid]
     steps:
       - uses: actions/checkout@v3
 
@@ -69,6 +70,7 @@ jobs:
           path: |
             artifacts
             cache
+            typechain-types
           key: artifacts-${{ runner.os }}-hardhat-${{ hashFiles('contracts') }}
 
       - name: Run Tests

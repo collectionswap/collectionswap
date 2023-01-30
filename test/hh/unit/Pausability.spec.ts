@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { BigNumber } from "ethers";
 import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
@@ -28,7 +29,7 @@ import type {
   Test20,
 } from "../../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { BigNumber, ContractTransaction } from "ethers";
+import type { ContractTransaction } from "ethers";
 
 describe("Pausability", function () {
   let factory: CollectionPoolFactory;
@@ -387,7 +388,7 @@ describe("Pausability", function () {
               false,
               ethers.constants.AddressZero
             )
-        ).to.be.revertedWith("Swaps are paused");
+        ).to.be.revertedWithCustomError(pool, "SwapsArePaused");
       });
 
       it(`Should allow buying random from pools when unpaused`, async function () {
@@ -457,7 +458,7 @@ describe("Pausability", function () {
               false,
               ethers.constants.AddressZero
             )
-        ).to.be.rejectedWith("Swaps are paused");
+        ).to.be.revertedWithCustomError(pool, "SwapsArePaused");
       });
 
       it(`Should allow buying specific from pools when unpaused`, async function () {
@@ -527,7 +528,7 @@ describe("Pausability", function () {
               false,
               ethers.constants.AddressZero
             )
-        ).to.be.rejectedWith("Swaps are paused");
+        ).to.be.revertedWithCustomError(pool, "SwapsArePaused");
       });
     });
 
@@ -610,7 +611,7 @@ describe("Pausability", function () {
               false,
               ethers.constants.AddressZero
             )
-        ).to.be.revertedWith("Swaps are paused");
+        ).to.be.revertedWithCustomError(pool, "SwapsArePaused");
       });
 
       it(`Should allow buying random from pools when unpaused`, async function () {
@@ -679,7 +680,7 @@ describe("Pausability", function () {
               false,
               ethers.constants.AddressZero
             )
-        ).to.be.rejectedWith("Swaps are paused");
+        ).to.be.revertedWithCustomError(pool, "SwapsArePaused");
       });
 
       it(`Should allow buying specific from pools when unpaused`, async function () {
@@ -748,7 +749,7 @@ describe("Pausability", function () {
               false,
               ethers.constants.AddressZero
             )
-        ).to.be.rejectedWith("Swaps are paused");
+        ).to.be.revertedWithCustomError(pool, "SwapsArePaused");
       });
     });
   });
@@ -798,14 +799,14 @@ describe("Pausability", function () {
     it("Should revert if anyone but pool owner calls pool level pause", async function () {
       await expect(
         pool.connect(collectionDeployer).pausePoolSwaps()
-      ).to.be.revertedWith("not authorized");
+      ).to.be.revertedWithCustomError(pool, "NotAuthorized");
     });
 
     it("Should revert if anyone but pool owner calls pool level unpause", async function () {
       await pool.connect(user).pausePoolSwaps();
       await expect(
         pool.connect(collectionDeployer).unpausePoolSwaps()
-      ).to.be.revertedWith("not authorized");
+      ).to.be.revertedWithCustomError(pool, "NotAuthorized");
     });
   });
 });

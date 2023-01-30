@@ -8,6 +8,7 @@ import {ICollectionPool} from "./ICollectionPool.sol";
 import {CollectionPool} from "./CollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
+import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
 
 /**
  * @title An NFT/Token pool where the token is ETH
@@ -131,8 +132,9 @@ abstract contract CollectionPoolETH is CollectionPool {
         }
 
         // emit event since ETH is the pool token
-        emit TokenWithdrawal(amount);
-        emit AccruedTradeFeeWithdrawal(_accruedTradeFee);
+        address _nft = address(nft());
+        emit TokenWithdrawal(_nft, address(0), amount);
+        emit AccruedTradeFeeWithdrawal(_nft, address(0), _accruedTradeFee);
     }
 
     /**
@@ -147,7 +149,7 @@ abstract contract CollectionPoolETH is CollectionPool {
         payable(owner()).safeTransferETH(amount);
 
         // emit event since ETH is the pool token
-        emit TokenWithdrawal(amount);
+        emit TokenWithdrawal(address(nft()), address(0), amount);
     }
 
     /// @inheritdoc ICollectionPool
@@ -164,7 +166,7 @@ abstract contract CollectionPoolETH is CollectionPool {
             payable(owner()).safeTransferETH(_accruedTradeFee);
 
             // emit event since ETH is the pool token
-            emit AccruedTradeFeeWithdrawal(_accruedTradeFee);
+            emit AccruedTradeFeeWithdrawal(address(nft()), address(0), _accruedTradeFee);
         }
     }
 
@@ -173,7 +175,8 @@ abstract contract CollectionPoolETH is CollectionPool {
      * for the owner to top up the pool's token reserves.
      */
     receive() external payable {
-        emit TokenDeposit(msg.value);
+        emit TokenDeposit(address(nft()), address(0), msg.value);
+        notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, msg.value);
     }
 
     /**
@@ -183,6 +186,7 @@ abstract contract CollectionPoolETH is CollectionPool {
     fallback() external payable {
         // Only allow calls without function selector
         require(msg.data.length == _immutableParamsLength());
-        emit TokenDeposit(msg.value);
+        emit TokenDeposit(address(nft()), address(0), msg.value);
+        notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, msg.value);
     }
 }

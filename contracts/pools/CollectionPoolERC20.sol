@@ -10,6 +10,7 @@ import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
+import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
 
 /**
  * @title An NFT/Token pool where the token is an ERC20
@@ -189,6 +190,18 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     }
 
     /**
+     * @dev Deposit ERC20s into pool
+     */
+    function depositERC20(ERC20 a, uint256 amount) external {
+        a.safeTransferFrom(msg.sender, address(this), amount);
+
+        if (a == token()) {
+            emit TokenDeposit(address(nft()), address(a), amount);
+            notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, amount);
+        }
+    }
+
+    /**
      * @notice Withdraws all pool token owned by the pool to the owner address.
      * @dev Only callable by the owner.
      */
@@ -208,8 +221,9 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         }
 
         // emit event since it is the pool token
-        emit TokenWithdrawal(amount);
-        emit AccruedTradeFeeWithdrawal(_accruedTradeFee);
+        address _nft = address(nft());
+        emit TokenWithdrawal(_nft, address(_token), amount);
+        emit AccruedTradeFeeWithdrawal(_nft, address(_token), _accruedTradeFee);
     }
 
     /// @inheritdoc ICollectionPool
@@ -218,7 +232,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
             require(liquidity() >= amount, "Too little ERC20");
 
             // emit event since it is the pool token
-            emit TokenWithdrawal(amount);
+            emit TokenWithdrawal(address(nft()), address(a), amount);
         }
 
         a.safeTransfer(owner(), amount);
@@ -230,10 +244,11 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         if (_accruedTradeFee > 0) {
             accruedTradeFee = 0;
 
-            token().safeTransfer(msg.sender, _accruedTradeFee);
+            ERC20 _token = token();
+            _token.safeTransfer(msg.sender, _accruedTradeFee);
 
             // emit event since it is the pool token
-            emit AccruedTradeFeeWithdrawal(_accruedTradeFee);
+            emit AccruedTradeFeeWithdrawal(address(nft()), address(_token), _accruedTradeFee);
         }
     }
 }

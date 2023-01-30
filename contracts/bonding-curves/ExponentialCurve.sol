@@ -35,20 +35,22 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
         // We only calculate changes for buying 1 or more NFTs
+        uint128 delta = params.delta;
+
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
-        uint256 deltaPowN = uint256(params.delta).fpow(numItems, FixedPointMathLib.WAD);
+        uint256 deltaPowN = uint256(delta).fpow(numItems, FixedPointMathLib.WAD);
 
         // For an exponential curve, the spot price is multiplied by delta for each item bought
         uint256 newSpotPrice_ = uint256(params.spotPrice).fmul(deltaPowN, FixedPointMathLib.WAD);
         if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.SPOT_PRICE_OVERFLOW, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
         newParams.spotPrice = uint128(newSpotPrice_);
 
@@ -58,26 +60,30 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         // The same person could then sell for (S * delta) ETH, netting them delta ETH profit.
         // If spot price for buy and sell differ by delta, then buying costs (S * delta) ETH.
         // The new spot price would become (S * delta), so selling would also yield (S * delta) ETH.
-        uint256 buySpotPrice = uint256(params.spotPrice).fmul(params.delta, FixedPointMathLib.WAD);
+        uint256 buySpotPrice = uint256(params.spotPrice).fmul(delta, FixedPointMathLib.WAD);
 
         // If the user buys n items, then the total cost is equal to:
         // buySpotPrice + (delta * buySpotPrice) + (delta^2 * buySpotPrice) + ... (delta^(numItems - 1) * buySpotPrice)
         // This is equal to buySpotPrice * (delta^n - 1) / (delta - 1)
         inputValue = buySpotPrice.fmul(
-            (deltaPowN - FixedPointMathLib.WAD).fdiv(params.delta - FixedPointMathLib.WAD, FixedPointMathLib.WAD),
+            (deltaPowN - FixedPointMathLib.WAD).fdiv(delta - FixedPointMathLib.WAD, FixedPointMathLib.WAD),
             FixedPointMathLib.WAD
         );
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
+        uint256 rawAmount;
+        uint256 royaltyAmount;
         for (uint256 i = 0; i < numItems;) {
-            uint256 deltaPowI = uint256(params.delta).fpow(i, FixedPointMathLib.WAD);
-            uint256 royaltyAmount = (buySpotPrice * deltaPowI).fmul(
-                feeMultipliers.royaltyNumerator,
-                FixedPointMathLib.WAD * FEE_DENOMINATOR // (delta ^ i) is still in units of ether, royaltyNumerator in FEE_DENOMINATOR
-            );
+            rawAmount = buySpotPrice.fmul(uint256(delta).fpow(i, FixedPointMathLib.WAD), FixedPointMathLib.WAD);
+            royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
+
+            if (i == numItems - 1) {
+                /// @dev royalty breakdown not needed if fees aren't used
+                (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
+            }
 
             unchecked {
                 ++i;
@@ -87,7 +93,7 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
 
         // Keep delta the same
-        newParams.delta = params.delta;
+        newParams.delta = delta;
 
         // Keep state the same
         newParams.state = params.state;
@@ -106,13 +112,13 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees)
+        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
 
         // We only calculate changes for buying 1 or more NFTs
         if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)));
+            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
         uint256 invDelta = FixedPointMathLib.WAD.fdiv(params.delta, FixedPointMathLib.WAD);
@@ -142,12 +148,15 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         uint256 totalRoyalty;
         for (uint256 i = 0; i < numItems;) {
             uint256 invDeltaPowI = invDelta.fpow(i, FixedPointMathLib.WAD);
-            uint256 royaltyAmount = (params.spotPrice * invDeltaPowI).fmul(
-                feeMultipliers.royaltyNumerator,
-                FixedPointMathLib.WAD * FEE_DENOMINATOR // (delta ^ i) is still in units of ether, royaltyNumerator in FEE_DENOMINATOR
-            );
+            uint256 rawAmount = uint256(params.spotPrice).fmul(invDeltaPowI, FixedPointMathLib.WAD);
+            uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
+
+            if (i == numItems - 1) {
+                /// @dev royalty breakdown not needed if fee return value not used
+                (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
+            }
 
             unchecked {
                 ++i;

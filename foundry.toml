@@ -20,10 +20,17 @@ remappings = [
     'solmate/=node_modules/solmate/',
 ]
 gas_reports_ignore = ["Merkle"]
-solc = '0.8.16'
+solc = '0.8.17'
 optimizer = true
-optimizer_runs = 200
+optimizer_runs = 1_000_000
 via_ir = false
 sparse_mode = true
 
-# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+[profile.fast]
+via_ir = false
+optimizer = false
+
+[profile.fast.optimizer_details]
+inliner = false
+deduplicate = false
+cse = false

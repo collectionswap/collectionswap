@@ -292,7 +292,7 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
         const newFilter = new TokenIds([0n]);
         await expect(
           pool.setTokenIDFilter(newFilter.root(), newFilter.encode())
-        ).to.be.revertedWith("pool not empty");
+        ).to.be.revertedWithCustomError(pool, "InvalidModification");
       }
     }
   });

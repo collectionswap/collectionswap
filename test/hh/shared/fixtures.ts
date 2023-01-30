@@ -144,6 +144,11 @@ export async function integrationFixture() {
   };
 }
 
+export async function poolMonitorFixture() {
+  const monitor = await ethers.getContractFactory("TestPoolActivityMonitor");
+  return monitor.deploy();
+}
+
 export async function factoryFixture() {
   const { collection } = await getSigners();
 

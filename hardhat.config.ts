@@ -27,8 +27,6 @@ const TESTING_DIRS = ["./contracts/test"].map((relPath: string) => {
   return path.resolve(relPath).toString();
 });
 
-const runCoverage = process.env.RUN_COVERAGE?.toLowerCase() === "true";
-
 subtask(
   TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS,
   async (_, { config: _config }, runSuper) => {
@@ -38,10 +36,6 @@ subtask(
 
     const excludedFiles = UNUSED_CONTRACTS;
     const excludedDirs = shouldCompileTestFiles ? [] : TESTING_DIRS;
-    if (runCoverage) {
-      // Unfortunately, the vaults contracts suffers from stack too deep and cannot be used in solidity-coverage until they can support viaIR
-      excludedDirs.push(path.resolve("contracts", "vaults"));
-    }
 
     const filteredPaths = paths.filter((solidityFilePath: string) => {
       // First check if it's in an excluded directory
@@ -74,7 +68,7 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 150,
           },
-          viaIR: !runCoverage, // solidity-coverage doesn't support viaIR
+          viaIR: true,
         },
       },
     ],

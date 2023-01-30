@@ -26,7 +26,7 @@ contract LinearCurveTest is Test {
             CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 inputValue,
-            ICurve.Fees memory fees
+            ICurve.Fees memory fees,
         ) = curve.getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -66,7 +66,7 @@ contract LinearCurveTest is Test {
             CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 inputValue,
-
+            ,
         ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         if (
             uint256(spotPrice) + uint256(delta) * uint256(numItems) >
@@ -109,7 +109,7 @@ contract LinearCurveTest is Test {
             CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 outputValue,
-            ICurve.Fees memory fees
+            ICurve.Fees memory fees,
         ) = curve.getSellInfo(
                 ICurve.Params(
                     spotPrice,
@@ -149,7 +149,7 @@ contract LinearCurveTest is Test {
             CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 outputValue,
-
+            ,
         ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         assertEq(
             uint256(error),

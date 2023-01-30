@@ -126,7 +126,10 @@ export function testSwapToken(
       numNFTs = 1;
       inputAmount = constants.Zero;
 
-      await expect(swapToken()).to.revertedWith("Wrong Pool type");
+      await expect(swapToken()).to.revertedWithCustomError(
+        collectionPool,
+        "InvalidSwap"
+      );
     });
   });
 
@@ -251,7 +254,7 @@ export function testSwapToken(
           swapToken({
             maxExpectedTokenInput: inputAmount.sub(constants.One),
           })
-        ).to.be.revertedWith("In too many tokens");
+        ).to.be.revertedWithCustomError(collectionPool, "SlippageExceeded");
       });
     });
 
@@ -276,8 +279,9 @@ export function testSwapToken(
         it("Should revert", async function () {
           numNFTs = 0;
 
-          await expect(swapToken()).to.revertedWith(
-            "Ask for > 0 and <= balanceOf NFTs"
+          await expect(swapToken()).to.revertedWithCustomError(
+            collectionPool,
+            "InvalidSwapQuantity"
           );
         });
       });
@@ -287,8 +291,9 @@ export function testSwapToken(
           numNFTs =
             (await nft.balanceOf(collectionPool.address)).toNumber() + 1;
 
-          await expect(swapToken()).to.revertedWith(
-            "Ask for > 0 and <= balanceOf NFTs"
+          await expect(swapToken()).to.revertedWithCustomError(
+            collectionPool,
+            "InvalidSwapQuantity"
           );
         });
       });
@@ -297,7 +302,10 @@ export function testSwapToken(
         it("Should revert", async function () {
           nftIds = [];
 
-          await expect(swapToken()).to.revertedWith("Must ask for > 0 NFTs");
+          await expect(swapToken()).to.revertedWithCustomError(
+            collectionPool,
+            "InvalidSwapQuantity"
+          );
         });
       });
     }
@@ -596,7 +604,10 @@ export function testSwapNFTsForToken(
       outputAmount = constants.Zero;
       tokenRecipient = constants.AddressZero;
 
-      await expect(swapNFTsForToken()).to.revertedWith("Wrong Pool type");
+      await expect(swapNFTsForToken()).to.revertedWithCustomError(
+        collectionPool,
+        "InvalidSwap"
+      );
     });
   });
 
@@ -742,7 +753,7 @@ export function testSwapNFTsForToken(
           swapNFTsForToken({
             minExpectedTokenOutput: outputAmount.add(constants.One),
           })
-        ).to.be.revertedWith("Out too little tokens");
+        ).to.be.revertedWithCustomError(collectionPool, "SlippageExceeded");
       });
     });
 
@@ -750,8 +761,9 @@ export function testSwapNFTsForToken(
       it("Should revert", async function () {
         nfts.ids = [];
 
-        await expect(swapNFTsForToken()).to.revertedWith(
-          "Must ask for > 0 NFTs"
+        await expect(swapNFTsForToken()).to.revertedWithCustomError(
+          collectionPool,
+          "InvalidSwapQuantity"
         );
       });
     });
@@ -915,7 +927,7 @@ export function testSwapNFTsForToken(
             swapNFTsForToken({
               nfts: { ...nfts, ids: randomBigNumbers(nfts.ids.length) },
             })
-          ).to.be.revertedWith("NFT not allowed");
+          ).to.be.revertedWithCustomError(collectionPool, "NFTsNotAccepted");
         });
       });
 
@@ -931,7 +943,7 @@ export function testSwapNFTsForToken(
             swapNFTsForToken({
               nfts: { ...nfts, proof, proofFlags },
             })
-          ).to.be.revertedWith("NFT not allowed");
+          ).to.be.revertedWithCustomError(collectionPool, "NFTsNotAccepted");
         });
       });
     });
