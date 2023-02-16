@@ -710,7 +710,7 @@ contract CollectionRouter {
         ICollectionPoolFactory.PoolVariant variant
     ) external {
         // verify caller is a trusted pool contract
-        require(factory.isPool(msg.sender, variant), "Not pool");
+        require(factory.isPoolVariant(msg.sender, variant), "Not pool");
 
         // verify caller is an ERC20 pool
         require(
@@ -740,7 +740,7 @@ contract CollectionRouter {
         ICollectionPoolFactory.PoolVariant variant
     ) external {
         // verify caller is a trusted pool contract
-        require(factory.isPool(msg.sender, variant), "Not pool");
+        require(factory.isPoolVariant(msg.sender, variant), "Not pool");
 
         // transfer NFTs to pool
         nft.safeTransferFrom(from, to, id);

@@ -170,6 +170,10 @@ abstract contract CollectionPoolETH is CollectionPool {
         }
     }
 
+    function depositERC20Notification(ERC20, uint256) external view onlyFactory {
+        revert InvalidModification();
+    }
+
     /**
      * @dev All ETH transfers into the pool are accepted. This is the main method
      * for the owner to top up the pool's token reserves.

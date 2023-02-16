@@ -34,7 +34,8 @@ import type { ContractTransaction } from "ethers";
 describe("Pausability", function () {
   let factory: CollectionPoolFactory;
   let curve: ICurve;
-  let collectionDeployer: SignerWithAddress;
+  let safeOwner: SignerWithAddress;
+  let poolOwner: SignerWithAddress;
   let nft: IERC721Mintable;
   let test20: Test20;
 
@@ -101,6 +102,7 @@ describe("Pausability", function () {
         encodedTokenIDs: filter.encode(),
         initialProof,
         initialProofFlags,
+        externalFilter: ethers.constants.AddressZero,
       });
     }
 
@@ -114,7 +116,11 @@ describe("Pausability", function () {
   });
 
   before("Get factory", async function () {
-    ({ curve, factory, collectionDeployer } = await deployPoolContracts());
+    ({ curve, factory } = await deployPoolContracts());
+  });
+
+  before("Get poolCreator", async function () {
+    ({ safeOwner, poolOwner } = await getSigners());
   });
 
   describe("Checking that contract pause variables are updated correctly", function () {
@@ -126,10 +132,12 @@ describe("Pausability", function () {
       };
 
       async function checkVariables(factory: CollectionPoolFactory) {
-        expect(await factory.creationPaused()).to.equal(
+        expect(await factory.connect(safeOwner).creationPaused()).to.equal(
           pauseVariables.creation
         );
-        expect(await factory.swapPaused()).to.equal(pauseVariables.swap);
+        expect(await factory.connect(safeOwner).swapPaused()).to.equal(
+          pauseVariables.swap
+        );
       }
 
       it(`Should only flip the desired pause variable when calling the relevant function. Randomized testing for view function and event emission`, async function () {
@@ -159,7 +167,7 @@ describe("Pausability", function () {
           // @ts-ignore
           pauseVariables[variableToFlip] = !pauseVariables[variableToFlip];
           // @ts-ignore
-          const tx = await factory.connect(collectionDeployer)[flipFunction]();
+          const tx = await factory.connect(safeOwner)[flipFunction]();
           const expectedEventName = `${capitalizedFunctionGroup}${
             // @ts-ignore
             pauseVariables[variableToFlip] ? "P" : "Unp"
@@ -176,19 +184,22 @@ describe("Pausability", function () {
 
       beforeEach(async function () {
         await Promise.all([
-          factory.unpauseSwap(),
+          factory.connect(safeOwner).unpauseSwap(),
           pool1.unpausePoolSwaps(),
           pool2.unpausePoolSwaps(),
         ]);
       });
 
       before(async function () {
-        await Promise.all([factory.unpauseCreation(), factory.unpauseSwap()]);
+        await Promise.all([
+          factory.connect(safeOwner).unpauseCreation(),
+          factory.connect(safeOwner).unpauseSwap(),
+        ]);
 
         const tx1 = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -198,13 +209,13 @@ describe("Pausability", function () {
         pool1 = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress1,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
 
         const tx2 = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -214,7 +225,7 @@ describe("Pausability", function () {
         pool2 = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress2,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
       });
 
@@ -226,7 +237,7 @@ describe("Pausability", function () {
           } and pool is ${
             poolPaused ? "paused" : "unpaused"
           }`, async function () {
-            if (factoryPaused) await factory.pauseSwap();
+            if (factoryPaused) await factory.connect(safeOwner).pauseSwap();
             if (poolPaused) await pool1.pausePoolSwaps();
             expect(await pool1.poolSwapsPaused()).to.equal(poolSwapPaused);
           });
@@ -235,24 +246,18 @@ describe("Pausability", function () {
 
       it(`Should allow pool level swap pauses without affecting other pools`, async function () {
         await pool1.pausePoolSwaps();
-        const tokenIds = await mintRandomNfts(
-          nft,
-          collectionDeployer.address,
-          1
-        );
-        await nft
-          .connect(collectionDeployer)
-          .setApprovalForAll(pool2.address, true);
+        const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
+        await nft.connect(poolOwner).setApprovalForAll(pool2.address, true);
 
         const quote = (await pool2.getSellNFTQuote(1))[3];
         // Check functionality is consistent with state
         await expect(
           pool2
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapNFTsForToken(
               { ids: tokenIds, proof: [], proofFlags: [] },
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -264,8 +269,8 @@ describe("Pausability", function () {
   describe("Checking that contract pause variables imply the relevant functions are blocked", function () {
     beforeEach(async function () {
       await Promise.all([
-        factory.connect(collectionDeployer).unpauseCreation(),
-        factory.connect(collectionDeployer).unpauseSwap(),
+        factory.connect(safeOwner).unpauseCreation(),
+        factory.connect(safeOwner).unpauseSwap(),
       ]);
     });
 
@@ -280,7 +285,7 @@ describe("Pausability", function () {
               const tx = await getPoolCreationTx(
                 factory,
                 curve as ICurve,
-                collectionDeployer,
+                poolOwner,
                 nft,
                 isFiltered,
                 isERC20
@@ -291,13 +296,13 @@ describe("Pausability", function () {
             });
 
             it(`Should block creation of pools when paused`, async function () {
-              await factory.connect(collectionDeployer).pauseCreation();
+              await factory.connect(safeOwner).pauseCreation();
 
               await expect(
                 getPoolCreationTx(
                   factory,
                   curve as ICurve,
-                  collectionDeployer,
+                  poolOwner,
                   nft,
                   isFiltered,
                   isERC20
@@ -314,7 +319,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -324,26 +329,20 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
-        const tokenIds = await mintRandomNfts(
-          nft,
-          collectionDeployer.address,
-          1
-        );
-        await nft
-          .connect(collectionDeployer)
-          .setApprovalForAll(newPoolAddress, true);
+        const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
+        await nft.connect(poolOwner).setApprovalForAll(newPoolAddress, true);
 
         const quote = (await pool.getSellNFTQuote(1))[3];
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapNFTsForToken(
               { ids: tokenIds, proof: [], proofFlags: [] },
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -354,37 +353,31 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
         );
-        await factory.pauseSwap();
+        await factory.connect(safeOwner).pauseSwap();
 
         const { newPoolAddress } = await getPoolAddress(tx);
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
-        const tokenIds = await mintRandomNfts(
-          nft,
-          collectionDeployer.address,
-          1
-        );
-        await nft
-          .connect(collectionDeployer)
-          .setApprovalForAll(newPoolAddress, true);
+        const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
+        await nft.connect(poolOwner).setApprovalForAll(newPoolAddress, true);
 
         const quote = (await pool.getSellNFTQuote(1))[3];
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapNFTsForToken(
               { ids: tokenIds, proof: [], proofFlags: [] },
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -395,7 +388,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -405,20 +398,20 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
 
         const quote = (await pool.getBuyNFTQuote(1))[3];
-        await test20.mint(collectionDeployer.address, quote);
-        await test20.connect(collectionDeployer).approve(pool.address, quote);
+        await test20.mint(poolOwner.address, quote);
+        await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapTokenForAnyNFTs(
               1,
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -429,32 +422,32 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
         );
 
-        await factory.pauseSwap();
+        await factory.connect(safeOwner).pauseSwap();
 
         const { newPoolAddress } = await getPoolAddress(tx);
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
 
         const quote = (await pool.getBuyNFTQuote(1))[3];
-        await test20.mint(collectionDeployer.address, quote);
-        await test20.connect(collectionDeployer).approve(pool.address, quote);
+        await test20.mint(poolOwner.address, quote);
+        await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapTokenForAnyNFTs(
               1,
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -465,7 +458,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -475,20 +468,20 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
 
         const quote = (await pool.getBuyNFTQuote(1))[3];
-        await test20.mint(collectionDeployer.address, quote);
-        await test20.connect(collectionDeployer).approve(pool.address, quote);
+        await test20.mint(poolOwner.address, quote);
+        await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapTokenForSpecificNFTs(
               [(await pool.getAllHeldIds())[0]],
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -499,32 +492,32 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
         );
 
-        await factory.pauseSwap();
+        await factory.connect(safeOwner).pauseSwap();
 
         const { newPoolAddress } = await getPoolAddress(tx);
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
 
         const quote = (await pool.getBuyNFTQuote(1))[3];
-        await test20.mint(collectionDeployer.address, quote);
-        await test20.connect(collectionDeployer).approve(pool.address, quote);
+        await test20.mint(poolOwner.address, quote);
+        await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapTokenForSpecificNFTs(
               [(await pool.getAllHeldIds())[0]],
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -537,7 +530,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -547,26 +540,20 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
-        const tokenIds = await mintRandomNfts(
-          nft,
-          collectionDeployer.address,
-          1
-        );
-        await nft
-          .connect(collectionDeployer)
-          .setApprovalForAll(newPoolAddress, true);
+        const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
+        await nft.connect(poolOwner).setApprovalForAll(newPoolAddress, true);
 
         const quote = (await pool.getSellNFTQuote(1))[3];
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapNFTsForToken(
               { ids: tokenIds, proof: [], proofFlags: [] },
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -577,7 +564,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -587,27 +574,21 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
         await pool.pausePoolSwaps();
-        const tokenIds = await mintRandomNfts(
-          nft,
-          collectionDeployer.address,
-          1
-        );
-        await nft
-          .connect(collectionDeployer)
-          .setApprovalForAll(newPoolAddress, true);
+        const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
+        await nft.connect(poolOwner).setApprovalForAll(newPoolAddress, true);
 
         const quote = (await pool.getSellNFTQuote(1))[3];
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapNFTsForToken(
               { ids: tokenIds, proof: [], proofFlags: [] },
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -618,7 +599,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -628,20 +609,20 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
 
         const quote = (await pool.getBuyNFTQuote(1))[3];
-        await test20.mint(collectionDeployer.address, quote);
-        await test20.connect(collectionDeployer).approve(pool.address, quote);
+        await test20.mint(poolOwner.address, quote);
+        await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapTokenForAnyNFTs(
               1,
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -652,7 +633,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -662,21 +643,21 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
         await pool.pausePoolSwaps();
 
         const quote = (await pool.getBuyNFTQuote(1))[3];
-        await test20.mint(collectionDeployer.address, quote);
-        await test20.connect(collectionDeployer).approve(pool.address, quote);
+        await test20.mint(poolOwner.address, quote);
+        await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapTokenForAnyNFTs(
               1,
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -687,7 +668,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -697,20 +678,20 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
 
         const quote = (await pool.getBuyNFTQuote(1))[3];
-        await test20.mint(collectionDeployer.address, quote);
-        await test20.connect(collectionDeployer).approve(pool.address, quote);
+        await test20.mint(poolOwner.address, quote);
+        await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapTokenForSpecificNFTs(
               [(await pool.getAllHeldIds())[0]],
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -721,7 +702,7 @@ describe("Pausability", function () {
         const tx = await getPoolCreationTx(
           factory,
           curve as ICurve,
-          collectionDeployer,
+          poolOwner,
           nft,
           false,
           true
@@ -731,21 +712,21 @@ describe("Pausability", function () {
         const pool = (await ethers.getContractAt(
           `CollectionPoolEnumerableETH`,
           newPoolAddress,
-          collectionDeployer
+          poolOwner
         )) as CollectionPoolEnumerableETH;
         await pool.pausePoolSwaps();
 
         const quote = (await pool.getBuyNFTQuote(1))[3];
-        await test20.mint(collectionDeployer.address, quote);
-        await test20.connect(collectionDeployer).approve(pool.address, quote);
+        await test20.mint(poolOwner.address, quote);
+        await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
         await expect(
           pool
-            .connect(collectionDeployer)
+            .connect(poolOwner)
             .swapTokenForSpecificNFTs(
               [(await pool.getAllHeldIds())[0]],
               quote,
-              collectionDeployer.address,
+              poolOwner.address,
               false,
               ethers.constants.AddressZero
             )
@@ -758,12 +739,15 @@ describe("Pausability", function () {
     let pool: CollectionPool;
     let user: SignerWithAddress;
     beforeEach(async function () {
-      await Promise.all([factory.unpauseCreation(), factory.unpauseSwap()]);
-      ({ user } = await getSigners());
+      await Promise.all([
+        factory.connect(safeOwner).unpauseCreation(),
+        factory.connect(safeOwner).unpauseSwap(),
+      ]);
+      ({ poolOwner, user } = await getSigners());
       const tx = await getPoolCreationTx(
         factory,
         curve as ICurve,
-        user,
+        poolOwner,
         nft,
         false,
         true
@@ -773,7 +757,7 @@ describe("Pausability", function () {
       pool = (await ethers.getContractAt(
         `CollectionPoolEnumerableETH`,
         newPoolAddress,
-        collectionDeployer
+        user
       )) as CollectionPool;
     });
 
@@ -788,7 +772,7 @@ describe("Pausability", function () {
       const unpauseFunction = `un${pauseFunction}`;
       it(`Should revert if ${unpauseFunction} is called by non deployer`, async function () {
         // @ts-ignore
-        await factory[pauseFunction]();
+        await factory.connect(safeOwner)[pauseFunction]();
         await expect(
           // @ts-ignore
           factory.connect(user)[unpauseFunction]()
@@ -798,14 +782,14 @@ describe("Pausability", function () {
 
     it("Should revert if anyone but pool owner calls pool level pause", async function () {
       await expect(
-        pool.connect(collectionDeployer).pausePoolSwaps()
+        pool.connect(user).pausePoolSwaps()
       ).to.be.revertedWithCustomError(pool, "NotAuthorized");
     });
 
     it("Should revert if anyone but pool owner calls pool level unpause", async function () {
-      await pool.connect(user).pausePoolSwaps();
+      await pool.connect(poolOwner).pausePoolSwaps();
       await expect(
-        pool.connect(collectionDeployer).unpausePoolSwaps()
+        pool.connect(user).unpausePoolSwaps()
       ).to.be.revertedWithCustomError(pool, "NotAuthorized");
     });
   });

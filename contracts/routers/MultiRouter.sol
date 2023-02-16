@@ -158,7 +158,7 @@ contract MultiRouter {
     function poolTransferERC20From(ERC20 token, address from, address to, uint256 amount, uint8 variant) external {
         // verify caller is an ERC20 pool contract
         ICollectionPoolFactory.PoolVariant _variant = ICollectionPoolFactory.PoolVariant(variant);
-        require(erc721factory.isPool(msg.sender, _variant), "Not pool");
+        require(erc721factory.isPoolVariant(msg.sender, _variant), "Not pool");
 
         // verify caller is an ERC20 pool
         require(
@@ -187,7 +187,7 @@ contract MultiRouter {
         ICollectionPoolFactory.PoolVariant variant
     ) external {
         // verify caller is a trusted pool contract
-        require(erc721factory.isPool(msg.sender, variant), "Not pool");
+        require(erc721factory.isPoolVariant(msg.sender, variant), "Not pool");
         // transfer NFTs to pool
         nft.safeTransferFrom(from, to, id);
     }

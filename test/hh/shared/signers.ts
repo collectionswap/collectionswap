@@ -8,6 +8,7 @@ export interface Signers {
   /** The deployer of Collection contracts */
   collectionDeployer: SignerWithAddress;
   collection: SignerWithAddress;
+  safeOwner: SignerWithAddress;
 
   protocol: SignerWithAddress;
 
@@ -39,6 +40,7 @@ export async function getSigners(): Promise<Signers> {
     owner,
     collectionDeployer,
     collection,
+    safeOwner,
     protocol,
     user,
     user1,
@@ -60,6 +62,7 @@ export async function getSigners(): Promise<Signers> {
     owner,
     collectionDeployer,
     collection,
+    safeOwner,
     protocol,
     user,
     user1,

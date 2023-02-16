@@ -13,6 +13,7 @@ import {
 } from "../shared/constants";
 import { reportGasCost, setUpGasToCost } from "../shared/ethGasReporter";
 import {
+  externalFilterFixture,
   deployPoolContracts,
   nftFixture,
   test20Fixture,
@@ -46,7 +47,7 @@ import type {
   ICollectionPoolFactory,
 } from "../../../typechain-types/contracts/pools/CollectionPoolFactory";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { BigNumber, ContractTransaction } from "ethers";
+import type { BigNumber, BigNumberish, ContractTransaction } from "ethers";
 import type { Context } from "mocha";
 
 const MAX_UINT_24 = ethers.BigNumber.from(0xffffff);
@@ -58,13 +59,13 @@ describe("CollectionPoolFactory", function () {
   let test721: Test721;
   let test721Enumerable: Test721Enumerable;
   let test721Royalty: Test721Royalty;
-  let collectionDeployer: SignerWithAddress;
+  let safeOwner: SignerWithAddress;
   let user: SignerWithAddress;
 
   setUpGasToCost();
 
   before("Get signers", async function () {
-    ({ collectionDeployer, user } = await getSigners());
+    ({ safeOwner, user } = await getSigners());
   });
 
   beforeEach("Load factoryFixture ", async function () {
@@ -376,6 +377,19 @@ describe("CollectionPoolFactory", function () {
                   i
                 );
 
+                const bannedTokenIds = await mintAndApproveRandomNfts(
+                  this.nft,
+                  user,
+                  collectionPoolFactory.address,
+                  i
+                );
+                const bannedNfts = bannedTokenIds.map((tokenId) => {
+                  return { contractAddress: this.nft.address, tokenId };
+                });
+                const externalFilter = await externalFilterFixture(
+                  bannedNfts
+                );
+
                 let filterParams;
                 if (tokenIds.length) {
                   const biTokenIds = tokenIds.map(toBigInt);
@@ -387,6 +401,7 @@ describe("CollectionPoolFactory", function () {
                     encodedTokenIDs: tokenIDs.encode(),
                     initialProof,
                     initialProofFlags,
+                    externalFilter: externalFilter.address,
                   };
                 }
 
@@ -436,15 +451,25 @@ describe("CollectionPoolFactory", function () {
           encodedTokenIDs: ethers.constants.HashZero,
           initialProof: [],
           initialProofFlags: [],
+          externalFilter: ethers.constants.AddressZero,
         };
       });
 
       context("With filter", function () {
-        beforeEach("Set filter", function () {
+        beforeEach("Set filter", async function () {
           this.tokenIds = randomBigNumbers(NUM_INITIAL_NFTS);
+          this.bannedTokenIds = randomBigNumbers(NUM_INITIAL_NFTS);
+          const externalFilter = (
+            await externalFilterFixture(
+              this.bannedTokenIds.map((tokenId: BigNumberish) => {
+                return { contractAddress: test721.address, tokenId };
+              })
+            )
+          ).address;
           this.tokenIDs = new TokenIDs(this.tokenIds.map(toBigInt));
           this.filterParams.merkleRoot = this.tokenIDs.root();
           this.filterParams.encodedTokenIDs = this.tokenIDs.encode();
+          this.filterParams.externalFilter = externalFilter;
         });
 
         context("With initial nft ids as proof", function () {
@@ -693,9 +718,7 @@ describe("CollectionPoolFactory", function () {
       });
       context("With owner", function () {
         it("Should set base URI", async function () {
-          await collectionPoolFactory
-            .connect(collectionDeployer)
-            .setBaseURI(baseURI);
+          await collectionPoolFactory.connect(safeOwner).setBaseURI(baseURI);
 
           expect(await collectionPoolFactory.baseURI()).to.equal(baseURI);
         });
@@ -705,9 +728,7 @@ describe("CollectionPoolFactory", function () {
     describe("#tokenURI", function () {
       it("Should be a concatenation of baseURI and tokenId", async function () {
         // set base uri
-        await collectionPoolFactory
-          .connect(collectionDeployer)
-          .setBaseURI(baseURI);
+        await collectionPoolFactory.connect(safeOwner).setBaseURI(baseURI);
 
         // emit lp token
         const tx = await collectionPoolFactory.createPoolETH({

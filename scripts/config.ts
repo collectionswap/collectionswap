@@ -2,6 +2,7 @@ import type { BigNumberish } from "ethers";
 
 type Config = {
   USE_LEDGER: boolean;
+  USE_SAFE: boolean;
   VRF_COORDINATOR: string;
   SUBSCRIPTION_ID: BigNumberish; // Create subscription account at vrf.chain.link
   KEY_HASH: string; // See Gwei KeyHashes at https://docs.chain.link/docs/vrf/v2/subscription/supported-networks/#configurations
@@ -14,6 +15,7 @@ type Config = {
 
 const baseConfig = {
   USE_LEDGER: false,
+  USE_SAFE: false,
   PROTOCOL_FEE_MULTIPLIER: "0",
   CARRY_FEE_MULTIPLIER: "0",
 };
@@ -22,6 +24,7 @@ export const configs: { [key: number]: Config } = {
   // Mainnet
   1: {
     USE_LEDGER: true,
+    USE_SAFE: true,
     VRF_COORDINATOR: "0x271682DEB8C4E0901D1a1550aD2e64D568E69909",
     KEY_HASH:
       "0x8af398995b04c28e9951adb9721ef74c74f93e6a478f39e7e0777be13527e7ef",
@@ -35,6 +38,7 @@ export const configs: { [key: number]: Config } = {
   // Goerli
   5: {
     ...baseConfig,
+    USE_SAFE: true,
     VRF_COORDINATOR: "0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D",
     KEY_HASH:
       "0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15",

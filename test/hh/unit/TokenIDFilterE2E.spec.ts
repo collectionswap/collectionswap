@@ -2,7 +2,11 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { TokenIDs as TokenIds } from "fummpel";
 import { ethers, expect } from "hardhat";
 
-import { everythingFixture, nftFixture } from "../shared/fixtures";
+import {
+  externalFilterFixture,
+  everythingFixture,
+  nftFixture,
+} from "../shared/fixtures";
 import {
   difference,
   getPoolAddress,
@@ -667,6 +671,7 @@ async function createFilteredPool(
     initialProof,
     initialProofFlags,
     owner,
+    externalFilter,
   } = await getFilteredNFTs(
     collectionPoolFactory,
     numAccepted,
@@ -686,6 +691,7 @@ async function createFilteredPool(
       encodedTokenIDs,
       initialProof,
       initialProofFlags,
+      externalFilter: externalFilter.address,
     },
     {
       value: ethers.BigNumber.from(`${10e18}`),
@@ -776,7 +782,7 @@ async function createEmptyPool() {
 
 async function getFilteredNFTs(
   collectionPoolFactory: CollectionPoolFactory,
-  numAccepted: number,
+  numAcceptedAndBanned: number,
   numInitial: number,
   nft: Test721Enumerable
 ) {
@@ -786,8 +792,19 @@ async function getFilteredNFTs(
     nft,
     owner,
     collectionPoolFactory.address,
-    numAccepted
+    numAcceptedAndBanned
   );
+
+  const bannedTokenIds = await mintAndApproveRandomNfts(
+    nft,
+    owner,
+    collectionPoolFactory.address,
+    numAcceptedAndBanned
+  );
+  const bannedNfts = bannedTokenIds.map((tokenId) => {
+    return { contractAddress: nft.address, tokenId };
+  });
+  const filterProvider = await externalFilterFixture(bannedNfts);
 
   const tokenIdFilter = new TokenIds(acceptedTokenIds.map(toBigInt));
   const merkleRoot = tokenIdFilter.root();
@@ -812,5 +829,7 @@ async function getFilteredNFTs(
     initialProof,
     initialProofFlags,
     owner,
+    bannedTokenIds,
+    externalFilter: filterProvider,
   };
 }

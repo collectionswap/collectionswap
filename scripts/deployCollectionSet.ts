@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 
 import { LedgerSigner } from "@anders-t/ethers-ledger";
+import Safe from "@safe-global/safe-core-sdk";
+import EthersAdapter from "@safe-global/safe-ethers-lib";
 
 import { FEE_DECIMALS } from "../test/hh/shared/constants";
 
@@ -24,6 +26,13 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   const deployerAddress = await deployer.getAddress();
   console.log(`Deployer: ${deployerAddress}`);
 
+  const safeDeployer = config.USE_SAFE
+    ? await getSafe(hre, deployer)
+    : deployer;
+
+  const safeAddress = await safeDeployer.getAddress();
+  console.log(`Protocol Fee Recipient: ${safeAddress}`);
+
   const { templateNames, templateAddresses } = await deployTemplates(
     hre,
     deployer
@@ -39,7 +48,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     templateAddresses[1],
     templateAddresses[2],
     templateAddresses[3],
-    await deployer.getAddress(), // Payout address
+    safeAddress, // Payout address
     hre.ethers.utils.parseUnits(config.PROTOCOL_FEE_MULTIPLIER, FEE_DECIMALS),
     hre.ethers.utils.parseUnits(config.CARRY_FEE_MULTIPLIER, FEE_DECIMALS)
   );
@@ -62,6 +71,11 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     await factory.setRouterAllowed(routerAddresses[i], true);
   }
 
+  if (config.USE_SAFE) {
+    console.log(`Transferring Ownership of Factory to Safe Address`);
+    await factory.transferOwnership(safeAddress);
+  }
+
   console.log("exporting addresses...");
 
   const zip = (a: string[], b: string[]) => a.map((k, i) => [k, b[i]]);
@@ -74,6 +88,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
       ...Object.fromEntries(zip(routerNames, routerAddresses)),
     },
     deployer: deployerAddress,
+    safe: safeAddress,
   };
   const exportJson = JSON.stringify(
     {
@@ -83,6 +98,7 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     null,
     2
   );
+
   fs.writeFileSync(
     path.resolve("deploys", `${hre.network.name}.json`),
     exportJson
@@ -184,4 +200,25 @@ export async function deployRouters(
   console.log(`------------------------------`);
 
   return { routerNames, routerAddresses };
+}
+
+export async function getSafe(
+  hre: HardhatRuntimeEnvironment,
+  deployer: LedgerSigner | SignerWithAddress
+): Promise<Safe> {
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: deployer,
+  });
+  const safeAddress = process.env.GNOSIS_SAFE_ADDRESS as string;
+  const safe = await Safe.create({ ethAdapter, safeAddress });
+  console.log("Safe Address:", safe.getAddress());
+  const isDeployerSafeOwner = await safe.isOwner(await deployer.getAddress());
+
+  if (!isDeployerSafeOwner) {
+    console.log("Deployer is not owner of the Safe");
+    process.exitCode = 1;
+  }
+
+  return safe;
 }

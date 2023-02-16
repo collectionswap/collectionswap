@@ -399,13 +399,13 @@ describe("CollectionRouter", function () {
 });
 
 async function collectionRouterFixture() {
-  const { collectionDeployer, user } = await getSigners();
+  const { safeOwner, user } = await getSigners();
   const fixture = await collectionPoolFixture();
   const { collectionPoolFactory } = fixture;
 
   const CollectionRouter = await ethers.getContractFactory(
     "CollectionRouter",
-    collectionDeployer
+    safeOwner
   );
   const collectionRouter = await CollectionRouter.deploy(
     collectionPoolFactory.address
@@ -413,7 +413,7 @@ async function collectionRouterFixture() {
   await collectionRouter.deployed();
 
   await collectionPoolFactory
-    .connect(collectionDeployer)
+    .connect(safeOwner)
     .setRouterAllowed(collectionRouter.address, true);
 
   return {

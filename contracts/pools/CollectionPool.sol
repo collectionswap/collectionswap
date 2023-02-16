@@ -14,6 +14,7 @@ import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICollectionPool} from "./ICollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
+import {IExternalFilter} from "../filter/IExternalFilter.sol";
 import {TokenIDFilter} from "../filter/TokenIDFilter.sol";
 import {MultiPauser} from "../lib/MultiPauser.sol";
 import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
@@ -108,6 +109,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     // The state used by the pool's bonding curve.
     bytes public state;
 
+    // If non-zero, contract implementing IExternalFilter checked on (pool buying) swaps
+    IExternalFilter public externalFilter;
+
     // Events
     event SwapNFTInPool(
         uint256[] nftIds, uint256 inputAmount, uint256 tradeFee, uint256 protocolFee, RoyaltyDue[] royaltyDue
@@ -130,6 +134,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event RoyaltyRecipientFallbackUpdate(address payable newFallback);
     event PoolSwapPaused();
     event PoolSwapUnpaused();
+    event ExternalFilterSet(address indexed collection, address indexed filterAddress);
 
     // Parameterized Errors
     error BondingCurveError(CurveErrorCodes.Error error);
@@ -144,8 +149,15 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     error SlippageExceeded();
     error RouterNotTrusted();
     error NFTsNotAccepted();
+    error NFTsNotAllowed();
     error CallError();
     error MulticallError();
+    error InvalidExternalFilter();
+
+    modifier onlyFactory() {
+        if (msg.sender != address(factory())) revert NotAuthorized();
+        _;
+    }
 
     /**
      * @dev Use this whenever modifying the value of royaltyNumerator.
@@ -240,10 +252,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             if (_assetRecipient != address(0)) revert InvalidPoolParams();
             fee = _fee;
         }
-        if (!_bondingCurve.validateDelta(_delta)) revert InvalidPoolParams();
-        if (!_bondingCurve.validateSpotPrice(_spotPrice)) revert InvalidPoolParams();
-        if (!_bondingCurve.validateProps(_props)) revert InvalidPoolParams();
-        if (!_bondingCurve.validateState(_state)) revert InvalidPoolParams();
+        if (!_bondingCurve.validate(_delta, _spotPrice, _props, _state)) revert InvalidPoolParams();
         delta = _delta;
         spotPrice = _spotPrice;
         props = _props;
@@ -257,8 +266,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
 
     /**
-     * @notice Sets NFT token ID filter that is allowed in this pool. Pool must
-     * be empty to call this function.
+     * @notice Sets NFT token ID filter to allow only some NFTs into this pool. Pool must be empty
+     * to call this function. This filter is checked on deposits and swapping NFTs into the pool.
+     * Selling into the pool may require an additional check (see `setExternalFilter`).
      * @param merkleRoot Merkle root representing all allowed IDs
      * @param encodedTokenIDs Opaque encoded list of token IDs
      */
@@ -267,6 +277,32 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         // Pool must be empty to change filter
         if (nft().balanceOf(address(this)) != 0) revert InvalidModification();
         _setRootAndEmitAcceptedIDs(address(nft()), merkleRoot, encodedTokenIDs);
+    }
+
+    /**
+     * @notice Sets an external contract that is consulted before any NFT is swapped into the pool.
+     * Typically used to implement dynamic blocklists. Because it is dynamic, deposits are not
+     * checked. See also `setTokenIDFilter`.
+     */
+    function setExternalFilter(address provider) external {
+        if (msg.sender != address(factory()) && msg.sender != owner()) revert NotAuthorized();
+        if (provider == address(0)) {
+            externalFilter = IExternalFilter(provider);
+            emit ExternalFilterSet(address(nft()), address(0));
+            return;
+        }
+
+        if (isContract(provider)) {
+            try IERC165(provider).supportsInterface(type(IExternalFilter).interfaceId) returns (bool isFilter) {
+                if (isFilter) {
+                    externalFilter = IExternalFilter(provider);
+                    emit ExternalFilterSet(address(nft()), provider);
+                    return;
+                }
+            } catch {}
+        }
+
+        revert InvalidExternalFilter();
     }
 
     /**
@@ -358,7 +394,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     }
 
     /**
-     * @notice Sends a set of NFTs to the pool in exchange for token
+     * @notice Sends a set of NFTs to the pool in exchange for token. Token must be allowed by
+     * filters, see `setTokenIDFilter` and `setExternalFilter`.
      * @dev To compute the amount of token to that will be received, call bondingCurve.getSellInfo.
      * @param nfts The list of IDs of the NFTs to sell to the pool along with its Merkle multiproof.
      * @param minExpectedTokenOutput The minimum acceptable token received by the sender. If the actual
@@ -388,6 +425,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             if (_poolType == PoolType.NFT) revert InvalidSwap();
             if (nfts.ids.length <= 0) revert InvalidSwapQuantity();
             if (!acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags)) revert NFTsNotAccepted();
+            if (address(externalFilter) != address(0) && !externalFilter.areNFTsAllowed(address(nft()), nfts.ids))
+            {
+                revert NFTsNotAllowed();
+            }
         }
 
         // Prevent users from making a ridiculous pool, buying out their "sucker" price, and
@@ -1087,9 +1128,12 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         );
     }
 
-    function notifySwap(IPoolActivityMonitor.EventType eventType, uint256 numNFTs, uint256 lastSwapPrice, uint256 swapValue)
-        internal
-    {
+    function notifySwap(
+        IPoolActivityMonitor.EventType eventType,
+        uint256 numNFTs,
+        uint256 lastSwapPrice,
+        uint256 swapValue
+    ) internal {
         uint256[] memory amounts = new uint256[](3);
         amounts[0] = numNFTs;
         amounts[1] = lastSwapPrice;
@@ -1134,8 +1178,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     }
 
     /// @inheritdoc ICollectionPool
-    function depositNFTsNotification(uint256[] calldata nftIds) external override {
-        if (msg.sender != address(factory())) revert NotAuthorized();
+    function depositNFTsNotification(uint256[] calldata nftIds) external override onlyFactory {
         _depositNFTsNotification(nftIds);
 
         emit NFTDeposit(address(nft()), nftIds.length);

@@ -38,6 +38,18 @@ abstract contract Curve is ICurve {
     }
 
     /**
+     * @dev See {ICurve-validate}
+     */
+    function validate(uint128 delta, uint128 newSpotPrice, bytes calldata props, bytes calldata state)
+        external
+        view
+        returns (bool valid)
+    {
+        return this.validateDelta(delta) && this.validateSpotPrice(newSpotPrice) && this.validateProps(props)
+            && this.validateState(state);
+    }
+
+    /**
      * @dev Compute protocol and trade fee and add fees to input value.
      * @dev royalties should sum to totalRoyalty.
      */

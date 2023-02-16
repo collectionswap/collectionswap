@@ -1,22 +1,73 @@
 #!/bin/bash
 
+## Runs forge tests in parallel. All parameters are passed to `forge test`.
+## Run with JOBS=N to specify maximum number of concurrent jobs
+
+# kill process group if ctrl-c
+trap "kill -9 0" SIGINT
+
+# start time in nanoseconds
+START=$(date +%s%N)
+
 # fast profile in foundry.toml has less optimizations
 export FOUNDRY_PROFILE=fast
 
-# use all cores
-CORES=`nproc`
-echo "$CORES cores detected"
+if [ -z "$JOBS" ]; then
+  JOBS=`nproc`
+  printf "Using all $JOBS cores"
+else
+  printf "Using $JOBS concurrent subprocesses"
+fi
+
+# runs and buffers `forge test`, aborts all if anything fails
+forge_test() {
+  printf .
+
+  # buffer output so it's not all mingled
+  OUTPUT=`forge test --silent --match-path "$*"`
+
+  if (( $? == 0 )); then
+    # OK
+    echo
+    echo "$OUTPUT"
+  else
+    # Error
+    echo
+    echo "$OUTPUT"
+    echo "At least one sub-test had errors, aborting"
+    kill -9 0 # kill process group
+  fi
+}
 
 # test all but test-cases
-forge test --silent --match-path "*/foundry/filter/*.t.sol" $* &
-forge test --silent --match-path "*/foundry/bonding-curve-tests/*.t.sol" $* &
+( forge_test '*/foundry/filter/*.t.sol' $* )&
+( forge_test '*/foundry/bonding-curve-tests/*.t.sol' $* )&
 
-# test test-cases
 cd $(dirname -- "$0")/../test/foundry/test-cases
-find *.t.sol | # find all tests
-  paste -d, - - - - - - - - | # 4 files at a time
-  xargs -P $CORES -I _ forge test --silent --match-path "*/{_}*" $*
 
-# in case first 2 tests are still running
-fg 2&> /dev/null
-fg 2&> /dev/null
+# note that test-cases/ files must not have spaces
+TEST_CASES=`
+  find *.t.sol | # find all tests
+  paste -d, - - - - - - - - # 4 files at a time
+`
+
+for TEST_CASE in $TEST_CASES; do
+  # PIDs of running jobs, converted to array
+  RUNNING=(`jobs -pr`)
+
+  if (( ${#RUNNING[@]} >= JOBS )); then
+    wait -n # wait for earlier background job to finish
+  fi
+
+  # first parameter is absolute-path glob matching some test files only
+  # pass through rest of script parameters
+  (
+    forge_test "*/{$TEST_CASE}*" #$*
+  )& # run in background as subshell
+done
+
+# wait for all background jobs to finish
+wait
+
+END=$(date +%s%N)
+printf "Total time: %.1fs\n" $((END-START))e-9

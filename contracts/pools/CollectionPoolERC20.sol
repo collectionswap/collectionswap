@@ -194,7 +194,18 @@ abstract contract CollectionPoolERC20 is CollectionPool {
      */
     function depositERC20(ERC20 a, uint256 amount) external {
         a.safeTransferFrom(msg.sender, address(this), amount);
+        _depositERC20Notification(a, amount);
+    }
 
+    /**
+     * @notice Used by factory to notify pools of deposits initiated on the factory
+     * side
+     */
+    function depositERC20Notification(ERC20 a, uint256 amount) external onlyFactory {
+        _depositERC20Notification(a, amount);
+    }
+
+    function _depositERC20Notification(ERC20 a, uint256 amount) internal {
         if (a == token()) {
             emit TokenDeposit(address(nft()), address(a), amount);
             notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, amount);

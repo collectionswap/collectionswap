@@ -24,7 +24,7 @@ import type {
 import type { curveType } from "./constants";
 import type { IERC721Mintable } from "./types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { Contract, BigNumber } from "ethers";
+import type { Contract, BigNumber, BigNumberish } from "ethers";
 
 const NUM_REWARD_TOKENS = 2;
 const REWARDS = [ethers.utils.parseEther("5"), ethers.utils.parseEther("7")];
@@ -270,7 +270,7 @@ export async function deployCurveContracts(): Promise<{
 }
 
 export async function deployPoolContracts() {
-  const { collectionDeployer } = await getSigners();
+  const { collectionDeployer, safeOwner } = await getSigners();
 
   const CollectionPoolEnumerableETH = await ethers.getContractFactory(
     "CollectionPoolEnumerableETH",
@@ -318,10 +318,15 @@ export async function deployPoolContracts() {
     carryFeeMultiplier
   );
 
+  // console.log(`DeployPoolFactory: CollectionPoolFactory deployed to ${collectionPoolFactory.address} by ${await collectionDeployer.getAddress()}`)
+
   const curves = await deployCurveContracts();
   for (const curve of Object.values(curves)) {
     await collectionPoolFactory.setBondingCurveAllowed(curve.address, true);
   }
+
+  await collectionPoolFactory.transferOwnership(await safeOwner.getAddress());
+  // console.log(`PoolFactory Owner: ${await collectionPoolFactory.owner()}`);
 
   return {
     collectionDeployer,
@@ -827,6 +832,15 @@ export async function genericTradingFixture(nftFixture: NFTFixture): Promise<{
   };
 }
 
+export async function externalFilterFixture(
+  bannedIds: { contractAddress: string; tokenId: BigNumberish }[]
+) {
+  const contractFactory = await ethers.getContractFactory(
+    "TestExternalFilter"
+  );
+  return contractFactory.deploy(bannedIds);
+}
+
 export async function filteredTradingFixture(nftFixture: NFTFixture): Promise<{
   pool: CollectionPoolETH;
   trader: SignerWithAddress;
@@ -836,6 +850,7 @@ export async function filteredTradingFixture(nftFixture: NFTFixture): Promise<{
   ownerNfts: BigNumber[];
   nft: IERC721Mintable;
   filter: TokenIDs;
+  bannedTokenIds: BigNumberish[];
 }> {
   const { delta, fee, spotPrice, props, state, royaltyNumerator } =
     getCurveParameters();
@@ -878,11 +893,28 @@ export async function filteredTradingFixture(nftFixture: NFTFixture): Promise<{
     initialNFTIDs,
   };
 
+  const bannedTraderNfts = await mintRandomNfts(
+    nft,
+    user1.address,
+    TRADING_QUANTITY
+  );
+  const bannedOwnerNfts = await mintRandomNfts(
+    nft,
+    owner.address,
+    TRADING_QUANTITY
+  );
+  const bannedTokenIds = bannedTraderNfts.concat(bannedOwnerNfts);
+  const bannedNfts = bannedTokenIds.map((tokenId) => {
+    return { contractAddress: nft.address, tokenId };
+  });
+  const filterProvider = await externalFilterFixture(bannedNfts);
+
   const filterParams = {
     merkleRoot: filter.root(),
     encodedTokenIDs: filter.encode(),
     initialProof,
     initialProofFlags,
+    externalFilter: filterProvider.address,
   };
 
   const tx = await factory
@@ -909,5 +941,6 @@ export async function filteredTradingFixture(nftFixture: NFTFixture): Promise<{
     ownerNfts,
     nft,
     filter,
+    bannedTokenIds,
   };
 }

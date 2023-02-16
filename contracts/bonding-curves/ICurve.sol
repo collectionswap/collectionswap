@@ -73,6 +73,19 @@ interface ICurve {
     function validateState(bytes calldata state) external view returns (bool valid);
 
     /**
+     * @notice Validates given delta, spot price, props value and state value for the curve. The criteria for validity can be different for each type of curve.
+     * @param delta The delta value to be validated
+     * @param newSpotPrice The new spot price to be set
+     * @param props The props value to be validated
+     * @param state The state value to be validated
+     * @return valid True if all parameters are valid, false otherwise
+     */
+    function validate(uint128 delta, uint128 newSpotPrice, bytes calldata props, bytes calldata state)
+        external
+        view
+        returns (bool valid);
+
+    /**
      * @notice Given the current state of the pool and the trade, computes how much the user
      * should pay to purchase an NFT from the pool, the new spot price, and other values.
      * @dev Do not try to optimize the length of fees.royalties; compiler

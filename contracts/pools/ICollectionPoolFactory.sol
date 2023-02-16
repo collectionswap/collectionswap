@@ -6,6 +6,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
+import {IExternalFilter} from "../filter/IExternalFilter.sol";
 import {ICollectionPool} from "../pools/ICollectionPool.sol";
 
 interface ICollectionPoolFactory is IERC721 {
@@ -31,12 +32,14 @@ interface ICollectionPoolFactory is IERC721 {
      * @param encodedTokenIDs Encoded list of acceptable NFT IDs
      * @param initialProof Merkle multiproof for initial NFT IDs
      * @param initialProofFlags Merkle multiproof flags for initial NFT IDs
+     * @param externalFilter Address implementing IExternalFilter for external filtering
      */
     struct NFTFilterParams {
         bytes32 merkleRoot;
         bytes encodedTokenIDs;
         bytes32[] initialProof;
         bool[] initialProofFlags;
+        IExternalFilter externalFilter;
     }
 
     /**
@@ -125,7 +128,9 @@ interface ICollectionPoolFactory is IERC721 {
 
     function routerStatus(CollectionRouter router) external view returns (bool allowed, bool wasEverAllowed);
 
-    function isPool(address potentialPool, PoolVariant variant) external view returns (bool);
+    function isPool(address potentialPool) external view returns (bool);
+
+    function isPoolVariant(address potentialPool, PoolVariant variant) external view returns (bool);
 
     function requireAuthorizedForToken(address spender, uint256 tokenId) external view;
 
@@ -140,6 +145,13 @@ interface ICollectionPoolFactory is IERC721 {
 
     function createPoolERC20(CreateERC20PoolParams calldata params) external returns (address pool, uint256 tokenId);
 
+    function createPoolETHFiltered(CreateETHPoolParams calldata params, NFTFilterParams calldata filterParams)
+        external
+        payable
+        returns (address pool, uint256 tokenId);
+
+    function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams) external returns (address pool, uint256 tokenId);
+
     function depositNFTs(
         uint256[] calldata ids,
         bytes32[] calldata proof,
@@ -147,6 +159,8 @@ interface ICollectionPoolFactory is IERC721 {
         address recipient,
         address from
     ) external;
+
+    function depositERC20(ERC20 token, uint256 amount, address recipient, address from) external;
 
     function burn(uint256 tokenId) external;
 

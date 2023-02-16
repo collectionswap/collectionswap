@@ -49,8 +49,8 @@ describe("CollectionPoolETH", function () {
   });
 
   async function collectionETHFixture() {
-    const { protocol, user, user1 } = await getSigners();
-    const { curve, factory, collectionDeployer } = await deployPoolContracts();
+    const { protocol, user, user1, safeOwner } = await getSigners();
+    const { curve, factory } = await deployPoolContracts();
     const { nft } = await nftFixture();
     const nftTokenIds = await mintRandomNfts(nft, user.address);
     await nft.connect(user).setApprovalForAll(factory.address, true);
@@ -61,7 +61,7 @@ describe("CollectionPoolETH", function () {
       getCurveParameters();
 
     const baseURI = "https://collection.xyz/api/";
-    await factory.connect(collectionDeployer).setBaseURI(baseURI);
+    await factory.connect(safeOwner).setBaseURI(baseURI);
 
     const resp = await factory.connect(user).createPoolETH({
       nft: nft.address,

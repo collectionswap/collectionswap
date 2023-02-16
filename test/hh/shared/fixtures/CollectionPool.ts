@@ -7,6 +7,7 @@ import {
   PoolType,
   PoolVariant,
 } from "../constants";
+import { externalFilterFixture } from "../fixtures";
 import {
   difference,
   getPoolAddress,
@@ -36,7 +37,7 @@ import type {
 } from "../../../../typechain-types/contracts/test/mocks";
 import type { IERC721Mintable } from "../types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import type { BigNumber, ContractTransaction } from "ethers";
+import type { BigNumber, BigNumberish, ContractTransaction } from "ethers";
 
 interface NFTContracts {
   test721: Test721;
@@ -149,6 +150,7 @@ async function createPool(
   nft: AnyNFT;
   heldIds: BigNumber[];
   tokenIDFilter?: TokenIDs;
+  bannedTokenIds?: BigNumberish[];
 }> {
   const nft = getNFT(
     { test721, test721Enumerable, test721EnumerableRoyalty, test721Royalty },
@@ -163,6 +165,17 @@ async function createPool(
     collectionPoolFactory.address,
     NUM_INITIAL_NFTS
   );
+
+  const bannedTokenIds = await mintAndApproveRandomNfts(
+    nft,
+    poolOwner,
+    collectionPoolFactory.address,
+    NUM_INITIAL_NFTS
+  );
+  const bannedNfts = bannedTokenIds.map((tokenId) => {
+    return { contractAddress: nft.address, tokenId };
+  });
+  const filterProvider = await externalFilterFixture(bannedNfts);
 
   const poolParams:
     | ICollectionPoolFactory.CreateETHPoolParamsStruct
@@ -207,6 +220,7 @@ async function createPool(
           encodedTokenIDs: tokenIDFilter.encode(),
           initialProof,
           initialProofFlags,
+          externalFilter: filterProvider.address,
         }
       );
   } else {

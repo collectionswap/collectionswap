@@ -3,6 +3,7 @@ import { TokenIDs } from "fummpel";
 import { ethers } from "hardhat";
 
 import {
+  externalFilterFixture,
   factoryFixture,
   filteredTradingFixture,
   genericTradingFixture,
@@ -74,6 +75,15 @@ function testPoolCreation(
       owner.address,
       TRADING_QUANTITY
     );
+    const bannedTokenIds = await mintRandomNfts(
+      nft as any,
+      owner.address,
+      TRADING_QUANTITY
+    );
+    const bannedNfts = bannedTokenIds.map((tokenId) => {
+      return { contractAddress: nft.address, tokenId };
+    });
+    const externalFilter = await externalFilterFixture(bannedNfts);
     const initialIds = pickRandomElements(tokenIds, numInitialIds);
     await nft.connect(owner).setApprovalForAll(factory.address, true);
 
@@ -117,6 +127,7 @@ function testPoolCreation(
         encodedTokenIDs,
         initialProof,
         initialProofFlags,
+        externalFilter: externalFilter.address,
       });
     }
 

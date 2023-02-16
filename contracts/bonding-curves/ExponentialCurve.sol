@@ -12,7 +12,7 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
     using FixedPointMathLib for uint256;
 
     // minimum price to prevent numerical issues
-    uint256 public constant MIN_PRICE = 1 gwei;
+    uint256 public constant MIN_PRICE = 100;
 
     /**
      * @dev See {ICurve-validateDelta}

@@ -6,7 +6,6 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 
@@ -29,7 +28,6 @@ import {CollectionPoolEnumerableERC20} from "./CollectionPoolEnumerableERC20.sol
 import {CollectionPoolMissingEnumerableETH} from "./CollectionPoolMissingEnumerableETH.sol";
 import {CollectionPoolMissingEnumerableERC20} from "./CollectionPoolMissingEnumerableERC20.sol";
 import {MultiPauser} from "../lib/MultiPauser.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
 contract CollectionPoolFactory is
     Ownable,
@@ -145,13 +143,23 @@ contract CollectionPoolFactory is
     }
 
     /**
+     * @notice Check if a pool is any of the templates deployed with this factory
+     */
+    function isPool(address potentialPool) public view returns (bool) {
+        return isPoolVariant(potentialPool, PoolVariant.ENUMERABLE_ERC20)
+            || isPoolVariant(potentialPool, PoolVariant.ENUMERABLE_ETH)
+            || isPoolVariant(potentialPool, PoolVariant.MISSING_ENUMERABLE_ERC20)
+            || isPoolVariant(potentialPool, PoolVariant.MISSING_ENUMERABLE_ETH);
+    }
+
+    /**
      * @notice Checks if an address is a CollectionPool. Uses the fact that the pools are EIP-1167 minimal proxies.
      * @param potentialPool The address to check
      * @param variant The pool variant (NFT is enumerable or not, pool uses ETH or ERC20)
      * @dev The PoolCloner contract is a utility contract that is used by the PoolFactory contract to create new instances of automated market maker (AMM) pools.
      * @return True if the address is the specified pool variant, false otherwise
      */
-    function isPool(address potentialPool, PoolVariant variant) public view override returns (bool) {
+    function isPoolVariant(address potentialPool, PoolVariant variant) public view returns (bool) {
         if (variant == PoolVariant.ENUMERABLE_ERC20) {
             return CollectionPoolCloner.isERC20PoolClone(address(this), address(enumerableERC20Template), potentialPool);
         } else if (variant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
@@ -221,6 +229,7 @@ contract CollectionPoolFactory is
             _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
             "NFT not allowed"
         );
+        _pool.setExternalFilter(address(filterParams.externalFilter));
 
         _initializePoolETH(_pool, params);
     }
@@ -250,6 +259,7 @@ contract CollectionPoolFactory is
             _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
             "NFT not allowed"
         );
+        _pool.setExternalFilter(address(filterParams.externalFilter));
 
         _initializePoolERC20(_pool, params);
     }
@@ -259,7 +269,7 @@ contract CollectionPoolFactory is
      */
 
     /**
-     * @dev Used to deposit NFTs into a pool after creation and emit an event for indexing (if recipient is indeed a pool)
+     * @dev Used to deposit NFTs into a pool after creation and emit an event for indexing
      */
     function depositNFTs(
         uint256[] calldata ids,
@@ -268,10 +278,7 @@ contract CollectionPoolFactory is
         address recipient,
         address from
     ) external {
-        bool _isPool = isPool(recipient, PoolVariant.ENUMERABLE_ERC20) || isPool(recipient, PoolVariant.ENUMERABLE_ETH)
-            || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ERC20)
-            || isPool(recipient, PoolVariant.MISSING_ENUMERABLE_ETH);
-
+        bool _isPool = isPool(recipient);
         require(_isPool, "Not a pool");
 
         CollectionPool pool = CollectionPool(recipient);
@@ -279,6 +286,20 @@ contract CollectionPoolFactory is
 
         // transfer NFTs from caller to recipient
         _depositNFTs(pool.nft(), ids, pool, from);
+    }
+
+    /**
+     * @dev Used to deposit ERC20 tokens into a pool after creation and emit an event for indexing
+     */
+    function depositERC20(ERC20 token, uint256 amount, address recipient, address from) external {
+        bool _isPool = isPool(recipient);
+        require(_isPool, "Not a pool");
+
+        CollectionPool pool = CollectionPool(recipient);
+
+        // transfer NFTs from caller to recipient
+        token.safeTransferFrom(from, recipient, amount);
+        pool.depositERC20Notification(token, amount);
     }
 
     /**

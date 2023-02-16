@@ -7,6 +7,7 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {ITokenIDFilter} from "../filter/ITokenIDFilter.sol";
+import {IExternalFilter} from "../filter/IExternalFilter.sol";
 
 interface ICollectionPool is ITokenIDFilter {
     enum PoolType {
@@ -46,6 +47,8 @@ interface ICollectionPool is ITokenIDFilter {
     function royaltyNumerator() external view returns (uint24);
 
     function poolSwapsPaused() external view returns (bool);
+
+    function externalFilter() external view returns (IExternalFilter);
 
     /**
      * @notice The usable balance of the pool. This is the amount the pool needs to have to buy NFTs and pay out royalties.
@@ -95,6 +98,12 @@ interface ICollectionPool is ITokenIDFilter {
      * @dev Must only be called by factory. NFT IDs must have been validated against the filter.
      */
     function depositNFTsNotification(uint256[] calldata nftIds) external;
+
+    /**
+     * @dev Used by factory to indicate deposited ERC20 tokens.
+     * @dev Must only be called by factory.
+     */
+    function depositERC20Notification(ERC20 a, uint256 amount) external;
 
     /**
      * @notice Returns number of NFTs in pool that matches filter
