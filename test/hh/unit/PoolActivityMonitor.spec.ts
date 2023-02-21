@@ -260,7 +260,8 @@ describe(`Testing pool monitor notifications`, function () {
               quote.outputAmount,
               trader.address,
               false,
-              ethers.constants.AddressZero
+              ethers.constants.AddressZero,
+              []
             );
           await expect(tx)
             .to.emit(poolMonitor, "SoldToPool")

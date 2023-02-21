@@ -412,7 +412,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint256 minExpectedTokenOutput,
         address payable tokenRecipient,
         bool isRouter,
-        address routerCaller
+        address routerCaller,
+        bytes calldata externalFilterContext
     ) external virtual nonReentrant whenPoolSwapsNotPaused returns (uint256 outputAmount) {
         // Store locally to remove extra calls
         ICollectionPoolFactory _factory = factory();
@@ -425,8 +426,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             if (_poolType == PoolType.NFT) revert InvalidSwap();
             if (nfts.ids.length <= 0) revert InvalidSwapQuantity();
             if (!acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags)) revert NFTsNotAccepted();
-            if (address(externalFilter) != address(0) && !externalFilter.areNFTsAllowed(address(nft()), nfts.ids))
-            {
+            if (
+                address(externalFilter) != address(0)
+                    && !externalFilter.areNFTsAllowed(address(nft()), nfts.ids, externalFilterContext)
+            ) {
                 revert NFTsNotAllowed();
             }
         }

@@ -146,7 +146,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: sellPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 inputAmount;
         (, , , inputAmount, ) = sellPool.getBuyNFTQuote(1);
@@ -172,7 +173,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: buyPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         router.swapNFTsForToken(
             swapList,
@@ -197,7 +199,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: buyPool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         // construct Token to NFT swap list
         CollectionRouter.PoolSwapAny[]
@@ -238,7 +241,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: buyPool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
 
         // construct token to NFT swap list
@@ -250,7 +254,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: sellPool,
             nftIds: buyNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 sellAmount;
         (, , , sellAmount, ) = sellPool.getBuyNFTQuote(1);
@@ -307,7 +312,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: sellPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
@@ -338,7 +344,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: buyPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         router.swapNFTsForToken(
             swapList,
@@ -364,7 +371,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: buyPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         (, , , uint256 outputAmount, ) = buyPool.getSellNFTQuote(1);
         uint256 output = router.swapNFTsForToken(
@@ -388,7 +396,8 @@ abstract contract RouterSinglePoolWithAssetRecipient is
             pool: sellPool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 inputAmount;
         (, , , inputAmount, ) = sellPool.getBuyNFTQuote(1);

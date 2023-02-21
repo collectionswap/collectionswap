@@ -77,7 +77,8 @@ describe("Royalties", function () {
           ethers.utils.parseEther("0"),
           trader.address,
           false,
-          ethers.constants.AddressZero
+          ethers.constants.AddressZero,
+          []
         )
       ).to.be.revertedWithCustomError(collectionPoolETH, "InvalidSwapQuantity");
 

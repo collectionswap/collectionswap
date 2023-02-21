@@ -25,7 +25,11 @@ contract TestExternalFilter is IExternalFilter, ERC165 {
         }
     }
 
-    function areNFTsAllowed(address collection, uint256[] calldata nftIds) external view returns (bool allowed) {
+    function areNFTsAllowed(address collection, uint256[] calldata nftIds, bytes calldata context)
+        external
+        view
+        returns (bool allowed)
+    {
         uint256 length = nftIds.length;
         for (uint256 i = 0; i < length;) {
             if (nftIsBanned[collection][nftIds[i]]) return false;

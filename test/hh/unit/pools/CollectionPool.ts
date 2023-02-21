@@ -975,7 +975,8 @@ export function testSwapNFTsForToken(
       overrides?.minExpectedTokenOutput || outputAmount,
       tokenRecipient,
       false,
-      constants.AddressZero
+      constants.AddressZero,
+      []
     );
   }
 

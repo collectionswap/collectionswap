@@ -138,7 +138,8 @@ abstract contract RouterMultiPool is
                 pool: pools[i + 1],
                 nftIds: nftIds,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             });
         }
         uint256 startBalance = test721.balanceOf(address(this));
@@ -172,7 +173,8 @@ abstract contract RouterMultiPool is
                 pool: pools[i + 1],
                 nftIds: nftIds,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             });
         }
         uint256 startBalance = test721.balanceOf(address(this));

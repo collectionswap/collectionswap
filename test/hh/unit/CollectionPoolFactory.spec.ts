@@ -386,9 +386,7 @@ describe("CollectionPoolFactory", function () {
                 const bannedNfts = bannedTokenIds.map((tokenId) => {
                   return { contractAddress: this.nft.address, tokenId };
                 });
-                const externalFilter = await externalFilterFixture(
-                  bannedNfts
-                );
+                const externalFilter = await externalFilterFixture(bannedNfts);
 
                 let filterParams;
                 if (tokenIds.length) {

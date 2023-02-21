@@ -835,9 +835,7 @@ export async function genericTradingFixture(nftFixture: NFTFixture): Promise<{
 export async function externalFilterFixture(
   bannedIds: { contractAddress: string; tokenId: BigNumberish }[]
 ) {
-  const contractFactory = await ethers.getContractFactory(
-    "TestExternalFilter"
-  );
+  const contractFactory = await ethers.getContractFactory("TestExternalFilter");
   return contractFactory.deploy(bannedIds);
 }
 

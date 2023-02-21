@@ -226,7 +226,8 @@ describe("CollectionPoolETH", function () {
       outputAmount,
       user1.address,
       false,
-      ethers.constants.AddressZero
+      ethers.constants.AddressZero,
+      []
     );
     expect(
       await changesEtherBalancesFuzzy(
@@ -362,7 +363,8 @@ describe("CollectionPoolETH", function () {
       outputAmount,
       user1.address,
       false,
-      ethers.constants.AddressZero
+      ethers.constants.AddressZero,
+      []
     );
     expect(
       await changesEtherBalancesFuzzy(
@@ -440,7 +442,8 @@ describe("CollectionPoolETH", function () {
       outputAmount,
       user1.address,
       false,
-      ethers.constants.AddressZero
+      ethers.constants.AddressZero,
+      []
     );
 
     console.log(tradeFee);
@@ -479,7 +482,8 @@ describe("CollectionPoolETH", function () {
         outputAmount,
         user1.address,
         false,
-        ethers.constants.AddressZero
+        ethers.constants.AddressZero,
+        []
       )
     ).to.be.revertedWithCustomError(collectionPoolETH, "InsufficientLiquidity");
   });
@@ -602,7 +606,8 @@ describe("CollectionPoolETH", function () {
         outputAmount,
         user1.address,
         false,
-        ethers.constants.AddressZero
+        ethers.constants.AddressZero,
+        []
       );
       expect(
         await changesEtherBalancesFuzzy(

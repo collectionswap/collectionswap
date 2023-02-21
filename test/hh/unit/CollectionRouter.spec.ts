@@ -194,6 +194,7 @@ describe("CollectionRouter", function () {
             nftIds,
             proof: [],
             proofFlags: [],
+            externalFilterContext: [],
           })) as CollectionRouter.PoolSwapSpecificStruct[]);
       let args: any[];
       if (tokenType === "ETH") {
@@ -335,6 +336,7 @@ describe("CollectionRouter", function () {
           nftIds: ids,
           proof,
           proofFlags,
+          externalFilterContext: [],
         })
       );
       return collectionRouter.swapNFTsForToken(

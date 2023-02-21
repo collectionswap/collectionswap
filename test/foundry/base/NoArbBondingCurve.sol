@@ -144,7 +144,8 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
                 0,
                 payable(address(this)),
                 false,
-                address(0)
+                address(0),
+            new bytes(0)
             );
             spotPrice = uint56(newParams.spotPrice);
         }
@@ -290,7 +291,8 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
                 0,
                 payable(address(this)),
                 false,
-                address(0)
+                address(0),
+            new bytes(0)
             );
             endBalance = getBalance(address(this));
         }

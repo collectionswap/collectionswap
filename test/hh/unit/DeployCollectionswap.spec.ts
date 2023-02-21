@@ -385,7 +385,8 @@ describe("Collectionswap", function () {
           bidInputAmount,
           externalTrader.address,
           false,
-          ethers.constants.AddressZero
+          ethers.constants.AddressZero,
+          []
         )
       ).to.be.revertedWith("ETH_TRANSFER_FAILED");
 
@@ -464,7 +465,8 @@ describe("Collectionswap", function () {
           bidInputAmount,
           externalTrader.address,
           false,
-          ethers.constants.AddressZero
+          ethers.constants.AddressZero,
+          []
         );
 
         const [
