@@ -225,7 +225,8 @@ abstract contract RouterRobustSwap is
                 pool: pool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             maxCost: pool2InputAmount
         });
@@ -234,7 +235,8 @@ abstract contract RouterRobustSwap is
                 pool: pool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             maxCost: pool2InputAmount
         });
@@ -243,7 +245,8 @@ abstract contract RouterRobustSwap is
                 pool: pool3,
                 nftIds: nftIds3,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             maxCost: pool2InputAmount
         });
@@ -300,7 +303,8 @@ abstract contract RouterRobustSwap is
                 pool: pool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -309,7 +313,8 @@ abstract contract RouterRobustSwap is
                 pool: pool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -318,7 +323,8 @@ abstract contract RouterRobustSwap is
                 pool: pool3,
                 nftIds: nftIds3,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -368,7 +374,8 @@ abstract contract RouterRobustSwap is
                 pool: pool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -377,7 +384,8 @@ abstract contract RouterRobustSwap is
                 pool: pool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -386,7 +394,8 @@ abstract contract RouterRobustSwap is
                 pool: pool3,
                 nftIds: nftIds3,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: pool2OutputAmount
         });
@@ -430,7 +439,8 @@ abstract contract RouterRobustSwap is
                 pool: pool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             maxCost: pool1InputAmount
         });
@@ -448,7 +458,8 @@ abstract contract RouterRobustSwap is
                 pool: pool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: pool2OutputAmount
         });

@@ -305,7 +305,8 @@ function testSell(
       minExpectedTokenOutput,
       trader.address,
       false,
-      ethers.constants.AddressZero
+      ethers.constants.AddressZero,
+      []
     );
     await expect(tx).to.emit(pool, "SwapNFTInPool");
     await recordGas(tx, "swapNFTsForToken", numSold);

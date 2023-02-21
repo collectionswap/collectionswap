@@ -23,6 +23,8 @@ contract CollectionRouter {
         uint256[] nftIds;
         bytes32[] proof;
         bool[] proofFlags;
+        /// @dev only used for selling into pools
+        bytes externalFilterContext;
     }
 
     struct RobustPoolSwapAny {
@@ -502,7 +504,8 @@ contract CollectionRouter {
                     0,
                     tokenRecipient,
                     true,
-                    msg.sender
+                    msg.sender,
+                    swapList[i].swapInfo.externalFilterContext
                 );
             }
 
@@ -592,7 +595,8 @@ contract CollectionRouter {
                         0,
                         params.tokenRecipient,
                         true,
-                        msg.sender
+                        msg.sender,
+                        params.nftToTokenTrades[i].swapInfo.externalFilterContext
                     );
                 }
 
@@ -676,7 +680,8 @@ contract CollectionRouter {
                         0,
                         params.tokenRecipient,
                         true,
-                        msg.sender
+                        msg.sender,
+                        params.nftToTokenTrades[i].swapInfo.externalFilterContext
                     );
                 }
 
@@ -939,7 +944,8 @@ contract CollectionRouter {
                 0,
                 tokenRecipient,
                 true,
-                msg.sender
+                msg.sender,
+                swapList[i].externalFilterContext
             );
 
             unchecked {

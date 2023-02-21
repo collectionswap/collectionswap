@@ -259,7 +259,8 @@ describe("Pausability", function () {
               quote,
               poolOwner.address,
               false,
-              ethers.constants.AddressZero
+              ethers.constants.AddressZero,
+              []
             )
         ).to.emit(pool2, "SwapNFTInPool");
       });
@@ -344,7 +345,8 @@ describe("Pausability", function () {
               quote,
               poolOwner.address,
               false,
-              ethers.constants.AddressZero
+              ethers.constants.AddressZero,
+              []
             )
         ).to.emit(pool, "SwapNFTInPool");
       });
@@ -379,7 +381,8 @@ describe("Pausability", function () {
               quote,
               poolOwner.address,
               false,
-              ethers.constants.AddressZero
+              ethers.constants.AddressZero,
+              []
             )
         ).to.be.revertedWithCustomError(pool, "SwapsArePaused");
       });
@@ -555,7 +558,8 @@ describe("Pausability", function () {
               quote,
               poolOwner.address,
               false,
-              ethers.constants.AddressZero
+              ethers.constants.AddressZero,
+              []
             )
         ).to.emit(pool, "SwapNFTInPool");
       });
@@ -590,7 +594,8 @@ describe("Pausability", function () {
               quote,
               poolOwner.address,
               false,
-              ethers.constants.AddressZero
+              ethers.constants.AddressZero,
+              []
             )
         ).to.be.revertedWithCustomError(pool, "SwapsArePaused");
       });
@@ -755,7 +760,7 @@ describe("Pausability", function () {
 
       const { newPoolAddress } = await getPoolAddress(tx);
       pool = (await ethers.getContractAt(
-        `CollectionPoolEnumerableETH`,
+        `CollectionPool`,
         newPoolAddress,
         user
       )) as CollectionPool;

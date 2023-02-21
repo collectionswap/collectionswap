@@ -214,7 +214,8 @@ contract CollectionRouter2 {
                         sellList[i].minOutputPerNumNFTs[numNFTs - 1],
                         payable(msg.sender),
                         true,
-                        msg.sender
+                        msg.sender,
+                        new bytes(0)
                     );
                 }
                 // Otherwise, run partial fill calculations
@@ -230,7 +231,8 @@ contract CollectionRouter2 {
                         priceToFillAt,
                         payable(msg.sender),
                         true,
-                        msg.sender
+                        msg.sender,
+                        new bytes(0)
                     );
                 }
                 unchecked {
@@ -409,7 +411,8 @@ contract CollectionRouter2 {
                     sellList[i].minOutput,
                     payable(msg.sender),
                     true,
-                    msg.sender
+                    msg.sender,
+                    new bytes(0)
                 );
 
                 unchecked {
@@ -441,7 +444,8 @@ contract CollectionRouter2 {
                     sellList[i].minOutput,
                     payable(address(this)), // Send funds here first
                     true,
-                    msg.sender
+                    msg.sender,
+                    new bytes(0)
                 );
 
                 unchecked {
@@ -532,7 +536,8 @@ contract CollectionRouter2 {
                 swapList[i].minOutput,
                 payable(msg.sender),
                 true,
-                msg.sender
+                msg.sender,
+                new bytes(0)
             );
 
             unchecked {

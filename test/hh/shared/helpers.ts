@@ -474,7 +474,8 @@ export async function sellToPool(
     bidInputAmount,
     externalTrader.address,
     false,
-    ethers.constants.AddressZero
+    ethers.constants.AddressZero,
+    []
   );
 }
 
@@ -753,7 +754,8 @@ export async function prepareQuoteValues(
         quote,
         trader.address,
         false,
-        ethers.constants.AddressZero
+        ethers.constants.AddressZero,
+        []
       )
     : isRandom
     ? // Buy random NFTs from pool

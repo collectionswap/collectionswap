@@ -209,7 +209,8 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
             quote,
             owner.address,
             false,
-            owner.address
+            owner.address,
+            []
           );
 
           let success = true;
@@ -269,7 +270,8 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
               quote,
               owner.address,
               false,
-              owner.address
+              owner.address,
+              []
             )
           ).to.be.reverted;
         }
@@ -529,7 +531,8 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
               0,
               owner.address,
               false,
-              owner.address
+              owner.address,
+              []
             );
           }
 
@@ -549,7 +552,8 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
             quote,
             owner.address,
             false,
-            owner.address
+            owner.address,
+            []
           );
 
           let success = true;
@@ -611,7 +615,8 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
               0,
               owner.address,
               false,
-              owner.address
+              owner.address,
+              []
             );
           }
 
@@ -635,7 +640,8 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
               quote,
               owner.address,
               false,
-              owner.address
+              owner.address,
+              []
             )
           ).to.be.reverted;
         }

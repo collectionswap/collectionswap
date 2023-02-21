@@ -27,6 +27,8 @@ contract MultiRouter {
         uint256[] nftIds;
         bytes32[] proof;
         bool[] proofFlags;
+        /// @dev only used for selling into pools
+        bytes externalFilterContext;
     }
 
     struct RobustPoolSwapSpecificWithToken {
@@ -129,7 +131,8 @@ contract MultiRouter {
                         0,
                         payable(msg.sender),
                         true,
-                        msg.sender
+                        msg.sender,
+                        params.nftToTokenTrades[i].swapInfo.externalFilterContext
                     );
                 }
 

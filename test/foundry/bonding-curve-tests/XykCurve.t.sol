@@ -416,7 +416,8 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
             outputValue,
             payable(address(this)),
             false,
-            address(0)
+            address(0),
+            new bytes(0)
         );
 
         // assert

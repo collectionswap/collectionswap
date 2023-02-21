@@ -354,7 +354,8 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                         0,
                         payable(address(this)),
                         true,
-                        msg.sender
+                        msg.sender,
+                        new bytes(0)
                     );
 
                     outputAmount += poolOutput - royaltyAmount;
@@ -385,7 +386,8 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                         0,
                         tokenRecipient,
                         true,
-                        msg.sender
+                        msg.sender,
+                        new bytes(0)
                     );
                 }
             }
@@ -494,7 +496,8 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                             0,
                             payable(address(this)),
                             true,
-                            msg.sender
+                            msg.sender,
+                            new bytes(0)
                         );
 
                         outputAmount += poolOutput - royaltyAmount;
@@ -527,7 +530,8 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                             0,
                             params.tokenRecipient,
                             true,
-                            msg.sender
+                            msg.sender,
+                            new bytes(0)
                         );
                     }
                 }
@@ -631,7 +635,8 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                             0,
                             payable(address(this)),
                             true,
-                            msg.sender
+                            msg.sender,
+                            new bytes(0)
                         );
 
                         outputAmount = outputAmount + poolOutput - royaltyAmount;
@@ -664,7 +669,8 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                             0,
                             params.tokenRecipient,
                             true,
-                            msg.sender
+                            msg.sender,
+                            new bytes(0)
                         );
                     }
                 }
@@ -883,7 +889,8 @@ contract CollectionRouterWithRoyalties is CollectionRouter {
                 0,
                 payable(address(this)),
                 true,
-                msg.sender
+                msg.sender,
+                new bytes(0)
             );
 
             RoyaltyType royaltyType = _fetchRoyaltyType(swap.pool);

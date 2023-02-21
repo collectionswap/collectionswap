@@ -12,5 +12,7 @@ interface IExternalFilter is IERC165 {
      * @param nftIds List of NFT IDs to check
      * @return allowed True if swap (pool buys) is allowed
      */
-    function areNFTsAllowed(address collection, uint256[] calldata nftIds) external returns (bool allowed);
+    function areNFTsAllowed(address collection, uint256[] calldata nftIds, bytes calldata context)
+        external
+        returns (bool allowed);
 }

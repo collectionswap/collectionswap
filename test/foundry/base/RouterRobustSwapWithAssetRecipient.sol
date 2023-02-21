@@ -189,7 +189,8 @@ abstract contract RouterRobustSwapWithAssetRecipient is
                 pool: sellPool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             maxCost: 0 ether
         });
@@ -198,7 +199,8 @@ abstract contract RouterRobustSwapWithAssetRecipient is
                 pool: sellPool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             maxCost: sellPool1Price
         });
@@ -233,7 +235,8 @@ abstract contract RouterRobustSwapWithAssetRecipient is
                 pool: buyPool1,
                 nftIds: nftIds1,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: buyPool1Price
         });
@@ -242,7 +245,8 @@ abstract contract RouterRobustSwapWithAssetRecipient is
                 pool: buyPool2,
                 nftIds: nftIds2,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+                externalFilterContext: new bytes(0)
             }),
             minOutput: 2 ether
         });

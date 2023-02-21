@@ -75,7 +75,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC721Holder {
         return interfaceId == type(IExternalFilter).interfaceId;
     }
 
-    function areNFTsAllowed(address, uint256[] calldata) external view returns (bool allowed) {
+    function areNFTsAllowed(address, uint256[] calldata, bytes calldata) external view returns (bool allowed) {
         return allTokensAllowed;
     }
 
@@ -86,7 +86,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC721Holder {
 
         ICollectionPool.NFTs memory nfts = ICollectionPool.NFTs(ids, proof, proofFlags);
 
-        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0));
+        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
     }
 
     function testInvalidExternalFilter() public {
@@ -126,7 +126,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC721Holder {
 
         ICollectionPool.NFTs memory nfts = ICollectionPool.NFTs(ids, proof, proofFlags);
 
-        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0));
+        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
     }
 
     function testNoExternalFilterBlocked() public {
@@ -139,7 +139,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC721Holder {
         ICollectionPool.NFTs memory nfts = ICollectionPool.NFTs(ids, proof, proofFlags);
 
         vm.expectRevert(CollectionPool.NFTsNotAllowed.selector);
-        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0));
+        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
     }
 
     function testExternalFilterReset() public {
@@ -152,10 +152,10 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC721Holder {
         ICollectionPool.NFTs memory nfts = ICollectionPool.NFTs(ids, proof, proofFlags);
 
         vm.expectRevert(CollectionPool.NFTsNotAllowed.selector);
-        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0));
+        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
 
         pool.setExternalFilter(address(0));
-        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0));
+        pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
     }
 
     function testACL() public {

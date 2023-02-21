@@ -138,7 +138,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 inputAmount;
         (, , , inputAmount, ) = pool.getBuyNFTQuote(1);
@@ -175,7 +176,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         router.swapNFTsForToken(
             swapList,
@@ -206,7 +208,8 @@ abstract contract RouterSinglePoolWithRoyalties is
                 pool: pool,
                 nftIds: nftIds,
                 proof: new bytes32[](0),
-                proofFlags: new bool[](0)
+                proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
             });
             router.swapNFTsForToken(
                 swapList,
@@ -231,7 +234,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         (, , , uint256 salePrice, ) = nftToTokenSwapList[0]
             .pool
@@ -299,7 +303,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: sellNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
 
         (, , , uint256 salePrice, ) = nftToTokenSwapList[0]
@@ -316,7 +321,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: buyNFTIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
 
         (, , , uint256 buyPrice, ) = tokenToNFTSwapList[0].pool.getBuyNFTQuote(
@@ -401,7 +407,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 startBalance = test721.balanceOf(address(this));
         uint256 inputAmount;
@@ -443,7 +450,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         router.swapNFTsForToken(
             swapList,
@@ -484,7 +492,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 inputAmount;
         (, , , inputAmount, ) = pool.getBuyNFTQuote(1);
@@ -510,7 +519,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 sellAmount;
         (, , , sellAmount, ) = pool.getSellNFTQuote(1);
@@ -559,7 +569,8 @@ abstract contract RouterSinglePoolWithRoyalties is
             pool: pool,
             nftIds: nftIds,
             proof: new bytes32[](0),
-            proofFlags: new bool[](0)
+            proofFlags: new bool[](0),
+            externalFilterContext: new bytes(0)
         });
         uint256 sellAmount;
         (, , , sellAmount, ) = pool.getSellNFTQuote(1);
