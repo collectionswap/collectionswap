@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {ITokenIDFilter} from "../filter/ITokenIDFilter.sol";
@@ -33,6 +34,8 @@ interface ICollectionPool is ITokenIDFilter {
      * @notice Only tracked IDs are returned
      */
     function getAllHeldIds() external view returns (uint256[] memory);
+
+    function poolVariant() external view returns (ICollectionPoolFactory.PoolVariant);
 
     function delta() external view returns (uint128);
 

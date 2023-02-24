@@ -16,6 +16,7 @@ import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
 import {TransferLib} from "../lib/TransferLib.sol";
 
+import {ICollectionPool} from "./ICollectionPool.sol";
 import {CollectionPool} from "./CollectionPool.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {CollectionPoolETH} from "./CollectionPoolETH.sol";
@@ -134,10 +135,10 @@ contract CollectionPoolFactory is
     }
 
     /**
-     * @dev See {ICollectionPoolFactory-poolAddressOf}.
+     * @dev See {ICollectionPoolFactory-poolOf}.
      */
-    function poolAddressOf(uint256 tokenId) public pure returns (address) {
-        return address(uint160(tokenId));
+    function poolOf(uint256 tokenId) public pure returns (ICollectionPool) {
+        return ICollectionPool(address(uint160(tokenId)));
     }
 
     /**
@@ -311,17 +312,16 @@ contract CollectionPoolFactory is
      */
     function burn(uint256 tokenId) external nonReentrant {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Not approved");
-        address poolAddress = poolAddressOf(tokenId);
-        CollectionPool pool = CollectionPool(poolAddress);
+        ICollectionPool pool = poolOf(tokenId);
         PoolVariant poolVariant = pool.poolVariant();
 
         // withdraw all ETH / ERC20
         if (poolVariant == PoolVariant.ENUMERABLE_ETH || poolVariant == PoolVariant.MISSING_ENUMERABLE_ETH) {
             // withdraw ETH, sent to owner of LP token
-            CollectionPoolETH(payable(poolAddress)).withdrawAllETH();
+            CollectionPoolETH(payable(address(pool))).withdrawAllETH();
         } else if (poolVariant == PoolVariant.ENUMERABLE_ERC20 || poolVariant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
             // withdraw ERC20
-            CollectionPoolERC20(poolAddress).withdrawAllERC20();
+            CollectionPoolERC20(payable(address(pool))).withdrawAllERC20();
         }
         // then withdraw NFTs
         pool.withdrawERC721(pool.nft(), pool.getAllHeldIds());

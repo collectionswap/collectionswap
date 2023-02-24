@@ -167,7 +167,7 @@ interface ICollectionPoolFactory is IERC721 {
     function burn(uint256 tokenId) external;
 
     /**
-     * @dev Returns the pool address of the `tokenId` token.
+     * @dev Returns the pool of the `tokenId` token.
      */
-    function poolAddressOf(uint256 tokenId) external view returns (address);
+    function poolOf(uint256 tokenId) external view returns (ICollectionPool);
 }
