@@ -1040,12 +1040,13 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param target The contract to call
      * @param data The calldata to pass to the contract
      */
-    function call(address payable target, bytes calldata data) external onlyAuthorized {
+    function call(address payable target, bytes calldata data) external onlyAuthorized returns (bytes memory) {
         ICollectionPoolFactory _factory = factory();
         // Only whitelisted targets can be called
         if (!_factory.callAllowed(target)) revert CallError();
-        (bool result,) = target.call{value: 0}(data);
+        (bool result, bytes memory returnData) = target.call{value: 0}(data);
         if (!result) revert CallError();
+        return returnData;
     }
 
     /**
