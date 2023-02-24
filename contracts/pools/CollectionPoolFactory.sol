@@ -16,11 +16,11 @@ import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
 import {TransferLib} from "../lib/TransferLib.sol";
 
-import {CollectionPool} from ".//CollectionPool.sol";
+import {CollectionPool} from "./CollectionPool.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {CollectionPoolETH} from "./CollectionPoolETH.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
-import {CollectionPoolERC20} from ".//CollectionPoolERC20.sol";
+import {CollectionPoolERC20} from "./CollectionPoolERC20.sol";
 import {CollectionPoolCloner} from "../lib/CollectionPoolCloner.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CollectionPoolEnumerableETH} from "./CollectionPoolEnumerableETH.sol";
