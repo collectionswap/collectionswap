@@ -78,10 +78,8 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         // (delta * rawAmount) + (delta^2 * rawAmount) + ... (delta^(numItems) * rawAmount)
         // This is equal to (rawAmount * delta) * (delta^n - 1) / (delta - 1)
         // Note that this amount needs to have fees applied to it
-        inputValue = (rawAmount.fmul(delta, FixedPointMathLib.WAD)).fmul(
-            (deltaPowN - FixedPointMathLib.WAD).fdiv(delta - FixedPointMathLib.WAD, FixedPointMathLib.WAD),
-            FixedPointMathLib.WAD
-        );
+        inputValue = rawAmount.fmul(delta, FixedPointMathLib.WAD) * (deltaPowN - FixedPointMathLib.WAD)
+            / (delta - FixedPointMathLib.WAD);
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
@@ -151,10 +149,8 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         // This is equal to (rawAmount / delta) * (1 - (1 / delta^n)) / (1 - (1 / delta))
         uint256 invDelta = FixedPointMathLib.WAD.fdiv(delta, FixedPointMathLib.WAD);
         uint256 invDeltaPowN = invDelta.fpow(numItems, FixedPointMathLib.WAD);
-        outputValue = rawAmount.fdiv(delta, FixedPointMathLib.WAD).fmul(
-            (FixedPointMathLib.WAD - invDeltaPowN).fdiv(FixedPointMathLib.WAD - invDelta, FixedPointMathLib.WAD),
-            FixedPointMathLib.WAD
-        );
+        outputValue = rawAmount.fdiv(delta, FixedPointMathLib.WAD) * (FixedPointMathLib.WAD - invDeltaPowN)
+            / (FixedPointMathLib.WAD - invDelta);
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
