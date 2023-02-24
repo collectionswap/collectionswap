@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Test20} from "../../../contracts/test/mocks/Test20.sol";
@@ -21,7 +22,7 @@ import {CollectionPoolEnumerableETH} from "../../../contracts/pools/CollectionPo
 import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
 
-abstract contract ExternalFilter is Test, IExternalFilter, ERC721Holder {
+abstract contract ExternalFilter is Test, IExternalFilter, ERC165, ERC721Holder {
     CollectionPool pool;
     Factory factory; // actually a mock
     IERC721Mintable collection;
@@ -71,8 +72,8 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC721Holder {
         proofFlags[6] = true;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IExternalFilter).interfaceId;
+    function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165, ERC165) returns (bool) {
+        return super.supportsInterface(interfaceId) || interfaceId == type(IExternalFilter).interfaceId;
     }
 
     function areNFTsAllowed(address, uint256[] calldata, bytes calldata) external view returns (bool allowed) {
@@ -99,8 +100,13 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC721Holder {
         vm.expectRevert(CollectionPool.InvalidExternalFilter.selector);
         pool.setExternalFilter(empty);
 
+        // fake IERC165
+        address erc165 = address(new ERC165Fake());
+        vm.expectRevert(CollectionPool.InvalidExternalFilter.selector);
+        pool.setExternalFilter(erc165);
+
         // not IExternalFilter
-        address erc165 = address(new ERC165());
+        erc165 = address(new ERC165Mock());
         vm.expectRevert(CollectionPool.InvalidExternalFilter.selector);
         pool.setExternalFilter(erc165);
     }
@@ -207,9 +213,17 @@ contract ExternalFilterEnumerableETH is ExternalFilter {
 
 contract Empty {}
 
-contract ERC165 is IERC165 {
+contract ERC165Fake is IERC165 {
+    /// @dev By right, this should accept type(IERC165).interfaceId
     function supportsInterface(bytes4) external pure returns (bool) {
         return false;
+    }
+}
+
+contract ERC165Mock is IERC165 {
+    /// @dev By right, this should accept 
+    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+        return type(IERC165).interfaceId == interfaceId;
     }
 }
 

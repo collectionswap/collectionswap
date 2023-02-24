@@ -293,13 +293,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         }
 
         if (isContract(provider)) {
-            try IERC165(provider).supportsInterface(type(IExternalFilter).interfaceId) returns (bool isFilter) {
-                if (isFilter) {
-                    externalFilter = IExternalFilter(provider);
-                    emit ExternalFilterSet(address(nft()), provider);
-                    return;
-                }
-            } catch {}
+            if (contractImplementsInterface(provider, type(IExternalFilter).interfaceId)) {
+                externalFilter = IExternalFilter(provider);
+                emit ExternalFilterSet(address(nft()), provider);
+                return;
+            }
         }
 
         revert InvalidExternalFilter();
@@ -681,6 +679,51 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /**
      * Internal functions
      */
+
+    /**
+     * Taken from https://eips.ethereum.org/EIPS/eip-165#how-to-detect-if-a-contract-implements-any-given-interface
+     */
+    function contractImplementsInterface(address _contract, bytes4 _interfaceId) internal view returns (bool) {
+        uint256 success;
+        uint256 result;
+
+        (success, result) = noThrowCall(_contract, 0x01ffc9a7);
+        if ((success == 0) || (result == 0)) {
+            return false;
+        }
+
+        (success, result) = noThrowCall(_contract, 0xffffffff);
+        if ((success == 0) || (result != 0)) {
+            return false;
+        }
+
+        (success, result) = noThrowCall(_contract, _interfaceId);
+        if ((success == 1) && (result == 1)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Taken from https://eips.ethereum.org/EIPS/eip-165#how-to-detect-if-a-contract-implements-any-given-interface
+     */
+    function noThrowCall(address _contract, bytes4 _interfaceId)
+        internal
+        view
+        returns (uint256 success, uint256 result)
+    {
+        bytes4 erc165ID = 0x01ffc9a7; // ERC165 ID
+
+        assembly {
+            let x := mload(0x40) // Find empty storage location using "free memory pointer"
+            mstore(x, erc165ID) // Place signature at beginning of empty storage
+            mstore(add(x, 0x04), _interfaceId) // Place first argument directly next to signature
+
+            success := staticcall(30000, _contract, x, 0x24, x, 0x20)
+
+            result := mload(x) // Load the result
+        }
+    }
 
     /**
      * @notice Calculates the amount needed to be sent into the pool for a buy and adjusts spot price or delta if necessary
@@ -1176,11 +1219,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     function notifyChanges(IPoolActivityMonitor.EventType eventType, uint256[] memory amounts) internal {
         if (isContract(owner())) {
-            try IERC165(owner()).supportsInterface(type(IPoolActivityMonitor).interfaceId) returns (bool isMonitored) {
-                if (isMonitored) {
-                    IPoolActivityMonitor(owner()).onBalancesChanged(address(this), eventType, amounts);
-                }
-            } catch {}
+            if (contractImplementsInterface(owner(), type(IPoolActivityMonitor).interfaceId)) {
+                IPoolActivityMonitor(owner()).onBalancesChanged(address(this), eventType, amounts);
+            }
         }
     }
 
