@@ -5,27 +5,28 @@ import {Curve} from "./Curve.sol";
 import {CurveErrorCodes} from "./CurveErrorCodes.sol";
 import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 
-/*
-    @author Collection
-    @notice Bonding curve logic for an exponential curve, where each buy/sell changes spot price by multiplying/dividing delta*/
+/**
+ * @author Collection
+ * @notice Bonding curve logic for an exponential curve, where each buy/sell
+ * changes spot price by multiplying/dividing delta. To prevent price slippage,
+ * the `state` of pools is used to store the change in number of NFTs this pool
+ * has. This value is only updated upon swaps, so depositing/withdrawing does
+ * not change the prices quoted by the pool.
+ *
+ *
+ * @dev This curve stores the initial spotPrice in spotPrice and does not update
+ * its value. delta is the percent change per nft traded and 1e18 is unity (i.e.
+ * price will not change and curve is horizontal). State encodes the change in
+ * number of NFTs this pool has.
+ */
 contract ExponentialCurve is Curve, CurveErrorCodes {
     using FixedPointMathLib for uint256;
-
-    // minimum price to prevent numerical issues
-    uint256 public constant MIN_PRICE = 100;
 
     /**
      * @dev See {ICurve-validateDelta}
      */
     function validateDelta(uint128 delta) external pure override returns (bool) {
         return delta > FixedPointMathLib.WAD;
-    }
-
-    /**
-     * @dev See {ICurve-validateSpotPrice}
-     */
-    function validateSpotPrice(uint128 newSpotPrice) external pure override returns (bool) {
-        return newSpotPrice >= MIN_PRICE;
     }
 
     /**
@@ -39,20 +40,20 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
         // We only calculate changes for buying 1 or more NFTs
-        uint128 delta = params.delta;
-
         if (numItems == 0) {
             return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
-        uint256 deltaPowN = uint256(delta).fpow(numItems, FixedPointMathLib.WAD);
-
-        // For an exponential curve, the spot price is multiplied by delta for each item bought
-        uint256 newSpotPrice_ = uint256(params.spotPrice).fmul(deltaPowN, FixedPointMathLib.WAD);
-        if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
+        if (numItems > uint256(type(int256).max)) {
+            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
-        newParams.spotPrice = uint128(newSpotPrice_);
+
+        uint128 delta = params.delta;
+        int256 deltaN = decodeDeltaN(params.state);
+
+        newParams.spotPrice = params.spotPrice;
+        newParams.delta = delta;
+        newParams.state = encodeDeltaN(deltaN - int256(numItems));
 
         // Spot price is assumed to be the instant sell price. To avoid arbitraging LPs, we adjust the buy price upwards.
         // If spot price for buy and sell were the same, then someone could buy 1 NFT and then sell for immediate profit.
@@ -60,43 +61,47 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         // The same person could then sell for (S * delta) ETH, netting them delta ETH profit.
         // If spot price for buy and sell differ by delta, then buying costs (S * delta) ETH.
         // The new spot price would become (S * delta), so selling would also yield (S * delta) ETH.
-        uint256 buySpotPrice = uint256(params.spotPrice).fmul(delta, FixedPointMathLib.WAD);
 
+        /// @dev The buy now price of 1 item is spotPrice * delta ^ (1 - deltaN).
+        /// It is convenient for now to calculate spotPrice * delta ^ (-deltaN).
+        /// FixedPointMathLib takes only nonnegative exponents. Thus,
+        /// if -deltaN < 0 i.e. deltaN >= 0, then we can do the exponentiation
+        /// by calculating spotPrice * (1/delta) ^ (deltaN). If deltaN == 0 however,
+        /// we do not need to do exponentiation or division so we check for deltaN > 0.
+        uint256 deltaPowQty = deltaN > 0
+            ? FixedPointMathLib.WAD.fdiv(delta, FixedPointMathLib.WAD).fpow(uint256(deltaN), FixedPointMathLib.WAD)
+            : uint256(delta).fpow(uint256(-deltaN), FixedPointMathLib.WAD);
+        uint256 rawAmount = uint256(params.spotPrice).fmul(deltaPowQty, FixedPointMathLib.WAD);
+
+        uint256 deltaPowN = uint256(delta).fpow(numItems, FixedPointMathLib.WAD);
         // If the user buys n items, then the total cost is equal to:
-        // buySpotPrice + (delta * buySpotPrice) + (delta^2 * buySpotPrice) + ... (delta^(numItems - 1) * buySpotPrice)
-        // This is equal to buySpotPrice * (delta^n - 1) / (delta - 1)
-        inputValue = buySpotPrice.fmul(
+        // (delta * rawAmount) + (delta^2 * rawAmount) + ... (delta^(numItems) * rawAmount)
+        // This is equal to (rawAmount * delta) * (delta^n - 1) / (delta - 1)
+        // Note that this amount needs to have fees applied to it
+        inputValue = (rawAmount.fmul(delta, FixedPointMathLib.WAD)).fmul(
             (deltaPowN - FixedPointMathLib.WAD).fdiv(delta - FixedPointMathLib.WAD, FixedPointMathLib.WAD),
             FixedPointMathLib.WAD
         );
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
-        uint256 rawAmount;
         uint256 royaltyAmount;
+        /// @dev Loop to calculate royalty amounts and get last swap price
         for (uint256 i = 0; i < numItems;) {
-            rawAmount = buySpotPrice.fmul(uint256(delta).fpow(i, FixedPointMathLib.WAD), FixedPointMathLib.WAD);
+            rawAmount = rawAmount.fmul(delta, FixedPointMathLib.WAD);
             royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
-
-            if (i == numItems - 1) {
-                /// @dev royalty breakdown not needed if fees aren't used
-                (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
-            }
 
             unchecked {
                 ++i;
             }
         }
 
+        /// @dev royalty breakdown not needed if fees aren't used
+        (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
+
         (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
-
-        // Keep delta the same
-        newParams.delta = delta;
-
-        // Keep state the same
-        newParams.state = params.state;
 
         // If we got all the way here, no math error happened
         error = Error.OK;
@@ -104,9 +109,6 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
 
     /**
      * @dev See {ICurve-getSellInfo}
-     * If newSpotPrice is less than MIN_PRICE, newSpotPrice is set to MIN_PRICE instead.
-     * This is to prevent the spot price from ever becoming 0, which would decouple the price
-     * from the bonding curve (since 0 * delta is still 0)
      */
     function getSellInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
@@ -121,57 +123,68 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
             return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
-        uint256 invDelta = FixedPointMathLib.WAD.fdiv(params.delta, FixedPointMathLib.WAD);
-
-        // Locally scoped to avoid stack too deep
-        {
-            uint256 invDeltaPowN = invDelta.fpow(numItems, FixedPointMathLib.WAD);
-
-            // For an exponential curve, the spot price is divided by delta for each item sold
-            // safe to convert newSpotPrice directly into uint128 since we know newSpotPrice <= spotPrice
-            // and spotPrice <= type(uint128).max
-            newParams.spotPrice = uint128(uint256(params.spotPrice).fmul(invDeltaPowN, FixedPointMathLib.WAD));
-            if (newParams.spotPrice < MIN_PRICE) {
-                newParams.spotPrice = uint128(MIN_PRICE);
-            }
-
-            // If the user sells n items, then the total revenue is equal to:
-            // spotPrice + ((1 / delta) * spotPrice) + ((1 / delta)^2 * spotPrice) + ... ((1 / delta)^(numItems - 1) * spotPrice)
-            // This is equal to spotPrice * (1 - (1 / delta^n)) / (1 - (1 / delta))
-            outputValue = uint256(params.spotPrice).fmul(
-                (FixedPointMathLib.WAD - invDeltaPowN).fdiv(FixedPointMathLib.WAD - invDelta, FixedPointMathLib.WAD),
-                FixedPointMathLib.WAD
-            );
+        if (numItems > uint256(type(int256).max)) {
+            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
+
+        int256 deltaN = decodeDeltaN(params.state);
+        uint128 delta = params.delta;
+
+        newParams.spotPrice = params.spotPrice;
+        newParams.delta = delta;
+        newParams.state = encodeDeltaN(deltaN + int256(numItems));
+
+        /// @dev The sell now price of 1 item is spotPrice * delta ^ (-deltaN).
+        /// It is convenient for now to calculate spotPrice * delta ^ (1 - deltaN).
+        /// FixedPointMathLib takes only nonnegative exponents. Thus,
+        /// if 1 - deltaN < 0 i.e. deltaN > 1, then we can do the exponentiation
+        /// by calculating spotPrice * (1/delta) ^ (deltaN - 1).
+
+        uint256 rawAmount;
+        uint256 deltaPowQty = deltaN > 1
+            ? FixedPointMathLib.WAD.fdiv(delta, FixedPointMathLib.WAD).fpow(uint256(deltaN - 1), FixedPointMathLib.WAD)
+            : uint256(delta).fpow(uint256(1 - deltaN), FixedPointMathLib.WAD);
+        rawAmount = uint256(params.spotPrice).fmul(deltaPowQty, FixedPointMathLib.WAD);
+
+        // If the user sells n items, then the total revenue is equal to:
+        // ((1 / delta) * rawAmount) + ((1 / delta)^2 * rawAmount) + ... ((1 / delta)^(numItems) * rawAmount)
+        // This is equal to (rawAmount / delta) * (1 - (1 / delta^n)) / (1 - (1 / delta))
+        uint256 invDelta = FixedPointMathLib.WAD.fdiv(delta, FixedPointMathLib.WAD);
+        uint256 invDeltaPowN = invDelta.fpow(numItems, FixedPointMathLib.WAD);
+        outputValue = rawAmount.fdiv(delta, FixedPointMathLib.WAD).fmul(
+            (FixedPointMathLib.WAD - invDeltaPowN).fdiv(FixedPointMathLib.WAD - invDelta, FixedPointMathLib.WAD),
+            FixedPointMathLib.WAD
+        );
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
+        uint256 royaltyAmount;
+        /// @dev Loop to calculate royalty amounts and get last swap price
         for (uint256 i = 0; i < numItems;) {
-            uint256 invDeltaPowI = invDelta.fpow(i, FixedPointMathLib.WAD);
-            uint256 rawAmount = uint256(params.spotPrice).fmul(invDeltaPowI, FixedPointMathLib.WAD);
-            uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+            rawAmount = rawAmount.fdiv(delta, FixedPointMathLib.WAD);
+            royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
-
-            if (i == numItems - 1) {
-                /// @dev royalty breakdown not needed if fee return value not used
-                (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
-            }
 
             unchecked {
                 ++i;
             }
         }
 
+        /// @dev royalty breakdown not needed if fee return value not used
+        (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
+
         (outputValue, fees) = getOutputValueAndFees(feeMultipliers, outputValue, fees.royalties, totalRoyalty);
-
-        // Keep delta the same
-        newParams.delta = params.delta;
-
-        // Keep state the same
-        newParams.state = params.state;
 
         // If we got all the way here, no math error happened
         error = Error.OK;
+    }
+
+    function decodeDeltaN(bytes calldata state) internal pure returns (int256) {
+        return abi.decode(state, (int256));
+    }
+
+    function encodeDeltaN(int256 deltaN) internal pure returns (bytes memory) {
+        return abi.encode(deltaN);
     }
 }
