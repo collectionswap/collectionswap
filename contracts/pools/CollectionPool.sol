@@ -1095,18 +1095,25 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         royaltiesDue = new RoyaltyDue[](length);
         bool is2981 = IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981);
         if (royaltyNumerator != 0) {
-            for (uint256 i = 0; i < length;) {
-                // 2981 recipient, if nft is 2981 and recipient is set.
-                address recipient2981;
-                if (is2981) {
-                    (recipient2981,) = IERC2981(address(_nft)).royaltyInfo(nftIds[i], 0);
+            if (is2981) {
+                for (uint256 i = 0; i < length;) {
+                    // 2981 recipient, if nft is 2981 and recipient is set.
+                    (address recipient2981,) = IERC2981(address(_nft)).royaltyInfo(nftIds[i], 0);
+                    address recipient = getRoyaltyRecipient(payable(recipient2981));
+                    royaltiesDue[i] = RoyaltyDue({amount: royaltyAmounts[i], recipient: recipient});
+
+                    unchecked {
+                        ++i;
+                    }
                 }
+            } else {
+                for (uint256 i = 0; i < length;) {
+                    address recipient = getRoyaltyRecipient(payable(address(0)));
+                    royaltiesDue[i] = RoyaltyDue({amount: royaltyAmounts[i], recipient: recipient});
 
-                address recipient = getRoyaltyRecipient(payable(recipient2981));
-                royaltiesDue[i] = RoyaltyDue({amount: royaltyAmounts[i], recipient: recipient});
-
-                unchecked {
-                    ++i;
+                    unchecked {
+                        ++i;
+                    }
                 }
             }
         }
