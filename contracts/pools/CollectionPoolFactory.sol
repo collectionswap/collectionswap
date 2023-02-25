@@ -593,7 +593,14 @@ contract CollectionPoolFactory is
     /**
      * @notice Allows receiving ETH in order to receive protocol fees
      */
-    receive() external payable {}
+    receive() external payable {
+      /**
+       * No logic needed here:
+       * - Factory needs to accept all transfers so that swaps don't fail to send token to
+       * appropriate recipients when paying protocol fees/royalties.
+       * - No bookkeeping is needed upon ETH receipt.
+       */
+    }
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override (ERC721) {
         super._beforeTokenTransfer(from, to, tokenId);
