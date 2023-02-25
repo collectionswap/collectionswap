@@ -602,10 +602,6 @@ contract CollectionPoolFactory is
        */
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override (ERC721) {
-        super._beforeTokenTransfer(from, to, tokenId);
-    }
-
     function _burn(uint256 tokenId) internal override (ERC721, ERC721URIStorage) {
         super._burn(tokenId);
     }
