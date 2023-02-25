@@ -573,7 +573,7 @@ contract CollectionPoolFactory is
      * @dev Mints LP token using pool address as Token ID
      */
     function mint(address recipient, CollectionPool pool) internal returns (uint256 tokenId) {
-        tokenId = uint256(uint160(address(pool)));
+        tokenId = uint160(address(pool));
         _safeMint(recipient, tokenId);
     }
 
