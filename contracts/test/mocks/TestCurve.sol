@@ -1,6 +1,5 @@
 pragma solidity ^0.8.0;
 
-import {CurveErrorCodes} from "../../bonding-curves/CurveErrorCodes.sol";
 import {Curve} from "../../bonding-curves/Curve.sol";
 import {FixedPointMathLib} from "../../lib/FixedPointMathLib.sol";
 
@@ -10,13 +9,7 @@ contract TestCurve is Curve {
     function getBuyInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         view
-        returns (
-            CurveErrorCodes.Error error,
-            Params memory newParams,
-            uint256 inputValue,
-            Fees memory fees,
-            uint256 lastSwapPrice
-        )
+        returns (Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // use value as seed to generate pseudorandom numbers
         uint256 value = uint256(bytes32(params.state));
@@ -46,13 +39,7 @@ contract TestCurve is Curve {
     function getSellInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         view
-        returns (
-            CurveErrorCodes.Error error,
-            Params memory newParams,
-            uint256 outputValue,
-            Fees memory fees,
-            uint256 lastSwapPrice
-        )
+        returns (Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // use value as seed to generate pseudorandom numbers
         uint256 value = uint256(bytes32(params.state));

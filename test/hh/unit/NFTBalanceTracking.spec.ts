@@ -295,7 +295,7 @@ function testSell(
     const initialBalance = await pool.getAllHeldIds();
     const tokenIds = pickRandomElements(traderNfts, numSold + 1);
     const multiproof = filter?.proof(tokenIds.map(toBigInt));
-    const minExpectedTokenOutput = (await pool.getSellNFTQuote(numSold + 1))[3];
+    const minExpectedTokenOutput = (await pool.getSellNFTQuote(numSold + 1))[2];
     const tx = await pool.connect(trader).swapNFTsForToken(
       {
         ids: multiproof?.leaves ?? tokenIds,
@@ -344,7 +344,7 @@ function testBuySpecific(
 
     // Pick the legit tokenIds to withdraw
     const tokenIds = pickRandomElements(poolIds, numBought);
-    const maxExpectedTokenInput = (await pool.getBuyNFTQuote(numBought))[3];
+    const maxExpectedTokenInput = (await pool.getBuyNFTQuote(numBought))[2];
 
     // Withdraw fakes and do test
     if (withdrawBeforeTest) {
@@ -405,7 +405,7 @@ function testBuyAny(
     }
 
     const poolIds = await pool.getAllHeldIds();
-    const maxExpectedTokenInput = (await pool.getBuyNFTQuote(numBought))[3];
+    const maxExpectedTokenInput = (await pool.getBuyNFTQuote(numBought))[2];
 
     // Withdraw fakes and do test
     if (withdrawBeforeTest) {

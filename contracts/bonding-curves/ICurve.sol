@@ -94,7 +94,6 @@ interface ICurve {
      * @param params Parameters of the pool that affect the bonding curve.
      * @param numItems The number of NFTs the user is buying from the pool
      * @param feeMultipliers Determines how much fee is taken from this trade.
-     * @return error Any math calculation errors, only Error.OK means the returned values are valid
      * @return newParams The updated parameters of the pool that affect the bonding curve.
      * @return inputValue The amount that the user should pay, in tokens
      * @return fees The amount of fees
@@ -103,13 +102,7 @@ interface ICurve {
     function getBuyInfo(ICurve.Params calldata params, uint256 numItems, ICurve.FeeMultipliers calldata feeMultipliers)
         external
         view
-        returns (
-            CurveErrorCodes.Error error,
-            ICurve.Params calldata newParams,
-            uint256 inputValue,
-            ICurve.Fees calldata fees,
-            uint256 lastSwapPrice
-        );
+        returns (ICurve.Params calldata newParams, uint256 inputValue, ICurve.Fees calldata fees, uint256 lastSwapPrice);
 
     /**
      * @notice Given the current state of the pool and the trade, computes how much the user
@@ -120,7 +113,6 @@ interface ICurve {
      * @param params Parameters of the pool that affect the bonding curve.
      * @param numItems The number of NFTs the user is selling to the pool
      * @param feeMultipliers Determines how much fee is taken from this trade.
-     * @return error Any math calculation errors, only Error.OK means the returned values are valid
      * @return newParams The updated parameters of the pool that affect the bonding curve.
      * @return outputValue The amount that the user should receive, in tokens
      * @return fees The amount of fees
@@ -130,7 +122,6 @@ interface ICurve {
         external
         view
         returns (
-            CurveErrorCodes.Error error,
             ICurve.Params calldata newParams,
             uint256 outputValue,
             ICurve.Fees calldata fees,

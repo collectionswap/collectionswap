@@ -30,20 +30,16 @@ contract XykCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
         // get the pool's virtual nft and eth/erc20 reserves
         uint256 tokenBalance = params.spotPrice;
         uint256 nftBalance = params.delta;
 
         // If numItems is too large, we will get divide by zero error
-        if (numItems >= nftBalance) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems >= nftBalance) revert InvalidNumItems();
 
         // calculate the amount to send in
         uint256 inputValueWithoutFee = (numItems * tokenBalance) / (nftBalance - numItems);
@@ -77,9 +73,6 @@ contract XykCurve is Curve, CurveErrorCodes {
 
         // Keep state the same
         newParams.state = params.state;
-
-        // If we got all the way here, no math error happened
-        error = Error.OK;
     }
 
     /**
@@ -89,11 +82,9 @@ contract XykCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
         // get the pool's virtual nft and eth/erc20 balance
         uint256 tokenBalance = params.spotPrice;
@@ -135,9 +126,6 @@ contract XykCurve is Curve, CurveErrorCodes {
 
         // Keep state the same
         newParams.state = params.state;
-
-        // If we got all the way here, no math error happened
-        error = Error.OK;
     }
 
     function safeCastUint256ToUint128(uint256 value) internal pure returns (bool success, uint128 castedValue) {

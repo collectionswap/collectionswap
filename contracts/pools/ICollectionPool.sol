@@ -58,10 +58,7 @@ interface ICollectionPool is ITokenIDFilter {
      */
     function liquidity() external view returns (uint256);
 
-    function balanceToFulfillSellNFT(uint256 numNFTs)
-        external
-        view
-        returns (CurveErrorCodes.Error error, uint256 balance);
+    function balanceToFulfillSellNFT(uint256 numNFTs) external view returns (uint256 balance);
 
     /**
      * @notice Rescues a specified set of NFTs owned by the pool to the owner address. (onlyOwnable modifier is in the implemented function)
@@ -83,13 +80,7 @@ interface ICollectionPool is ITokenIDFilter {
     function getSellNFTQuote(uint256 numNFTs)
         external
         view
-        returns (
-            CurveErrorCodes.Error error,
-            ICurve.Params memory newParams,
-            uint256 totalAmount,
-            uint256 outputAmount,
-            ICurve.Fees memory fees
-        );
+        returns (ICurve.Params memory newParams, uint256 totalAmount, uint256 outputAmount, ICurve.Fees memory fees);
 
     /**
      * @dev Deposit NFTs into pool and emit event for indexing.

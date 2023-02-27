@@ -139,7 +139,6 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event ExternalFilterSet(address indexed collection, address indexed filterAddress);
 
     // Parameterized Errors
-    error BondingCurveError(CurveErrorCodes.Error error);
     error InsufficientLiquidity(uint256 balance, uint256 accruedTradeFee);
     error RoyaltyNumeratorOverflow();
     error SwapsArePaused();
@@ -465,13 +464,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         notifySwap(IPoolActivityMonitor.EventType.SOLD_NFT_TO_POOL, nfts.ids.length, lastSwapPrice, outputAmount);
     }
 
-    function balanceToFulfillSellNFT(uint256 numNFTs)
-        external
-        view
-        returns (CurveErrorCodes.Error error, uint256 balance)
-    {
+    function balanceToFulfillSellNFT(uint256 numNFTs) external view returns (uint256 balance) {
         uint256 totalAmount;
-        (error,, totalAmount,,) = getSellNFTQuote(numNFTs);
+        (, totalAmount,,) = getSellNFTQuote(numNFTs);
         balance = accruedTradeFee + totalAmount;
     }
 
@@ -509,15 +504,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function getBuyNFTQuote(uint256 numNFTs)
         public
         view
-        returns (
-            CurveErrorCodes.Error error,
-            ICurve.Params memory newParams,
-            uint256 totalAmount,
-            uint256 inputAmount,
-            ICurve.Fees memory fees
-        )
+        returns (ICurve.Params memory newParams, uint256 totalAmount, uint256 inputAmount, ICurve.Fees memory fees)
     {
-        (error, newParams, inputAmount, fees,) = bondingCurve().getBuyInfo(curveParams(), numNFTs, feeMultipliers());
+        (newParams, inputAmount, fees,) = bondingCurve().getBuyInfo(curveParams(), numNFTs, feeMultipliers());
 
         // Since inputAmount is already inclusive of fees.
         totalAmount = inputAmount;
@@ -530,15 +519,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function getSellNFTQuote(uint256 numNFTs)
         public
         view
-        returns (
-            CurveErrorCodes.Error error,
-            ICurve.Params memory newParams,
-            uint256 totalAmount,
-            uint256 outputAmount,
-            ICurve.Fees memory fees
-        )
+        returns (ICurve.Params memory newParams, uint256 totalAmount, uint256 outputAmount, ICurve.Fees memory fees)
     {
-        (error, newParams, outputAmount, fees,) = bondingCurve().getSellInfo(curveParams(), numNFTs, feeMultipliers());
+        (newParams, outputAmount, fees,) = bondingCurve().getSellInfo(curveParams(), numNFTs, feeMultipliers());
 
         totalAmount = outputAmount + fees.trade + fees.protocol;
         uint256 length = fees.royalties.length;
@@ -742,16 +725,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         ICurve _bondingCurve,
         ICollectionPoolFactory
     ) internal returns (uint256 inputAmount, ICurve.Fees memory fees, uint256 lastSwapPrice) {
-        CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
-        (error, newParams, inputAmount, fees, lastSwapPrice) =
-            _bondingCurve.getBuyInfo(params, numNFTs, feeMultipliers());
-
-        // Revert if bonding curve had an error
-        if (error != CurveErrorCodes.Error.OK) {
-            revert BondingCurveError(error);
-        }
+        (newParams, inputAmount, fees, lastSwapPrice) = _bondingCurve.getBuyInfo(params, numNFTs, feeMultipliers());
 
         // Revert if input is more than expected
         if (inputAmount > maxExpectedTokenInput) revert SlippageExceeded();
@@ -774,16 +750,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint256 minExpectedTokenOutput,
         ICurve _bondingCurve
     ) internal returns (uint256 outputAmount, ICurve.Fees memory fees, uint256 lastSwapPrice) {
-        CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
-        (error, newParams, outputAmount, fees, lastSwapPrice) =
-            _bondingCurve.getSellInfo(params, numNFTs, feeMultipliers());
-
-        // Revert if bonding curve had an error
-        if (error != CurveErrorCodes.Error.OK) {
-            revert BondingCurveError(error);
-        }
+        (newParams, outputAmount, fees, lastSwapPrice) = _bondingCurve.getSellInfo(params, numNFTs, feeMultipliers());
 
         // Revert if output is too little
         if (outputAmount < minExpectedTokenOutput) revert SlippageExceeded();

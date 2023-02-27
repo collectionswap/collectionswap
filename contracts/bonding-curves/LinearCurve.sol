@@ -18,18 +18,14 @@ contract LinearCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // We only calculate changes for buying 1 or more NFTs
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
         // For a linear curve, the spot price increases by delta for each item bought
         uint256 newSpotPrice_ = params.spotPrice + params.delta * numItems;
-        if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (newSpotPrice_ > type(uint128).max) revert SpotPriceOverflow();
         newParams.spotPrice = uint128(newSpotPrice_);
 
         // Spot price is assumed to be the instant sell price. To avoid arbitraging LPs, we adjust the buy price upwards.
@@ -70,9 +66,6 @@ contract LinearCurve is Curve, CurveErrorCodes {
 
         // Keep state the same
         newParams.state = params.state;
-
-        // If we got all the way here, no math error happened
-        error = Error.OK;
     }
 
     /**
@@ -82,12 +75,10 @@ contract LinearCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // We only calculate changes for selling 1 or more NFTs
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
         // We first calculate the change in spot price after selling all of the items
         uint256 totalPriceDecrease = params.delta * numItems;
@@ -138,8 +129,5 @@ contract LinearCurve is Curve, CurveErrorCodes {
 
         // Keep state the same
         newParams.state = params.state;
-
-        // If we reached here, no math errors
-        error = Error.OK;
     }
 }

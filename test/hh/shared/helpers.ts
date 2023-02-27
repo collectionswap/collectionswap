@@ -456,7 +456,6 @@ export async function sellToPool(
   nftToSell: number
 ) {
   const [
-    _bidError,
     _bidNewParams,
     _bidTotalAmount,
     bidInputAmount,
@@ -485,7 +484,6 @@ export async function buyFromPool(
   nftToBuy: number
 ) {
   const [
-    _askError,
     _askNewParams,
     _askTotalAmount,
     askOutputAmount,
@@ -713,15 +711,10 @@ export async function prepareQuoteValues(
   if (isSell && isRandom)
     throw new Error("You can't sell random NFTS to pools");
 
-  const [
-    _error,
-    _newParams,
-    _totalAmount,
-    quote,
-    { protocol: protocolFeeAmount },
-  ] = isSell
-    ? await pool.getSellNFTQuote(numberOfNfts)
-    : await pool.getBuyNFTQuote(numberOfNfts);
+  const [_newParams, _totalAmount, quote, { protocol: protocolFeeAmount }] =
+    isSell
+      ? await pool.getSellNFTQuote(numberOfNfts)
+      : await pool.getBuyNFTQuote(numberOfNfts);
 
   const amounts = await cumulativeSumWithRoyalties(
     isSell ? calculateBid : calculateAsk,

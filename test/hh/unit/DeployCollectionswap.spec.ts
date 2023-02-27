@@ -209,7 +209,7 @@ describe("Collectionswap", function () {
 
             const buyPriceQuote = (
               await collectionPoolETH.getBuyNFTQuote(qtyQuoted)
-            )[3];
+            )[2];
             const buyPriceQuoteSelfCalc = convertToBigNumber(
               await cumulativeSum(
                 calculateAsk,
@@ -299,7 +299,7 @@ describe("Collectionswap", function () {
 
             const sellPriceQuote = (
               await collectionPoolETH.getSellNFTQuote(qtyQuoted)
-            )[3];
+            )[2];
             const sellPriceQuoteSelfCalc = convertToBigNumber(
               await cumulativeSum(
                 calculateBid,
@@ -357,7 +357,6 @@ describe("Collectionswap", function () {
       const externalTrader = otherAccount4;
       const externalTraderNftsIHave = [222];
       const [
-        _bidError,
         _bidNewParams,
         _bidTotalAmount,
         bidInputAmount,
@@ -448,7 +447,6 @@ describe("Collectionswap", function () {
       for (let i = 0; i < 20; i++) {
         // Sell my NFT into the pool
         const [
-          _bidError,
           _bidNewParams,
           _bidTotalAmount,
           bidInputAmount,
@@ -470,7 +468,6 @@ describe("Collectionswap", function () {
         );
 
         const [
-          _askError,
           _askNewParams,
           _askTotalAmount,
           askOutputAmount,
