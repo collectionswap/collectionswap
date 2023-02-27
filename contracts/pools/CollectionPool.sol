@@ -134,8 +134,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event StateUpdate(bytes newState);
     event RoyaltyNumeratorUpdate(uint24 newRoyaltyNumerator);
     event RoyaltyRecipientFallbackUpdate(address payable newFallback);
-    event PoolSwapPaused();
-    event PoolSwapUnpaused();
+    event PoolSwapPause();
+    event PoolSwapUnpause();
     event ExternalFilterSet(address indexed collection, address indexed filterAddress);
 
     // Parameterized Errors
@@ -973,10 +973,12 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     function pausePoolSwaps() external onlyOwner {
         pause(POOL_SWAP_PAUSE);
+        emit PoolSwapPause();
     }
 
     function unpausePoolSwaps() external onlyOwner {
         unpause(POOL_SWAP_PAUSE);
+        emit PoolSwapUnpause();
     }
 
     /**

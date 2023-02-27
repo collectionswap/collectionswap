@@ -101,10 +101,10 @@ contract CollectionPoolFactory is
     event BondingCurveStatusUpdate(ICurve bondingCurve, bool isAllowed);
     event CallTargetStatusUpdate(address target, bool isAllowed);
     event RouterStatusUpdate(CollectionRouter router, bool isAllowed);
-    event CreationPaused();
-    event CreationUnpaused();
-    event SwapPaused();
-    event SwapUnpaused();
+    event CreationPause();
+    event CreationUnpause();
+    event SwapPause();
+    event SwapUnpause();
 
     constructor(
         CollectionPoolEnumerableETH _enumerableETHTemplate,
@@ -334,22 +334,22 @@ contract CollectionPoolFactory is
 
     function pauseCreation() external onlyOwner {
         pause(CREATION_PAUSE);
-        emit CreationPaused();
+        emit CreationPause();
     }
 
     function unpauseCreation() external onlyOwner {
         unpause(CREATION_PAUSE);
-        emit CreationUnpaused();
+        emit CreationUnpause();
     }
 
     function pauseSwap() external onlyOwner {
         pause(SWAP_PAUSE);
-        emit SwapPaused();
+        emit SwapPause();
     }
 
     function unpauseSwap() external onlyOwner {
         unpause(SWAP_PAUSE);
-        emit SwapUnpaused();
+        emit SwapUnpause();
     }
 
     /**
