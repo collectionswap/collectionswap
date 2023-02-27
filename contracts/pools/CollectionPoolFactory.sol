@@ -476,8 +476,7 @@ contract CollectionPoolFactory is
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientFallback != address(0),
+            validRoyaltyState(params.royaltyNumerator, params.royaltyRecipientFallback, params.nft),
             "Nonzero royalty for non ERC2981 without fallback"
         );
 
@@ -521,8 +520,7 @@ contract CollectionPoolFactory is
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientFallback != address(0),
+            validRoyaltyState(params.royaltyNumerator, params.royaltyRecipientFallback, params.nft),
             "Nonzero royalty for non ERC2981 without fallback"
         );
 
@@ -577,6 +575,15 @@ contract CollectionPoolFactory is
     function mint(address recipient, CollectionPool pool) internal returns (uint256 tokenId) {
         tokenId = uint256(uint160(address(pool)));
         _safeMint(recipient, tokenId);
+    }
+
+    function validRoyaltyState(uint24 royaltyNumerator, address royaltyRecipientFallback, IERC721 nft)
+        internal
+        view
+        returns (bool)
+    {
+        return royaltyNumerator == 0 || royaltyRecipientFallback != address(0)
+            || IERC165(nft).supportsInterface(_INTERFACE_ID_ERC2981);
     }
 
     /**
