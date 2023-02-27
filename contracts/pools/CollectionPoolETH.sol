@@ -9,6 +9,7 @@ import {CollectionPool} from "./CollectionPool.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
+import {CollectionRouter} from "../routers/CollectionRouter.sol";
 
 /**
  * @title An NFT/Token pool where the token is ETH
@@ -41,7 +42,7 @@ abstract contract CollectionPoolETH is CollectionPool {
         require(msg.value >= inputAmount, "Sent too little ETH");
 
         // Pay royalties first to obtain total amount of royalties paid
-        uint256 totalRoyaltiesPaid = _payRoyalties(royaltiesDue);
+        (uint256 totalRoyaltiesPaid,) = _payRoyalties(royaltiesDue);
 
         // Transfer inputAmount ETH to assetRecipient if it's been set
         address payable _assetRecipient = getAssetRecipient();
@@ -75,22 +76,45 @@ abstract contract CollectionPoolETH is CollectionPool {
         }
     }
 
-    function _payRoyalties(RoyaltyDue[] memory royaltiesDue) internal returns (uint256 totalRoyaltiesPaid) {
+    /**
+     * @notice Pay royalties to the factory, which should never revert. The factory
+     * serves as a single contract to which royalty recipients can make a single
+     * transaction to receive all royalties due as opposed to having to send
+     * transactions to arbitrary numbers of pools
+     *
+     * @return totalRoyaltiesPaid The amount of royalties which were paid including
+     * royalties whose resolved recipient is this contract itself
+     * @return royaltiesSentToFactory `totalRoyaltiesPaid` less the amount whose
+     * resolved recipient is this contract itself
+     */
+    function _payRoyalties(RoyaltyDue[] memory royaltiesDue)
+        internal
+        returns (uint256 totalRoyaltiesPaid, uint256 royaltiesSentToFactory)
+    {
+        /// @dev For ETH pools, calculate how much to send in total since factory
+        /// can't call safeTransferFrom.
         uint256 length = royaltiesDue.length;
         for (uint256 i = 0; i < length;) {
-            RoyaltyDue memory due = royaltiesDue[i];
-            uint256 royaltyAmount = due.amount;
+            uint256 royaltyAmount = royaltiesDue[i].amount;
             if (royaltyAmount > 0) {
                 totalRoyaltiesPaid += royaltyAmount;
-
-                address recipient = getRoyaltyRecipient(payable(due.recipient));
-                payable(recipient).safeTransferETH(royaltyAmount);
+                address finalRecipient = getRoyaltyRecipient(payable(royaltiesDue[i].recipient));
+                if (finalRecipient == address(this)) {
+                    royaltiesDue[i].amount = 0;
+                } else {
+                    royaltiesSentToFactory += royaltyAmount;
+                    royaltiesDue[i].recipient = finalRecipient;
+                }
             }
 
             unchecked {
                 ++i;
             }
         }
+
+        factory().depositRoyaltiesNotification{value: royaltiesSentToFactory}(
+            ERC20(address(0)), royaltiesDue, poolVariant()
+        );
     }
 
     /// @inheritdoc CollectionPool

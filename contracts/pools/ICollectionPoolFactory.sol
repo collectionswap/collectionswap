@@ -7,6 +7,7 @@ import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {IExternalFilter} from "../filter/IExternalFilter.sol";
+import {CollectionPool} from "../pools/CollectionPool.sol";
 import {ICollectionPool} from "../pools/ICollectionPool.sol";
 
 interface ICollectionPoolFactory is IERC721 {
@@ -164,10 +165,18 @@ interface ICollectionPoolFactory is IERC721 {
 
     function depositERC20(ERC20 token, uint256 amount, address recipient, address from) external;
 
+    function depositRoyaltiesNotification(
+        ERC20 token,
+        CollectionPool.RoyaltyDue[] calldata royaltiesDue,
+        PoolVariant poolVariant
+    ) external payable;
+
     function burn(uint256 tokenId) external;
 
     /**
      * @dev Returns the pool of the `tokenId` token.
      */
     function poolOf(uint256 tokenId) external view returns (ICollectionPool);
+
+    function withdrawRoyalties(address payable[] calldata recipients, ERC20 token) external;
 }

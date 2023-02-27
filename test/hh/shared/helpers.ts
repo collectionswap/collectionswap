@@ -262,6 +262,7 @@ export async function expectNFTsToBeApprovedTo(
 }
 
 // Balance change utility from hardhat chai matcher library
+// Can be found at https://github.com/TrueFiEng/Waffle/tree/master/waffle-chai/src/matchers/changeEtherBalance.ts
 export async function getBalanceChanges(
   transaction:
     | providers.TransactionResponse
@@ -282,6 +283,68 @@ export async function getBalanceChanges(
   return balancesAfter.map((balance, ind) =>
     balance.add(txFees[ind]).sub(balancesBefore[ind])
   );
+}
+
+// Can be found at https://github.com/TrueFiEng/Waffle/tree/master/waffle-chai/src/matchers/changeTokenBalances.ts
+async function getTokenBalances(
+  token: Contract,
+  accounts: (Account | string)[],
+  blockNumber: number
+) {
+  return Promise.all(
+    accounts.map(async (account) => {
+      const address = await getAddressOf(account);
+      return token["balanceOf(address)"](address, { blockTag: blockNumber });
+    })
+  );
+}
+
+// Can be found at https://github.com/TrueFiEng/Waffle/tree/master/waffle-chai/src/matchers/changeTokenBalances.ts
+async function getTokenBalanceChanges(
+  txReceipt: providers.TransactionReceipt,
+  token: Contract,
+  addresses: (Account | string)[]
+) {
+  const txBlockNumber = txReceipt.blockNumber;
+
+  const balancesBefore = await getTokenBalances(
+    token,
+    addresses,
+    txBlockNumber - 1
+  );
+  const balancesAfter = await getTokenBalances(token, addresses, txBlockNumber);
+
+  return balancesAfter.map((balance, ind) => balance.sub(balancesBefore[ind]));
+}
+
+// Can be found at https://github.com/TrueFiEng/Waffle/tree/master/waffle-chai/src/matchers/changeTokenBalances.ts
+export async function changesTokenBalancesFuzzy(
+  tx: ContractTransaction,
+  token: IERC721Mintable,
+  addresses: (Account | string)[],
+  amounts: BigNumber[]
+): Promise<boolean> {
+  if (addresses.length !== amounts.length) {
+    throw new Error(
+      "changesEtherBalancesFuzzy: `addresses` and `amounts` lengths dont match."
+    );
+  }
+
+  const receipt = await tx.wait();
+
+  const changes = await getTokenBalanceChanges(receipt, token, addresses);
+
+  for (let index = 0; index < amounts.length; index++) {
+    const change = changes[index];
+    if (!closeEnough(change, amounts[index])) {
+      console.log(
+        `changeEtherBalancesFuzzy: Change at index ${index} was not close enough. Got ${change}. Expected ${amounts[index]}. Address: ${addresses[index]}`
+      );
+      return false;
+    }
+  }
+
+  return true;
 }
 
 async function getTxFees(

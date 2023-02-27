@@ -361,7 +361,7 @@ describe("Collectionswap", function () {
         _bidNewParams,
         _bidTotalAmount,
         bidInputAmount,
-        _bidFees,
+        bidFees,
         _bidnObj,
       ] = await collectionPoolETH.getSellNFTQuote(
         externalTraderNftsIHave.length
@@ -388,7 +388,15 @@ describe("Collectionswap", function () {
           ethers.constants.AddressZero,
           []
         )
-      ).to.be.revertedWith("ETH_TRANSFER_FAILED");
+      )
+        .to.be.revertedWithCustomError(
+          collectionPoolETH,
+          "InsufficientLiquidity"
+        )
+        .withArgs(
+          await ethers.provider.getBalance(collectionPoolETH.address),
+          bidFees.trade
+        );
 
       // Can withdraw
       await collectionPoolETH.withdrawAllETH();
