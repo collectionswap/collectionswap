@@ -329,8 +329,11 @@ contract CollectionPoolFactory is
         // Do internal bookkeeping of who can claim portions of the tokens about
         // to be transferred in
         for (uint256 i; i < length;) {
-            amountRequired += royaltiesDue[i].amount;
-            royaltiesClaimable[royaltiesDue[i].recipient][token] += royaltiesDue[i].amount;
+            address recipient = royaltiesDue[i].recipient;
+            if (msg.sender != recipient) {
+                amountRequired += royaltiesDue[i].amount;
+                royaltiesClaimable[royaltiesDue[i].recipient][token] += royaltiesDue[i].amount;
+            }
 
             unchecked {
                 ++i;

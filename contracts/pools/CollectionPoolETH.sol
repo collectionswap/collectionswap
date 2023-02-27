@@ -85,9 +85,7 @@ abstract contract CollectionPoolETH is CollectionPool {
             if (royaltyAmount > 0) {
                 totalRoyaltiesPaid += royaltyAmount;
                 address finalRecipient = getRoyaltyRecipient(payable(royaltiesDue[i].recipient));
-                if (finalRecipient == address(this)) {
-                    royaltiesDue[i].amount = 0;
-                } else {
+                if (finalRecipient != address(this)) {
                     royaltiesSentToFactory += royaltyAmount;
                     royaltiesDue[i].recipient = finalRecipient;
                 }

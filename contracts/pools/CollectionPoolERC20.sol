@@ -164,44 +164,46 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         CollectionRouter router,
         ICollectionPoolFactory.PoolVariant poolVariant
     ) internal returns (uint256 totalRoyaltiesPaid, uint256 royaltiesSentToFactory) {
-        uint256 length = royaltiesDue.length;
-        for (uint256 i = 0; i < length;) {
-            uint256 royaltyAmount = royaltiesDue[i].amount;
-            totalRoyaltiesPaid += royaltyAmount;
-            if (royaltyAmount > 0) {
-                address finalRecipient = getRoyaltyRecipient(payable(royaltiesDue[i].recipient));
-                if (finalRecipient == address(this)) {
-                    royaltiesDue[i].amount = 0;
-                } else {
-                    royaltiesSentToFactory += royaltyAmount;
-                    royaltiesDue[i].recipient = finalRecipient;
+        ERC20 _token = token();
+        /// @dev Local scope to prevent stack too deep
+        {
+            uint256 length = royaltiesDue.length;
+            for (uint256 i = 0; i < length;) {
+                uint256 royaltyAmount = royaltiesDue[i].amount;
+                totalRoyaltiesPaid += royaltyAmount;
+                if (royaltyAmount > 0) {
+                    address finalRecipient = getRoyaltyRecipient(payable(royaltiesDue[i].recipient));
+                    if (finalRecipient != address(this)) {
+                        royaltiesSentToFactory += royaltyAmount;
+                        royaltiesDue[i].recipient = finalRecipient;
+                    }
                 }
-            }
 
-            unchecked {
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
 
         uint256 amountToSend = royaltiesSentToFactory + protocolFee;
 
         if (isRouter) {
-            uint256 initialBalance = token().balanceOf(address(_factory));
-            router.poolTransferERC20From(token(), tokenSender, address(_factory), amountToSend, poolVariant);
+            uint256 initialBalance = _token.balanceOf(address(_factory));
+            router.poolTransferERC20From(_token, tokenSender, address(_factory), amountToSend, poolVariant);
             /// @dev Ensure pool/router actually transferred tokens in
-            uint256 diff = token().balanceOf(address(_factory)) - initialBalance;
+            uint256 diff = _token.balanceOf(address(_factory)) - initialBalance;
             if (diff != amountToSend) revert RouterDidNotSendFactory(diff, amountToSend);
         } else {
             /// @dev If tokens are being sent from this pool, just use safeTransfer
             /// to avoid making an approve call
             if (tokenSender == address(this)) {
-                token().safeTransfer(address(_factory), amountToSend);
+                _token.safeTransfer(address(_factory), amountToSend);
             } else {
-                token().safeTransferFrom(tokenSender, address(_factory), amountToSend);
+                _token.safeTransferFrom(tokenSender, address(_factory), amountToSend);
             }
         }
 
-        _factory.depositRoyaltiesNotification(token(), royaltiesDue, poolVariant);
+        _factory.depositRoyaltiesNotification(_token, royaltiesDue, poolVariant);
     }
 
     /// @inheritdoc CollectionPool
