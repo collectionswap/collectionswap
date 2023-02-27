@@ -42,15 +42,13 @@ abstract contract CollectionPoolETH is CollectionPool {
         require(msg.value >= inputAmount, "Sent too little ETH");
 
         // Pay royalties first to obtain total amount of royalties paid
-        (uint256 totalRoyaltiesPaid,) = _payRoyalties(royaltiesDue);
+        (uint256 totalRoyaltiesPaid,) = _payRoyaltiesAndProtocolFee(_factory, royaltiesDue, protocolFee);
 
         // Transfer inputAmount ETH to assetRecipient if it's been set
         address payable _assetRecipient = getAssetRecipient();
         if (_assetRecipient != address(this)) {
             _assetRecipient.safeTransferETH(inputAmount - protocolFee - totalRoyaltiesPaid);
         }
-
-        _payProtocolFeeFromPool(_factory, protocolFee);
     }
 
     /// @inheritdoc CollectionPool
@@ -61,36 +59,24 @@ abstract contract CollectionPoolETH is CollectionPool {
         }
     }
 
-    /// @inheritdoc CollectionPool
-    function _payProtocolFeeFromPool(ICollectionPoolFactory _factory, uint256 protocolFee) internal override {
-        // Take protocol fee
-        if (protocolFee > 0) {
-            // Round down to the actual ETH balance if there are numerical stability issues with the bonding curve calculations
-            if (protocolFee > address(this).balance) {
-                protocolFee = address(this).balance;
-            }
-
-            if (protocolFee > 0) {
-                payable(address(_factory)).safeTransferETH(protocolFee);
-            }
-        }
-    }
-
     /**
      * @notice Pay royalties to the factory, which should never revert. The factory
      * serves as a single contract to which royalty recipients can make a single
      * transaction to receive all royalties due as opposed to having to send
      * transactions to arbitrary numbers of pools
      *
+     * In addition, pay protocol fees in the same transfer since both go to factory
+     *
      * @return totalRoyaltiesPaid The amount of royalties which were paid including
      * royalties whose resolved recipient is this contract itself
      * @return royaltiesSentToFactory `totalRoyaltiesPaid` less the amount whose
      * resolved recipient is this contract itself
      */
-    function _payRoyalties(RoyaltyDue[] memory royaltiesDue)
-        internal
-        returns (uint256 totalRoyaltiesPaid, uint256 royaltiesSentToFactory)
-    {
+    function _payRoyaltiesAndProtocolFee(
+        ICollectionPoolFactory _factory,
+        RoyaltyDue[] memory royaltiesDue,
+        uint256 protocolFee
+    ) internal returns (uint256 totalRoyaltiesPaid, uint256 royaltiesSentToFactory) {
         /// @dev For ETH pools, calculate how much to send in total since factory
         /// can't call safeTransferFrom.
         uint256 length = royaltiesDue.length;
@@ -112,19 +98,23 @@ abstract contract CollectionPoolETH is CollectionPool {
             }
         }
 
-        factory().depositRoyaltiesNotification{value: royaltiesSentToFactory}(
+        _factory.depositRoyaltiesNotification{value: royaltiesSentToFactory + protocolFee}(
             ERC20(address(0)), royaltiesDue, poolVariant()
         );
     }
 
     /// @inheritdoc CollectionPool
-    function _sendTokenOutput(address payable tokenRecipient, uint256 outputAmount, RoyaltyDue[] memory royaltiesDue)
-        internal
-        override
-    {
-        _payRoyalties(royaltiesDue);
+    function _sendTokenOutputAndPayProtocolFees(
+        ICollectionPoolFactory _factory,
+        address payable tokenRecipient,
+        uint256 outputAmount,
+        RoyaltyDue[] memory royaltiesDue,
+        uint256 protocolFee
+    ) internal override {
+        /// @dev Pay royalties and protocol fee
+        _payRoyaltiesAndProtocolFee(_factory, royaltiesDue, protocolFee);
 
-        // Send ETH to caller
+        /// @dev Send ETH to caller
         if (outputAmount > 0) {
             require(liquidity() >= outputAmount, "Too little ETH");
             tokenRecipient.safeTransferETH(outputAmount);

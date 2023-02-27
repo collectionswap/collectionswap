@@ -312,8 +312,8 @@ contract CollectionPoolFactory is
     }
 
     /**
-     * @notice Deposit royalties in `token` according to `royaltiesDue`. Only
-     * callable by pools
+     * @notice Update royalty bookkeeping in `token` currency according to
+     * `royaltiesDue`. Only callable by pools
      * @param token The ERC20 token that royalties are in. ERC20(address(0)) for ETH
      * @param royaltiesDue An array of the recipients and amounts due each address
      * @param poolVariant the variant of the pool being interacted with

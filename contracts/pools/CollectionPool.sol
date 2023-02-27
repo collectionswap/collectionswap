@@ -449,9 +449,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nfts.ids, fees.royalties);
 
-        _sendTokenOutput(tokenRecipient, outputAmount, royaltiesDue);
-
-        _payProtocolFeeFromPool(_factory, fees.protocol);
+        _sendTokenOutputAndPayProtocolFees(_factory, tokenRecipient, outputAmount, royaltiesDue, fees.protocol);
 
         _takeNFTsFromSender(nfts.ids, _factory, isRouter, routerCaller);
 
@@ -841,19 +839,19 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function _refundTokenToSender(uint256 inputAmount) internal virtual;
 
     /**
-     * @notice Sends protocol fee (if it exists) back to the CollectionPoolFactory from the pool
-     */
-    function _payProtocolFeeFromPool(ICollectionPoolFactory _factory, uint256 protocolFee) internal virtual;
-
-    /**
-     * @notice Sends tokens to a recipient and pays royalties owed
+     * @notice Sends tokens to a recipient, pays protocol fees and royalties owed
      * @param tokenRecipient The address receiving the tokens
      * @param outputAmount The amount of tokens to send
      * @param royaltiesDue An array of royalties to pay
+     * @param protocolFee The protocol fee to pay
      */
-    function _sendTokenOutput(address payable tokenRecipient, uint256 outputAmount, RoyaltyDue[] memory royaltiesDue)
-        internal
-        virtual;
+    function _sendTokenOutputAndPayProtocolFees(
+        ICollectionPoolFactory _factory,
+        address payable tokenRecipient,
+        uint256 outputAmount,
+        RoyaltyDue[] memory royaltiesDue,
+        uint256 protocolFee
+    ) internal virtual;
 
     /**
      * @notice Select arbitrary NFTs from pool
