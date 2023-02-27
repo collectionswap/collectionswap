@@ -114,16 +114,16 @@ contract CollectionPoolFactory is
         uint24 _protocolFeeMultiplier,
         uint24 _carryFeeMultiplier
     ) ERC721("Collectionswap", "CollectionLP") {
+        require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Protocol fee too large");
+        require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Carry fee too large");
         enumerableETHTemplate = _enumerableETHTemplate;
         missingEnumerableETHTemplate = _missingEnumerableETHTemplate;
         enumerableERC20Template = _enumerableERC20Template;
         missingEnumerableERC20Template = _missingEnumerableERC20Template;
         protocolFeeRecipient = _protocolFeeRecipient;
 
-        require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Protocol fee too large");
         protocolFeeMultiplier = _protocolFeeMultiplier;
 
-        require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Carry fee too large");
         carryFeeMultiplier = _carryFeeMultiplier;
     }
 
