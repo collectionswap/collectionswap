@@ -72,14 +72,14 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
             ? FixedPointMathLib.WAD.fdiv(delta, FixedPointMathLib.WAD).fpow(uint256(deltaN), FixedPointMathLib.WAD)
             : uint256(delta).fpow(uint256(-deltaN), FixedPointMathLib.WAD);
         uint256 rawAmount = uint256(params.spotPrice).fmul(deltaPowQty, FixedPointMathLib.WAD);
+        uint256 buySpotPrice = rawAmount.fmul(delta, FixedPointMathLib.WAD);
 
         uint256 deltaPowN = uint256(delta).fpow(numItems, FixedPointMathLib.WAD);
         // If the user buys n items, then the total cost is equal to:
-        // (delta * rawAmount) + (delta^2 * rawAmount) + ... (delta^(numItems) * rawAmount)
+        // buySpotPrice + (delta * buySpotPrice) + (delta^2 * buySpotPrice) + ... (delta^(numItems - 1) * buySpotPrice)
         // This is equal to (rawAmount * delta) * (delta^n - 1) / (delta - 1)
         // Note that this amount needs to have fees applied to it
-        inputValue = rawAmount.fmul(delta, FixedPointMathLib.WAD) * (deltaPowN - FixedPointMathLib.WAD)
-            / (delta - FixedPointMathLib.WAD);
+        inputValue = buySpotPrice * (deltaPowN - FixedPointMathLib.WAD) / (delta - FixedPointMathLib.WAD);
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
