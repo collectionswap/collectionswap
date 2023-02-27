@@ -141,18 +141,18 @@ interface ICollectionPoolFactory is IERC721 {
     function createPoolETH(CreateETHPoolParams calldata params)
         external
         payable
-        returns (address pool, uint256 tokenId);
+        returns (ICollectionPool pool, uint256 tokenId);
 
-    function createPoolERC20(CreateERC20PoolParams calldata params) external returns (address pool, uint256 tokenId);
+    function createPoolERC20(CreateERC20PoolParams calldata params) external returns (ICollectionPool pool, uint256 tokenId);
 
     function createPoolETHFiltered(CreateETHPoolParams calldata params, NFTFilterParams calldata filterParams)
         external
         payable
-        returns (address pool, uint256 tokenId);
+        returns (ICollectionPool pool, uint256 tokenId);
 
     function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams)
         external
-        returns (address pool, uint256 tokenId);
+        returns (ICollectionPool pool, uint256 tokenId);
 
     function depositNFTs(
         uint256[] calldata ids,

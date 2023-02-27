@@ -1,6 +1,7 @@
 pragma solidity ^0.8.0;
 
 import "../../pools/ICollectionPoolFactory.sol";
+import "../../pools/ICollectionPool.sol";
 import "../../pools/CollectionPool.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
@@ -22,7 +23,7 @@ contract TestAtomicTrader is IERC721Receiver {
         }
 
         // create pool pool
-        (address pool,) = factory.createPoolETH{value: msg.value}(
+        (ICollectionPool pool,) = factory.createPoolETH{value: msg.value}(
             ICollectionPoolFactory.CreateETHPoolParams({
                 nft: nft,
                 bondingCurve: curve,
@@ -41,7 +42,7 @@ contract TestAtomicTrader is IERC721Receiver {
         );
 
         // then try to swap against it
-        CollectionPool(pool).swapTokenForAnyNFTs(1, 100e18, address(this), true, address(this));
+        pool.swapTokenForAnyNFTs(1, 100e18, address(this), true, address(this));
     }
 
     function onERC721Received(address, address, uint256, bytes memory) external pure returns (bytes4) {

@@ -33,7 +33,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
     CollectionPoolMissingEnumerableETH missingEnumerableETHTemplate;
     CollectionPoolEnumerableERC20 enumerableERC20Template;
     CollectionPoolMissingEnumerableERC20 missingEnumerableERC20Template;
-    CollectionPool ethPool;
+    ICollectionPool ethPool;
     Test721 nft;
 
     receive() external payable {}
@@ -67,7 +67,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
             idList[i - 1] = i;
         }
 
-        (address ethPoolAddress, ) = factory.createPoolETH{value: value}(
+        (ethPool, ) = factory.createPoolETH{value: value}(
             ICollectionPoolFactory.CreateETHPoolParams(
                 nft,
                 curve,
@@ -84,7 +84,6 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
                 idList
             )
         );
-        ethPool = CollectionPool(ethPoolAddress);
     }
 
     function test_getBuyInfoCannotHave0NumItems() public {

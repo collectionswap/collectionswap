@@ -199,11 +199,11 @@ contract CollectionPoolFactory is
         external
         payable
         whenCreationNotPaused
-        returns (address pool, uint256 tokenId)
+        returns (ICollectionPool pool, uint256 tokenId)
     {
         (pool, tokenId) = _createPoolETH(params);
 
-        _initializePoolETH(CollectionPoolETH(payable(pool)), params);
+        _initializePoolETH(pool, params);
     }
 
     /**
@@ -216,51 +216,49 @@ contract CollectionPoolFactory is
         external
         payable
         whenCreationNotPaused
-        returns (address pool, uint256 tokenId)
+        returns (ICollectionPool pool, uint256 tokenId)
     {
         (pool, tokenId) = _createPoolETH(params);
 
         // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
         // If not, we could re-use createPoolETH and check later.
-        CollectionPoolETH _pool = CollectionPoolETH(payable(pool));
-        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
+        pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
         require(
-            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
+            pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
             "NFT not allowed"
         );
-        _pool.setExternalFilter(address(filterParams.externalFilter));
+        pool.setExternalFilter(address(filterParams.externalFilter));
 
-        _initializePoolETH(_pool, params);
+        _initializePoolETH(pool, params);
     }
 
     function createPoolERC20(CreateERC20PoolParams calldata params)
         external
         whenCreationNotPaused
-        returns (address pool, uint256 tokenId)
+        returns (ICollectionPool pool, uint256 tokenId)
     {
         (pool, tokenId) = _createPoolERC20(params);
 
-        _initializePoolERC20(CollectionPoolERC20(payable(pool)), params);
+        _initializePoolERC20(pool, params);
     }
 
     function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams)
         external
         whenCreationNotPaused
-        returns (address pool, uint256 tokenId)
+        returns (ICollectionPool pool, uint256 tokenId)
     {
         (pool, tokenId) = _createPoolERC20(params);
 
         // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
         // If not, we could re-use createPoolERC20 and check later.
-        CollectionPoolERC20 _pool = CollectionPoolERC20(payable(pool));
-        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
+        pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
         require(
-            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
+            pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
             "NFT not allowed"
         );
-        _pool.setExternalFilter(address(filterParams.externalFilter));
+        pool.setExternalFilter(address(filterParams.externalFilter));
 
-        _initializePoolERC20(_pool, params);
+        _initializePoolERC20(pool, params);
     }
 
     /**
@@ -321,7 +319,7 @@ contract CollectionPoolFactory is
             CollectionPoolETH(payable(address(pool))).withdrawAllETH();
         } else if (poolVariant == PoolVariant.ENUMERABLE_ERC20 || poolVariant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
             // withdraw ERC20
-            CollectionPoolERC20(payable(address(pool))).withdrawAllERC20();
+            CollectionPoolERC20(address(pool)).withdrawAllERC20();
         }
         // then withdraw NFTs
         pool.withdrawERC721(pool.nft(), pool.getAllHeldIds());
@@ -472,7 +470,7 @@ contract CollectionPoolFactory is
         return baseURI;
     }
 
-    function _createPoolETH(CreateETHPoolParams calldata params) internal returns (address pool, uint256 tokenId) {
+    function _createPoolETH(CreateETHPoolParams calldata params) internal returns (ICollectionPool pool, uint256 tokenId) {
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
@@ -488,15 +486,17 @@ contract CollectionPoolFactory is
             template = address(missingEnumerableETHTemplate);
         }
 
-        pool = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
+        address poolAddress = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
 
         // issue new token
-        tokenId = mint(params.receiver, CollectionPool(pool));
+        tokenId = mint(params.receiver, CollectionPool(poolAddress));
 
-        emit NewPool(address(params.nft), pool);
+        emit NewPool(address(params.nft), poolAddress);
+
+        return (ICollectionPool(poolAddress), tokenId);
     }
 
-    function _initializePoolETH(CollectionPoolETH _pool, CreateETHPoolParams calldata _params) internal {
+    function _initializePoolETH(ICollectionPool _pool, CreateETHPoolParams calldata _params) internal {
         // initialize pool
         _pool.initialize(
             _params.assetRecipient,
@@ -516,7 +516,7 @@ contract CollectionPoolFactory is
         _depositNFTs(_params.nft, _params.initialNFTIDs, _pool, msg.sender);
     }
 
-    function _createPoolERC20(CreateERC20PoolParams calldata params) internal returns (address pool, uint256 tokenId) {
+    function _createPoolERC20(CreateERC20PoolParams calldata params) internal returns (ICollectionPool pool, uint256 tokenId) {
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
@@ -532,15 +532,17 @@ contract CollectionPoolFactory is
             template = address(missingEnumerableERC20Template);
         }
 
-        pool = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
+        address poolAddress = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
 
         // issue new token
-        tokenId = mint(params.receiver, CollectionPool(pool));
+        tokenId = mint(params.receiver, CollectionPool(poolAddress));
 
-        emit NewPool(address(params.nft), pool);
+        emit NewPool(address(params.nft), poolAddress);
+
+        return (ICollectionPool(poolAddress), tokenId);
     }
 
-    function _initializePoolERC20(CollectionPoolERC20 _pool, CreateERC20PoolParams calldata _params) internal {
+    function _initializePoolERC20(ICollectionPool _pool, CreateERC20PoolParams calldata _params) internal {
         // initialize pool
         _pool.initialize(
             _params.assetRecipient,
@@ -563,7 +565,7 @@ contract CollectionPoolFactory is
     /**
      * @dev Transfers NFTs from sender and notifies pool. `ids` must already have been verified
      */
-    function _depositNFTs(IERC721 _nft, uint256[] calldata nftIds, CollectionPool pool, address from) internal {
+    function _depositNFTs(IERC721 _nft, uint256[] calldata nftIds, ICollectionPool pool, address from) internal {
         // transfer NFTs from caller to recipient
         TransferLib.bulkSafeTransferERC721From(_nft, from, address(pool), nftIds);
         pool.depositNFTsNotification(nftIds);

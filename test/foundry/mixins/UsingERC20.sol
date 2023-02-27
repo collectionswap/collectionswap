@@ -8,6 +8,7 @@ import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 
 import {NoArbBondingCurve} from "../base/NoArbBondingCurve.sol";
 import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
+import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {CollectionPoolERC20} from "../../../contracts/pools/CollectionPoolERC20.sol";
 import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
@@ -61,7 +62,7 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         IMintable(address(test20)).mint(address(this), 1000 ether);
 
         // initialize the pool
-        (address poolAddress, ) = factory.createPoolERC20(
+        (ICollectionPool pool, ) = factory.createPoolERC20(
             ICollectionPoolFactory.CreateERC20PoolParams(
                 test20,
                 nft,
@@ -82,9 +83,9 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         );
 
         // Set approvals for pool
-        test20.approve(poolAddress, type(uint256).max);
+        test20.approve(address(pool), type(uint256).max);
 
-        return CollectionPool(poolAddress);
+        return CollectionPool(payable(address(pool)));
     }
 
     function withdrawTokens(CollectionPool pool) public override {

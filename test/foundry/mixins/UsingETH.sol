@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
+import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
 import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
@@ -62,10 +63,10 @@ abstract contract UsingETH is Configurable, RouterCaller {
             payable(0),
             _idList
         );
-        (address poolAddress, ) = factory.createPoolETH{value: msg.value}(
+        (ICollectionPool pool, ) = factory.createPoolETH{value: msg.value}(
             params
         );
-        return CollectionPoolETH(payable(poolAddress));
+        return CollectionPoolETH(payable(address(pool)));
     }
 
     function withdrawTokens(CollectionPool pool) public override {
