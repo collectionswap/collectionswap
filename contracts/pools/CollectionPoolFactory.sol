@@ -114,16 +114,14 @@ contract CollectionPoolFactory is
         uint24 _protocolFeeMultiplier,
         uint24 _carryFeeMultiplier
     ) ERC721("Collectionswap", "CollectionLP") {
+        require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Protocol fee too large");
+        require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Carry fee too large");
         enumerableETHTemplate = _enumerableETHTemplate;
         missingEnumerableETHTemplate = _missingEnumerableETHTemplate;
         enumerableERC20Template = _enumerableERC20Template;
         missingEnumerableERC20Template = _missingEnumerableERC20Template;
         protocolFeeRecipient = _protocolFeeRecipient;
-
-        require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Protocol fee too large");
         protocolFeeMultiplier = _protocolFeeMultiplier;
-
-        require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Carry fee too large");
         carryFeeMultiplier = _carryFeeMultiplier;
     }
 
@@ -379,8 +377,10 @@ contract CollectionPoolFactory is
      */
     function changeProtocolFeeRecipient(address payable _protocolFeeRecipient) external onlyOwner {
         require(_protocolFeeRecipient != address(0), "0 address");
-        protocolFeeRecipient = _protocolFeeRecipient;
-        emit ProtocolFeeRecipientUpdate(_protocolFeeRecipient);
+        if (protocolFeeRecipient != _protocolFeeRecipient) {
+            protocolFeeRecipient = _protocolFeeRecipient;
+            emit ProtocolFeeRecipientUpdate(_protocolFeeRecipient);
+        }
     }
 
     /**
@@ -389,8 +389,10 @@ contract CollectionPoolFactory is
      */
     function changeProtocolFeeMultiplier(uint24 _protocolFeeMultiplier) external onlyOwner {
         require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Fee too large");
-        protocolFeeMultiplier = _protocolFeeMultiplier;
-        emit ProtocolFeeMultiplierUpdate(_protocolFeeMultiplier);
+        if (protocolFeeMultiplier != _protocolFeeMultiplier) {
+            protocolFeeMultiplier = _protocolFeeMultiplier;
+            emit ProtocolFeeMultiplierUpdate(_protocolFeeMultiplier);
+        }
     }
 
     /**
@@ -399,8 +401,10 @@ contract CollectionPoolFactory is
      */
     function changeCarryFeeMultiplier(uint24 _carryFeeMultiplier) external onlyOwner {
         require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Fee too large");
-        carryFeeMultiplier = _carryFeeMultiplier;
-        emit CarryFeeMultiplierUpdate(_carryFeeMultiplier);
+        if (carryFeeMultiplier != _carryFeeMultiplier) {
+            carryFeeMultiplier = _carryFeeMultiplier;
+            emit CarryFeeMultiplierUpdate(_carryFeeMultiplier);
+        }
     }
 
     /**
@@ -409,8 +413,11 @@ contract CollectionPoolFactory is
      * @param isAllowed True to whitelist, false to remove from whitelist
      */
     function setBondingCurveAllowed(ICurve bondingCurve, bool isAllowed) external onlyOwner {
-        bondingCurveAllowed[bondingCurve] = isAllowed;
-        emit BondingCurveStatusUpdate(bondingCurve, isAllowed);
+        bool wasAllowed = bondingCurveAllowed[bondingCurve];
+        if (wasAllowed != isAllowed) {
+            bondingCurveAllowed[bondingCurve] = isAllowed;
+            emit BondingCurveStatusUpdate(bondingCurve, isAllowed);
+        }
     }
 
     /**
@@ -425,8 +432,11 @@ contract CollectionPoolFactory is
             require(!routerStatus[CollectionRouter(target)].wasEverAllowed, "Can't call router");
         }
 
-        callAllowed[target] = isAllowed;
-        emit CallTargetStatusUpdate(target, isAllowed);
+        bool wasAllowed = callAllowed[target];
+        if (wasAllowed != isAllowed) {
+            callAllowed[target] = isAllowed;
+            emit CallTargetStatusUpdate(target, isAllowed);
+        }
     }
 
     /**
@@ -439,9 +449,12 @@ contract CollectionPoolFactory is
         if (isAllowed) {
             require(!callAllowed[address(_router)], "Can't call router");
         }
-        routerStatus[_router] = RouterStatus({allowed: isAllowed, wasEverAllowed: true});
 
-        emit RouterStatusUpdate(_router, isAllowed);
+        bool wasAllowed = routerStatus[_router].allowed;
+        if (wasAllowed != isAllowed) {
+            routerStatus[_router] = RouterStatus({allowed: isAllowed, wasEverAllowed: true});
+            emit RouterStatusUpdate(_router, isAllowed);
+        }
     }
 
     function setBaseURI(string calldata _uri) external onlyOwner {
@@ -463,8 +476,7 @@ contract CollectionPoolFactory is
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientFallback != address(0),
+            validRoyaltyState(params.royaltyNumerator, params.royaltyRecipientFallback, params.nft),
             "Nonzero royalty for non ERC2981 without fallback"
         );
 
@@ -508,8 +520,7 @@ contract CollectionPoolFactory is
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientFallback != address(0),
+            validRoyaltyState(params.royaltyNumerator, params.royaltyRecipientFallback, params.nft),
             "Nonzero royalty for non ERC2981 without fallback"
         );
 
@@ -564,6 +575,15 @@ contract CollectionPoolFactory is
     function mint(address recipient, CollectionPool pool) internal returns (uint256 tokenId) {
         tokenId = uint256(uint160(address(pool)));
         _safeMint(recipient, tokenId);
+    }
+
+    function validRoyaltyState(uint24 royaltyNumerator, address royaltyRecipientFallback, IERC721 nft)
+        internal
+        view
+        returns (bool)
+    {
+        return royaltyNumerator == 0 || royaltyRecipientFallback != address(0)
+            || IERC165(nft).supportsInterface(_INTERFACE_ID_ERC2981);
     }
 
     /**

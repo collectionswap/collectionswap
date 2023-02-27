@@ -1172,13 +1172,13 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         returns (bool)
     {
         return
-        // Supports 2981 interface to tell us who gets royalties or
+        // Royalties will not be paid
         (
-            IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981)
+            _royaltyNumerator == 0
             // There is a fallback so we always know where to send royaltiers or
             || _royaltyRecipientFallback != address(0)
-            // Royalties will not be paid
-            || _royaltyNumerator == 0
+            // Supports 2981 interface to tell us who gets royalties or
+            || IERC165(_nft).supportsInterface(_INTERFACE_ID_ERC2981)
         );
     }
 
