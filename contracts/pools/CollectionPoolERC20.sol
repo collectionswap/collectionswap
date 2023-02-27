@@ -207,7 +207,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
 
     function _depositERC20Notification(ERC20 a, uint256 amount) internal {
         if (a == token()) {
-            emit TokenDeposit(address(nft()), address(a), amount);
+            emit TokenDeposit(nft(), a, amount);
             notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, amount);
         }
     }
@@ -232,9 +232,9 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         }
 
         // emit event since it is the pool token
-        address _nft = address(nft());
-        emit TokenWithdrawal(_nft, address(_token), amount);
-        emit AccruedTradeFeeWithdrawal(_nft, address(_token), _accruedTradeFee);
+        IERC721 _nft = nft();
+        emit TokenWithdrawal(_nft, _token, amount);
+        emit AccruedTradeFeeWithdrawal(_nft, _token, _accruedTradeFee);
     }
 
     /// @inheritdoc ICollectionPool
@@ -243,7 +243,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
             require(liquidity() >= amount, "Too little ERC20");
 
             // emit event since it is the pool token
-            emit TokenWithdrawal(address(nft()), address(a), amount);
+            emit TokenWithdrawal(nft(), a, amount);
         }
 
         a.safeTransfer(owner(), amount);
@@ -259,7 +259,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
             _token.safeTransfer(msg.sender, _accruedTradeFee);
 
             // emit event since it is the pool token
-            emit AccruedTradeFeeWithdrawal(address(nft()), address(_token), _accruedTradeFee);
+            emit AccruedTradeFeeWithdrawal(nft(), _token, _accruedTradeFee);
         }
     }
 }

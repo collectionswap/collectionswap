@@ -122,11 +122,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint256[] nftIds, uint256 outputAmount, uint256 tradeFee, uint256 protocolFee, RoyaltyDue[] royaltyDue
     );
     event SpotPriceUpdate(uint128 newSpotPrice);
-    event TokenDeposit(address indexed collection, address indexed token, uint256 amount);
-    event TokenWithdrawal(address indexed collection, address indexed token, uint256 amount);
-    event AccruedTradeFeeWithdrawal(address indexed collection, address indexed token, uint256 amount);
-    event NFTDeposit(address indexed collection, uint256 numNFTs);
-    event NFTWithdrawal(address indexed collection, uint256 numNFTs);
+    event TokenDeposit(IERC721 indexed collection, ERC20 indexed token, uint256 amount);
+    event TokenWithdrawal(IERC721 indexed collection, ERC20 indexed token, uint256 amount);
+    event AccruedTradeFeeWithdrawal(IERC721 indexed collection, ERC20 token, uint256 amount);
+    event NFTDeposit(IERC721 indexed collection, uint256 numNFTs);
+    event NFTWithdrawal(IERC721 indexed collection, uint256 numNFTs);
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
     event AssetRecipientChange(address a);
@@ -947,7 +947,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         else {
             _withdrawNFTs(_owner, nftIds);
 
-            emit NFTWithdrawal(address(_nft), nftIds.length);
+            emit NFTWithdrawal(_nft, nftIds.length);
             /// @dev No need to notify pool monitors as pool monitors own the pool,
             /// thus only the monitor can withdraw from the pool and notifications
             /// are redundant
@@ -1235,7 +1235,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function depositNFTsNotification(uint256[] calldata nftIds) external override onlyFactory {
         _depositNFTsNotification(nftIds);
 
-        emit NFTDeposit(address(nft()), nftIds.length);
+        emit NFTDeposit(nft(), nftIds.length);
         notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
     }
 
@@ -1243,7 +1243,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         if (!acceptsTokenIDs(nftIds, proof, proofFlags)) revert NFTsNotAccepted();
         _depositNFTs(msg.sender, nftIds);
 
-        emit NFTDeposit(address(nft()), nftIds.length);
+        emit NFTDeposit(nft(), nftIds.length);
 
         notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
     }

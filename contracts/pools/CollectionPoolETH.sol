@@ -132,9 +132,9 @@ abstract contract CollectionPoolETH is CollectionPool {
         }
 
         // emit event since ETH is the pool token
-        address _nft = address(nft());
-        emit TokenWithdrawal(_nft, address(0), amount);
-        emit AccruedTradeFeeWithdrawal(_nft, address(0), _accruedTradeFee);
+        IERC721 _nft = nft();
+        emit TokenWithdrawal(_nft, ERC20(address(0)), amount);
+        emit AccruedTradeFeeWithdrawal(_nft, ERC20(address(0)), _accruedTradeFee);
     }
 
     /**
@@ -149,7 +149,7 @@ abstract contract CollectionPoolETH is CollectionPool {
         payable(owner()).safeTransferETH(amount);
 
         // emit event since ETH is the pool token
-        emit TokenWithdrawal(address(nft()), address(0), amount);
+        emit TokenWithdrawal(nft(), ERC20(address(0)), amount);
     }
 
     /// @inheritdoc ICollectionPool
@@ -166,7 +166,7 @@ abstract contract CollectionPoolETH is CollectionPool {
             payable(owner()).safeTransferETH(_accruedTradeFee);
 
             // emit event since ETH is the pool token
-            emit AccruedTradeFeeWithdrawal(address(nft()), address(0), _accruedTradeFee);
+            emit AccruedTradeFeeWithdrawal(nft(), ERC20(address(0)), _accruedTradeFee);
         }
     }
 
@@ -179,7 +179,7 @@ abstract contract CollectionPoolETH is CollectionPool {
      * for the owner to top up the pool's token reserves.
      */
     receive() external payable {
-        emit TokenDeposit(address(nft()), address(0), msg.value);
+        emit TokenDeposit(nft(), ERC20(address(0)), msg.value);
         notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, msg.value);
     }
 
@@ -190,7 +190,7 @@ abstract contract CollectionPoolETH is CollectionPool {
     fallback() external payable {
         // Only allow calls without function selector
         require(msg.data.length == _immutableParamsLength());
-        emit TokenDeposit(address(nft()), address(0), msg.value);
+        emit TokenDeposit(nft(), ERC20(address(0)), msg.value);
         notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, msg.value);
     }
 }
