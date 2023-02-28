@@ -185,12 +185,13 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
         int256 sign = isBuy ? -1 : int8(1);
 
         int256 _numItems = int256(numItems);
+        int256 newNumItems = sigmoidParams.deltaN + sign * _numItems;
         // Ensure deltaN -/+ _numItems can be safecasted for 64.64 bit computations
-        if (!valid64x64Int(sigmoidParams.deltaN + sign * _numItems)) {
+        if (!valid64x64Int(newNumItems)) {
             return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
         }
 
-        newParams.state = encodeState(sigmoidParams.deltaN + sign * _numItems);
+        newParams.state = encodeState(newNumItems);
 
         // Iterate to calculate values. No closed form expression for discrete
         // sigmoid steps
@@ -220,17 +221,15 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
             fees.royalties[uint256(n) - 1] = itemRoyalty;
             totalRoyalty += itemRoyalty;
 
-            if (n == _numItems) {
-                /// @dev royalty breakdown not needed if fees aren't used
-                (lastSwapPrice,) = isBuy
-                    ? getInputValueAndFees(feeMultipliers, itemCost, new uint256[](0), itemRoyalty)
-                    : getOutputValueAndFees(feeMultipliers, itemCost, new uint256[](0), itemRoyalty);
-            }
-
             unchecked {
                 ++n;
             }
         }
+
+        /// @dev royalty breakdown not needed if fees aren't used
+        (lastSwapPrice,) = isBuy
+            ? getInputValueAndFees(feeMultipliers, itemCost, new uint256[](0), itemRoyalty)
+            : getOutputValueAndFees(feeMultipliers, itemCost, new uint256[](0), itemRoyalty);
 
         (value, fees) = isBuy
             ? getInputValueAndFees(feeMultipliers, value, fees.royalties, totalRoyalty)
