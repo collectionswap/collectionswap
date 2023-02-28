@@ -7,6 +7,7 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
 import {TransferLib} from "../lib/TransferLib.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
@@ -23,6 +24,7 @@ import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
 /// @author Collection
 /// @notice This implements the core swap logic from NFT to TOKEN
 abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilter, MultiPauser, ICollectionPool {
+    using Strings for uint256;
     /**
      * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps.
      * It contains two fields:
@@ -34,6 +36,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * and recipient of the royalty payment that is due on the NFT swap. This struct is then used to facilitate the payment of
      * the royalty to the appropriate recipient.
      */
+
     struct RoyaltyDue {
         uint256 amount;
         address recipient;
@@ -1095,7 +1098,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             (success, results[i]) = address(this).delegatecall(calls[i]);
 
             if (!success && revertOnFail) {
-                revert(_getRevertMsg(results[i]));
+                revert(string.concat(i.toString(), ": ", _getRevertMsg(results[i])));
             }
 
             unchecked {
@@ -1110,6 +1113,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /**
      * @param _returnData The data returned from a multicall result
      * @dev Used to grab the revert string from the underlying call
+     * Taken from: https://ethereum.stackexchange.com/questions/83528/how-can-i-get-the-revert-reason-of-a-call-in-solidity-so-that-i-can-use-it-in-th
      */
     function _getRevertMsg(bytes memory _returnData) internal pure returns (string memory) {
         // If the _res length is less than 68, then the transaction failed silently (without a revert message)
