@@ -233,6 +233,9 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         pool.withdrawERC1155(IERC1155(address(test1155)), ids, amounts);
         assertEq(IERC1155(address(test1155)).balanceOf(address(pool), 1), 0);
         assertEq(IERC1155(address(test1155)).balanceOf(address(this), 1), 2);
+
+        vm.expectRevert(CollectionPool.UseWithdrawERC721Instead.selector);
+        pool.withdrawERC1155(IERC1155(address(test721)), ids, amounts);
     }
 
     /**

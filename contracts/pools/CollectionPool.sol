@@ -158,6 +158,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     error CallError(bytes returnData);
     error MulticallError();
     error InvalidExternalFilter();
+    error UseWithdrawERC721Instead();
 
     modifier onlyFactory() {
         if (msg.sender != address(factory())) revert NotAuthorized();
@@ -942,13 +943,18 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     /**
      * @notice Rescues ERC1155 tokens from the pool to the owner. Only callable by the owner.
+     * If somehow, the pool's nft() is an unholy amalgam of both ERC721 AND * ERC1155, even though
+     * there is no good nor indeed any reason for this, and nft() is what we are withdrawing, abort
+     * and advise usage of withdrawERC721 instead. Note that the transfer amount would be limited
+     * to whatever nft().safeTransferFrom(from, to, id) defaults to.
      * @param a The NFT to transfer
      * @param ids The NFT ids to transfer
      * @param amounts The amounts of each id to transfer
      */
     function withdrawERC1155(IERC1155 a, uint256[] calldata ids, uint256[] calldata amounts) external onlyAuthorized {
+        if (address(a) == address(nft())) revert UseWithdrawERC721Instead();
+
         a.safeBatchTransferFrom(address(this), owner(), ids, amounts, "");
-        // TODO update idSet or not?
     }
 
     /**
