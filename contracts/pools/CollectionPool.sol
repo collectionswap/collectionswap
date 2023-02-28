@@ -151,7 +151,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     error RouterNotTrusted();
     error NFTsNotAccepted();
     error NFTsNotAllowed();
-    error CallError();
+    error CallNotAllowed();
+    error CallError(bytes returnData);
     error MulticallError();
     error InvalidExternalFilter();
 
@@ -1072,9 +1073,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function call(address payable target, bytes calldata data) external onlyAuthorized returns (bytes memory) {
         ICollectionPoolFactory _factory = factory();
         // Only whitelisted targets can be called
-        if (!_factory.callAllowed(target)) revert CallError();
+        if (!_factory.callAllowed(target)) revert CallNotAllowed();
         (bool result, bytes memory returnData) = target.call{value: 0}(data);
-        if (!result) revert CallError();
+        if (!result) revert CallError(returnData);
         return returnData;
     }
 
