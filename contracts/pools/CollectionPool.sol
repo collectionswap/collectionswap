@@ -859,6 +859,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                 }
 
                 IERC721 _nft = nft();
+                ICollectionPoolFactory.PoolVariant variant = poolVariant();
 
                 // Call router to pull NFTs
                 // If more than 1 NFT is being transfered, do balance check instead of ownership check,
@@ -866,7 +867,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                 if (numNFTs > 1) {
                     uint256 beforeBalance = _nft.balanceOf(_assetRecipient);
                     for (uint256 i = 0; i < numNFTs;) {
-                        router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[i], poolVariant());
+                        /// @dev Variable assignment here prevents stack too deep in next line
+                        uint256 nftId = nftIds[i];
+                        router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftId, variant);
 
                         unchecked {
                             ++i;
@@ -875,7 +878,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                     // Check if NFT was transferred
                     if ((_nft.balanceOf(_assetRecipient) - beforeBalance) != numNFTs) revert RouterNotTrusted();
                 } else {
-                    router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[0], poolVariant());
+                    router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[0], variant);
                     // Check if NFT was transferred
                     if (_nft.ownerOf(nftIds[0]) != _assetRecipient) revert RouterNotTrusted();
                 }
