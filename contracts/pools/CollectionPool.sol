@@ -1085,11 +1085,17 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param calls The calldata for each call to make
      * @param revertOnFail Whether or not to revert the entire tx if any of the calls fail
      */
-    function multicall(bytes[] calldata calls, bool revertOnFail) external onlyAuthorized {
+    function multicall(bytes[] calldata calls, bool revertOnFail)
+        external
+        onlyAuthorized
+        returns (bytes[] memory results)
+    {
+        bool success;
         for (uint256 i; i < calls.length;) {
-            (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
+            (success, results[i]) = address(this).delegatecall(calls[i]);
+
             if (!success && revertOnFail) {
-                revert(_getRevertMsg(result));
+                revert(_getRevertMsg(results[i]));
             }
 
             unchecked {
