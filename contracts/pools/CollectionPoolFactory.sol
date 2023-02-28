@@ -405,11 +405,13 @@ contract CollectionPoolFactory is
     function withdrawRoyalties(address payable[] calldata recipients, ERC20 token) external {
         uint256 length = recipients.length;
         uint256 totalRoyaltiesWithdrawn;
+        uint256 amount;
         if (address(token) == address(0)) {
             for (uint256 i; i < length;) {
-                recipients[i].safeTransferETH(royaltiesClaimable[recipients[i]][ERC20(address(0))]);
-                totalRoyaltiesWithdrawn += royaltiesClaimable[recipients[i]][token];
+                amount = royaltiesClaimable[recipients[i]][token];
                 royaltiesClaimable[recipients[i]][token] = 0;
+                recipients[i].safeTransferETH(amount);
+                totalRoyaltiesWithdrawn += amount;
 
                 unchecked {
                     ++i;
@@ -417,9 +419,10 @@ contract CollectionPoolFactory is
             }
         } else {
             for (uint256 i; i < length;) {
-                token.safeTransfer(recipients[i], royaltiesClaimable[recipients[i]][token]);
-                totalRoyaltiesWithdrawn += royaltiesClaimable[recipients[i]][token];
+                amount = royaltiesClaimable[recipients[i]][token];
                 royaltiesClaimable[recipients[i]][token] = 0;
+                token.safeTransfer(recipients[i], amount);
+                totalRoyaltiesWithdrawn += amount;
 
                 unchecked {
                     ++i;
