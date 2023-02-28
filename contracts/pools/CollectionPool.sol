@@ -630,14 +630,14 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         if (erc2981Recipient != address(0)) {
             return erc2981Recipient;
         }
-
         // No recipient from ERC2981 royaltyInfo method. Check if we have a fallback
-        if (royaltyRecipientFallback != address(0)) {
+        else if (royaltyRecipientFallback != address(0)) {
             return royaltyRecipientFallback;
         }
-
         // No ERC2981 recipient or recipient fallback. Default to pool's assetRecipient.
-        return getAssetRecipient();
+        else {
+          return getAssetRecipient();
+        }
     }
 
     /**
