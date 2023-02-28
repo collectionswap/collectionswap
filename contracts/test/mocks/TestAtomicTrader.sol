@@ -14,7 +14,14 @@ contract TestAtomicTrader is IERC721Receiver {
         curve = _curve;
     }
 
-    function createAndTrade(IERC721 nft, uint256[] calldata nftIDs) external payable {
+    function createAndTrade(
+        IERC721 nft,
+        uint256[] calldata nftIDs,
+        uint128 spotPrice,
+        uint128 delta,
+        bytes calldata props,
+        bytes calldata state
+    ) external payable {
         for (uint256 i; i < nftIDs.length; ++i) {
             // pull NFTs into this contract
             nft.safeTransferFrom(msg.sender, address(this), nftIDs[i]);
@@ -30,11 +37,11 @@ contract TestAtomicTrader is IERC721Receiver {
                 assetRecipient: payable(0),
                 receiver: msg.sender,
                 poolType: ICollectionPool.PoolType.TRADE,
-                delta: 15e17,
+                delta: delta,
                 fee: 0.05e6,
-                spotPrice: 1e18,
-                props: abi.encode(1e18, 1e18),
-                state: abi.encode(0),
+                spotPrice: spotPrice,
+                props: props,
+                state: state,
                 royaltyNumerator: 0,
                 royaltyRecipientFallback: payable(address(0)),
                 initialNFTIDs: nftIDs

@@ -6,7 +6,7 @@ import {
   COLLECTION_POOL_INTERFACE,
   mintTokensAndApprove,
 } from "../shared/constants";
-import { everythingFixture } from "../shared/fixtures";
+import { everythingFixture, getCurveParameters } from "../shared/fixtures";
 import {
   buyFromPool,
   calculateAsk,
@@ -518,12 +518,18 @@ describe("Collectionswap", function () {
         atomicTestTrader
       );
 
+      const { spotPrice, delta, props, state } = getCurveParameters();
+
       await expect(
         atomicTestTrader
           .connect(atomicTrader)
           .createAndTrade(
             nftContractCollection.address,
-            externalTraderNftsIHave
+            externalTraderNftsIHave,
+            spotPrice,
+            delta,
+            props,
+            state
           )
       ).to.be.revertedWithCustomError(
         { interface: COLLECTION_POOL_INTERFACE },
