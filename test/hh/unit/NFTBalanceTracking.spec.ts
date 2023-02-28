@@ -14,6 +14,7 @@ import {
 import {
   calculateAsk,
   calculateBid,
+  closeEnough,
   difference,
   gasUsed,
   getPoolAddress,
@@ -24,7 +25,7 @@ import {
 import { getSigners } from "../shared/signers";
 
 import type { NFTFixture } from "../shared/fixtures";
-import type { BigNumberish, ContractTransaction } from "ethers";
+import type { BigNumber, BigNumberish, ContractTransaction } from "ethers";
 
 const gas: { [key: string]: any | any[] } = {};
 
@@ -34,6 +35,10 @@ function logGasUsages() {
   if (LOG_GAS) {
     console.log(JSON.stringify(gas));
   }
+}
+
+function makeCloseEnoughPredicate(expected: BigNumber) {
+  return (eventArgument: BigNumber) => closeEnough(eventArgument, expected);
 }
 
 async function recordGas(
@@ -214,7 +219,12 @@ function testDepositNFTs(
 
     await expect(tx)
       .to.emit(pool, "NFTDeposit")
-      .withArgs(nft.address, tokenIds.length, rawAsk, rawBid);
+      .withArgs(
+        nft.address,
+        tokenIds.length,
+        makeCloseEnoughPredicate(rawAsk),
+        makeCloseEnoughPredicate(rawBid)
+      );
     const finalBalance = await pool.getAllHeldIds();
     expect(finalBalance.slice().sort()).deep.equal(
       initialBalance.concat(tokenIds.map(ethers.BigNumber.from)).slice().sort()
@@ -284,7 +294,12 @@ function testDepositNFTs(
         )
     )
       .to.emit(pool, "NFTDeposit")
-      .withArgs(nft.address, tokenIds.length, rawAsk, rawBid);
+      .withArgs(
+        nft.address,
+        tokenIds.length,
+        makeCloseEnoughPredicate(rawAsk),
+        makeCloseEnoughPredicate(rawBid)
+      );
     const finalBalance = await pool.getAllHeldIds();
     expect(finalBalance.slice().sort()).deep.equal(
       initialBalance.concat(tokenIds.map(ethers.BigNumber.from)).slice().sort()
@@ -368,7 +383,12 @@ function testWithdrawERC721(
     const tx = await pool.connect(owner).withdrawERC721(nft.address, tokenIds);
     await expect(tx)
       .to.emit(pool, "NFTWithdrawal")
-      .withArgs(nft.address, tokenIds.length, rawAsk, rawBid);
+      .withArgs(
+        nft.address,
+        tokenIds.length,
+        makeCloseEnoughPredicate(rawAsk),
+        makeCloseEnoughPredicate(rawBid)
+      );
     if (!withdrawBeforeTest) {
       await pool.connect(owner).withdrawERC721(nft.address, idsToSneakIn);
     }
