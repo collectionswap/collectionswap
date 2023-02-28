@@ -69,6 +69,7 @@ export function getCurveParameters(): {
   protocolFee: string;
   carryFee: string;
   royaltyNumerator: string;
+  parser: (rawProps: any, rawState: any) => { props: any; state: any };
 } {
   const {
     bigPctProtocolFee,
@@ -91,6 +92,10 @@ export function getCurveParameters(): {
     rawState
   );
 
+  const parser = (props: any, state: any) => {
+    return parsePropsAndState(rawPropsTypes, props, rawStateTypes, state);
+  };
+
   return {
     rawSpot,
     spotPrice: bigSpot,
@@ -101,6 +106,7 @@ export function getCurveParameters(): {
     protocolFee: bigPctProtocolFee,
     carryFee: bigPctCarryFee,
     royaltyNumerator,
+    parser,
   };
 }
 

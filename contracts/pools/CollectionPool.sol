@@ -125,8 +125,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event TokenDeposit(IERC721 indexed collection, ERC20 indexed token, uint256 amount);
     event TokenWithdrawal(IERC721 indexed collection, ERC20 indexed token, uint256 amount);
     event AccruedTradeFeeWithdrawal(IERC721 indexed collection, ERC20 token, uint256 amount);
-    event NFTDeposit(IERC721 indexed collection, uint256 numNFTs);
-    event NFTWithdrawal(IERC721 indexed collection, uint256 numNFTs);
+    event NFTDeposit(IERC721 indexed collection, uint256 numNFTs, uint256 rawBuyPrice, uint256 rawSellPrice);
+    event NFTWithdrawal(IERC721 indexed collection, uint256 numNFTs, uint256 rawBuyPrice, uint256 rawSellPrice);
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
     event AssetRecipientChange(address a);
@@ -473,6 +473,15 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /**
      * View functions
      */
+
+    function getRawBuyAndSellPrices() public view returns (uint256 rawBuyPrice, uint256 rawSellPrice) {
+        (, rawBuyPrice,,) = bondingCurve().getBuyInfo(
+            curveParams(), 1, ICurve.FeeMultipliers({trade: 0, protocol: 0, royaltyNumerator: 0, carry: 0})
+        );
+        (, rawSellPrice,,) = bondingCurve().getSellInfo(
+            curveParams(), 1, ICurve.FeeMultipliers({trade: 0, protocol: 0, royaltyNumerator: 0, carry: 0})
+        );
+    }
 
     /**
      * @notice Checks if NFTs is allowed in this pool
@@ -919,7 +928,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         else {
             _withdrawNFTs(_owner, nftIds);
 
-            emit NFTWithdrawal(_nft, nftIds.length);
+            (uint256 rawBuyPrice, uint256 rawSellPrice) = getRawBuyAndSellPrices();
+            emit NFTWithdrawal(_nft, nftIds.length, rawBuyPrice, rawSellPrice);
             /// @dev No need to notify pool monitors as pool monitors own the pool,
             /// thus only the monitor can withdraw from the pool and notifications
             /// are redundant
@@ -1209,7 +1219,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function depositNFTsNotification(uint256[] calldata nftIds) external override onlyFactory {
         _depositNFTsNotification(nftIds);
 
-        emit NFTDeposit(nft(), nftIds.length);
+        (uint256 rawBuyPrice, uint256 rawSellPrice) = getRawBuyAndSellPrices();
+        emit NFTDeposit(nft(), nftIds.length, rawBuyPrice, rawSellPrice);
         notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
     }
 
@@ -1217,7 +1228,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         if (!acceptsTokenIDs(nftIds, proof, proofFlags)) revert NFTsNotAccepted();
         _depositNFTs(msg.sender, nftIds);
 
-        emit NFTDeposit(nft(), nftIds.length);
+        (uint256 rawBuyPrice, uint256 rawSellPrice) = getRawBuyAndSellPrices();
+        emit NFTDeposit(nft(), nftIds.length, rawBuyPrice, rawSellPrice);
 
         notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
     }

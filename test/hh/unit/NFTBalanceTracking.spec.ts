@@ -12,6 +12,8 @@ import {
   TRADING_QUANTITY,
 } from "../shared/fixtures";
 import {
+  calculateAsk,
+  calculateBid,
   difference,
   gasUsed,
   getPoolAddress,
@@ -173,9 +175,46 @@ function testDepositNFTs(
         multiproof?.proof ?? [],
         multiproof?.proofFlags ?? []
       );
+
+    const { delta, spotPrice, props } = getCurveParameters();
+
+    const rawAsk = ethers.utils.parseEther(
+      String(
+        (
+          await calculateAsk(
+            0,
+            pool as any,
+            ethers.BigNumber.from(spotPrice),
+            ethers.BigNumber.from(delta),
+            props,
+            ethers.constants.Zero,
+            ethers.constants.Zero,
+            0
+          )
+        )[0]
+      )
+    );
+
+    const rawBid = ethers.utils.parseEther(
+      String(
+        (
+          await calculateBid(
+            0,
+            pool as any,
+            ethers.BigNumber.from(spotPrice),
+            ethers.BigNumber.from(delta),
+            props,
+            ethers.constants.Zero,
+            ethers.constants.Zero,
+            0
+          )
+        )[0]
+      )
+    );
+
     await expect(tx)
       .to.emit(pool, "NFTDeposit")
-      .withArgs(nft.address, tokenIds.length);
+      .withArgs(nft.address, tokenIds.length, rawAsk, rawBid);
     const finalBalance = await pool.getAllHeldIds();
     expect(finalBalance.slice().sort()).deep.equal(
       initialBalance.concat(tokenIds.map(ethers.BigNumber.from)).slice().sort()
@@ -198,6 +237,43 @@ function testDepositNFTs(
     const tokenIds = pickRandomElements(traderNfts, numDeposited);
     const multiproof = filter?.proof(tokenIds.map(toBigInt));
     await nft.connect(trader).setApprovalForAll(factory.address, true);
+
+    const { delta, spotPrice, props } = getCurveParameters();
+
+    const rawAsk = ethers.utils.parseEther(
+      String(
+        (
+          await calculateAsk(
+            0,
+            pool as any,
+            ethers.BigNumber.from(spotPrice),
+            ethers.BigNumber.from(delta),
+            props,
+            ethers.constants.Zero,
+            ethers.constants.Zero,
+            0
+          )
+        )[0]
+      )
+    );
+
+    const rawBid = ethers.utils.parseEther(
+      String(
+        (
+          await calculateBid(
+            0,
+            pool as any,
+            ethers.BigNumber.from(spotPrice),
+            ethers.BigNumber.from(delta),
+            props,
+            ethers.constants.Zero,
+            ethers.constants.Zero,
+            0
+          )
+        )[0]
+      )
+    );
+
     await expect(
       await pool
         .connect(trader)
@@ -208,7 +284,7 @@ function testDepositNFTs(
         )
     )
       .to.emit(pool, "NFTDeposit")
-      .withArgs(nft.address, tokenIds.length);
+      .withArgs(nft.address, tokenIds.length, rawAsk, rawBid);
     const finalBalance = await pool.getAllHeldIds();
     expect(finalBalance.slice().sort()).deep.equal(
       initialBalance.concat(tokenIds.map(ethers.BigNumber.from)).slice().sort()
@@ -253,10 +329,46 @@ function testWithdrawERC721(
       await pool.connect(owner).withdrawERC721(nft.address, idsToSneakIn);
     }
 
+    const { delta, spotPrice, props } = getCurveParameters();
+
+    const rawAsk = ethers.utils.parseEther(
+      String(
+        (
+          await calculateAsk(
+            0,
+            pool as any,
+            ethers.BigNumber.from(spotPrice),
+            ethers.BigNumber.from(delta),
+            props,
+            ethers.constants.Zero,
+            ethers.constants.Zero,
+            0
+          )
+        )[0]
+      )
+    );
+
+    const rawBid = ethers.utils.parseEther(
+      String(
+        (
+          await calculateBid(
+            0,
+            pool as any,
+            ethers.BigNumber.from(spotPrice),
+            ethers.BigNumber.from(delta),
+            props,
+            ethers.constants.Zero,
+            ethers.constants.Zero,
+            0
+          )
+        )[0]
+      )
+    );
+
     const tx = await pool.connect(owner).withdrawERC721(nft.address, tokenIds);
     await expect(tx)
       .to.emit(pool, "NFTWithdrawal")
-      .withArgs(nft.address, tokenIds.length);
+      .withArgs(nft.address, tokenIds.length, rawAsk, rawBid);
     if (!withdrawBeforeTest) {
       await pool.connect(owner).withdrawERC721(nft.address, idsToSneakIn);
     }
