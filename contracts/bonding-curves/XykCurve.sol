@@ -19,6 +19,8 @@ contract XykCurve is Curve, CurveErrorCodes {
     using FixedPointMathLib for uint256;
 
     error TokenReserveOverflow(uint256 initialValue, uint256 finalValue);
+    /// @param outputValueWithoutFee The amount the pool needed to have to be sold into
+    error TokenReserveUnderflow(uint256 outputValueWithoutFee);
     error NFTReserveOverflow(uint256 initialValue, uint256 finalValue);
 
     /**
@@ -69,9 +71,9 @@ contract XykCurve is Curve, CurveErrorCodes {
         // set the new virtual reserves
         bool success;
         (success, newParams.spotPrice) = safeCastUint256ToUint128(tokenBalance + inputValueWithoutFee); // token reserve
-        if (!success) revert TokenReserveOverflow(tokenBalance, newParams.spotPrice);
-        (success, newParams.delta) = safeCastUint256ToUint128(nftBalance - numItems); // nft reserve
-        if (!success) revert NFTReserveOverflow(nftBalance, newParams.delta);
+        if (!success) revert TokenReserveOverflow(tokenBalance, tokenBalance + inputValueWithoutFee); // newParams.spotPrice has lost data
+        /// @dev Cannot underflow, validated in initial check
+        newParams.delta = uint128(nftBalance - numItems);
 
         // Keep state the same
         newParams.state = params.state;
@@ -122,9 +124,12 @@ contract XykCurve is Curve, CurveErrorCodes {
             getOutputValueAndFees(feeMultipliers, outputValueWithoutFee, fees.royalties, totalRoyalties);
 
         // set the new virtual reserves
+
+        /// @dev Can't overflow but can underflow. Throw a custom error so user
+        /// can see the theoretical price regardless of whether the pool has enough balance
+        if (tokenBalance < outputValueWithoutFee) revert TokenReserveUnderflow(outputValueWithoutFee);
+        newParams.spotPrice = uint128(tokenBalance - outputValueWithoutFee); // token reserve
         bool success;
-        (success, newParams.spotPrice) = safeCastUint256ToUint128(tokenBalance - outputValueWithoutFee); // token reserve
-        if (!success) revert TokenReserveOverflow(tokenBalance, newParams.spotPrice);
         (success, newParams.delta) = safeCastUint256ToUint128(nftBalance + numItems); // nft reserve
         if (!success) revert NFTReserveOverflow(nftBalance, newParams.delta);
 
