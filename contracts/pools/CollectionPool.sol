@@ -79,6 +79,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     // `royaltyNumerator / 1e6`
     uint24 public royaltyNumerator;
 
+    uint24 internal constant MAX_ROYALTY_NUMERATOR = 1e6;
+
     // An address to which all royalties will be paid to if not address(0). This
     // is a fallback to ERC2981 royalties set by the NFT creator, and allows sending
     // royalties to arbitrary addresses if a collection does not support ERC2981.
@@ -163,7 +165,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @dev Use this whenever modifying the value of royaltyNumerator.
      */
     modifier validRoyaltyNumerator(uint24 _royaltyNumerator) {
-        if (_royaltyNumerator >= 1e6) revert RoyaltyNumeratorOverflow();
+        if (_royaltyNumerator >= MAX_ROYALTY_NUMERATOR) revert RoyaltyNumeratorOverflow();
         _;
     }
 
