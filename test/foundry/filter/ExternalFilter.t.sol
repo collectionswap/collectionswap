@@ -34,7 +34,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC165, ERC721Holder 
         setupCollectionPool();
 
         // LP token
-        factory.mint(address(this), uint256(uint160(address(pool))));
+        factory.mint(address(this), uint160(address(pool)));
 
         // skip a block
         vm.roll(block.number + 1);

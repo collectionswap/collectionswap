@@ -542,7 +542,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @notice Returns LP token ID for this pool
      */
     function tokenId() public view returns (uint256 _tokenId) {
-        _tokenId = uint256(uint160(address(this)));
+        _tokenId = uint160(address(this));
     }
 
     /**
