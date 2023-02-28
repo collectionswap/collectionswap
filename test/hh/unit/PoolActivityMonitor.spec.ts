@@ -37,7 +37,7 @@ const templates = [
   "CollectionPoolMissingEnumerableERC20",
 ] as const;
 
-describe.only(`Testing pool monitor notifications`, function () {
+describe(`Testing pool monitor notifications`, function () {
   let collectionPoolFactory: CollectionPoolFactory;
   let curve: ICurve;
   let test20: Test20;

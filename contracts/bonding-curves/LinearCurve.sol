@@ -40,30 +40,29 @@ contract LinearCurve is Curve, CurveErrorCodes {
         // The new spot price would become (S+delta), so selling would also yield (S+delta) ETH.
         uint256 buySpotPrice = params.spotPrice + params.delta;
 
-        // If we buy n items, then the total cost is equal to:
-        // (buy spot price) + (buy spot price + 1*delta) + (buy spot price + 2*delta) + ... + (buy spot price + (n-1)*delta)
-        // This is equal to n*(buy spot price) + (delta)*(n*(n-1))/2
-        // because we have n instances of buy spot price, and then we sum up from delta to (n-1)*delta
-        inputValue = numItems * buySpotPrice + (numItems * (numItems - 1) * params.delta) / 2;
+        /// @dev For an arithmetic progression the total price is the average buy price
+        /// multiplied by the number of items bought, where average buy price is
+        /// the average of first and last transacted price. These are buySpotPrice
+        /// and newSpotPrice respectively
+        inputValue = numItems * (buySpotPrice + newParams.spotPrice) / 2;
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
+        uint256 rawAmount;
+        uint256 royaltyAmount;
         for (uint256 i = 0; i < numItems;) {
-            uint256 rawAmount = buySpotPrice + (params.delta * i);
-            uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+            rawAmount = buySpotPrice + (params.delta * i);
+            royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
-
-            if (i == numItems - 1) {
-                /// @dev royalty breakdown not needed if fees aren't used
-                (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
-            }
 
             unchecked {
                 ++i;
             }
         }
 
+        /// @dev royalty breakdown not needed if fees aren't used
+        (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
         (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
 
         // Keep delta the same
@@ -109,29 +108,29 @@ contract LinearCurve is Curve, CurveErrorCodes {
             newParams.spotPrice = params.spotPrice - uint128(totalPriceDecrease);
         }
 
-        // If we sell n items, then the total sale amount is:
-        // (spot price) + (spot price - 1*delta) + (spot price - 2*delta) + ... + (spot price - (n-1)*delta)
-        // This is equal to n*(spot price) - (delta)*(n*(n-1))/2
-        outputValue = numItems * params.spotPrice - (numItems * (numItems - 1) * params.delta) / 2;
+        /// @dev For an arithmetic progression the total price is the average sell price
+        /// multiplied by the number of items sold, where average buy price is
+        /// the average of first and last transacted price. These are spotPrice
+        /// and (newSpotPrice + delta) respectively
+        outputValue = numItems * (params.spotPrice + newParams.spotPrice + params.delta) / 2;
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
+        uint256 rawAmount;
+        uint256 royaltyAmount;
         for (uint256 i = 0; i < numItems;) {
-            uint256 rawAmount = params.spotPrice - (params.delta * i);
-            uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+            rawAmount = params.spotPrice - (params.delta * i);
+            royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
-
-            if (i == numItems - 1) {
-                /// @dev royalty breakdown not needed if fee return value not used
-                (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
-            }
 
             unchecked {
                 ++i;
             }
         }
 
+        /// @dev royalty breakdown not needed if fee return value not used
+        (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
         (outputValue, fees) = getOutputValueAndFees(feeMultipliers, outputValue, fees.royalties, totalRoyalty);
 
         // Keep delta the same
