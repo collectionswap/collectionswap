@@ -178,5 +178,31 @@ interface ICollectionPoolFactory is IERC721 {
      */
     function poolOf(uint256 tokenId) external view returns (ICollectionPool);
 
-    function withdrawRoyalties(address payable[] calldata recipients, ERC20 token) external;
+    function withdrawRoyalties(address payable recipient, ERC20 token) external;
+
+    /**
+     * @notice Withdraw all `token` royalties awardable to `recipient`. If the
+     * zero address is passed as `token`, then ETH royalties are paid. Does not
+     * use msg.sender so this function can be called on behalf of contract
+     * royalty recipients
+     *
+     * @dev Does not call `withdrawRoyalties` to avoid making multiple unneeded
+     * checks of whether `address(token) == address(0)` for each iteration
+     */
+    function withdrawRoyaltiesMultipleRecipients(address payable[] calldata recipients, ERC20 token) external;
+
+    function withdrawRoyaltiesMultipleCurrencies(address payable recipient, ERC20[] calldata tokens) external;
+
+    /**
+     * @notice Withdraw royalties for ALL combinations of recipients and tokens
+     * in the given arguments
+     *
+     * @dev Iterate over tokens as outer loop to reduce stores/loads to `royaltiesStored`
+     * and also reduce the number of `address(token) == address(0)` condition checks
+     * from O(m * n) to O(n)
+     */
+    function withdrawRoyaltiesMultipleRecipientsAndCurrencies(
+        address payable[] calldata recipients,
+        ERC20[] calldata tokens
+    ) external;
 }

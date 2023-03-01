@@ -1476,7 +1476,7 @@ async function testRoyaltyWithdrawals(
 
   // Next, verify that correct amount of royalties are sent out
   await changesEtherBalancesFuzzy(
-    await factory.withdrawRoyalties(
+    await factory.withdrawRoyaltiesMultipleRecipients(
       validRecipientsAndRoyalties.map(([recipient]) => recipient),
       constants.AddressZero
     ),
@@ -1486,7 +1486,7 @@ async function testRoyaltyWithdrawals(
 
   // Now ensure that recipients can't withdraw more than what's expected
   await changesEtherBalancesFuzzy(
-    await factory.withdrawRoyalties(
+    await factory.withdrawRoyaltiesMultipleRecipients(
       validRecipientsAndRoyalties.map(([recipient]) => recipient),
       constants.AddressZero
     ),

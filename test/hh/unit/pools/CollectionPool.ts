@@ -1119,7 +1119,7 @@ async function testRoyaltyWithdrawals(
   await expectTxToChangeBalances.call(
     this,
     key,
-    await factory.withdrawRoyalties(
+    await factory.withdrawRoyaltiesMultipleRecipients(
       validRecipientsAndRoyalties.map(([recipient]) => recipient),
       key === "ETH" ? constants.AddressZero : this.test20.address
     ),
@@ -1131,7 +1131,7 @@ async function testRoyaltyWithdrawals(
   await expectTxToChangeBalances.call(
     this,
     key,
-    await factory.withdrawRoyalties(
+    await factory.withdrawRoyaltiesMultipleRecipients(
       validRecipientsAndRoyalties.map(([recipient]) => recipient),
       key === "ETH" ? constants.AddressZero : this.test20.address
     ),

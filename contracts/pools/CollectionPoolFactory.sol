@@ -402,15 +402,48 @@ contract CollectionPoolFactory is
      * use msg.sender so this function can be called on behalf of contract
      * royalty recipients
      */
-    function withdrawRoyalties(address payable[] calldata recipients, ERC20 token) external {
+    function withdrawRoyalties(address payable recipient, ERC20 token) external {
+        uint256 totalRoyaltiesWithdrawn;
+        if (address(token) == address(0)) {
+            totalRoyaltiesWithdrawn = withdrawETHRoyalties(recipient);
+        } else {
+            totalRoyaltiesWithdrawn = withdrawERC20Royalties(recipient, token);
+        }
+
+        royaltiesStored[token] -= totalRoyaltiesWithdrawn;
+    }
+
+    /**
+     * @dev Internal helper function for withdrawing ETH royalties for a single
+     * address. Does NOT update `royaltiesStored[token]`
+     */
+    function withdrawETHRoyalties(address payable recipient) internal returns (uint256 amount) {
+        amount = royaltiesClaimable[recipient][ERC20(address(0))];
+        royaltiesClaimable[recipient][ERC20(address(0))] = 0;
+        recipient.safeTransferETH(amount);
+    }
+
+    /**
+     * @dev Internal helper function for withdrawing ERC20 royalties for a single
+     * address. Does NOT update `royaltiesStored[token]`
+     */
+    function withdrawERC20Royalties(address payable recipient, ERC20 token) internal returns (uint256 amount) {
+        require(address(token) != address(0), "Use withdrawETHRoyalties instead");
+        amount = royaltiesClaimable[recipient][token];
+        royaltiesClaimable[recipient][token] = 0;
+        token.safeTransfer(recipient, amount);
+    }
+
+    /**
+     * @dev Uses the internal helper functions to batch writes to `royaltiesStored`
+     */
+    function withdrawRoyaltiesMultipleRecipients(address payable[] calldata recipients, ERC20 token) public {
         uint256 length = recipients.length;
         uint256 totalRoyaltiesWithdrawn;
         uint256 amount;
         if (address(token) == address(0)) {
             for (uint256 i; i < length;) {
-                amount = royaltiesClaimable[recipients[i]][token];
-                royaltiesClaimable[recipients[i]][token] = 0;
-                recipients[i].safeTransferETH(amount);
+                amount = withdrawETHRoyalties(recipients[i]);
                 totalRoyaltiesWithdrawn += amount;
 
                 unchecked {
@@ -419,9 +452,7 @@ contract CollectionPoolFactory is
             }
         } else {
             for (uint256 i; i < length;) {
-                amount = royaltiesClaimable[recipients[i]][token];
-                royaltiesClaimable[recipients[i]][token] = 0;
-                token.safeTransfer(recipients[i], amount);
+                amount = withdrawERC20Royalties(recipients[i], token);
                 totalRoyaltiesWithdrawn += amount;
 
                 unchecked {
@@ -431,6 +462,52 @@ contract CollectionPoolFactory is
         }
 
         royaltiesStored[token] -= totalRoyaltiesWithdrawn;
+    }
+
+    function withdrawRoyaltiesMultipleCurrencies(address payable recipient, ERC20[] calldata tokens) external {
+        uint256 length = tokens.length;
+        uint256 amount;
+        for (uint256 i; i < length; i++) {
+            ERC20 token = tokens[i];
+            amount = royaltiesClaimable[recipient][token];
+            royaltiesClaimable[recipient][token] = 0;
+
+            /// @dev Need to repeat this check for every token iterated over
+            if (address(token) == address(0)) {
+                recipient.safeTransferETH(amount);
+            } else {
+                token.safeTransfer(recipient, amount);
+            }
+
+            royaltiesStored[token] -= amount;
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Withdraw royalties for ALL combinations of recipients and tokens
+     * in the given arguments
+     *
+     * @dev Iterate over tokens as outer loop to reduce stores/loads to `royaltiesStored`
+     * and the number of `address(token) == address(0)` condition checks from
+     * O(m * n) to O(n)
+     */
+    function withdrawRoyaltiesMultipleRecipientsAndCurrencies(
+        address payable[] calldata recipients,
+        ERC20[] calldata tokens
+    ) external {
+        uint256 length = tokens.length;
+        for (uint256 i; i < length; i++) {
+            ERC20 token = tokens[i];
+            withdrawRoyaltiesMultipleRecipients(recipients, token);
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /**
