@@ -9,13 +9,19 @@ import {CollectionPoolCloner} from "../lib/CollectionPoolCloner.sol";
 import {CollectionPoolERC20} from "../pools/CollectionPoolERC20.sol";
 import {FixedPointMathLib} from "../lib/FixedPointMathLib.sol";
 
-/*
-    @author Collection
-    @notice Bonding curve logic for an x*y=k curve using virtual reserves.
-    @dev    The virtual token reserve is stored in `spotPrice` and the virtual nft reserve is stored in `delta`.
-            An LP can modify the virtual reserves by changing the `spotPrice` (tokens) or `delta` (nfts).*/
+/**
+ * @author Collection
+ * @notice Bonding curve logic for an x*y=k curve using virtual reserves.
+ * @dev    The virtual token reserve is stored in `spotPrice` and the virtual nft reserve is stored in `delta`.
+ *         An LP can modify the virtual reserves by changing the `spotPrice` (tokens) or `delta` (nfts).
+ */
 contract XykCurve is Curve, CurveErrorCodes {
     using FixedPointMathLib for uint256;
+
+    error TokenReserveOverflow(uint256 initialValue, uint256 finalValue);
+    /// @param outputValueWithoutFee The amount the pool needed to have to be sold into
+    error TokenReserveUnderflow(uint256 outputValueWithoutFee);
+    error NFTReserveOverflow(uint256 initialValue, uint256 finalValue);
 
     /**
      * @dev See {ICurve-getBuyInfo}
@@ -63,8 +69,11 @@ contract XykCurve is Curve, CurveErrorCodes {
         (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValueWithoutFee, fees.royalties, totalRoyalties);
 
         // set the new virtual reserves
-        newParams.spotPrice = uint128(params.spotPrice + inputValueWithoutFee); // token reserve
-        newParams.delta = uint128(nftBalance - numItems); // nft reserve
+        bool success;
+        (success, newParams.spotPrice) = safeCastUint256ToUint128(tokenBalance + inputValueWithoutFee); // token reserve
+        if (!success) revert TokenReserveOverflow(tokenBalance, tokenBalance + inputValueWithoutFee); // newParams.spotPrice has lost data
+        /// @dev Cannot underflow, validated in initial check
+        newParams.delta = uint128(nftBalance - numItems);
 
         // Keep state the same
         newParams.state = params.state;
@@ -115,13 +124,24 @@ contract XykCurve is Curve, CurveErrorCodes {
             getOutputValueAndFees(feeMultipliers, outputValueWithoutFee, fees.royalties, totalRoyalties);
 
         // set the new virtual reserves
-        newParams.spotPrice = uint128(params.spotPrice - outputValueWithoutFee); // token reserve
-        newParams.delta = uint128(nftBalance + numItems); // nft reserve
+
+        /// @dev Can't overflow but can underflow. Throw a custom error so user
+        /// can see the theoretical price regardless of whether the pool has enough balance
+        if (tokenBalance < outputValueWithoutFee) revert TokenReserveUnderflow(outputValueWithoutFee);
+        newParams.spotPrice = uint128(tokenBalance - outputValueWithoutFee); // token reserve
+        bool success;
+        (success, newParams.delta) = safeCastUint256ToUint128(nftBalance + numItems); // nft reserve
+        if (!success) revert NFTReserveOverflow(nftBalance, nftBalance + numItems);
 
         // Keep state the same
         newParams.state = params.state;
 
         // If we got all the way here, no math error happened
         error = Error.OK;
+    }
+
+    function safeCastUint256ToUint128(uint256 value) internal pure returns (bool success, uint128 castedValue) {
+        success = value <= type(uint128).max;
+        castedValue = uint128(value);
     }
 }
