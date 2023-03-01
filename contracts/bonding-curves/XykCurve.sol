@@ -131,7 +131,7 @@ contract XykCurve is Curve, CurveErrorCodes {
         newParams.spotPrice = uint128(tokenBalance - outputValueWithoutFee); // token reserve
         bool success;
         (success, newParams.delta) = safeCastUint256ToUint128(nftBalance + numItems); // nft reserve
-        if (!success) revert NFTReserveOverflow(nftBalance, newParams.delta);
+        if (!success) revert NFTReserveOverflow(nftBalance, nftBalance + numItems);
 
         // Keep state the same
         newParams.state = params.state;
