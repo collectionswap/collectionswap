@@ -327,7 +327,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     ) external payable virtual whenPoolSwapsNotPaused returns (uint256 inputAmount) {
         IERC721 _nft = nft();
         // 0 < Swap quantity <= NFT balance
-        if ((numNFTs <= 0) || (numNFTs > _nft.balanceOf(address(this)))) revert InvalidSwapQuantity();
+        if ((numNFTs == 0) || (numNFTs > _nft.balanceOf(address(this)))) revert InvalidSwapQuantity();
 
         uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
         inputAmount = swapTokenForSpecificNFTs(tokenIds, maxExpectedTokenInput, nftRecipient, isRouter, routerCaller);
@@ -364,7 +364,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             PoolType _poolType = poolType();
             // Can only buy from NFT or two sided pools
             if (_poolType == PoolType.TOKEN) revert InvalidSwap();
-            if (nftIds.length <= 0) revert InvalidSwapQuantity();
+            if (nftIds.length == 0) revert InvalidSwapQuantity();
         }
 
         // Prevent users from making a ridiculous pool, buying out their "sucker" price, and
@@ -422,7 +422,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
             PoolType _poolType = poolType();
             // Can only sell to Token / 2-sided pools
             if (_poolType == PoolType.NFT) revert InvalidSwap();
-            if (nfts.ids.length <= 0) revert InvalidSwapQuantity();
+            if (nfts.ids.length == 0) revert InvalidSwapQuantity();
             if (!acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags)) revert NFTsNotAccepted();
             if (
                 address(externalFilter) != address(0)
