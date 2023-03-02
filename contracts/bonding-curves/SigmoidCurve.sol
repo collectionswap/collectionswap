@@ -238,6 +238,10 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
      * @return The signed integer value of deltaN
      */
     function getDeltaN(bytes calldata state) private pure returns (int256) {
+        if (state.length != 32) {
+            return 0;
+        }
+
         return abi.decode(state, (int256));
     }
 

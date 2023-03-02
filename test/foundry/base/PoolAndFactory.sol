@@ -276,7 +276,7 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         // skip 1 block so that trades are not in the same block as pool creation
         vm.roll(block.number + 1);
 
-        (, ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
+        (ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -305,7 +305,7 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         // skip 1 block so that trades are not in the same block as pool creation
         vm.roll(block.number + 1);
 
-        (, ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
+        (ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -350,7 +350,6 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         // buy all NFTs
         {
             (
-                ,
                 ICurve.Params memory newParams,
                 uint256 inputAmount,
                 ICurve.Fees memory fees,

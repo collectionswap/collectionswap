@@ -163,6 +163,10 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
     }
 
     function decodeDeltaN(bytes calldata state) internal pure returns (int256) {
+        if (state.length != 32) {
+            return 0;
+        }
+
         return abi.decode(state, (int256));
     }
 

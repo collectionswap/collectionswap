@@ -5,7 +5,6 @@ import {Test} from "forge-std/Test.sol";
 
 import {ExponentialCurve} from "../../../contracts/bonding-curves/ExponentialCurve.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
 import {FixedPointMathLib} from "../../../contracts/lib/FixedPointMathLib.sol";
 
 contract ExponentialCurveTest is Test {
@@ -25,7 +24,6 @@ contract ExponentialCurveTest is Test {
         uint24 protocolFeeMultiplier = (1e6 * 3) / 1000; // 0.3%
         uint24 royaltyNumerator = 0;
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 inputValue,
             ICurve.Fees memory fees,
@@ -44,11 +42,6 @@ contract ExponentialCurveTest is Test {
                     0
                 )
             );
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
         assertEq(newParams.spotPrice, 3 ether, "Spot price incorrect");
         assertEq(newParams.delta, 2 ether, "Delta incorrect");
         assertEq(newParams.state, abi.encode(-int256(numItems)), "State incorrect");
@@ -70,16 +63,10 @@ contract ExponentialCurveTest is Test {
         }
 
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 inputValue,
             ,
         ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", abi.encode(0)), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
 
         if (spotPrice > 0 && numItems > 0) {
             assertTrue(
@@ -105,7 +92,6 @@ contract ExponentialCurveTest is Test {
         uint24 protocolFeeMultiplier = (1e6 * 3) / 1000; // 0.3%
         uint24 royaltyNumerator = 0;
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 outputValue,
             ICurve.Fees memory fees,
@@ -124,11 +110,6 @@ contract ExponentialCurveTest is Test {
                     0
                 )
             );
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
         assertEq(newParams.spotPrice, 3 ether, "Spot price incorrect");
         assertEq(newParams.delta, 2 ether, "Delta incorrect");
         assertEq(outputValue, 5.766 ether, "Output value incorrect");
@@ -148,16 +129,10 @@ contract ExponentialCurveTest is Test {
         }
 
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 outputValue,
             ,
         ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", abi.encode(0)), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
 
         if (numItems > 0) {
             assertTrue(

@@ -90,8 +90,11 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         // arrange
         uint256 numItems = 0;
 
+        // assert
+        vm.expectRevert(CurveErrorCodes.InvalidNumItems.selector);
+
         // act
-        (CurveErrorCodes.Error error, , , ,) = curve.getBuyInfo(
+        curve.getBuyInfo(
             ICurve.Params(
                 0,
                 0,
@@ -105,13 +108,6 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
                 0,
                 0
             )
-        );
-
-        // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.INVALID_NUMITEMS),
-            "Should have returned invalid num items error"
         );
     }
 
@@ -119,8 +115,11 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         // arrange
         uint256 numItems = 0;
 
+        // assert
+        vm.expectRevert(CurveErrorCodes.InvalidNumItems.selector);
+
         // act
-        (CurveErrorCodes.Error error, , , ,) = curve.getSellInfo(
+        curve.getSellInfo(
             ICurve.Params(
                 0,
                 0,
@@ -134,13 +133,6 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
                 0,
                 0
             )
-        );
-
-        // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.INVALID_NUMITEMS),
-            "Should have returned invalid num items error"
         );
     }
 
@@ -153,19 +145,12 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
 
         // act
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
-            ,
             uint256 inputValue,
-
+            ,
         ) = ethPool.getBuyNFTQuote(numItemsToBuy);
 
         // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Should not have errored"
-        );
         assertEq(
             newParams.delta,
             numNfts - numItemsToBuy,
@@ -187,7 +172,6 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
 
         // act
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             ,
             uint256 inputValue,
@@ -195,11 +179,6 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         ) = ethPool.getSellNFTQuote(numItemsToSell);
 
         // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Should not have errored"
-        );
         assertEq(
             newParams.delta,
             numNfts + numItemsToSell,
@@ -222,15 +201,10 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
             (numNfts - numItemsToBuy);
 
         // act
-        (CurveErrorCodes.Error error, , , uint256 inputValue, ) = ethPool
+        (, , uint256 inputValue, ) = ethPool
             .getBuyNFTQuote(numItemsToBuy);
 
         // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Should not have errored"
-        );
         assertEq(
             inputValue,
             expectedInputValue,
@@ -248,15 +222,10 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
             (numNfts + numItemsToSell);
 
         // act
-        (CurveErrorCodes.Error error, , , uint256 outputValue, ) = ethPool
+        (, , uint256 outputValue, ) = ethPool
             .getSellNFTQuote(numItemsToSell);
 
         // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Should not have errored"
-        );
         assertEq(
             outputValue,
             expectedOutputValue,
@@ -276,15 +245,10 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
             : (2 * ((numItemsToBuy * value) / (numNfts - numItemsToBuy))) / 100;
 
         // act
-        (CurveErrorCodes.Error error, , , , ICurve.Fees memory fees) = ethPool
+        (, , , ICurve.Fees memory fees) = ethPool
             .getBuyNFTQuote(numItemsToBuy);
 
         // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Should not have errored"
-        );
         assertEq(
             fees.protocol,
             expectedProtocolFee,
@@ -304,15 +268,10 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
             : (2 * ((numItemsToSell * value) / (numNfts + numItemsToSell))) / 100;
 
         // act
-        (CurveErrorCodes.Error error, , , , ICurve.Fees memory fees) = ethPool
+        (, , , ICurve.Fees memory fees) = ethPool
             .getSellNFTQuote(numItemsToSell);
 
         // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Should not have errored"
-        );
         assertEq(
             fees.protocol,
             expectedProtocolFee,
@@ -336,7 +295,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         factory.changeProtocolFeeMultiplier((2 * 1e6) / 100); // 2%
         ethPool.changeFee((1 * 1e6) / 100); // 1%
 
-        (CurveErrorCodes.Error error, , , uint256 inputValue, ) = ethPool
+        (, , uint256 inputValue, ) = ethPool
             .getBuyNFTQuote(numItemsToBuy);
 
         // act
@@ -349,11 +308,6 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         );
 
         // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Should not have errored"
-        );
         assertEq(
             ethBalanceBefore - address(this).balance,
             inputValue,
@@ -392,7 +346,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         ethPool.changeFee((1 * 1e6) / 100); // 1%
 
         uint256 numItemsToSell = 2;
-        (CurveErrorCodes.Error error, , , uint256 outputValue, ) = ethPool
+        (, , uint256 outputValue, ) = ethPool
             .getSellNFTQuote(numItemsToSell);
 
         uint256[] memory idList = new uint256[](numItemsToSell);
@@ -420,11 +374,6 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         );
 
         // assert
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Should not have errored"
-        );
         assertEq(
             address(this).balance - ethBalanceBefore,
             outputValue,
