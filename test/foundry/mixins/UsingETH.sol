@@ -8,7 +8,6 @@ import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
 import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
-import {CollectionRouter2} from "../../../contracts/routers/CollectionRouter2.sol";
 import {CollectionPoolETH} from "../../../contracts/pools/CollectionPoolETH.sol";
 import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
@@ -191,22 +190,5 @@ abstract contract UsingETH is Configurable, RouterCaller {
             router.robustSwapETHForSpecificNFTsAndNFTsToToken{value: msg.value}(
                 params
             );
-    }
-
-    function buyAndSellWithPartialFill(
-        CollectionRouter2 router,
-        CollectionRouter2.PoolSwapSpecificPartialFill[] calldata buyList,
-        CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata sellList
-    ) public payable override returns (uint256) {
-      return router.robustBuySellWithETHAndPartialFill{value: msg.value}(
-        buyList, sellList
-      );
-    }
-
-    function swapETHForSpecificNFTs(
-        CollectionRouter2 router,
-        CollectionRouter2.RobustPoolSwapSpecific[] calldata buyList
-    ) public payable override returns (uint256) {
-      return router.swapETHForSpecificNFTs{value: msg.value}(buyList);
     }
 }

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
-import {CollectionRouter2} from "../../../contracts/routers/CollectionRouter2.sol";
 
 abstract contract RouterCaller {
     function swapTokenForAnyNFTs(
@@ -65,15 +64,4 @@ abstract contract RouterCaller {
         CollectionRouter router,
         CollectionRouter.RobustPoolNFTsFoTokenAndTokenforNFTsTrade calldata params
     ) public payable virtual returns (uint256, uint256);
-
-    function buyAndSellWithPartialFill(
-        CollectionRouter2 router,
-        CollectionRouter2.PoolSwapSpecificPartialFill[] calldata buyList,
-        CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata sellList
-    ) public payable virtual returns (uint256);
-
-    function swapETHForSpecificNFTs(
-        CollectionRouter2 router,
-        CollectionRouter2.RobustPoolSwapSpecific[] calldata buyList
-    ) public payable virtual returns (uint256);
 }

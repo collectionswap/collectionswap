@@ -12,7 +12,6 @@ import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {CollectionPoolERC20} from "../../../contracts/pools/CollectionPoolERC20.sol";
 import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
-import {CollectionRouter2} from "../../../contracts/routers/CollectionRouter2.sol";
 import {Test20} from "../../../contracts/test/mocks/Test20.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
@@ -211,20 +210,5 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         CollectionRouter.RobustPoolNFTsFoTokenAndTokenforNFTsTrade calldata params
     ) public payable override returns (uint256, uint256) {
         return router.robustSwapERC20ForSpecificNFTsAndNFTsToToken(params);
-    }
-
-    function buyAndSellWithPartialFill(
-        CollectionRouter2 /*router*/,
-        CollectionRouter2.PoolSwapSpecificPartialFill[] calldata /*buyList*/,
-        CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata /*sellList*/
-    ) public payable override returns (uint256) {
-        revert("Unimplemented");
-    }
-
-    function swapETHForSpecificNFTs(
-        CollectionRouter2 /*router*/,
-        CollectionRouter2.RobustPoolSwapSpecific[] calldata /*buyList*/
-    ) public payable override returns (uint256) {
-        revert("Unimplemented");
     }
 }
