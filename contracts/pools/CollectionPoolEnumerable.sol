@@ -123,7 +123,7 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
     }
 
     /// @inheritdoc ICollectionPool
-    function NFTsLength() external view returns (uint256) {
+    function NFTsCount() external view returns (uint256) {
         return idLength;
     }
 }
