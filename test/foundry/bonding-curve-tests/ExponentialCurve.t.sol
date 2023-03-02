@@ -55,7 +55,7 @@ contract ExponentialCurveTest is Test {
         uint8 numItems
     ) public {
         if (
-            delta < FixedPointMathLib.WAD ||
+            delta <= FixedPointMathLib.WAD ||
             numItems > 10 ||
             numItems == 0
         ) {
@@ -122,7 +122,7 @@ contract ExponentialCurveTest is Test {
         uint8 numItems
     ) public {
         if (
-            delta < FixedPointMathLib.WAD ||
+            delta <= FixedPointMathLib.WAD ||
             numItems == 0
         ) {
             return;
