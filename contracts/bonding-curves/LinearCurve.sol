@@ -82,15 +82,19 @@ contract LinearCurve is Curve, CurveErrorCodes {
 
         // We first calculate the change in spot price after selling all of the items
         uint256 totalPriceDecrease = params.delta * numItems;
+        bool isNegative;
+        uint256 theoreticalNewSpotPrice;
 
         // If the current spot price is less than the total amount that the spot price should change by...
         if (params.spotPrice < totalPriceDecrease) {
+            isNegative = true;
             // Then we set the new spot price to be 0. (Spot price is never negative)
             newParams.spotPrice = 0;
 
-            // We calculate how many items we can sell into the linear curve until the spot price reaches 0, rounding up
-            uint256 numItemsTillZeroPrice = params.spotPrice / params.delta + 1;
-            numItems = numItemsTillZeroPrice;
+            // We calculate how many items we can sell into the linear curve until the spot price reaches 0, rounding up if it's not already at 0
+            numItems = params.spotPrice == 0 ? 0 : params.spotPrice / params.delta + 1;
+            totalPriceDecrease = params.delta * numItems;
+            theoreticalNewSpotPrice = totalPriceDecrease - params.spotPrice;
         }
         // Otherwise, the current spot price is greater than or equal to the total amount that the spot price changes
         // Thus we don't need to calculate the maximum number of items until we reach zero spot price, so we don't modify numItems
@@ -103,17 +107,23 @@ contract LinearCurve is Curve, CurveErrorCodes {
         /// multiplied by the number of items sold, where average buy price is
         /// the average of first and last transacted price. These are spotPrice
         /// and (newSpotPrice + delta) respectively
-        outputValue = numItems * (params.spotPrice + newParams.spotPrice + params.delta) / 2;
+        outputValue = isNegative
+            ? numItems * (uint256(params.spotPrice) + uint256(params.delta) - uint256(theoreticalNewSpotPrice)) / 2
+            : numItems * (uint256(params.spotPrice) + uint256(newParams.spotPrice) + uint256(params.delta)) / 2;
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         uint256 royaltyAmount;
-        uint256 rawAmount = params.spotPrice + params.delta;
+        uint256 rawAmount = params.spotPrice;
         for (uint256 i = 0; i < numItems;) {
-            rawAmount -= params.delta;
             royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
+            /// @dev While it would be slightly more efficient to start with `rawAmount = spotPrice + delta`
+            /// and simply take the last value of rawAmount to calculate `lastSwapPrice`, this can
+            /// result in overflow when the price should be weakly decreasing, which is
+            /// unexpected behaviour
+            if (i != numItems - 1) rawAmount = params.delta >= rawAmount ? 0 : rawAmount - params.delta;
 
             unchecked {
                 ++i;
