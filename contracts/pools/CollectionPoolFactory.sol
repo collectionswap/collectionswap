@@ -93,14 +93,14 @@ contract CollectionPoolFactory is
         _;
     }
 
-    event NewPool(address indexed collection, address poolAddress);
-    event TokenDeposit(address poolAddress);
-    event ProtocolFeeRecipientUpdate(address recipientAddress);
+    event NewPool(address indexed collection, address indexed poolAddress);
+    event TokenDeposit(address indexed poolAddress);
+    event ProtocolFeeRecipientUpdate(address indexed recipientAddress);
     event ProtocolFeeMultiplierUpdate(uint24 newMultiplier);
     event CarryFeeMultiplierUpdate(uint24 newMultiplier);
-    event BondingCurveStatusUpdate(ICurve bondingCurve, bool isAllowed);
-    event CallTargetStatusUpdate(address target, bool isAllowed);
-    event RouterStatusUpdate(CollectionRouter router, bool isAllowed);
+    event BondingCurveStatusUpdate(ICurve indexed bondingCurve, bool isAllowed);
+    event CallTargetStatusUpdate(address indexed target, bool isAllowed);
+    event RouterStatusUpdate(CollectionRouter indexed router, bool isAllowed);
     event CreationPause();
     event CreationUnpause();
     event SwapPause();

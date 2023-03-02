@@ -132,11 +132,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event NFTWithdrawal(IERC721 indexed collection, uint256 numNFTs, uint256 rawBuyPrice, uint256 rawSellPrice);
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
-    event AssetRecipientChange(address a);
+    event AssetRecipientChange(address indexed a);
     event PropsUpdate(bytes newProps);
     event StateUpdate(bytes newState);
     event RoyaltyNumeratorUpdate(uint24 newRoyaltyNumerator);
-    event RoyaltyRecipientFallbackUpdate(address payable newFallback);
+    event RoyaltyRecipientFallbackUpdate(address payable indexed newFallback);
     event PoolSwapPause();
     event PoolSwapUnpause();
     event ExternalFilterSet(address indexed collection, address indexed filterAddress);
