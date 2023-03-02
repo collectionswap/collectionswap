@@ -6,7 +6,6 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
-import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {ITokenIDFilter} from "../filter/ITokenIDFilter.sol";
 import {IExternalFilter} from "../filter/IExternalFilter.sol";
 
@@ -119,7 +118,10 @@ interface ICollectionPool is ITokenIDFilter {
      * @param proof Merkle multiproof
      * @param proofFlags Merkle multiproof flags
      */
-    function acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags) external view returns (bool);
+    function acceptsTokenIDs(uint256[] calldata tokenIDs, bytes32[] calldata proof, bool[] calldata proofFlags)
+        external
+        view
+        returns (bool);
 
     /**
      * @notice Sets an external contract that is consulted before any NFT is swapped into the pool.
@@ -187,13 +189,7 @@ interface ICollectionPool is ITokenIDFilter {
     function getBuyNFTQuote(uint256 numNFTs)
         external
         view
-        returns (
-            CurveErrorCodes.Error error,
-            ICurve.Params memory newParams,
-            uint256 totalAmount,
-            uint256 inputAmount,
-            ICurve.Fees memory fees
-        );
+        returns (ICurve.Params memory newParams, uint256 totalAmount, uint256 inputAmount, ICurve.Fees memory fees);
 
     /**
      * @notice Updates the fee taken by the LP. Only callable by the owner.

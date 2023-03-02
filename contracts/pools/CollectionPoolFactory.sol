@@ -470,7 +470,10 @@ contract CollectionPoolFactory is
         return baseURI;
     }
 
-    function _createPoolETH(CreateETHPoolParams calldata params) internal returns (ICollectionPool pool, uint256 tokenId) {
+    function _createPoolETH(CreateETHPoolParams calldata params)
+        internal
+        returns (ICollectionPool pool, uint256 tokenId)
+    {
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
@@ -516,7 +519,10 @@ contract CollectionPoolFactory is
         _depositNFTs(_params.nft, _params.initialNFTIDs, _pool, msg.sender);
     }
 
-    function _createPoolERC20(CreateERC20PoolParams calldata params) internal returns (ICollectionPool pool, uint256 tokenId) {
+    function _createPoolERC20(CreateERC20PoolParams calldata params)
+        internal
+        returns (ICollectionPool pool, uint256 tokenId)
+    {
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
@@ -532,7 +538,8 @@ contract CollectionPoolFactory is
             template = address(missingEnumerableERC20Template);
         }
 
-        address poolAddress = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
+        address poolAddress =
+            template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
 
         // issue new token
         tokenId = mint(params.receiver, CollectionPool(poolAddress));
@@ -596,12 +603,12 @@ contract CollectionPoolFactory is
      * @notice Allows receiving ETH in order to receive protocol fees
      */
     receive() external payable {
-      /**
-       * No logic needed here:
-       * - Factory needs to accept all transfers so that swaps don't fail to send token to
-       * appropriate recipients when paying protocol fees/royalties.
-       * - No bookkeeping is needed upon ETH receipt.
-       */
+        /**
+         * No logic needed here:
+         * - Factory needs to accept all transfers so that swaps don't fail to send token to
+         * appropriate recipients when paying protocol fees/royalties.
+         * - No bookkeeping is needed upon ETH receipt.
+         */
     }
 
     function _burn(uint256 tokenId) internal override (ERC721, ERC721URIStorage) {

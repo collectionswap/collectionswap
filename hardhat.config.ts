@@ -68,7 +68,7 @@ const config: HardhatUserConfig = {
             enabled: true,
             runs: 150,
           },
-          // viaIR: true,
+          viaIR: true,
         },
       },
     ],

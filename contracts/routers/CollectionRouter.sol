@@ -326,7 +326,7 @@ contract CollectionRouter {
             // Calculate actual cost per swap
             (,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.numItems);
 
-            // If within our maxCost and no  proceed
+            // If within our maxCost, proceed
             if (poolCost <= swapList[i].maxCost) {
                 // We know how much ETH to send because we already did the math above
                 // So we just send that much
@@ -369,7 +369,7 @@ contract CollectionRouter {
             // Calculate actual cost per swap
             (,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.nftIds.length);
 
-            // If within our maxCost and no  proceed
+            // If within our maxCost, proceed
             if (poolCost <= swapList[i].maxCost) {
                 // We know how much ETH to send because we already did the math above
                 // So we just send that much
@@ -412,7 +412,7 @@ contract CollectionRouter {
             // Calculate actual cost per swap
             (,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.numItems);
 
-            // If within our maxCost and no  proceed
+            // If within our maxCost, proceed
             if (poolCost <= swapList[i].maxCost) {
                 remainingValue -= swapList[i].swapInfo.pool.swapTokenForAnyNFTs(
                     swapList[i].swapInfo.numItems, poolCost, nftRecipient, true, msg.sender
@@ -449,7 +449,7 @@ contract CollectionRouter {
             // Calculate actual cost per swap
             (,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.nftIds.length);
 
-            // If within our maxCost and no  proceed
+            // If within our maxCost, proceed
             if (poolCost <= swapList[i].maxCost) {
                 remainingValue -= swapList[i].swapInfo.pool.swapTokenForSpecificNFTs(
                     swapList[i].swapInfo.nftIds, poolCost, nftRecipient, true, msg.sender
@@ -532,7 +532,7 @@ contract CollectionRouter {
                     params.tokenToNFTTrades[i].swapInfo.nftIds.length
                 );
 
-                // If within our maxCost and no  proceed
+                // If within our maxCost, proceed
                 if (poolCost <= params.tokenToNFTTrades[i].maxCost) {
                     // We know how much ETH to send because we already did the math above
                     // So we just send that much
@@ -614,7 +614,7 @@ contract CollectionRouter {
                     params.tokenToNFTTrades[i].swapInfo.nftIds.length
                 );
 
-                // If within our maxCost and no  proceed
+                // If within our maxCost, proceed
                 if (poolCost <= params.tokenToNFTTrades[i].maxCost) {
                     remainingValue -= params.tokenToNFTTrades[i].swapInfo.pool.swapTokenForSpecificNFTs(
                         params.tokenToNFTTrades[i].swapInfo.nftIds, poolCost, params.nftRecipient, true, msg.sender

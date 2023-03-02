@@ -187,7 +187,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     /// @dev Returns the address of the current owner.
     function owner() public view virtual returns (address) {
-        return IERC721(factory()).ownerOf(tokenId());
+        return factory().ownerOf(tokenId());
     }
 
     /// @dev Throws if called by any account other than the owner.
@@ -207,7 +207,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /// When ownership is transferred, if the new owner implements IOwnershipTransferCallback, we make a callback
     /// Can only be called by the current owner.
     function transferOwnership(address newOwner) public virtual onlyOwner {
-        IERC721(factory()).safeTransferFrom(msg.sender, newOwner, tokenId());
+        factory().safeTransferFrom(msg.sender, newOwner, tokenId());
     }
 
     /**
@@ -632,7 +632,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         }
         // No ERC2981 recipient or recipient fallback. Default to pool's assetRecipient.
         else {
-          return getAssetRecipient();
+            return getAssetRecipient();
         }
     }
 
