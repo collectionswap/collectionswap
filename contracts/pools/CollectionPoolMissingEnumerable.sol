@@ -20,10 +20,9 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
 
     /// @inheritdoc CollectionPool
     function _selectArbitraryNFTs(IERC721, uint256 numNFTs) internal view override returns (uint256[] memory nftIds) {
-        nftIds = new uint256[](numNFTs);
-
         uint256 lastIndex = idSet.length();
         if (numNFTs > 0 && numNFTs <= lastIndex) {
+            nftIds = new uint256[](numNFTs);
             // NOTE: We start from last index to first index to save on gas when we eventully _withdrawNFTs on results
             lastIndex = lastIndex - 1;
 
