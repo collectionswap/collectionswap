@@ -48,10 +48,10 @@ contract LinearCurve is Curve, CurveErrorCodes {
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
-        uint256 rawAmount;
         uint256 royaltyAmount;
+        uint256 rawAmount = params.spotPrice;
         for (uint256 i = 0; i < numItems;) {
-            rawAmount = buySpotPrice + (params.delta * i);
+            rawAmount += params.delta;
             royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
@@ -116,10 +116,10 @@ contract LinearCurve is Curve, CurveErrorCodes {
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
-        uint256 rawAmount;
         uint256 royaltyAmount;
+        uint256 rawAmount = params.spotPrice + params.delta;
         for (uint256 i = 0; i < numItems;) {
-            rawAmount = params.spotPrice - (params.delta * i);
+            rawAmount -= params.delta;
             royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
