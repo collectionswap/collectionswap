@@ -29,6 +29,8 @@ interface ICollectionPool is ITokenIDFilter {
 
     function bondingCurve() external view returns (ICurve);
 
+    function curveParams() external view returns (ICurve.Params memory params);
+
     /**
      * @notice Only tracked IDs are returned
      */
@@ -36,15 +38,11 @@ interface ICollectionPool is ITokenIDFilter {
 
     function poolVariant() external view returns (ICollectionPoolFactory.PoolVariant);
 
-    function delta() external view returns (uint128);
-
     function fee() external view returns (uint24);
 
     function nft() external view returns (IERC721);
 
     function poolType() external view returns (PoolType);
-
-    function spotPrice() external view returns (uint128);
 
     function royaltyNumerator() external view returns (uint24);
 

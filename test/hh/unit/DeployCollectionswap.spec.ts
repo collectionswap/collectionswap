@@ -127,7 +127,7 @@ describe("Collectionswap", function () {
         "CollectionPoolETH",
         newPoolAddress
       );
-      const poolSpotPrice = await collectionPoolETH.spotPrice();
+      const poolSpotPrice = (await collectionPoolETH.curveParams()).spotPrice;
 
       expect(poolSpotPrice).to.equal(convertToBigNumber(rawSpot));
     });

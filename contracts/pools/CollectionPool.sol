@@ -95,11 +95,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     // @dev This is generally used to mean the immediate sell price for the next marginal NFT.
     // However, this should NOT be assumed, as future bonding curves may use spotPrice in different ways.
     // Use getBuyNFTQuote and getSellNFTQuote for accurate pricing info.
-    uint128 public spotPrice;
+    uint128 internal spotPrice;
 
     // The parameter for the pool's bonding curve.
     // Units and meaning are bonding curve dependent.
-    uint128 public delta;
+    uint128 internal delta;
 
     // If set to 0, NFTs/tokens sent by traders during trades will be sent to the pool.
     // Otherwise, assets will be sent to the set address. Not available for TRADE pools.
@@ -109,10 +109,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     uint256 public accruedTradeFee;
 
     // The properties used by the pool's bonding curve.
-    bytes public props;
+    bytes internal props;
 
     // The state used by the pool's bonding curve.
-    bytes public state;
+    bytes internal state;
 
     // If non-zero, contract implementing IExternalFilter checked on (pool buying) swaps
     IExternalFilter public externalFilter;
