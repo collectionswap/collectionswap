@@ -28,7 +28,6 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
         override
         returns (uint256[] memory nftIds)
     {
-        // numNFTs > 0 when called by buyAny function.
         nftIds = new uint256[](numNFTs);
         uint256 j;
 

@@ -332,10 +332,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address routerCaller
     ) external payable virtual whenPoolSwapsNotPaused returns (uint256 inputAmount) {
         IERC721 _nft = nft();
-        // 0 < Swap quantity <= NFT balance
-        if ((numNFTs == 0) || (numNFTs > _nft.balanceOf(address(this)))) revert InvalidSwapQuantity();
-
         uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
+        if (tokenIds.length == 0) revert InvalidSwapQuantity();
         inputAmount = swapTokenForSpecificNFTs(tokenIds, maxExpectedTokenInput, nftRecipient, isRouter, routerCaller);
     }
 
@@ -842,6 +840,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @notice Select arbitrary NFTs from pool
      * @param _nft The address of the NFT to send
      * @param numNFTs The number of NFTs to send
+     * @return tokenIds Returns numNFTs IDs or [] if insufficent
      */
     function _selectArbitraryNFTs(IERC721 _nft, uint256 numNFTs) internal virtual returns (uint256[] memory tokenIds);
 
