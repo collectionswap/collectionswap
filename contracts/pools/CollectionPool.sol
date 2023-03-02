@@ -1094,7 +1094,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         returns (bytes[] memory results)
     {
         bool success;
-        for (uint256 i; i < calls.length;) {
+        uint256 length = calls.length;
+        results = new bytes[](length);
+        for (uint256 i; i < length;) {
             (success, results[i]) = address(this).delegatecall(calls[i]);
 
             if (!success && revertOnFail) {
