@@ -36,17 +36,13 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
         // We only calculate changes for buying 1 or more NFTs
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
-        if (numItems > uint256(type(int256).max)) {
-            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems > uint256(type(int256).max)) revert TooManyItems();
 
         uint128 delta = params.delta;
         int256 deltaN = decodeDeltaN(params.state);
@@ -100,9 +96,6 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
 
         (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
-
-        // If we got all the way here, no math error happened
-        error = Error.OK;
     }
 
     /**
@@ -112,18 +105,14 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // NOTE: we assume delta is > 1, as checked by validateDelta()
 
         // We only calculate changes for buying 1 or more NFTs
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
-        if (numItems > uint256(type(int256).max)) {
-            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems > uint256(type(int256).max)) revert TooManyItems();
 
         int256 deltaN = decodeDeltaN(params.state);
         uint128 delta = params.delta;
@@ -171,9 +160,6 @@ contract ExponentialCurve is Curve, CurveErrorCodes {
         (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
 
         (outputValue, fees) = getOutputValueAndFees(feeMultipliers, outputValue, fees.royalties, totalRoyalty);
-
-        // If we got all the way here, no math error happened
-        error = Error.OK;
     }
 
     function decodeDeltaN(bytes calldata state) internal pure returns (int256) {

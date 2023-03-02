@@ -108,7 +108,6 @@ describe("CollectionPoolETH", function () {
   it("Should have trade fee when buying", async function () {
     const nftsToBuy = 1;
     const [
-      _error,
       _newParams,
       _totalAmount,
       inputAmount,
@@ -177,7 +176,6 @@ describe("CollectionPoolETH", function () {
     await nft.connect(user1).setApprovalForAll(collectionPoolETH.address, true);
 
     const [
-      _error,
       _newParams,
       _totalAmount,
       outputAmount,
@@ -253,7 +251,6 @@ describe("CollectionPoolETH", function () {
   it("Should accrue trade fees", async function () {
     const nftsToBuy = 1;
     let [
-      _error,
       _newParams,
       _totalAmount,
       inputAmount,
@@ -320,7 +317,6 @@ describe("CollectionPoolETH", function () {
     let outputAmount;
     let tradeFee2;
     [
-      _error,
       _newParams,
       _totalAmount,
       outputAmount,
@@ -394,7 +390,6 @@ describe("CollectionPoolETH", function () {
     await nft.connect(user1).setApprovalForAll(collectionPoolETH.address, true);
 
     let [
-      _error,
       _newParams,
       _totalAmount,
       outputAmount,
@@ -470,7 +465,7 @@ describe("CollectionPoolETH", function () {
     expect(await collectionPoolETH.accruedTradeFee()).to.equal(tradeFee);
 
     let _fees;
-    [_error, _newParams, _totalAmount, outputAmount, _fees] =
+    [_newParams, _totalAmount, outputAmount, _fees] =
       await collectionPoolETH.getSellNFTQuote(1);
     await expect(
       collectionPoolETH.connect(user1).swapNFTsForToken(
@@ -492,7 +487,6 @@ describe("CollectionPoolETH", function () {
     const nftsToBuy = 1;
     beforeEach(async function () {
       let [
-        _error,
         _newParams,
         _totalAmount,
         inputAmount,
@@ -559,7 +553,6 @@ describe("CollectionPoolETH", function () {
       let outputAmount;
       let tradeFee2;
       [
-        _error,
         _newParams,
         _totalAmount,
         outputAmount,

@@ -198,7 +198,7 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
             toBigInt
           );
           const { proof, proofFlags, leaves } = tokenIdFilter.proof(idsToSell);
-          const quote = (await pool.getSellNFTQuote(sellQty))[3];
+          const quote = (await pool.getSellNFTQuote(sellQty))[2];
           await nft.connect(owner).setApprovalForAll(pool.address, true);
           await pool.connect(owner).swapNFTsForToken(
             {
@@ -541,7 +541,7 @@ describe("Testing fummpel library is consistent with TokenIdFilter contract", fu
             sellQty
           ).map(BigInt);
           const { proof, proofFlags, leaves: ids } = newFilter.proof(idsToSell);
-          const quote = (await pool.getSellNFTQuote(1))[3];
+          const quote = (await pool.getSellNFTQuote(1))[2];
 
           await pool.connect(owner).swapNFTsForToken(
             {

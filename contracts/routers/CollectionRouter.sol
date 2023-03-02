@@ -8,6 +8,7 @@ import {ICollectionPool} from "../pools/ICollectionPool.sol";
 import {CollectionPool} from "../pools/CollectionPool.sol";
 import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
 
 contract CollectionRouter {
     using SafeTransferLib for address payable;
@@ -320,14 +321,13 @@ contract CollectionRouter {
 
         // Try doing each swap
         uint256 poolCost;
-        CurveErrorCodes.Error error;
         uint256 numSwaps = swapList.length;
         for (uint256 i; i < numSwaps;) {
             // Calculate actual cost per swap
-            (error,,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.numItems);
+            (,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.numItems);
 
-            // If within our maxCost and no error, proceed
-            if (poolCost <= swapList[i].maxCost && error == CurveErrorCodes.Error.OK) {
+            // If within our maxCost, proceed
+            if (poolCost <= swapList[i].maxCost) {
                 // We know how much ETH to send because we already did the math above
                 // So we just send that much
                 remainingValue -= swapList[i].swapInfo.pool.swapTokenForAnyNFTs{value: poolCost}(
@@ -362,16 +362,15 @@ contract CollectionRouter {
     ) public payable virtual checkDeadline(deadline) returns (uint256 remainingValue) {
         remainingValue = msg.value;
         uint256 poolCost;
-        CurveErrorCodes.Error error;
 
         // Try doing each swap
         uint256 numSwaps = swapList.length;
         for (uint256 i; i < numSwaps;) {
             // Calculate actual cost per swap
-            (error,,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.nftIds.length);
+            (,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.nftIds.length);
 
-            // If within our maxCost and no error, proceed
-            if (poolCost <= swapList[i].maxCost && error == CurveErrorCodes.Error.OK) {
+            // If within our maxCost, proceed
+            if (poolCost <= swapList[i].maxCost) {
                 // We know how much ETH to send because we already did the math above
                 // So we just send that much
                 remainingValue -= swapList[i].swapInfo.pool.swapTokenForSpecificNFTs{value: poolCost}(
@@ -406,16 +405,15 @@ contract CollectionRouter {
     ) external virtual checkDeadline(deadline) returns (uint256 remainingValue) {
         remainingValue = inputAmount;
         uint256 poolCost;
-        CurveErrorCodes.Error error;
 
         // Try doing each swap
         uint256 numSwaps = swapList.length;
         for (uint256 i; i < numSwaps;) {
             // Calculate actual cost per swap
-            (error,,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.numItems);
+            (,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.numItems);
 
-            // If within our maxCost and no error, proceed
-            if (poolCost <= swapList[i].maxCost && error == CurveErrorCodes.Error.OK) {
+            // If within our maxCost, proceed
+            if (poolCost <= swapList[i].maxCost) {
                 remainingValue -= swapList[i].swapInfo.pool.swapTokenForAnyNFTs(
                     swapList[i].swapInfo.numItems, poolCost, nftRecipient, true, msg.sender
                 );
@@ -444,16 +442,15 @@ contract CollectionRouter {
     ) public virtual checkDeadline(deadline) returns (uint256 remainingValue) {
         remainingValue = inputAmount;
         uint256 poolCost;
-        CurveErrorCodes.Error error;
 
         // Try doing each swap
         uint256 numSwaps = swapList.length;
         for (uint256 i; i < numSwaps;) {
             // Calculate actual cost per swap
-            (error,,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.nftIds.length);
+            (,, poolCost,) = swapList[i].swapInfo.pool.getBuyNFTQuote(swapList[i].swapInfo.nftIds.length);
 
-            // If within our maxCost and no error, proceed
-            if (poolCost <= swapList[i].maxCost && error == CurveErrorCodes.Error.OK) {
+            // If within our maxCost, proceed
+            if (poolCost <= swapList[i].maxCost) {
                 remainingValue -= swapList[i].swapInfo.pool.swapTokenForSpecificNFTs(
                     swapList[i].swapInfo.nftIds, poolCost, nftRecipient, true, msg.sender
                 );
@@ -480,37 +477,29 @@ contract CollectionRouter {
         // Try doing each swap
         uint256 numSwaps = swapList.length;
         for (uint256 i; i < numSwaps;) {
-            uint256 poolOutput;
-
+            PoolSwapSpecific calldata swapInfo = swapList[i].swapInfo;
             // Locally scoped to avoid stack too deep error
             {
-                CurveErrorCodes.Error error;
-                (error,,, poolOutput,) = swapList[i].swapInfo.pool.getSellNFTQuote(swapList[i].swapInfo.nftIds.length);
-                if (error != CurveErrorCodes.Error.OK) {
-                    unchecked {
-                        ++i;
+                try swapInfo.pool.getSellNFTQuote(swapInfo.nftIds.length) returns (
+                    ICurve.Params memory, uint256, uint256 poolOutput, ICurve.Fees memory
+                ) {
+                    // If at least equal to our minOutput, proceed
+                    if (poolOutput >= swapList[i].minOutput) {
+                        // Do the swap and update outputAmount with how many tokens we got
+                        outputAmount += swapInfo.pool.swapNFTsForToken(
+                            ICollectionPool.NFTs(swapInfo.nftIds, swapInfo.proof, swapInfo.proofFlags),
+                            0,
+                            tokenRecipient,
+                            true,
+                            msg.sender,
+                            swapInfo.externalFilterContext
+                        );
                     }
-                    continue;
+                } catch {}
+
+                unchecked {
+                    ++i;
                 }
-            }
-
-            // If at least equal to our minOutput, proceed
-            if (poolOutput >= swapList[i].minOutput) {
-                // Do the swap and update outputAmount with how many tokens we got
-                outputAmount += swapList[i].swapInfo.pool.swapNFTsForToken(
-                    ICollectionPool.NFTs(
-                        swapList[i].swapInfo.nftIds, swapList[i].swapInfo.proof, swapList[i].swapInfo.proofFlags
-                    ),
-                    0,
-                    tokenRecipient,
-                    true,
-                    msg.sender,
-                    swapList[i].swapInfo.externalFilterContext
-                );
-            }
-
-            unchecked {
-                ++i;
             }
         }
     }
@@ -534,18 +523,17 @@ contract CollectionRouter {
         {
             remainingValue = msg.value;
             uint256 poolCost;
-            CurveErrorCodes.Error error;
 
             // Try doing each swap
             uint256 numSwaps = params.tokenToNFTTrades.length;
             for (uint256 i; i < numSwaps;) {
                 // Calculate actual cost per swap
-                (error,,, poolCost,) = params.tokenToNFTTrades[i].swapInfo.pool.getBuyNFTQuote(
+                (,, poolCost,) = params.tokenToNFTTrades[i].swapInfo.pool.getBuyNFTQuote(
                     params.tokenToNFTTrades[i].swapInfo.nftIds.length
                 );
 
-                // If within our maxCost and no error, proceed
-                if (poolCost <= params.tokenToNFTTrades[i].maxCost && error == CurveErrorCodes.Error.OK) {
+                // If within our maxCost, proceed
+                if (poolCost <= params.tokenToNFTTrades[i].maxCost) {
                     // We know how much ETH to send because we already did the math above
                     // So we just send that much
                     remainingValue -= params.tokenToNFTTrades[i].swapInfo.pool.swapTokenForSpecificNFTs{value: poolCost}(
@@ -567,41 +555,32 @@ contract CollectionRouter {
             // Try doing each swap
             uint256 numSwaps = params.nftToTokenTrades.length;
             for (uint256 i; i < numSwaps;) {
-                uint256 poolOutput;
-
                 // Locally scoped to avoid stack too deep error
                 {
-                    CurveErrorCodes.Error error;
-                    (error,,, poolOutput,) = params.nftToTokenTrades[i].swapInfo.pool.getSellNFTQuote(
+                    try params.nftToTokenTrades[i].swapInfo.pool.getSellNFTQuote(
                         params.nftToTokenTrades[i].swapInfo.nftIds.length
-                    );
-                    if (error != CurveErrorCodes.Error.OK) {
-                        unchecked {
-                            ++i;
+                    ) returns (ICurve.Params memory, uint256, uint256 poolOutput, ICurve.Fees memory) {
+                        // If at least equal to our minOutput, proceed
+                        if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
+                            // Do the swap and update outputAmount with how many tokens we got
+                            outputAmount += params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
+                                ICollectionPool.NFTs(
+                                    params.nftToTokenTrades[i].swapInfo.nftIds,
+                                    params.nftToTokenTrades[i].swapInfo.proof,
+                                    params.nftToTokenTrades[i].swapInfo.proofFlags
+                                ),
+                                0,
+                                params.tokenRecipient,
+                                true,
+                                msg.sender,
+                                params.nftToTokenTrades[i].swapInfo.externalFilterContext
+                            );
                         }
-                        continue;
+                    } catch {}
+
+                    unchecked {
+                        ++i;
                     }
-                }
-
-                // If at least equal to our minOutput, proceed
-                if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
-                    // Do the swap and update outputAmount with how many tokens we got
-                    outputAmount += params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
-                        ICollectionPool.NFTs(
-                            params.nftToTokenTrades[i].swapInfo.nftIds,
-                            params.nftToTokenTrades[i].swapInfo.proof,
-                            params.nftToTokenTrades[i].swapInfo.proofFlags
-                        ),
-                        0,
-                        params.tokenRecipient,
-                        true,
-                        msg.sender,
-                        params.nftToTokenTrades[i].swapInfo.externalFilterContext
-                    );
-                }
-
-                unchecked {
-                    ++i;
                 }
             }
         }
@@ -626,18 +605,17 @@ contract CollectionRouter {
         {
             remainingValue = params.inputAmount;
             uint256 poolCost;
-            CurveErrorCodes.Error error;
 
             // Try doing each swap
             uint256 numSwaps = params.tokenToNFTTrades.length;
             for (uint256 i; i < numSwaps;) {
                 // Calculate actual cost per swap
-                (error,,, poolCost,) = params.tokenToNFTTrades[i].swapInfo.pool.getBuyNFTQuote(
+                (,, poolCost,) = params.tokenToNFTTrades[i].swapInfo.pool.getBuyNFTQuote(
                     params.tokenToNFTTrades[i].swapInfo.nftIds.length
                 );
 
-                // If within our maxCost and no error, proceed
-                if (poolCost <= params.tokenToNFTTrades[i].maxCost && error == CurveErrorCodes.Error.OK) {
+                // If within our maxCost, proceed
+                if (poolCost <= params.tokenToNFTTrades[i].maxCost) {
                     remainingValue -= params.tokenToNFTTrades[i].swapInfo.pool.swapTokenForSpecificNFTs(
                         params.tokenToNFTTrades[i].swapInfo.nftIds, poolCost, params.nftRecipient, true, msg.sender
                     );
@@ -652,41 +630,32 @@ contract CollectionRouter {
             // Try doing each swap
             uint256 numSwaps = params.nftToTokenTrades.length;
             for (uint256 i; i < numSwaps;) {
-                uint256 poolOutput;
-
                 // Locally scoped to avoid stack too deep error
                 {
-                    CurveErrorCodes.Error error;
-                    (error,,, poolOutput,) = params.nftToTokenTrades[i].swapInfo.pool.getSellNFTQuote(
+                    try params.nftToTokenTrades[i].swapInfo.pool.getSellNFTQuote(
                         params.nftToTokenTrades[i].swapInfo.nftIds.length
-                    );
-                    if (error != CurveErrorCodes.Error.OK) {
-                        unchecked {
-                            ++i;
+                    ) returns (ICurve.Params memory, uint256, uint256 poolOutput, ICurve.Fees memory) {
+                        // If at least equal to our minOutput, proceed
+                        if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
+                            // Do the swap and update outputAmount with how many tokens we got
+                            outputAmount += params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
+                                ICollectionPool.NFTs(
+                                    params.nftToTokenTrades[i].swapInfo.nftIds,
+                                    params.nftToTokenTrades[i].swapInfo.proof,
+                                    params.nftToTokenTrades[i].swapInfo.proofFlags
+                                ),
+                                0,
+                                params.tokenRecipient,
+                                true,
+                                msg.sender,
+                                params.nftToTokenTrades[i].swapInfo.externalFilterContext
+                            );
                         }
-                        continue;
+                    } catch {}
+
+                    unchecked {
+                        ++i;
                     }
-                }
-
-                // If at least equal to our minOutput, proceed
-                if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
-                    // Do the swap and update outputAmount with how many tokens we got
-                    outputAmount += params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
-                        ICollectionPool.NFTs(
-                            params.nftToTokenTrades[i].swapInfo.nftIds,
-                            params.nftToTokenTrades[i].swapInfo.proof,
-                            params.nftToTokenTrades[i].swapInfo.proofFlags
-                        ),
-                        0,
-                        params.tokenRecipient,
-                        true,
-                        msg.sender,
-                        params.nftToTokenTrades[i].swapInfo.externalFilterContext
-                    );
-                }
-
-                unchecked {
-                    ++i;
                 }
             }
         }
@@ -779,16 +748,12 @@ contract CollectionRouter {
         remainingValue = inputAmount;
 
         uint256 poolCost;
-        CurveErrorCodes.Error error;
 
         // Do swaps
         uint256 numSwaps = swapList.length;
         for (uint256 i; i < numSwaps;) {
             // Calculate the cost per swap first to send exact amount of ETH over, saves gas by avoiding the need to send back excess ETH
-            (error,,, poolCost,) = swapList[i].pool.getBuyNFTQuote(swapList[i].numItems);
-
-            // Require no error
-            require(error == CurveErrorCodes.Error.OK, "Bonding curve error");
+            (,, poolCost,) = swapList[i].pool.getBuyNFTQuote(swapList[i].numItems);
 
             // Total ETH taken from sender cannot exceed inputAmount
             // because otherwise the deduction from remainingValue will fail
@@ -824,16 +789,12 @@ contract CollectionRouter {
         remainingValue = inputAmount;
 
         uint256 poolCost;
-        CurveErrorCodes.Error error;
 
         // Do swaps
         uint256 numSwaps = swapList.length;
         for (uint256 i; i < numSwaps;) {
             // Calculate the cost per swap first to send exact amount of ETH over, saves gas by avoiding the need to send back excess ETH
-            (error,,, poolCost,) = swapList[i].pool.getBuyNFTQuote(swapList[i].nftIds.length);
-
-            // Require no errors
-            require(error == CurveErrorCodes.Error.OK, "Bonding curve error");
+            (,, poolCost,) = swapList[i].pool.getBuyNFTQuote(swapList[i].nftIds.length);
 
             // Total ETH taken from sender cannot exceed inputAmount
             // because otherwise the deduction from remainingValue will fail

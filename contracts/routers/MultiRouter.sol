@@ -11,6 +11,7 @@ import {ICollectionPool} from "../pools/ICollectionPool.sol";
 import {CollectionPool} from "../pools/CollectionPool.sol";
 import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
+import {ICurve} from "../bonding-curves/ICurve.sol";
 
 contract MultiRouter {
     using SafeTransferLib for address payable;
@@ -65,16 +66,15 @@ contract MultiRouter {
         {
             remainingETHValue = msg.value;
             uint256 poolCost;
-            CurveErrorCodes.Error error;
             uint256 numSwaps = params.tokenToNFTTradesSpecific.length;
             for (uint256 i; i < numSwaps;) {
                 // Calculate actual cost per swap
-                (error,,, poolCost,) = params.tokenToNFTTradesSpecific[i].swapInfo.pool.getBuyNFTQuote(
+                (,, poolCost,) = params.tokenToNFTTradesSpecific[i].swapInfo.pool.getBuyNFTQuote(
                     params.tokenToNFTTradesSpecific[i].swapInfo.nftIds.length
                 );
 
-                // If within our maxCost and no error, proceed
-                if (poolCost <= params.tokenToNFTTradesSpecific[i].maxCost && error == CurveErrorCodes.Error.OK) {
+                // If within our maxCost, proceed
+                if (poolCost <= params.tokenToNFTTradesSpecific[i].maxCost) {
                     // We know how much ETH to send because we already did the math above
                     // So we just send that much
                     if (params.tokenToNFTTradesSpecific[i].isETHSwap) {
@@ -103,41 +103,32 @@ contract MultiRouter {
         {
             uint256 numSwaps = params.nftToTokenTrades.length;
             for (uint256 i; i < numSwaps;) {
-                uint256 poolOutput;
-
                 // Locally scoped to avoid stack too deep error
                 {
-                    CurveErrorCodes.Error error;
-                    (error,,, poolOutput,) = params.nftToTokenTrades[i].swapInfo.pool.getSellNFTQuote(
+                    try params.nftToTokenTrades[i].swapInfo.pool.getSellNFTQuote(
                         params.nftToTokenTrades[i].swapInfo.nftIds.length
-                    );
-                    if (error != CurveErrorCodes.Error.OK) {
-                        unchecked {
-                            ++i;
+                    ) returns (ICurve.Params memory, uint256, uint256 poolOutput, ICurve.Fees memory) {
+                        // If at least equal to our minOutput, proceed
+                        if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
+                            // Do the swap
+                            params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
+                                ICollectionPool.NFTs(
+                                    params.nftToTokenTrades[i].swapInfo.nftIds,
+                                    params.nftToTokenTrades[i].swapInfo.proof,
+                                    params.nftToTokenTrades[i].swapInfo.proofFlags
+                                ),
+                                0,
+                                payable(msg.sender),
+                                true,
+                                msg.sender,
+                                params.nftToTokenTrades[i].swapInfo.externalFilterContext
+                            );
                         }
-                        continue;
+                    } catch {}
+
+                    unchecked {
+                        ++i;
                     }
-                }
-
-                // If at least equal to our minOutput, proceed
-                if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
-                    // Do the swap
-                    params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
-                        ICollectionPool.NFTs(
-                            params.nftToTokenTrades[i].swapInfo.nftIds,
-                            params.nftToTokenTrades[i].swapInfo.proof,
-                            params.nftToTokenTrades[i].swapInfo.proofFlags
-                        ),
-                        0,
-                        payable(msg.sender),
-                        true,
-                        msg.sender,
-                        params.nftToTokenTrades[i].swapInfo.externalFilterContext
-                    );
-                }
-
-                unchecked {
-                    ++i;
                 }
             }
         }

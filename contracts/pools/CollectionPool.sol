@@ -7,6 +7,7 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
 import {TransferLib} from "../lib/TransferLib.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
@@ -23,6 +24,7 @@ import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
 /// @author Collection
 /// @notice This implements the core swap logic from NFT to TOKEN
 abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilter, MultiPauser, ICollectionPool {
+    using Strings for uint256;
     /**
      * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps.
      * It contains two fields:
@@ -34,6 +36,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * and recipient of the royalty payment that is due on the NFT swap. This struct is then used to facilitate the payment of
      * the royalty to the appropriate recipient.
      */
+
     struct RoyaltyDue {
         uint256 amount;
         address recipient;
@@ -122,11 +125,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint256[] nftIds, uint256 outputAmount, uint256 tradeFee, uint256 protocolFee, RoyaltyDue[] royaltyDue
     );
     event SpotPriceUpdate(uint128 newSpotPrice);
-    event TokenDeposit(address indexed collection, address indexed token, uint256 amount);
-    event TokenWithdrawal(address indexed collection, address indexed token, uint256 amount);
-    event AccruedTradeFeeWithdrawal(address indexed collection, address indexed token, uint256 amount);
-    event NFTDeposit(address indexed collection, uint256 numNFTs);
-    event NFTWithdrawal(address indexed collection, uint256 numNFTs);
+    event TokenDeposit(IERC721 indexed collection, ERC20 indexed token, uint256 amount);
+    event TokenWithdrawal(IERC721 indexed collection, ERC20 indexed token, uint256 amount);
+    event AccruedTradeFeeWithdrawal(IERC721 indexed collection, ERC20 token, uint256 amount);
+    event NFTDeposit(IERC721 indexed collection, uint256 numNFTs, uint256 rawBuyPrice, uint256 rawSellPrice);
+    event NFTWithdrawal(IERC721 indexed collection, uint256 numNFTs, uint256 rawBuyPrice, uint256 rawSellPrice);
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
     event AssetRecipientChange(address a);
@@ -134,12 +137,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event StateUpdate(bytes newState);
     event RoyaltyNumeratorUpdate(uint24 newRoyaltyNumerator);
     event RoyaltyRecipientFallbackUpdate(address payable newFallback);
-    event PoolSwapPaused();
-    event PoolSwapUnpaused();
+    event PoolSwapPause();
+    event PoolSwapUnpause();
     event ExternalFilterSet(address indexed collection, address indexed filterAddress);
 
     // Parameterized Errors
-    error BondingCurveError(CurveErrorCodes.Error error);
     error InsufficientLiquidity(uint256 balance, uint256 accruedTradeFee);
     error RoyaltyNumeratorOverflow();
     error SwapsArePaused();
@@ -152,7 +154,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     error RouterNotTrusted();
     error NFTsNotAccepted();
     error NFTsNotAllowed();
-    error CallError();
+    error CallNotAllowed();
+    error CallError(bytes returnData);
     error MulticallError();
     error InvalidExternalFilter();
 
@@ -184,7 +187,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     /// @dev Returns the address of the current owner.
     function owner() public view virtual returns (address) {
-        return IERC721(address(factory())).ownerOf(tokenId());
+        return factory().ownerOf(tokenId());
     }
 
     /// @dev Throws if called by any account other than the owner.
@@ -204,7 +207,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /// When ownership is transferred, if the new owner implements IOwnershipTransferCallback, we make a callback
     /// Can only be called by the current owner.
     function transferOwnership(address newOwner) public virtual onlyOwner {
-        IERC721(address(factory())).safeTransferFrom(msg.sender, newOwner, tokenId());
+        factory().safeTransferFrom(msg.sender, newOwner, tokenId());
     }
 
     /**
@@ -465,19 +468,24 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         notifySwap(IPoolActivityMonitor.EventType.SOLD_NFT_TO_POOL, nfts.ids.length, lastSwapPrice, outputAmount);
     }
 
-    function balanceToFulfillSellNFT(uint256 numNFTs)
-        external
-        view
-        returns (CurveErrorCodes.Error error, uint256 balance)
-    {
+    function balanceToFulfillSellNFT(uint256 numNFTs) external view returns (uint256 balance) {
         uint256 totalAmount;
-        (error,, totalAmount,,) = getSellNFTQuote(numNFTs);
+        (, totalAmount,,) = getSellNFTQuote(numNFTs);
         balance = accruedTradeFee + totalAmount;
     }
 
     /**
      * View functions
      */
+
+    function getRawBuyAndSellPrices() public view returns (uint256 rawBuyPrice, uint256 rawSellPrice) {
+        (, rawBuyPrice,,) = bondingCurve().getBuyInfo(
+            curveParams(), 1, ICurve.FeeMultipliers({trade: 0, protocol: 0, royaltyNumerator: 0, carry: 0})
+        );
+        (, rawSellPrice,,) = bondingCurve().getSellInfo(
+            curveParams(), 1, ICurve.FeeMultipliers({trade: 0, protocol: 0, royaltyNumerator: 0, carry: 0})
+        );
+    }
 
     /**
      * @notice Checks if NFTs is allowed in this pool
@@ -509,15 +517,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function getBuyNFTQuote(uint256 numNFTs)
         public
         view
-        returns (
-            CurveErrorCodes.Error error,
-            ICurve.Params memory newParams,
-            uint256 totalAmount,
-            uint256 inputAmount,
-            ICurve.Fees memory fees
-        )
+        returns (ICurve.Params memory newParams, uint256 totalAmount, uint256 inputAmount, ICurve.Fees memory fees)
     {
-        (error, newParams, inputAmount, fees,) = bondingCurve().getBuyInfo(curveParams(), numNFTs, feeMultipliers());
+        (newParams, inputAmount, fees,) = bondingCurve().getBuyInfo(curveParams(), numNFTs, feeMultipliers());
 
         // Since inputAmount is already inclusive of fees.
         totalAmount = inputAmount;
@@ -530,15 +532,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function getSellNFTQuote(uint256 numNFTs)
         public
         view
-        returns (
-            CurveErrorCodes.Error error,
-            ICurve.Params memory newParams,
-            uint256 totalAmount,
-            uint256 outputAmount,
-            ICurve.Fees memory fees
-        )
+        returns (ICurve.Params memory newParams, uint256 totalAmount, uint256 outputAmount, ICurve.Fees memory fees)
     {
-        (error, newParams, outputAmount, fees,) = bondingCurve().getSellInfo(curveParams(), numNFTs, feeMultipliers());
+        (newParams, outputAmount, fees,) = bondingCurve().getSellInfo(curveParams(), numNFTs, feeMultipliers());
 
         totalAmount = outputAmount + fees.trade + fees.protocol;
         uint256 length = fees.royalties.length;
@@ -559,7 +555,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @notice Returns LP token ID for this pool
      */
     function tokenId() public view returns (uint256 _tokenId) {
-        _tokenId = uint256(uint160(address(this)));
+        _tokenId = uint160(address(this));
     }
 
     /**
@@ -636,7 +632,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         }
         // No ERC2981 recipient or recipient fallback. Default to pool's assetRecipient.
         else {
-          return getAssetRecipient();
+            return getAssetRecipient();
         }
     }
 
@@ -742,16 +738,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         ICurve _bondingCurve,
         ICollectionPoolFactory
     ) internal returns (uint256 inputAmount, ICurve.Fees memory fees, uint256 lastSwapPrice) {
-        CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
-        (error, newParams, inputAmount, fees, lastSwapPrice) =
-            _bondingCurve.getBuyInfo(params, numNFTs, feeMultipliers());
-
-        // Revert if bonding curve had an error
-        if (error != CurveErrorCodes.Error.OK) {
-            revert BondingCurveError(error);
-        }
+        (newParams, inputAmount, fees, lastSwapPrice) = _bondingCurve.getBuyInfo(params, numNFTs, feeMultipliers());
 
         // Revert if input is more than expected
         if (inputAmount > maxExpectedTokenInput) revert SlippageExceeded();
@@ -774,16 +763,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         uint256 minExpectedTokenOutput,
         ICurve _bondingCurve
     ) internal returns (uint256 outputAmount, ICurve.Fees memory fees, uint256 lastSwapPrice) {
-        CurveErrorCodes.Error error;
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
-        (error, newParams, outputAmount, fees, lastSwapPrice) =
-            _bondingCurve.getSellInfo(params, numNFTs, feeMultipliers());
-
-        // Revert if bonding curve had an error
-        if (error != CurveErrorCodes.Error.OK) {
-            revert BondingCurveError(error);
-        }
+        (newParams, outputAmount, fees, lastSwapPrice) = _bondingCurve.getSellInfo(params, numNFTs, feeMultipliers());
 
         // Revert if output is too little
         if (outputAmount < minExpectedTokenOutput) revert SlippageExceeded();
@@ -890,6 +872,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                 }
 
                 IERC721 _nft = nft();
+                ICollectionPoolFactory.PoolVariant variant = poolVariant();
 
                 // Call router to pull NFTs
                 // If more than 1 NFT is being transfered, do balance check instead of ownership check,
@@ -897,7 +880,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                 if (numNFTs > 1) {
                     uint256 beforeBalance = _nft.balanceOf(_assetRecipient);
                     for (uint256 i = 0; i < numNFTs;) {
-                        router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[i], poolVariant());
+                        /// @dev Variable assignment here prevents stack too deep in next line
+                        uint256 nftId = nftIds[i];
+                        router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftId, variant);
 
                         unchecked {
                             ++i;
@@ -906,7 +891,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                     // Check if NFT was transferred
                     if ((_nft.balanceOf(_assetRecipient) - beforeBalance) != numNFTs) revert RouterNotTrusted();
                 } else {
-                    router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[0], poolVariant());
+                    router.poolTransferNFTFrom(_nft, routerCaller, _assetRecipient, nftIds[0], variant);
                     // Check if NFT was transferred
                     if (_nft.ownerOf(nftIds[0]) != _assetRecipient) revert RouterNotTrusted();
                 }
@@ -947,7 +932,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         else {
             _withdrawNFTs(_owner, nftIds);
 
-            emit NFTWithdrawal(address(_nft), nftIds.length);
+            (uint256 rawBuyPrice, uint256 rawSellPrice) = getRawBuyAndSellPrices();
+            emit NFTWithdrawal(_nft, nftIds.length, rawBuyPrice, rawSellPrice);
             /// @dev No need to notify pool monitors as pool monitors own the pool,
             /// thus only the monitor can withdraw from the pool and notifications
             /// are redundant
@@ -973,10 +959,12 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     function pausePoolSwaps() external onlyOwner {
         pause(POOL_SWAP_PAUSE);
+        emit PoolSwapPause();
     }
 
     function unpausePoolSwaps() external onlyOwner {
         unpause(POOL_SWAP_PAUSE);
+        emit PoolSwapUnpause();
     }
 
     /**
@@ -1088,9 +1076,9 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function call(address payable target, bytes calldata data) external onlyAuthorized returns (bytes memory) {
         ICollectionPoolFactory _factory = factory();
         // Only whitelisted targets can be called
-        if (!_factory.callAllowed(target)) revert CallError();
+        if (!_factory.callAllowed(target)) revert CallNotAllowed();
         (bool result, bytes memory returnData) = target.call{value: 0}(data);
-        if (!result) revert CallError();
+        if (!result) revert CallError(returnData);
         return returnData;
     }
 
@@ -1100,11 +1088,17 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param calls The calldata for each call to make
      * @param revertOnFail Whether or not to revert the entire tx if any of the calls fail
      */
-    function multicall(bytes[] calldata calls, bool revertOnFail) external onlyAuthorized {
+    function multicall(bytes[] calldata calls, bool revertOnFail)
+        external
+        onlyAuthorized
+        returns (bytes[] memory results)
+    {
+        bool success;
         for (uint256 i; i < calls.length;) {
-            (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
+            (success, results[i]) = address(this).delegatecall(calls[i]);
+
             if (!success && revertOnFail) {
-                revert(_getRevertMsg(result));
+                revert(string.concat(i.toString(), ": ", _getRevertMsg(results[i])));
             }
 
             unchecked {
@@ -1119,6 +1113,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /**
      * @param _returnData The data returned from a multicall result
      * @dev Used to grab the revert string from the underlying call
+     * Taken from: https://ethereum.stackexchange.com/questions/83528/how-can-i-get-the-revert-reason-of-a-call-in-solidity-so-that-i-can-use-it-in-th
      */
     function _getRevertMsg(bytes memory _returnData) internal pure returns (string memory) {
         // If the _res length is less than 68, then the transaction failed silently (without a revert message)
@@ -1235,7 +1230,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     function depositNFTsNotification(uint256[] calldata nftIds) external override onlyFactory {
         _depositNFTsNotification(nftIds);
 
-        emit NFTDeposit(address(nft()), nftIds.length);
+        (uint256 rawBuyPrice, uint256 rawSellPrice) = getRawBuyAndSellPrices();
+        emit NFTDeposit(nft(), nftIds.length, rawBuyPrice, rawSellPrice);
         notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
     }
 
@@ -1243,7 +1239,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         if (!acceptsTokenIDs(nftIds, proof, proofFlags)) revert NFTsNotAccepted();
         _depositNFTs(msg.sender, nftIds);
 
-        emit NFTDeposit(address(nft()), nftIds.length);
+        (uint256 rawBuyPrice, uint256 rawSellPrice) = getRawBuyAndSellPrices();
+        emit NFTDeposit(nft(), nftIds.length, rawBuyPrice, rawSellPrice);
 
         notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
     }
