@@ -99,7 +99,7 @@ interface ICollectionPool is ITokenIDFilter {
     /**
      * @notice Returns number of NFTs in pool that matches filter
      */
-    function NFTsLength() external view returns (uint256);
+    function NFTsCount() external view returns (uint256);
 
     /**
      * @notice Sets NFT token ID filter to allow only some NFTs into this pool. Pool must be empty

@@ -132,11 +132,11 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     event NFTWithdrawal(IERC721 indexed collection, uint256 numNFTs, uint256 rawBuyPrice, uint256 rawSellPrice);
     event DeltaUpdate(uint128 newDelta);
     event FeeUpdate(uint96 newFee);
-    event AssetRecipientChange(address a);
+    event AssetRecipientChange(address indexed a);
     event PropsUpdate(bytes newProps);
     event StateUpdate(bytes newState);
     event RoyaltyNumeratorUpdate(uint24 newRoyaltyNumerator);
-    event RoyaltyRecipientFallbackUpdate(address payable newFallback);
+    event RoyaltyRecipientFallbackUpdate(address payable indexed newFallback);
     event PoolSwapPause();
     event PoolSwapUnpause();
     event ExternalFilterSet(address indexed collection, address indexed filterAddress);
@@ -158,6 +158,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     error CallError(bytes returnData);
     error MulticallError();
     error InvalidExternalFilter();
+    error UseWithdrawERC721Instead();
 
     modifier onlyFactory() {
         if (msg.sender != address(factory())) revert NotAuthorized();
@@ -331,10 +332,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address routerCaller
     ) external payable virtual whenPoolSwapsNotPaused returns (uint256 inputAmount) {
         IERC721 _nft = nft();
-        // 0 < Swap quantity <= NFT balance
-        if ((numNFTs == 0) || (numNFTs > _nft.balanceOf(address(this)))) revert InvalidSwapQuantity();
-
         uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
+        if (tokenIds.length == 0) revert InvalidSwapQuantity();
         inputAmount = swapTokenForSpecificNFTs(tokenIds, maxExpectedTokenInput, nftRecipient, isRouter, routerCaller);
     }
 
@@ -841,6 +840,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @notice Select arbitrary NFTs from pool
      * @param _nft The address of the NFT to send
      * @param numNFTs The number of NFTs to send
+     * @return tokenIds Returns numNFTs IDs or [] if insufficent
      */
     function _selectArbitraryNFTs(IERC721 _nft, uint256 numNFTs) internal virtual returns (uint256[] memory tokenIds);
 
@@ -942,13 +942,18 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
     /**
      * @notice Rescues ERC1155 tokens from the pool to the owner. Only callable by the owner.
+     * If somehow, the pool's nft() is an unholy amalgam of both ERC721 AND * ERC1155, even though
+     * there is no good nor indeed any reason for this, and nft() is what we are withdrawing, abort
+     * and advise usage of withdrawERC721 instead. Note that the transfer amount would be limited
+     * to whatever nft().safeTransferFrom(from, to, id) defaults to.
      * @param a The NFT to transfer
      * @param ids The NFT ids to transfer
      * @param amounts The amounts of each id to transfer
      */
     function withdrawERC1155(IERC1155 a, uint256[] calldata ids, uint256[] calldata amounts) external onlyAuthorized {
+        if (address(a) == address(nft())) revert UseWithdrawERC721Instead();
+
         a.safeBatchTransferFrom(address(this), owner(), ids, amounts, "");
-        // TODO update idSet or not?
     }
 
     /**

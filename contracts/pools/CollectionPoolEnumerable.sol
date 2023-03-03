@@ -28,24 +28,26 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
         override
         returns (uint256[] memory nftIds)
     {
-        // numNFTs > 0 when called by buyAny function.
-        nftIds = new uint256[](numNFTs);
+        uint256 userBalance = _nft.balanceOf(address(this));
         uint256 j;
 
-        for (uint256 i; i < numNFTs;) {
-            // index will be out of bounds if numNFTs > balance
-            uint256 nftId = IERC721Enumerable(address(_nft)).tokenOfOwnerByIndex(address(this), j);
+        if (numNFTs > 0 && numNFTs <= userBalance) {
+            nftIds = new uint256[](numNFTs);
+            for (uint256 i; i < numNFTs;) {
+                // index will be out of bounds if numNFTs > balance
+                uint256 nftId = IERC721Enumerable(address(_nft)).tokenOfOwnerByIndex(address(this), j);
 
-            // make sure it's a legal (filtered) ID
-            if (idMap.get(nftId)) {
-                nftIds[i] = nftId;
-                unchecked {
-                    ++i;
+                // make sure it's a legal (filtered) ID
+                if (idMap.get(nftId)) {
+                    nftIds[i] = nftId;
+                    unchecked {
+                        ++i;
+                    }
                 }
-            }
 
-            unchecked {
-                ++j;
+                unchecked {
+                    ++j;
+                }
             }
         }
     }
@@ -123,7 +125,7 @@ abstract contract CollectionPoolEnumerable is CollectionPool {
     }
 
     /// @inheritdoc ICollectionPool
-    function NFTsLength() external view returns (uint256) {
+    function NFTsCount() external view returns (uint256) {
         return idLength;
     }
 }
