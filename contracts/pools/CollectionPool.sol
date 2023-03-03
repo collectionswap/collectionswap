@@ -359,18 +359,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         bool isRouter,
         address routerCaller
     ) public payable virtual nonReentrant whenPoolSwapsNotPaused returns (uint256 inputAmount) {
-        // Store locally to remove extra calls
-        ICollectionPoolFactory _factory = factory();
-        ICurve _bondingCurve = bondingCurve();
-
         // Input validation
-        {
-            PoolType _poolType = poolType();
-            // Can only buy from NFT or two sided pools
-            if (_poolType == PoolType.TOKEN) revert InvalidSwap();
-            if (nftIds.length == 0) revert InvalidSwapQuantity();
-        }
-
+        // Can only buy from NFT or two sided pools
+        if (poolType() == PoolType.TOKEN) revert InvalidSwap();
+        if (nftIds.length == 0) revert InvalidSwapQuantity();
         // Prevent users from making a ridiculous pool, buying out their "sucker" price, and
         // then staking this pool with liquidity at really bad prices into a reward vault.
         if (isInCreationBlock()) revert InvalidSwap();
@@ -379,12 +371,12 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         ICurve.Fees memory fees;
         uint256 lastSwapPrice;
         (inputAmount, fees, lastSwapPrice) =
-            _calculateBuyInfoAndUpdatePoolParams(nftIds.length, maxExpectedTokenInput, _bondingCurve, _factory);
+            _calculateBuyInfoAndUpdatePoolParams(nftIds.length, maxExpectedTokenInput, bondingCurve());
 
         accruedTradeFee += fees.trade;
         RoyaltyDue[] memory royaltiesDue = _getRoyaltiesDue(nft(), nftIds, fees.royalties);
 
-        _pullTokenInputAndPayProtocolFee(inputAmount, isRouter, routerCaller, _factory, fees.protocol, royaltiesDue);
+        _pullTokenInputAndPayProtocolFee(inputAmount, isRouter, routerCaller, factory(), fees.protocol, royaltiesDue);
 
         _withdrawNFTs(nftRecipient, nftIds);
 
@@ -419,32 +411,29 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     ) external virtual nonReentrant whenPoolSwapsNotPaused returns (uint256 outputAmount) {
         // Store locally to remove extra calls
         ICollectionPoolFactory _factory = factory();
-        ICurve _bondingCurve = bondingCurve();
 
         // Input validation
-        {
-            PoolType _poolType = poolType();
-            // Can only sell to Token / 2-sided pools
-            if (_poolType == PoolType.NFT) revert InvalidSwap();
-            if (nfts.ids.length == 0) revert InvalidSwapQuantity();
-            if (!acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags)) revert NFTsNotAccepted();
-            if (
-                address(externalFilter) != address(0)
-                    && !externalFilter.areNFTsAllowed(address(nft()), nfts.ids, externalFilterContext)
-            ) {
-                revert NFTsNotAllowed();
-            }
+        PoolType _poolType = poolType();
+        // Can only sell to Token / 2-sided pools
+        if (_poolType == PoolType.NFT) revert InvalidSwap();
+        if (nfts.ids.length == 0) revert InvalidSwapQuantity();
+        if (!acceptsTokenIDs(nfts.ids, nfts.proof, nfts.proofFlags)) revert NFTsNotAccepted();
+        if (
+            address(externalFilter) != address(0)
+                && !externalFilter.areNFTsAllowed(address(nft()), nfts.ids, externalFilterContext)
+        ) {
+            revert NFTsNotAllowed();
         }
 
         // Prevent users from making a ridiculous pool, buying out their "sucker" price, and
-        // then staking this pool with liquidity at really bad prices into a reward vault
+        // then staking this pool with liquidity at really bad prices into a reward vault.
         if (isInCreationBlock()) revert InvalidSwap();
 
         // Call bonding curve for pricing information
         ICurve.Fees memory fees;
         uint256 lastSwapPrice;
         (outputAmount, fees, lastSwapPrice) =
-            _calculateSellInfoAndUpdatePoolParams(nfts.ids.length, minExpectedTokenOutput, _bondingCurve);
+            _calculateSellInfoAndUpdatePoolParams(nfts.ids.length, minExpectedTokenOutput, bondingCurve());
 
         // Accrue trade fees before sending token output. This ensures that the balance is always sufficient for trade fee withdrawal.
         accruedTradeFee += fees.trade;
@@ -457,10 +446,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         emit SwapNFTInPool(nfts.ids, outputAmount, fees.trade, fees.protocol, royaltiesDue);
 
+        /// @dev for some reason this causes the bytecode size to drop below the
+        /// 24kb limit. Even the magic number 3 is better than 0 for some reason
+        /// when compiling with 150 runs viaIR
         uint256[] memory amounts = new uint256[](3);
-        amounts[0] = nfts.ids.length;
-        amounts[1] = lastSwapPrice;
-        amounts[2] = outputAmount;
 
         notifySwap(IPoolActivityMonitor.EventType.SOLD_NFT_TO_POOL, nfts.ids.length, lastSwapPrice, outputAmount);
     }
@@ -711,7 +700,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         assembly {
             let x := mload(0x40) // Find empty storage location using "free memory pointer"
-            mstore(x, erc165ID) // Place signature at beginning of empty storage
+            mstore(x, erc165ID) // Place signature at beginning of empty storage (ERC165 ID)
             mstore(add(x, 0x04), _interfaceId) // Place first argument directly next to signature
 
             success := staticcall(30000, _contract, x, 0x24, x, 0x20)
@@ -729,12 +718,10 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @return fees The amount of tokens to send as fees
      * @return lastSwapPrice The swap price of the last NFT traded with fees applied
      */
-    function _calculateBuyInfoAndUpdatePoolParams(
-        uint256 numNFTs,
-        uint256 maxExpectedTokenInput,
-        ICurve _bondingCurve,
-        ICollectionPoolFactory
-    ) internal returns (uint256 inputAmount, ICurve.Fees memory fees, uint256 lastSwapPrice) {
+    function _calculateBuyInfoAndUpdatePoolParams(uint256 numNFTs, uint256 maxExpectedTokenInput, ICurve _bondingCurve)
+        internal
+        returns (uint256 inputAmount, ICurve.Fees memory fees, uint256 lastSwapPrice)
+    {
         ICurve.Params memory params = curveParams();
         ICurve.Params memory newParams;
         (newParams, inputAmount, fees, lastSwapPrice) = _bondingCurve.getBuyInfo(params, numNFTs, feeMultipliers());

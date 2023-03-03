@@ -58,6 +58,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         if (msg.value != 0) revert ReceivedETH();
 
         ERC20 _token = token();
+        ICollectionPoolFactory.PoolVariant variant = poolVariant();
 
         uint256 totalRoyaltiesPaid;
         uint256 royaltiesSentToFactory;
@@ -66,19 +67,18 @@ abstract contract CollectionPoolERC20 is CollectionPool {
             // Verify if router is allowed
             CollectionRouter router = CollectionRouter(payable(msg.sender));
 
-            // Locally scoped to avoid stack too deep
             (bool routerAllowed,) = _factory.routerStatus(router);
             if (!routerAllowed) revert UnallowedRouter(router);
 
             // Pay royalties first to obtain total amount of royalties paid
             (totalRoyaltiesPaid, royaltiesSentToFactory) = _payRoyaltiesAndProtocolFee(
-                _factory, royaltiesDue, protocolFee, routerCaller, isRouter, router, poolVariant()
+                _factory, royaltiesDue, protocolFee, routerCaller, isRouter, router, variant
             );
 
             // Cache state and then call router to transfer tokens from user
             address _assetRecipient = getAssetRecipient();
             uint256 amountToAssetRecipient = inputAmount - protocolFee - royaltiesSentToFactory;
-            sendTokenWithRouter(router, _token, routerCaller, _assetRecipient, amountToAssetRecipient, poolVariant());
+            sendTokenWithRouter(router, _token, routerCaller, _assetRecipient, amountToAssetRecipient, variant);
         } else {
             // Pay royalties first to obtain total amount of royalties paid
             (, royaltiesSentToFactory) = _payRoyaltiesAndProtocolFee(
@@ -88,7 +88,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
                 msg.sender,
                 isRouter,
                 CollectionRouter(payable(address(0))),
-                poolVariant()
+                variant
             );
 
             // Transfer tokens directly
@@ -277,7 +277,14 @@ abstract contract CollectionPoolERC20 is CollectionPool {
      * @notice Helper function that uses a router to send tokens and check that
      * the tokens were actually transferred
      */
-    function sendTokenWithRouter(CollectionRouter router, ERC20 _token, address from, address to, uint256 amount, ICollectionPoolFactory.PoolVariant variant) internal {
+    function sendTokenWithRouter(
+        CollectionRouter router,
+        ERC20 _token,
+        address from,
+        address to,
+        uint256 amount,
+        ICollectionPoolFactory.PoolVariant variant
+    ) internal {
         uint256 beforeBalance = _token.balanceOf(to);
         router.poolTransferERC20From(_token, from, to, amount, variant);
         uint256 balanceDifference = _token.balanceOf(to) - beforeBalance;
