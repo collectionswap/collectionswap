@@ -321,14 +321,14 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
 
         uint256 withoutFeeInputAmount = (inputAmount * 1e18) / 1.01e18;
         assertEq(
-            ethPool.spotPrice(),
+            ethPool.curveParams().spotPrice,
             uint128(address(ethPool).balance) -
                 (withoutFeeInputAmount * 0.01e18) /
                 1e18,
             "Spot price should match eth balance - fee after swap"
         );
         assertEq(
-            ethPool.delta(),
+            ethPool.curveParams().delta,
             nft.balanceOf(address(ethPool)),
             "Delta should match nft balance after swap"
         );
@@ -387,13 +387,13 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
 
         uint256 withoutFeeOutputAmount = (outputAmount * 1e18) / 0.99e18;
         assertEq(
-            ethPool.spotPrice(),
+            ethPool.curveParams().spotPrice,
             uint128(address(ethPool).balance) -
                 ((withoutFeeOutputAmount * 1e16) / 1e18),
             "Spot price + fee should match eth balance after swap"
         );
         assertEq(
-            ethPool.delta(),
+            ethPool.curveParams().delta,
             nft.balanceOf(address(ethPool)),
             "Delta should match nft balance after swap"
         );

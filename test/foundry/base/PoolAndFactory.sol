@@ -137,8 +137,8 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         assertEq(address(pool.nft()), address(test721));
         assertEq(address(pool.bondingCurve()), address(bondingCurve));
         assertEq(uint256(pool.poolType()), uint256(ICollectionPool.PoolType.TRADE));
-        assertEq(pool.delta(), delta);
-        assertEq(pool.spotPrice(), spotPrice);
+        assertEq(pool.curveParams().delta, delta);
+        assertEq(pool.curveParams().spotPrice, spotPrice);
         assertEq(pool.owner(), address(this));
         assertEq(pool.fee(), 0);
         assertEq(pool.assetRecipient(), address(0));
@@ -152,11 +152,11 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     function test_modifyPoolParams() public {
         // changing spot works as expected
         pool.changeSpotPrice(2 ether);
-        assertEq(pool.spotPrice(), 2 ether);
+        assertEq(pool.curveParams().spotPrice, 2 ether);
 
         // changing delta works as expected
         pool.changeDelta(2.2 ether);
-        assertEq(pool.delta(), 2.2 ether);
+        assertEq(pool.curveParams().delta, 2.2 ether);
 
         // // changing fee works as expected
         pool.changeFee(0.2e6);
@@ -169,8 +169,8 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         calls[1] = abi.encodeCall(pool.changeDelta, (2 ether));
         calls[2] = abi.encodeCall(pool.changeFee, (0.3e6));
         pool.multicall(calls, true);
-        assertEq(pool.spotPrice(), 1 ether);
-        assertEq(pool.delta(), 2 ether);
+        assertEq(pool.curveParams().spotPrice, 1 ether);
+        assertEq(pool.curveParams().delta, 2 ether);
         assertEq(pool.fee(), 0.3e6);
     }
 
