@@ -18,6 +18,7 @@ import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFact
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
+import {ERC1820Registry} from "../interfaces/ERC1820Registry.sol";
 
 abstract contract UsingERC20 is Configurable, RouterCaller {
     using SafeTransferLib for ERC20;
@@ -47,7 +48,9 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         uint256[] memory _idList,
         uint256 initialTokenBalance,
         address routerAddress
-    ) public payable override returns (CollectionPool) {
+    ) public payable override virtual returns (CollectionPool) {
+        ERC1820Registry.deploy();
+
         // create ERC20 token if not already deployed
         if (address(test20) == address(0)) {
             test20 = new Test20();
