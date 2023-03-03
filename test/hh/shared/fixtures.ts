@@ -335,7 +335,7 @@ export async function deployPoolContracts() {
   // console.log(`PoolFactory Owner: ${await collectionPoolFactory.owner()}`);
 
   return {
-    collectionDeployer,
+    collectionDeployer: safeOwner,
     curve: curves[CURVE_TYPE!] as ICurve,
     curves,
     factory: collectionPoolFactory,

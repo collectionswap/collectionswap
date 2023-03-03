@@ -30,6 +30,11 @@ import {CollectionPoolMissingEnumerableETH} from "./CollectionPoolMissingEnumera
 import {CollectionPoolMissingEnumerableERC20} from "./CollectionPoolMissingEnumerableERC20.sol";
 import {MultiPauser} from "../lib/MultiPauser.sol";
 
+/**
+ * @dev The ETH balance of this contract is used both to store protocol fees
+ * which the owner can withdraw, as well as royalties accumulated from swaps
+ * made against pools deployed by this contract.
+ */
 contract CollectionPoolFactory is
     Ownable,
     ReentrancyGuard,
@@ -78,6 +83,11 @@ contract CollectionPoolFactory is
 
     mapping(ICurve => bool) public bondingCurveAllowed;
     mapping(address => bool) public override callAllowed;
+    /// @dev Used to track how much royalties are stored in this contract balance.
+    /// This is to prevent the factory owner from withdrawing more than they should
+    mapping(ERC20 => uint256) royaltiesStored;
+    /// @dev Uses address 0 for ETH royalties
+    mapping(address => mapping(ERC20 => uint256)) public royaltiesClaimable;
 
     struct RouterStatus {
         bool allowed;
@@ -105,6 +115,8 @@ contract CollectionPoolFactory is
     event CreationUnpause();
     event SwapPause();
     event SwapUnpause();
+
+    error InsufficientValue(uint256 msgValue, uint256 amountRequired);
 
     constructor(
         CollectionPoolEnumerableETH _enumerableETHTemplate,
@@ -300,8 +312,36 @@ contract CollectionPoolFactory is
     }
 
     /**
-     * Withdrawal functions. Not pausable.
+     * @notice Update royalty bookkeeping in `token` currency according to
+     * `royaltiesDue`. Only callable by pools
+     * @param token The ERC20 token that royalties are in. ERC20(address(0)) for ETH
+     * @param royaltiesDue An array of the recipients and amounts due each address
+     * @param poolVariant the variant of the pool being interacted with
      */
+    function depositRoyaltiesNotification(
+        ERC20 token,
+        CollectionPool.RoyaltyDue[] calldata royaltiesDue,
+        PoolVariant poolVariant
+    ) external payable {
+        require(isPoolVariant(msg.sender, poolVariant), "Not pool");
+        uint256 length = royaltiesDue.length;
+        uint256 amountRequired;
+        // Do internal bookkeeping of who can claim portions of the tokens about
+        // to be transferred in
+        for (uint256 i; i < length;) {
+            address recipient = royaltiesDue[i].recipient;
+            if (msg.sender != recipient) {
+                amountRequired += royaltiesDue[i].amount;
+                royaltiesClaimable[royaltiesDue[i].recipient][token] += royaltiesDue[i].amount;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        royaltiesStored[token] += amountRequired;
+    }
 
     /*
      * @notice NFTs that don't match filter and any airdropped assets  must be rescued prior to calling this function.
@@ -353,20 +393,137 @@ contract CollectionPoolFactory is
     }
 
     /**
+     * Withdrawal functions. Not pausable.
+     */
+
+    /**
+     * @notice Withdraw all `token` royalties awardable to `recipient`. If the
+     * zero address is passed as `token`, then ETH royalties are paid. Does not
+     * use msg.sender so this function can be called on behalf of contract
+     * royalty recipients
+     */
+    function withdrawRoyalties(address payable recipient, ERC20 token) external {
+        uint256 totalRoyaltiesWithdrawn;
+        if (address(token) == address(0)) {
+            totalRoyaltiesWithdrawn = withdrawETHRoyalties(recipient);
+        } else {
+            totalRoyaltiesWithdrawn = withdrawERC20Royalties(recipient, token);
+        }
+
+        royaltiesStored[token] -= totalRoyaltiesWithdrawn;
+    }
+
+    /**
+     * @dev Internal helper function for withdrawing ETH royalties for a single
+     * address. Does NOT update `royaltiesStored[token]`
+     */
+    function withdrawETHRoyalties(address payable recipient) internal returns (uint256 amount) {
+        amount = royaltiesClaimable[recipient][ERC20(address(0))];
+        royaltiesClaimable[recipient][ERC20(address(0))] = 0;
+        recipient.safeTransferETH(amount);
+    }
+
+    /**
+     * @dev Internal helper function for withdrawing ERC20 royalties for a single
+     * address. Does NOT update `royaltiesStored[token]`
+     */
+    function withdrawERC20Royalties(address payable recipient, ERC20 token) internal returns (uint256 amount) {
+        require(address(token) != address(0), "Use withdrawETHRoyalties instead");
+        amount = royaltiesClaimable[recipient][token];
+        royaltiesClaimable[recipient][token] = 0;
+        token.safeTransfer(recipient, amount);
+    }
+
+    /**
+     * @dev Uses the internal helper functions to batch writes to `royaltiesStored`
+     */
+    function withdrawRoyaltiesMultipleRecipients(address payable[] calldata recipients, ERC20 token) public {
+        uint256 length = recipients.length;
+        uint256 totalRoyaltiesWithdrawn;
+        uint256 amount;
+        if (address(token) == address(0)) {
+            for (uint256 i; i < length;) {
+                amount = withdrawETHRoyalties(recipients[i]);
+                totalRoyaltiesWithdrawn += amount;
+
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            for (uint256 i; i < length;) {
+                amount = withdrawERC20Royalties(recipients[i], token);
+                totalRoyaltiesWithdrawn += amount;
+
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+
+        royaltiesStored[token] -= totalRoyaltiesWithdrawn;
+    }
+
+    function withdrawRoyaltiesMultipleCurrencies(address payable recipient, ERC20[] calldata tokens) external {
+        uint256 length = tokens.length;
+        uint256 amount;
+        for (uint256 i; i < length; i++) {
+            ERC20 token = tokens[i];
+            amount = royaltiesClaimable[recipient][token];
+            royaltiesClaimable[recipient][token] = 0;
+
+            /// @dev Need to repeat this check for every token iterated over
+            if (address(token) == address(0)) {
+                recipient.safeTransferETH(amount);
+            } else {
+                token.safeTransfer(recipient, amount);
+            }
+
+            royaltiesStored[token] -= amount;
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Withdraw royalties for ALL combinations of recipients and tokens
+     * in the given arguments
+     *
+     * @dev Iterate over tokens as outer loop to reduce stores/loads to `royaltiesStored`
+     * and the number of `address(token) == address(0)` condition checks from
+     * O(m * n) to O(n)
+     */
+    function withdrawRoyaltiesMultipleRecipientsAndCurrencies(
+        address payable[] calldata recipients,
+        ERC20[] calldata tokens
+    ) external {
+        uint256 length = tokens.length;
+        for (uint256 i; i < length; i++) {
+            ERC20 token = tokens[i];
+            withdrawRoyaltiesMultipleRecipients(recipients, token);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
      * @notice Withdraws the ETH balance to the protocol fee recipient.
      * Only callable by the owner.
      */
     function withdrawETHProtocolFees() external onlyOwner {
-        protocolFeeRecipient.safeTransferETH(address(this).balance);
+        protocolFeeRecipient.safeTransferETH(address(this).balance - royaltiesStored[ERC20(address(0))]);
     }
 
     /**
      * @notice Withdraws ERC20 tokens to the protocol fee recipient. Only callable by the owner.
      * @param token The token to transfer
-     * @param amount The amount of tokens to transfer
      */
-    function withdrawERC20ProtocolFees(ERC20 token, uint256 amount) external onlyOwner {
-        token.safeTransfer(protocolFeeRecipient, amount);
+    function withdrawERC20ProtocolFees(ERC20 token) external onlyOwner {
+        token.safeTransfer(protocolFeeRecipient, token.balanceOf(address(this)) - royaltiesStored[token]);
     }
 
     /**
