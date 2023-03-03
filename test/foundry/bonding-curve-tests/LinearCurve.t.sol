@@ -23,7 +23,6 @@ contract LinearCurveTest is Test {
         uint24 protocolFeeMultiplier = (1e6 * 3) / 1000; // 0.3%
         uint24 royaltyNumerator = 0;
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 inputValue,
             ICurve.Fees memory fees,
@@ -42,11 +41,6 @@ contract LinearCurveTest is Test {
                     0
                 )
             );
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
         assertEq(newParams.spotPrice, 3.5 ether, "Spot price incorrect");
         assertEq(newParams.delta, 0.1 ether, "Delta incorrect");
         assertEq(inputValue, 16.632 ether, "Input value incorrect");
@@ -62,28 +56,18 @@ contract LinearCurveTest is Test {
             return;
         }
 
-        (
-            CurveErrorCodes.Error error,
-            ICurve.Params memory newParams,
-            uint256 inputValue,
-            ,
-        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         if (
             uint256(spotPrice) + uint256(delta) * uint256(numItems) >
             type(uint128).max
         ) {
-            assertEq(
-                uint256(error),
-                uint256(CurveErrorCodes.Error.SPOT_PRICE_OVERFLOW),
-                "Error code not SPOT_PRICE_OVERFLOW"
-            );
+            vm.expectRevert(CurveErrorCodes.SpotPriceOverflow.selector);
+            curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
         } else {
-            assertEq(
-                uint256(error),
-                uint256(CurveErrorCodes.Error.OK),
-                "Error code not OK"
-            );
-
+            (
+                ICurve.Params memory newParams,
+                uint256 inputValue,
+                ,
+            ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
             assertTrue(
                 (newParams.spotPrice > spotPrice && delta > 0) ||
                     (newParams.spotPrice == spotPrice && delta == 0),
@@ -106,7 +90,6 @@ contract LinearCurveTest is Test {
         uint24 protocolFeeMultiplier = (1e6 * 3) / 1000; // 0.3%
         uint24 royaltyNumerator = 0;
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 outputValue,
             ICurve.Fees memory fees,
@@ -125,11 +108,6 @@ contract LinearCurveTest is Test {
                     0
                 )
             );
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
         assertEq(newParams.spotPrice, 2.5 ether, "Spot price incorrect");
         assertEq(newParams.delta, 0.1 ether, "Delta incorrect");
         assertEq(outputValue, 13.888 ether, "Output value incorrect");
@@ -146,16 +124,10 @@ contract LinearCurveTest is Test {
         }
 
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 outputValue,
             ,
         ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
 
         uint256 totalPriceDecrease = uint256(delta) * numItems;
         if (spotPrice < totalPriceDecrease) {

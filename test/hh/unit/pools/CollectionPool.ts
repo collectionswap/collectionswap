@@ -26,6 +26,8 @@ import {
 } from "../../shared/fixtures/CollectionPool";
 import {
   byEvent,
+  changesEtherBalancesFuzzy,
+  changesTokenBalancesFuzzy,
   expectAddressToOwnNFTs,
   getNftTransfersTo,
   mintAndApproveAmountToken,
@@ -39,6 +41,7 @@ import {
 } from "../../shared/random";
 import { getSigners } from "../../shared/signers";
 
+import type { CollectionPoolFactory } from "../../../../typechain-types";
 import type {
   CollectionPool,
   ICollectionPool,
@@ -46,6 +49,7 @@ import type {
   SwapNFTOutPoolEventObject,
 } from "../../../../typechain-types/contracts/pools/CollectionPool";
 import type { CreatePoolOptions } from "../../shared/fixtures/CollectionPool";
+import type { Account } from "../../shared/helpers";
 import type { IERC721Mintable } from "../../shared/types";
 import type { BigNumber, ContractTransaction } from "ethers";
 import type { Context } from "mocha";
@@ -68,6 +72,7 @@ export function setUpCollectionPoolContext() {
       test721Enumerable: this.test721Enumerable,
       test721EnumerableRoyalty: this.test721EnumerableRoyalty,
       test721Royalty: this.test721Royalty,
+      collectionDeployer: this.collectionDeployer,
     } = await loadFixture(collectionPoolFixture));
   });
 
@@ -399,7 +404,7 @@ export function testSwapToken(
     });
 
     function shouldHaveRoyaltiesAndTransferToken() {
-      it(`Should have royalties and transfer ${key} to the respective recipients`, async function () {
+      it(`Should have royalties and transfer ${key} to factory which can then be withdrawn`, async function () {
         const tx = await swapToken();
         if (any) {
           nftIds = await getNftTransfersTo(tx, nft, nftRecipient);
@@ -415,7 +420,14 @@ export function testSwapToken(
         );
 
         expect(await collectionPool.royaltyNumerator()).to.greaterThan(0);
-        expect(totalRoyalty).to.greaterThan(0);
+        if (
+          // Pool only pays royalties to addresses other than itself
+          royaltyDue.some(
+            (royalty) => royalty.recipient !== collectionPool.address
+          )
+        ) {
+          expect(totalRoyalty).to.greaterThan(0);
+        }
 
         const inputAmountWithoutFee = inputAmount
           .sub(tradeFee)
@@ -446,6 +458,7 @@ export function testSwapToken(
         ]);
 
         // Sum up the amounts for each recipient
+        let totalRoyaltiesStoredInFactory = constants.Zero;
         for (let i = 0; i < royaltyRecipients.length; i++) {
           const recipient = royaltyRecipients[i];
           recipientToAmount.set(
@@ -454,6 +467,12 @@ export function testSwapToken(
               recipientToAmount.get(recipient) ?? constants.Zero
             )
           );
+
+          if (recipient !== collectionPool.address) {
+            totalRoyaltiesStoredInFactory = totalRoyaltiesStoredInFactory.add(
+              royaltyAmounts[i]
+            );
+          }
         }
 
         const { collectionPoolFactory, user } = this;
@@ -461,8 +480,16 @@ export function testSwapToken(
           this,
           key,
           tx,
-          [collectionPoolFactory, user, ...recipientToAmount.keys()],
-          [protocolFee, inputAmount.mul(-1), ...recipientToAmount.values()]
+          [collectionPoolFactory, user],
+          [protocolFee.add(totalRoyaltiesStoredInFactory), inputAmount.mul(-1)]
+        );
+
+        await testRoyaltyWithdrawals.call(
+          this,
+          key,
+          collectionPoolFactory,
+          collectionPool,
+          recipientToAmount
         );
       });
     }
@@ -868,7 +895,14 @@ export function testSwapNFTsForToken(
         );
 
         expect(await collectionPool.royaltyNumerator()).to.greaterThan(0);
-        expect(totalRoyalty).to.greaterThan(0);
+        if (
+          // Pool only pays royalties to addresses other than itself
+          royaltyDue.some(
+            (royalty) => royalty.recipient !== collectionPool.address
+          )
+        ) {
+          expect(totalRoyalty).to.greaterThan(0);
+        }
 
         const outputAmountWithoutFee = outputAmount
           .add(tradeFee)
@@ -885,6 +919,7 @@ export function testSwapNFTsForToken(
         ]);
 
         // Sum up the amounts for each recipient
+        let totalRoyaltiesStoredInFactory = constants.Zero;
         for (let i = 0; i < royaltyRecipients.length; i++) {
           const recipient = royaltyRecipients[i];
           recipientToAmount.set(
@@ -893,18 +928,28 @@ export function testSwapNFTsForToken(
               recipientToAmount.get(recipient) ?? constants.Zero
             )
           );
+
+          if (recipient !== collectionPool.address) {
+            totalRoyaltiesStoredInFactory = totalRoyaltiesStoredInFactory.add(
+              royaltyAmounts[i]
+            );
+          }
         }
 
         await expectTxToChangeBalances.call(
           this,
           key,
           tx,
-          [
-            this.collectionPoolFactory,
-            tokenRecipient,
-            ...recipientToAmount.keys(),
-          ],
-          [protocolFee, outputAmount, ...recipientToAmount.values()]
+          [this.collectionPoolFactory, tokenRecipient],
+          [protocolFee.add(totalRoyaltiesStoredInFactory), outputAmount]
+        );
+
+        await testRoyaltyWithdrawals.call(
+          this,
+          key,
+          this.collectionPoolFactory,
+          collectionPool,
+          recipientToAmount
         );
       });
     }
@@ -1033,14 +1078,66 @@ async function expectTxToChangeBalances(
   this: Context,
   key: "ETH" | "ERC20",
   tx: ContractTransaction,
-  accounts: string[],
+  accounts: (Account | string)[],
   balances: BigNumber[]
 ) {
   if (key === "ETH") {
-    await expect(tx).to.changeEtherBalances(accounts, balances);
+    expect(await changesEtherBalancesFuzzy(tx, accounts, balances)).to.be.true;
+    // await expect(tx).to.changeEtherBalances(accounts, balances);
   } else if (key === "ERC20") {
-    await expect(tx).to.changeTokenBalances(this.test20, accounts, balances);
+    expect(await changesTokenBalancesFuzzy(tx, this.test20, accounts, balances))
+      .to.be.true;
   }
+}
+
+async function testRoyaltyWithdrawals(
+  this: Context,
+  key: "ETH" | "ERC20",
+  factory: CollectionPoolFactory,
+  pool: CollectionPool,
+  recipientToAmount: Map<string, BigNumber>
+) {
+  // Pools automatically get their royalties
+  const validRecipientsAndRoyalties = Array.from(
+    recipientToAmount.entries()
+  ).filter(([recipient]) => recipient !== pool.address);
+  const recipients = validRecipientsAndRoyalties.map(
+    ([recipient]) => recipient
+  );
+  const amounts = validRecipientsAndRoyalties.map(([_, amount]) => amount);
+
+  // First withdraw protocol fees to verify protocol owner cannot touch royalties
+  if (key === "ETH") {
+    await factory.connect(this.collectionDeployer).withdrawETHProtocolFees();
+  } else {
+    await factory
+      .connect(this.collectionDeployer)
+      .withdrawERC20ProtocolFees(this.test20.address);
+  }
+
+  // Next, verify that correct amount of royalties are sent out
+  await expectTxToChangeBalances.call(
+    this,
+    key,
+    await factory.withdrawRoyaltiesMultipleRecipients(
+      validRecipientsAndRoyalties.map(([recipient]) => recipient),
+      key === "ETH" ? constants.AddressZero : this.test20.address
+    ),
+    recipients,
+    amounts
+  );
+
+  // Now ensure that recipients can't withdraw more than what's expected
+  await expectTxToChangeBalances.call(
+    this,
+    key,
+    await factory.withdrawRoyaltiesMultipleRecipients(
+      validRecipientsAndRoyalties.map(([recipient]) => recipient),
+      key === "ETH" ? constants.AddressZero : this.test20.address
+    ),
+    recipients,
+    amounts.map(() => constants.Zero)
+  );
 }
 
 export async function collectionPoolFixture() {
@@ -1049,6 +1146,7 @@ export async function collectionPoolFixture() {
     protocolFeeMultiplier,
     carryFeeMultiplier,
     curves: { test: testCurve },
+    collectionDeployer,
   } = await deployPoolContracts();
   const test20 = await test20Fixture();
 
@@ -1061,6 +1159,7 @@ export async function collectionPoolFixture() {
     curve: testCurve,
     ...(await nftFixture()),
     test20,
+    collectionDeployer,
   };
 }
 

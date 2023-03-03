@@ -121,7 +121,7 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         return getInfo(true, params, numItems, feeMultipliers);
     }
@@ -132,50 +132,27 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
     function getSellInfo(Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         external
         pure
-        returns (
-            CurveErrorCodes.Error error,
-            Params memory newParams,
-            uint256 outputValue,
-            Fees memory fees,
-            uint256 lastSwapPrice
-        )
+        returns (Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         return getInfo(false, params, numItems, feeMultipliers);
     }
 
     /// @dev To prevent stack too deep
-    function getInfoPrelude(uint256 numItems) internal pure returns (CurveErrorCodes.Error) {
+    function getInfoPrelude(uint256 numItems) internal pure {
         // We only calculate changes for buying/selling 1 or more NFTs.
-        if (numItems == 0) {
-            return Error.INVALID_NUMITEMS;
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
         // Verify that the resulting deltaN is will be valid. First ensure that
         // `numItems` fits in a 64 bit unsigned int. Then we can subtract
         // unchecked and manually check if bounds are exceeded
-        if (numItems > 0x7FFFFFFFFFFFFFFF) {
-            return Error.TOO_MANY_ITEMS;
-        }
-
-        return Error.OK;
+        if (numItems > 0x7FFFFFFFFFFFFFFF) revert TooManyItems();
     }
 
     function getInfo(bool isBuy, Params calldata params, uint256 numItems, FeeMultipliers calldata feeMultipliers)
         internal
         pure
-        returns (
-            CurveErrorCodes.Error error,
-            Params memory newParams,
-            uint256 value,
-            Fees memory fees,
-            uint256 lastSwapPrice
-        )
+        returns (Params memory newParams, uint256 value, Fees memory fees, uint256 lastSwapPrice)
     {
-        error = getInfoPrelude(numItems);
-        if (error != CurveErrorCodes.Error.OK) {
-            return (error, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
-
         // Extract information about the state of the pool
         (SigmoidParameters memory sigmoidParams) = getSigmoidParameters(params.delta, params.props, params.state);
 
@@ -185,12 +162,11 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
         int256 sign = isBuy ? -1 : int8(1);
 
         int256 _numItems = int256(numItems);
+        int256 newNumItems = sigmoidParams.deltaN + sign * _numItems;
         // Ensure deltaN -/+ _numItems can be safecasted for 64.64 bit computations
-        if (!valid64x64Int(sigmoidParams.deltaN + sign * _numItems)) {
-            return (Error.TOO_MANY_ITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (!valid64x64Int(sigmoidParams.deltaN + sign * _numItems)) revert TooManyItems();
 
-        newParams.state = encodeState(sigmoidParams.deltaN + sign * _numItems);
+        newParams.state = encodeState(newNumItems);
 
         // Iterate to calculate values. No closed form expression for discrete
         // sigmoid steps
@@ -206,7 +182,7 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
         // = P_min + deltaP * (1 / (1 + 2 ** (k * (deltaN -/+ n))))
         // the loop calculates the sum of 1 / (1 + 2 ** (k * (deltaN + n))) before we apply scaling by deltaP
         for (int256 n = 1; n <= _numItems;) {
-            // Locally scoped to avoid stack too deep error
+            // Locally scoped to avoid stack too deep
             {
                 int128 kDeltaN = ABDKMath64x64.fromInt(sigmoidParams.deltaN + sign * n).mul(sigmoidParams.k);
                 // fraction = 1 / (1 + 2 ** (k * (deltaN + n)))
@@ -220,17 +196,15 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
             fees.royalties[uint256(n) - 1] = itemRoyalty;
             totalRoyalty += itemRoyalty;
 
-            if (n == _numItems) {
-                /// @dev royalty breakdown not needed if fees aren't used
-                (lastSwapPrice,) = isBuy
-                    ? getInputValueAndFees(feeMultipliers, itemCost, new uint256[](0), itemRoyalty)
-                    : getOutputValueAndFees(feeMultipliers, itemCost, new uint256[](0), itemRoyalty);
-            }
-
             unchecked {
                 ++n;
             }
         }
+
+        /// @dev royalty breakdown not needed if fees aren't used
+        (lastSwapPrice,) = isBuy
+            ? getInputValueAndFees(feeMultipliers, itemCost, new uint256[](0), itemRoyalty)
+            : getOutputValueAndFees(feeMultipliers, itemCost, new uint256[](0), itemRoyalty);
 
         (value, fees) = isBuy
             ? getInputValueAndFees(feeMultipliers, value, fees.royalties, totalRoyalty)
@@ -240,9 +214,6 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
         // as neither changes for this curve
         newParams.spotPrice = params.spotPrice;
         newParams.delta = params.delta;
-
-        // If we reached here, no math errors
-        // Error defaults to Error.OK, no need assignment
     }
 
     /// Helper functions
@@ -267,6 +238,10 @@ contract SigmoidCurve is Curve, CurveErrorCodes {
      * @return The signed integer value of deltaN
      */
     function getDeltaN(bytes calldata state) private pure returns (int256) {
+        if (state.length != 32) {
+            return 0;
+        }
+
         return abi.decode(state, (int256));
     }
 

@@ -18,18 +18,14 @@ contract LinearCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 inputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // We only calculate changes for buying 1 or more NFTs
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
         // For a linear curve, the spot price increases by delta for each item bought
         uint256 newSpotPrice_ = params.spotPrice + params.delta * numItems;
-        if (newSpotPrice_ > type(uint128).max) {
-            return (Error.SPOT_PRICE_OVERFLOW, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (newSpotPrice_ > type(uint128).max) revert SpotPriceOverflow();
         newParams.spotPrice = uint128(newSpotPrice_);
 
         // Spot price is assumed to be the instant sell price. To avoid arbitraging LPs, we adjust the buy price upwards.
@@ -40,30 +36,29 @@ contract LinearCurve is Curve, CurveErrorCodes {
         // The new spot price would become (S+delta), so selling would also yield (S+delta) ETH.
         uint256 buySpotPrice = params.spotPrice + params.delta;
 
-        // If we buy n items, then the total cost is equal to:
-        // (buy spot price) + (buy spot price + 1*delta) + (buy spot price + 2*delta) + ... + (buy spot price + (n-1)*delta)
-        // This is equal to n*(buy spot price) + (delta)*(n*(n-1))/2
-        // because we have n instances of buy spot price, and then we sum up from delta to (n-1)*delta
-        inputValue = numItems * buySpotPrice + (numItems * (numItems - 1) * params.delta) / 2;
+        /// @dev For an arithmetic progression the total price is the average buy price
+        /// multiplied by the number of items bought, where average buy price is
+        /// the average of first and last transacted price. These are buySpotPrice
+        /// and newSpotPrice respectively
+        inputValue = numItems * (buySpotPrice + newParams.spotPrice) / 2;
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
+        uint256 royaltyAmount;
+        uint256 rawAmount = params.spotPrice;
         for (uint256 i = 0; i < numItems;) {
-            uint256 rawAmount = buySpotPrice + (params.delta * i);
-            uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+            rawAmount += params.delta;
+            royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
-
-            if (i == numItems - 1) {
-                /// @dev royalty breakdown not needed if fees aren't used
-                (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
-            }
 
             unchecked {
                 ++i;
             }
         }
 
+        /// @dev royalty breakdown not needed if fees aren't used
+        (lastSwapPrice,) = getInputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
         (inputValue, fees) = getInputValueAndFees(feeMultipliers, inputValue, fees.royalties, totalRoyalty);
 
         // Keep delta the same
@@ -71,9 +66,6 @@ contract LinearCurve is Curve, CurveErrorCodes {
 
         // Keep state the same
         newParams.state = params.state;
-
-        // If we got all the way here, no math error happened
-        error = Error.OK;
     }
 
     /**
@@ -83,12 +75,10 @@ contract LinearCurve is Curve, CurveErrorCodes {
         external
         pure
         override
-        returns (Error error, Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
+        returns (Params memory newParams, uint256 outputValue, Fees memory fees, uint256 lastSwapPrice)
     {
         // We only calculate changes for selling 1 or more NFTs
-        if (numItems == 0) {
-            return (Error.INVALID_NUMITEMS, Params(0, 0, "", ""), 0, Fees(0, 0, new uint256[](0)), 0);
-        }
+        if (numItems == 0) revert InvalidNumItems();
 
         // We first calculate the change in spot price after selling all of the items
         uint256 totalPriceDecrease = params.delta * numItems;
@@ -109,29 +99,44 @@ contract LinearCurve is Curve, CurveErrorCodes {
             newParams.spotPrice = params.spotPrice - uint128(totalPriceDecrease);
         }
 
-        // If we sell n items, then the total sale amount is:
-        // (spot price) + (spot price - 1*delta) + (spot price - 2*delta) + ... + (spot price - (n-1)*delta)
-        // This is equal to n*(spot price) - (delta)*(n*(n-1))/2
-        outputValue = numItems * params.spotPrice - (numItems * (numItems - 1) * params.delta) / 2;
+        uint256 rawAmount = uint256(params.spotPrice) + params.delta;
+
+        // lastSpotPrice is the spot price of the last nft which the user sells into the pool.
+        // lastSpotPrice will always be non-negative, a.k.a won't underflow.
+        // Case 1: spotPrice < totalPriceDecrease
+        //   lastSpotPrice = spotPrice + delta - (delta * numItems) >= 0
+        //   => spotPrice + delta >= delta * numItems
+        //   => numItems <= spotPrice / delta + 1
+        //   which is true because numItems = spotPrice / delta + 1 <= spotPrice / delta + 1 because of integer division
+        // Case 2: spotPrice >= totalPriceDecrease
+        //   0 <= spotPrice - totalPriceDecrease
+        //      = spotPrice - (delta * numItems)
+        //      <= spotPrice + delta - (delta * numItems), because 0 <= delta
+        //      = lastSpotPrice
+        uint256 lastSpotPrice = rawAmount - (params.delta * numItems);
+
+        /// @dev For an arithmetic progression the total price is the average sell price
+        /// multiplied by the number of items sold, where average buy price is
+        /// the average of first and last transacted price. These are spotPrice
+        /// and lastSpotPrice respectively
+        outputValue = numItems * (lastSpotPrice + params.spotPrice) / 2;
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
+        uint256 royaltyAmount;
         for (uint256 i = 0; i < numItems;) {
-            uint256 rawAmount = params.spotPrice - (params.delta * i);
-            uint256 royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
+            rawAmount -= params.delta;
+            royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
             fees.royalties[i] = royaltyAmount;
             totalRoyalty += royaltyAmount;
-
-            if (i == numItems - 1) {
-                /// @dev royalty breakdown not needed if fee return value not used
-                (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
-            }
 
             unchecked {
                 ++i;
             }
         }
 
+        /// @dev royalty breakdown not needed if fee return value not used
+        (lastSwapPrice,) = getOutputValueAndFees(feeMultipliers, rawAmount, new uint256[](0), royaltyAmount);
         (outputValue, fees) = getOutputValueAndFees(feeMultipliers, outputValue, fees.royalties, totalRoyalty);
 
         // Keep delta the same
@@ -139,8 +144,5 @@ contract LinearCurve is Curve, CurveErrorCodes {
 
         // Keep state the same
         newParams.state = params.state;
-
-        // If we reached here, no math errors
-        error = Error.OK;
     }
 }

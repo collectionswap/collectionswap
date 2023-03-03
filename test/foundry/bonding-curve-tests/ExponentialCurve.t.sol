@@ -5,13 +5,10 @@ import {Test} from "forge-std/Test.sol";
 
 import {ExponentialCurve} from "../../../contracts/bonding-curves/ExponentialCurve.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {CurveErrorCodes} from "../../../contracts/bonding-curves/CurveErrorCodes.sol";
 import {FixedPointMathLib} from "../../../contracts/lib/FixedPointMathLib.sol";
 
 contract ExponentialCurveTest is Test {
     using FixedPointMathLib for uint256;
-
-    uint256 constant MIN_PRICE = 1 gwei;
 
     ExponentialCurve curve;
 
@@ -27,7 +24,6 @@ contract ExponentialCurveTest is Test {
         uint24 protocolFeeMultiplier = (1e6 * 3) / 1000; // 0.3%
         uint24 royaltyNumerator = 0;
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 inputValue,
             ICurve.Fees memory fees,
@@ -36,7 +32,7 @@ contract ExponentialCurveTest is Test {
                     spotPrice,
                     delta,
                     "",
-                    ""
+                    abi.encode(0)
                 ),
                 numItems,
                 ICurve.FeeMultipliers(
@@ -46,13 +42,9 @@ contract ExponentialCurveTest is Test {
                     0
                 )
             );
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
-        assertEq(newParams.spotPrice, 96 ether, "Spot price incorrect");
+        assertEq(newParams.spotPrice, 3 ether, "Spot price incorrect");
         assertEq(newParams.delta, 2 ether, "Delta incorrect");
+        assertEq(newParams.state, abi.encode(-int256(numItems)), "State incorrect");
         assertEq(inputValue, 187.488 ether, "Input value incorrect");
         assertEq(fees.protocol, 0.558 ether, "Protocol fee incorrect");
     }
@@ -63,57 +55,33 @@ contract ExponentialCurveTest is Test {
         uint8 numItems
     ) public {
         if (
-            delta < FixedPointMathLib.WAD ||
+            delta <= FixedPointMathLib.WAD ||
             numItems > 10 ||
-            spotPrice < MIN_PRICE ||
             numItems == 0
         ) {
             return;
         }
 
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 inputValue,
             ,
-        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
-        uint256 deltaPowN = uint256(delta).fpow(
-            numItems,
-            FixedPointMathLib.WAD
-        );
-        uint256 fullWidthNewSpotPrice = uint256(spotPrice).fmul(
-            deltaPowN,
-            FixedPointMathLib.WAD
-        );
-        if (fullWidthNewSpotPrice > type(uint128).max) {
-            assertEq(
-                uint256(error),
-                uint256(CurveErrorCodes.Error.SPOT_PRICE_OVERFLOW),
-                "Error code not SPOT_PRICE_OVERFLOW"
-            );
-        } else {
-            assertEq(
-                uint256(error),
-                uint256(CurveErrorCodes.Error.OK),
-                "Error code not OK"
-            );
+        ) = curve.getBuyInfo(ICurve.Params(spotPrice, delta, "", abi.encode(0)), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
 
-            if (spotPrice > 0 && numItems > 0) {
-                assertTrue(
-                    (newParams.spotPrice > spotPrice &&
-                        delta > FixedPointMathLib.WAD) ||
-                        (newParams.spotPrice == spotPrice &&
-                            delta == FixedPointMathLib.WAD),
-                    "Price update incorrect"
-                );
-            }
-
-            assertGe(
-                inputValue,
-                numItems * uint256(spotPrice),
-                "Input value incorrect"
+        if (spotPrice > 0 && numItems > 0) {
+            assertTrue(
+                (newParams.spotPrice == spotPrice &&
+                    newParams.delta == delta),
+                "Pool params updated inappropriately"
             );
         }
+
+        /// @dev This holds true because we started at nonnegative deltaN (abi.decode(state, (int256)))
+        assertGe(
+            inputValue,
+            numItems * uint256(spotPrice),
+            "Input value incorrect"
+        );
     }
 
     function test_getSellInfoExample() public {
@@ -124,7 +92,6 @@ contract ExponentialCurveTest is Test {
         uint24 protocolFeeMultiplier = (1e6 * 3) / 1000; // 0.3%
         uint24 royaltyNumerator = 0;
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 outputValue,
             ICurve.Fees memory fees,
@@ -133,7 +100,7 @@ contract ExponentialCurveTest is Test {
                     spotPrice,
                     delta,
                     "",
-                    ""
+                    abi.encode(0)
                 ),
                 numItems,
                 ICurve.FeeMultipliers(
@@ -143,12 +110,7 @@ contract ExponentialCurveTest is Test {
                     0
                 )
             );
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
-        assertEq(newParams.spotPrice, 0.09375 ether, "Spot price incorrect");
+        assertEq(newParams.spotPrice, 3 ether, "Spot price incorrect");
         assertEq(newParams.delta, 2 ether, "Delta incorrect");
         assertEq(outputValue, 5.766 ether, "Output value incorrect");
         assertEq(fees.protocol, 0.0174375 ether, "Protocol fee incorrect");
@@ -160,33 +122,27 @@ contract ExponentialCurveTest is Test {
         uint8 numItems
     ) public {
         if (
-            delta < FixedPointMathLib.WAD ||
-            spotPrice < MIN_PRICE ||
+            delta <= FixedPointMathLib.WAD ||
             numItems == 0
         ) {
             return;
         }
 
         (
-            CurveErrorCodes.Error error,
             ICurve.Params memory newParams,
             uint256 outputValue,
             ,
-        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", ""), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
-        assertEq(
-            uint256(error),
-            uint256(CurveErrorCodes.Error.OK),
-            "Error code not OK"
-        );
+        ) = curve.getSellInfo(ICurve.Params(spotPrice, delta, "", abi.encode(0)), numItems, ICurve.FeeMultipliers(0, 0, 0, 0));
 
-        if (spotPrice > MIN_PRICE && numItems > 0) {
+        if (numItems > 0) {
             assertTrue(
-                (newParams.spotPrice < spotPrice && delta > 0) ||
-                    (newParams.spotPrice == spotPrice && delta == 0),
-                "Price update incorrect"
+                (newParams.spotPrice == spotPrice &&
+                    newParams.delta == delta),
+                "Pool params updated inappropriately"
             );
         }
 
+        /// @dev This holds true because we started at nonnegative deltaN (abi.decode(state, (int256)))
         assertLe(
             outputValue,
             numItems * uint256(spotPrice),

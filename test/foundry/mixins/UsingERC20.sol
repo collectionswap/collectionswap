@@ -8,16 +8,17 @@ import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 
 import {NoArbBondingCurve} from "../base/NoArbBondingCurve.sol";
 import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
+import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {CollectionPoolERC20} from "../../../contracts/pools/CollectionPoolERC20.sol";
 import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol";
-import {CollectionRouter2} from "../../../contracts/routers/CollectionRouter2.sol";
 import {Test20} from "../../../contracts/test/mocks/Test20.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
+import {ERC1820Registry} from "../interfaces/ERC1820Registry.sol";
 
 abstract contract UsingERC20 is Configurable, RouterCaller {
     using SafeTransferLib for ERC20;
@@ -47,7 +48,9 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         uint256[] memory _idList,
         uint256 initialTokenBalance,
         address routerAddress
-    ) public payable override returns (CollectionPool) {
+    ) public payable override virtual returns (CollectionPool) {
+        ERC1820Registry.deploy();
+
         // create ERC20 token if not already deployed
         if (address(test20) == address(0)) {
             test20 = new Test20();
@@ -61,7 +64,7 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         IMintable(address(test20)).mint(address(this), 1000 ether);
 
         // initialize the pool
-        (address poolAddress, ) = factory.createPoolERC20(
+        (ICollectionPool pool, ) = factory.createPoolERC20(
             ICollectionPoolFactory.CreateERC20PoolParams(
                 test20,
                 nft,
@@ -82,9 +85,9 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         );
 
         // Set approvals for pool
-        test20.approve(poolAddress, type(uint256).max);
+        test20.approve(address(pool), type(uint256).max);
 
-        return CollectionPool(poolAddress);
+        return CollectionPool(payable(address(pool)));
     }
 
     function withdrawTokens(CollectionPool pool) public override {
@@ -94,8 +97,7 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
 
     function withdrawProtocolFees(CollectionPoolFactory factory) public override {
         factory.withdrawERC20ProtocolFees(
-            test20,
-            test20.balanceOf(address(factory))
+            test20
         );
     }
 
@@ -210,20 +212,5 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         CollectionRouter.RobustPoolNFTsFoTokenAndTokenforNFTsTrade calldata params
     ) public payable override returns (uint256, uint256) {
         return router.robustSwapERC20ForSpecificNFTsAndNFTsToToken(params);
-    }
-
-    function buyAndSellWithPartialFill(
-        CollectionRouter2 /*router*/,
-        CollectionRouter2.PoolSwapSpecificPartialFill[] calldata /*buyList*/,
-        CollectionRouter2.PoolSwapSpecificPartialFillForToken[] calldata /*sellList*/
-    ) public payable override returns (uint256) {
-        revert("Unimplemented");
-    }
-
-    function swapETHForSpecificNFTs(
-        CollectionRouter2 /*router*/,
-        CollectionRouter2.RobustPoolSwapSpecific[] calldata /*buyList*/
-    ) public payable override returns (uint256) {
-        revert("Unimplemented");
     }
 }

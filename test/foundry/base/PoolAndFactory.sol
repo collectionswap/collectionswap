@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {StdCheats} from "forge-std/StdCheats.sol";
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 
@@ -25,8 +24,9 @@ import {Test721} from "../../../contracts/test/mocks/Test721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {Test1155} from "../../../contracts/test/mocks/Test1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {ERC1820Registry} from "../interfaces/ERC1820Registry.sol";
 
-abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable, ERC1155Holder {
+abstract contract PoolAndFactory is Test, ERC721Holder, Configurable, ERC1155Holder {
     uint128 delta = 1.1 ether;
     uint128 spotPrice = 1 ether;
     uint256 tokenAmount = 10 ether;
@@ -44,6 +44,8 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     CollectionPool pool;
 
     function setUp() public {
+        ERC1820Registry.deploy();
+
         bondingCurve = setupCurve();
         test721 = setup721();
         CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();
@@ -137,8 +139,8 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         assertEq(address(pool.nft()), address(test721));
         assertEq(address(pool.bondingCurve()), address(bondingCurve));
         assertEq(uint256(pool.poolType()), uint256(ICollectionPool.PoolType.TRADE));
-        assertEq(pool.delta(), delta);
-        assertEq(pool.spotPrice(), spotPrice);
+        assertEq(pool.curveParams().delta, delta);
+        assertEq(pool.curveParams().spotPrice, spotPrice);
         assertEq(pool.owner(), address(this));
         assertEq(pool.fee(), 0);
         assertEq(pool.assetRecipient(), address(0));
@@ -152,11 +154,11 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     function test_modifyPoolParams() public {
         // changing spot works as expected
         pool.changeSpotPrice(2 ether);
-        assertEq(pool.spotPrice(), 2 ether);
+        assertEq(pool.curveParams().spotPrice, 2 ether);
 
         // changing delta works as expected
         pool.changeDelta(2.2 ether);
-        assertEq(pool.delta(), 2.2 ether);
+        assertEq(pool.curveParams().delta, 2.2 ether);
 
         // // changing fee works as expected
         pool.changeFee(0.2e6);
@@ -169,8 +171,8 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         calls[1] = abi.encodeCall(pool.changeDelta, (2 ether));
         calls[2] = abi.encodeCall(pool.changeFee, (0.3e6));
         pool.multicall(calls, true);
-        assertEq(pool.spotPrice(), 1 ether);
-        assertEq(pool.delta(), 2 ether);
+        assertEq(pool.curveParams().spotPrice, 1 ether);
+        assertEq(pool.curveParams().delta, 2 ether);
         assertEq(pool.fee(), 0.3e6);
     }
 
@@ -233,6 +235,9 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         pool.withdrawERC1155(IERC1155(address(test1155)), ids, amounts);
         assertEq(IERC1155(address(test1155)).balanceOf(address(pool), 1), 0);
         assertEq(IERC1155(address(test1155)).balanceOf(address(this), 1), 2);
+
+        vm.expectRevert(CollectionPool.UseWithdrawERC721Instead.selector);
+        pool.withdrawERC1155(IERC1155(address(test721)), ids, amounts);
     }
 
     /**
@@ -276,7 +281,7 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         // skip 1 block so that trades are not in the same block as pool creation
         vm.roll(block.number + 1);
 
-        (, ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
+        (ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -305,7 +310,7 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         // skip 1 block so that trades are not in the same block as pool creation
         vm.roll(block.number + 1);
 
-        (, ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
+        (ICurve.Params memory newParams, uint256 inputAmount, ,) = bondingCurve
             .getBuyInfo(
                 ICurve.Params(
                     spotPrice,
@@ -350,7 +355,6 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
         // buy all NFTs
         {
             (
-                ,
                 ICurve.Params memory newParams,
                 uint256 inputAmount,
                 ICurve.Fees memory fees,

@@ -69,6 +69,7 @@ export function getCurveParameters(): {
   protocolFee: string;
   carryFee: string;
   royaltyNumerator: string;
+  parser: (rawProps: any, rawState: any) => { props: any; state: any };
 } {
   const {
     bigPctProtocolFee,
@@ -91,6 +92,10 @@ export function getCurveParameters(): {
     rawState
   );
 
+  const parser = (props: any, state: any) => {
+    return parsePropsAndState(rawPropsTypes, props, rawStateTypes, state);
+  };
+
   return {
     rawSpot,
     spotPrice: bigSpot,
@@ -101,6 +106,7 @@ export function getCurveParameters(): {
     protocolFee: bigPctProtocolFee,
     carryFee: bigPctCarryFee,
     royaltyNumerator,
+    parser,
   };
 }
 
@@ -270,6 +276,14 @@ export async function deployCurveContracts(): Promise<{
 }
 
 export async function deployPoolContracts() {
+  const ERC1820Registry = await ethers.getContractFactory("ERC1820Registry");
+  const erc1820Registry = await ERC1820Registry.deploy();
+  const code = await ethers.provider.getCode(erc1820Registry.address);
+  await ethers.provider.send("hardhat_setCode", [
+    "0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24",
+    code,
+  ]);
+
   const { collectionDeployer, safeOwner } = await getSigners();
 
   const CollectionPoolEnumerableETH = await ethers.getContractFactory(
@@ -329,7 +343,7 @@ export async function deployPoolContracts() {
   // console.log(`PoolFactory Owner: ${await collectionPoolFactory.owner()}`);
 
   return {
-    collectionDeployer,
+    collectionDeployer: safeOwner,
     curve: curves[CURVE_TYPE!] as ICurve,
     curves,
     factory: collectionPoolFactory,

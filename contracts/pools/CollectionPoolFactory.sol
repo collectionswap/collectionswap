@@ -8,6 +8,7 @@ import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
+import {IERC1820Registry} from "@openzeppelin/contracts/utils/introspection/IERC1820Registry.sol";
 
 // @dev Solmate's ERC20 is used instead of OZ's ERC20 so we can use safeTransferLib for cheaper safeTransfers for
 // ETH and ERC20 tokens
@@ -16,11 +17,12 @@ import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "../lib/ReentrancyGuard.sol";
 import {TransferLib} from "../lib/TransferLib.sol";
 
-import {CollectionPool} from ".//CollectionPool.sol";
+import {ICollectionPool} from "./ICollectionPool.sol";
+import {CollectionPool} from "./CollectionPool.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {CollectionPoolETH} from "./CollectionPoolETH.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
-import {CollectionPoolERC20} from ".//CollectionPoolERC20.sol";
+import {CollectionPoolERC20} from "./CollectionPoolERC20.sol";
 import {CollectionPoolCloner} from "../lib/CollectionPoolCloner.sol";
 import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {CollectionPoolEnumerableETH} from "./CollectionPoolEnumerableETH.sol";
@@ -29,6 +31,11 @@ import {CollectionPoolMissingEnumerableETH} from "./CollectionPoolMissingEnumera
 import {CollectionPoolMissingEnumerableERC20} from "./CollectionPoolMissingEnumerableERC20.sol";
 import {MultiPauser} from "../lib/MultiPauser.sol";
 
+/**
+ * @dev The ETH balance of this contract is used both to store protocol fees
+ * which the owner can withdraw, as well as royalties accumulated from swaps
+ * made against pools deployed by this contract.
+ */
 contract CollectionPoolFactory is
     Ownable,
     ReentrancyGuard,
@@ -40,6 +47,8 @@ contract CollectionPoolFactory is
     using CollectionPoolCloner for address;
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
+
+    IERC1820Registry internal constant _ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
     bytes4 private constant INTERFACE_ID_ERC721_ENUMERABLE = type(IERC721Enumerable).interfaceId;
@@ -77,6 +86,11 @@ contract CollectionPoolFactory is
 
     mapping(ICurve => bool) public bondingCurveAllowed;
     mapping(address => bool) public override callAllowed;
+    /// @dev Used to track how much royalties are stored in this contract balance.
+    /// This is to prevent the factory owner from withdrawing more than they should
+    mapping(ERC20 => uint256) royaltiesStored;
+    /// @dev Uses address 0 for ETH royalties
+    mapping(address => mapping(ERC20 => uint256)) public royaltiesClaimable;
 
     struct RouterStatus {
         bool allowed;
@@ -92,18 +106,20 @@ contract CollectionPoolFactory is
         _;
     }
 
-    event NewPool(address indexed collection, address poolAddress);
-    event TokenDeposit(address poolAddress);
-    event ProtocolFeeRecipientUpdate(address recipientAddress);
+    event NewPool(address indexed collection, address indexed poolAddress);
+    event TokenDeposit(address indexed poolAddress);
+    event ProtocolFeeRecipientUpdate(address indexed recipientAddress);
     event ProtocolFeeMultiplierUpdate(uint24 newMultiplier);
     event CarryFeeMultiplierUpdate(uint24 newMultiplier);
-    event BondingCurveStatusUpdate(ICurve bondingCurve, bool isAllowed);
-    event CallTargetStatusUpdate(address target, bool isAllowed);
-    event RouterStatusUpdate(CollectionRouter router, bool isAllowed);
-    event CreationPaused();
-    event CreationUnpaused();
-    event SwapPaused();
-    event SwapUnpaused();
+    event BondingCurveStatusUpdate(ICurve indexed bondingCurve, bool isAllowed);
+    event CallTargetStatusUpdate(address indexed target, bool isAllowed);
+    event RouterStatusUpdate(CollectionRouter indexed router, bool isAllowed);
+    event CreationPause();
+    event CreationUnpause();
+    event SwapPause();
+    event SwapUnpause();
+
+    error InsufficientValue(uint256 msgValue, uint256 amountRequired);
 
     constructor(
         CollectionPoolEnumerableETH _enumerableETHTemplate,
@@ -114,16 +130,14 @@ contract CollectionPoolFactory is
         uint24 _protocolFeeMultiplier,
         uint24 _carryFeeMultiplier
     ) ERC721("Collectionswap", "CollectionLP") {
+        require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Protocol fee too large");
+        require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Carry fee too large");
         enumerableETHTemplate = _enumerableETHTemplate;
         missingEnumerableETHTemplate = _missingEnumerableETHTemplate;
         enumerableERC20Template = _enumerableERC20Template;
         missingEnumerableERC20Template = _missingEnumerableERC20Template;
         protocolFeeRecipient = _protocolFeeRecipient;
-
-        require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Protocol fee too large");
         protocolFeeMultiplier = _protocolFeeMultiplier;
-
-        require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Carry fee too large");
         carryFeeMultiplier = _carryFeeMultiplier;
     }
 
@@ -136,10 +150,10 @@ contract CollectionPoolFactory is
     }
 
     /**
-     * @dev See {ICollectionPoolFactory-poolAddressOf}.
+     * @dev See {ICollectionPoolFactory-poolOf}.
      */
-    function poolAddressOf(uint256 tokenId) public pure returns (address) {
-        return address(uint160(tokenId));
+    function poolOf(uint256 tokenId) public pure returns (ICollectionPool) {
+        return ICollectionPool(address(uint160(tokenId)));
     }
 
     /**
@@ -200,11 +214,11 @@ contract CollectionPoolFactory is
         external
         payable
         whenCreationNotPaused
-        returns (address pool, uint256 tokenId)
+        returns (ICollectionPool pool, uint256 tokenId)
     {
         (pool, tokenId) = _createPoolETH(params);
 
-        _initializePoolETH(CollectionPoolETH(payable(pool)), params);
+        _initializePoolETH(pool, params);
     }
 
     /**
@@ -217,51 +231,55 @@ contract CollectionPoolFactory is
         external
         payable
         whenCreationNotPaused
-        returns (address pool, uint256 tokenId)
+        returns (ICollectionPool pool, uint256 tokenId)
     {
         (pool, tokenId) = _createPoolETH(params);
 
         // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
         // If not, we could re-use createPoolETH and check later.
-        CollectionPoolETH _pool = CollectionPoolETH(payable(pool));
-        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
+        pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
         require(
-            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
+            pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
             "NFT not allowed"
         );
-        _pool.setExternalFilter(address(filterParams.externalFilter));
+        pool.setExternalFilter(address(filterParams.externalFilter));
 
-        _initializePoolETH(_pool, params);
+        _initializePoolETH(pool, params);
     }
 
     function createPoolERC20(CreateERC20PoolParams calldata params)
         external
         whenCreationNotPaused
-        returns (address pool, uint256 tokenId)
+        returns (ICollectionPool pool, uint256 tokenId)
     {
+        address is777 = _ERC1820_REGISTRY.getInterfaceImplementer(address(params.token), keccak256("ERC777Token"));
+        require(is777 == address(0), "ERC777 not supported");
+
         (pool, tokenId) = _createPoolERC20(params);
 
-        _initializePoolERC20(CollectionPoolERC20(payable(pool)), params);
+        _initializePoolERC20(pool, params);
     }
 
     function createPoolERC20Filtered(CreateERC20PoolParams calldata params, NFTFilterParams calldata filterParams)
         external
         whenCreationNotPaused
-        returns (address pool, uint256 tokenId)
+        returns (ICollectionPool pool, uint256 tokenId)
     {
+        address is777 = _ERC1820_REGISTRY.getInterfaceImplementer(address(params.token), keccak256("ERC777Token"));
+        require(is777 == address(0), "ERC777 not supported");
+
         (pool, tokenId) = _createPoolERC20(params);
 
         // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
         // If not, we could re-use createPoolERC20 and check later.
-        CollectionPoolERC20 _pool = CollectionPoolERC20(payable(pool));
-        _pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
+        pool.setTokenIDFilter(filterParams.merkleRoot, filterParams.encodedTokenIDs);
         require(
-            _pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
+            pool.acceptsTokenIDs(params.initialNFTIDs, filterParams.initialProof, filterParams.initialProofFlags),
             "NFT not allowed"
         );
-        _pool.setExternalFilter(address(filterParams.externalFilter));
+        pool.setExternalFilter(address(filterParams.externalFilter));
 
-        _initializePoolERC20(_pool, params);
+        _initializePoolERC20(pool, params);
     }
 
     /**
@@ -303,8 +321,36 @@ contract CollectionPoolFactory is
     }
 
     /**
-     * Withdrawal functions. Not pausable.
+     * @notice Update royalty bookkeeping in `token` currency according to
+     * `royaltiesDue`. Only callable by pools
+     * @param token The ERC20 token that royalties are in. ERC20(address(0)) for ETH
+     * @param royaltiesDue An array of the recipients and amounts due each address
+     * @param poolVariant the variant of the pool being interacted with
      */
+    function depositRoyaltiesNotification(
+        ERC20 token,
+        CollectionPool.RoyaltyDue[] calldata royaltiesDue,
+        PoolVariant poolVariant
+    ) external payable {
+        require(isPoolVariant(msg.sender, poolVariant), "Not pool");
+        uint256 length = royaltiesDue.length;
+        uint256 amountRequired;
+        // Do internal bookkeeping of who can claim portions of the tokens about
+        // to be transferred in
+        for (uint256 i; i < length;) {
+            address recipient = royaltiesDue[i].recipient;
+            if (msg.sender != recipient) {
+                amountRequired += royaltiesDue[i].amount;
+                royaltiesClaimable[royaltiesDue[i].recipient][token] += royaltiesDue[i].amount;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        royaltiesStored[token] += amountRequired;
+    }
 
     /*
      * @notice NFTs that don't match filter and any airdropped assets  must be rescued prior to calling this function.
@@ -313,17 +359,16 @@ contract CollectionPoolFactory is
      */
     function burn(uint256 tokenId) external nonReentrant {
         require(_isApprovedOrOwner(msg.sender, tokenId), "Not approved");
-        address poolAddress = poolAddressOf(tokenId);
-        CollectionPool pool = CollectionPool(poolAddress);
+        ICollectionPool pool = poolOf(tokenId);
         PoolVariant poolVariant = pool.poolVariant();
 
         // withdraw all ETH / ERC20
         if (poolVariant == PoolVariant.ENUMERABLE_ETH || poolVariant == PoolVariant.MISSING_ENUMERABLE_ETH) {
             // withdraw ETH, sent to owner of LP token
-            CollectionPoolETH(payable(poolAddress)).withdrawAllETH();
+            CollectionPoolETH(payable(address(pool))).withdrawAllETH();
         } else if (poolVariant == PoolVariant.ENUMERABLE_ERC20 || poolVariant == PoolVariant.MISSING_ENUMERABLE_ERC20) {
             // withdraw ERC20
-            CollectionPoolERC20(poolAddress).withdrawAllERC20();
+            CollectionPoolERC20(address(pool)).withdrawAllERC20();
         }
         // then withdraw NFTs
         pool.withdrawERC721(pool.nft(), pool.getAllHeldIds());
@@ -338,22 +383,140 @@ contract CollectionPoolFactory is
 
     function pauseCreation() external onlyOwner {
         pause(CREATION_PAUSE);
-        emit CreationPaused();
+        emit CreationPause();
     }
 
     function unpauseCreation() external onlyOwner {
         unpause(CREATION_PAUSE);
-        emit CreationUnpaused();
+        emit CreationUnpause();
     }
 
     function pauseSwap() external onlyOwner {
         pause(SWAP_PAUSE);
-        emit SwapPaused();
+        emit SwapPause();
     }
 
     function unpauseSwap() external onlyOwner {
         unpause(SWAP_PAUSE);
-        emit SwapUnpaused();
+        emit SwapUnpause();
+    }
+
+    /**
+     * Withdrawal functions. Not pausable.
+     */
+
+    /**
+     * @notice Withdraw all `token` royalties awardable to `recipient`. If the
+     * zero address is passed as `token`, then ETH royalties are paid. Does not
+     * use msg.sender so this function can be called on behalf of contract
+     * royalty recipients
+     */
+    function withdrawRoyalties(address payable recipient, ERC20 token) external {
+        uint256 totalRoyaltiesWithdrawn;
+        if (address(token) == address(0)) {
+            totalRoyaltiesWithdrawn = withdrawETHRoyalties(recipient);
+        } else {
+            totalRoyaltiesWithdrawn = withdrawERC20Royalties(recipient, token);
+        }
+
+        royaltiesStored[token] -= totalRoyaltiesWithdrawn;
+    }
+
+    /**
+     * @dev Internal helper function for withdrawing ETH royalties for a single
+     * address. Does NOT update `royaltiesStored[token]`
+     */
+    function withdrawETHRoyalties(address payable recipient) internal returns (uint256 amount) {
+        amount = royaltiesClaimable[recipient][ERC20(address(0))];
+        royaltiesClaimable[recipient][ERC20(address(0))] = 0;
+        recipient.safeTransferETH(amount);
+    }
+
+    /**
+     * @dev Internal helper function for withdrawing ERC20 royalties for a single
+     * address. Does NOT update `royaltiesStored[token]`
+     */
+    function withdrawERC20Royalties(address payable recipient, ERC20 token) internal returns (uint256 amount) {
+        require(address(token) != address(0), "Use withdrawETHRoyalties instead");
+        amount = royaltiesClaimable[recipient][token];
+        royaltiesClaimable[recipient][token] = 0;
+        token.safeTransfer(recipient, amount);
+    }
+
+    /**
+     * @dev Uses the internal helper functions to batch writes to `royaltiesStored`
+     */
+    function withdrawRoyaltiesMultipleRecipients(address payable[] calldata recipients, ERC20 token) public {
+        uint256 length = recipients.length;
+        uint256 totalRoyaltiesWithdrawn;
+        uint256 amount;
+        if (address(token) == address(0)) {
+            for (uint256 i; i < length;) {
+                amount = withdrawETHRoyalties(recipients[i]);
+                totalRoyaltiesWithdrawn += amount;
+
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            for (uint256 i; i < length;) {
+                amount = withdrawERC20Royalties(recipients[i], token);
+                totalRoyaltiesWithdrawn += amount;
+
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+
+        royaltiesStored[token] -= totalRoyaltiesWithdrawn;
+    }
+
+    function withdrawRoyaltiesMultipleCurrencies(address payable recipient, ERC20[] calldata tokens) external {
+        uint256 length = tokens.length;
+        uint256 amount;
+        for (uint256 i; i < length; i++) {
+            ERC20 token = tokens[i];
+            amount = royaltiesClaimable[recipient][token];
+            royaltiesClaimable[recipient][token] = 0;
+
+            /// @dev Need to repeat this check for every token iterated over
+            if (address(token) == address(0)) {
+                recipient.safeTransferETH(amount);
+            } else {
+                token.safeTransfer(recipient, amount);
+            }
+
+            royaltiesStored[token] -= amount;
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Withdraw royalties for ALL combinations of recipients and tokens
+     * in the given arguments
+     *
+     * @dev Iterate over tokens as outer loop to reduce stores/loads to `royaltiesStored`
+     * and the number of `address(token) == address(0)` condition checks from
+     * O(m * n) to O(n)
+     */
+    function withdrawRoyaltiesMultipleRecipientsAndCurrencies(
+        address payable[] calldata recipients,
+        ERC20[] calldata tokens
+    ) external {
+        uint256 length = tokens.length;
+        for (uint256 i; i < length; i++) {
+            ERC20 token = tokens[i];
+            withdrawRoyaltiesMultipleRecipients(recipients, token);
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /**
@@ -361,16 +524,15 @@ contract CollectionPoolFactory is
      * Only callable by the owner.
      */
     function withdrawETHProtocolFees() external onlyOwner {
-        protocolFeeRecipient.safeTransferETH(address(this).balance);
+        protocolFeeRecipient.safeTransferETH(address(this).balance - royaltiesStored[ERC20(address(0))]);
     }
 
     /**
      * @notice Withdraws ERC20 tokens to the protocol fee recipient. Only callable by the owner.
      * @param token The token to transfer
-     * @param amount The amount of tokens to transfer
      */
-    function withdrawERC20ProtocolFees(ERC20 token, uint256 amount) external onlyOwner {
-        token.safeTransfer(protocolFeeRecipient, amount);
+    function withdrawERC20ProtocolFees(ERC20 token) external onlyOwner {
+        token.safeTransfer(protocolFeeRecipient, token.balanceOf(address(this)) - royaltiesStored[token]);
     }
 
     /**
@@ -379,8 +541,10 @@ contract CollectionPoolFactory is
      */
     function changeProtocolFeeRecipient(address payable _protocolFeeRecipient) external onlyOwner {
         require(_protocolFeeRecipient != address(0), "0 address");
-        protocolFeeRecipient = _protocolFeeRecipient;
-        emit ProtocolFeeRecipientUpdate(_protocolFeeRecipient);
+        if (protocolFeeRecipient != _protocolFeeRecipient) {
+            protocolFeeRecipient = _protocolFeeRecipient;
+            emit ProtocolFeeRecipientUpdate(_protocolFeeRecipient);
+        }
     }
 
     /**
@@ -389,8 +553,10 @@ contract CollectionPoolFactory is
      */
     function changeProtocolFeeMultiplier(uint24 _protocolFeeMultiplier) external onlyOwner {
         require(_protocolFeeMultiplier <= MAX_PROTOCOL_FEE, "Fee too large");
-        protocolFeeMultiplier = _protocolFeeMultiplier;
-        emit ProtocolFeeMultiplierUpdate(_protocolFeeMultiplier);
+        if (protocolFeeMultiplier != _protocolFeeMultiplier) {
+            protocolFeeMultiplier = _protocolFeeMultiplier;
+            emit ProtocolFeeMultiplierUpdate(_protocolFeeMultiplier);
+        }
     }
 
     /**
@@ -399,8 +565,10 @@ contract CollectionPoolFactory is
      */
     function changeCarryFeeMultiplier(uint24 _carryFeeMultiplier) external onlyOwner {
         require(_carryFeeMultiplier <= MAX_CARRY_FEE, "Fee too large");
-        carryFeeMultiplier = _carryFeeMultiplier;
-        emit CarryFeeMultiplierUpdate(_carryFeeMultiplier);
+        if (carryFeeMultiplier != _carryFeeMultiplier) {
+            carryFeeMultiplier = _carryFeeMultiplier;
+            emit CarryFeeMultiplierUpdate(_carryFeeMultiplier);
+        }
     }
 
     /**
@@ -409,8 +577,11 @@ contract CollectionPoolFactory is
      * @param isAllowed True to whitelist, false to remove from whitelist
      */
     function setBondingCurveAllowed(ICurve bondingCurve, bool isAllowed) external onlyOwner {
-        bondingCurveAllowed[bondingCurve] = isAllowed;
-        emit BondingCurveStatusUpdate(bondingCurve, isAllowed);
+        bool wasAllowed = bondingCurveAllowed[bondingCurve];
+        if (wasAllowed != isAllowed) {
+            bondingCurveAllowed[bondingCurve] = isAllowed;
+            emit BondingCurveStatusUpdate(bondingCurve, isAllowed);
+        }
     }
 
     /**
@@ -425,8 +596,11 @@ contract CollectionPoolFactory is
             require(!routerStatus[CollectionRouter(target)].wasEverAllowed, "Can't call router");
         }
 
-        callAllowed[target] = isAllowed;
-        emit CallTargetStatusUpdate(target, isAllowed);
+        bool wasAllowed = callAllowed[target];
+        if (wasAllowed != isAllowed) {
+            callAllowed[target] = isAllowed;
+            emit CallTargetStatusUpdate(target, isAllowed);
+        }
     }
 
     /**
@@ -439,9 +613,12 @@ contract CollectionPoolFactory is
         if (isAllowed) {
             require(!callAllowed[address(_router)], "Can't call router");
         }
-        routerStatus[_router] = RouterStatus({allowed: isAllowed, wasEverAllowed: true});
 
-        emit RouterStatusUpdate(_router, isAllowed);
+        bool wasAllowed = routerStatus[_router].allowed;
+        if (wasAllowed != isAllowed) {
+            routerStatus[_router] = RouterStatus({allowed: isAllowed, wasEverAllowed: true});
+            emit RouterStatusUpdate(_router, isAllowed);
+        }
     }
 
     function setBaseURI(string calldata _uri) external onlyOwner {
@@ -459,12 +636,14 @@ contract CollectionPoolFactory is
         return baseURI;
     }
 
-    function _createPoolETH(CreateETHPoolParams calldata params) internal returns (address pool, uint256 tokenId) {
+    function _createPoolETH(CreateETHPoolParams calldata params)
+        internal
+        returns (ICollectionPool pool, uint256 tokenId)
+    {
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientFallback != address(0),
+            validRoyaltyState(params.royaltyNumerator, params.royaltyRecipientFallback, params.nft),
             "Nonzero royalty for non ERC2981 without fallback"
         );
 
@@ -476,15 +655,17 @@ contract CollectionPoolFactory is
             template = address(missingEnumerableETHTemplate);
         }
 
-        pool = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
+        address poolAddress = template.cloneETHPool(this, params.bondingCurve, params.nft, uint8(params.poolType));
 
         // issue new token
-        tokenId = mint(params.receiver, CollectionPool(pool));
+        tokenId = mint(params.receiver, CollectionPool(poolAddress));
 
-        emit NewPool(address(params.nft), pool);
+        emit NewPool(address(params.nft), poolAddress);
+
+        return (ICollectionPool(poolAddress), tokenId);
     }
 
-    function _initializePoolETH(CollectionPoolETH _pool, CreateETHPoolParams calldata _params) internal {
+    function _initializePoolETH(ICollectionPool _pool, CreateETHPoolParams calldata _params) internal {
         // initialize pool
         _pool.initialize(
             _params.assetRecipient,
@@ -504,12 +685,14 @@ contract CollectionPoolFactory is
         _depositNFTs(_params.nft, _params.initialNFTIDs, _pool, msg.sender);
     }
 
-    function _createPoolERC20(CreateERC20PoolParams calldata params) internal returns (address pool, uint256 tokenId) {
+    function _createPoolERC20(CreateERC20PoolParams calldata params)
+        internal
+        returns (ICollectionPool pool, uint256 tokenId)
+    {
         require(bondingCurveAllowed[params.bondingCurve], "Bonding curve not whitelisted");
 
         require(
-            params.royaltyNumerator == 0 || IERC165(params.nft).supportsInterface(_INTERFACE_ID_ERC2981)
-                || params.royaltyRecipientFallback != address(0),
+            validRoyaltyState(params.royaltyNumerator, params.royaltyRecipientFallback, params.nft),
             "Nonzero royalty for non ERC2981 without fallback"
         );
 
@@ -521,15 +704,18 @@ contract CollectionPoolFactory is
             template = address(missingEnumerableERC20Template);
         }
 
-        pool = template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
+        address poolAddress =
+            template.cloneERC20Pool(this, params.bondingCurve, params.nft, uint8(params.poolType), params.token);
 
         // issue new token
-        tokenId = mint(params.receiver, CollectionPool(pool));
+        tokenId = mint(params.receiver, CollectionPool(poolAddress));
 
-        emit NewPool(address(params.nft), pool);
+        emit NewPool(address(params.nft), poolAddress);
+
+        return (ICollectionPool(poolAddress), tokenId);
     }
 
-    function _initializePoolERC20(CollectionPoolERC20 _pool, CreateERC20PoolParams calldata _params) internal {
+    function _initializePoolERC20(ICollectionPool _pool, CreateERC20PoolParams calldata _params) internal {
         // initialize pool
         _pool.initialize(
             _params.assetRecipient,
@@ -552,7 +738,7 @@ contract CollectionPoolFactory is
     /**
      * @dev Transfers NFTs from sender and notifies pool. `ids` must already have been verified
      */
-    function _depositNFTs(IERC721 _nft, uint256[] calldata nftIds, CollectionPool pool, address from) internal {
+    function _depositNFTs(IERC721 _nft, uint256[] calldata nftIds, ICollectionPool pool, address from) internal {
         // transfer NFTs from caller to recipient
         TransferLib.bulkSafeTransferERC721From(_nft, from, address(pool), nftIds);
         pool.depositNFTsNotification(nftIds);
@@ -562,8 +748,17 @@ contract CollectionPoolFactory is
      * @dev Mints LP token using pool address as Token ID
      */
     function mint(address recipient, CollectionPool pool) internal returns (uint256 tokenId) {
-        tokenId = uint256(uint160(address(pool)));
+        tokenId = uint160(address(pool));
         _safeMint(recipient, tokenId);
+    }
+
+    function validRoyaltyState(uint24 royaltyNumerator, address royaltyRecipientFallback, IERC721 nft)
+        internal
+        view
+        returns (bool)
+    {
+        return royaltyNumerator == 0 || royaltyRecipientFallback != address(0)
+            || IERC165(nft).supportsInterface(_INTERFACE_ID_ERC2981);
     }
 
     /**
@@ -573,10 +768,13 @@ contract CollectionPoolFactory is
     /**
      * @notice Allows receiving ETH in order to receive protocol fees
      */
-    receive() external payable {}
-
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override (ERC721) {
-        super._beforeTokenTransfer(from, to, tokenId);
+    receive() external payable {
+        /**
+         * No logic needed here:
+         * - Factory needs to accept all transfers so that swaps don't fail to send token to
+         * appropriate recipients when paying protocol fees/royalties.
+         * - No bookkeeping is needed upon ETH receipt.
+         */
     }
 
     function _burn(uint256 tokenId) internal override (ERC721, ERC721URIStorage) {

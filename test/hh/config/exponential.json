@@ -8,6 +8,10 @@
   "bigSpot": "1000000000000000000",
   "rawPropsTypes": [],
   "rawProps": [],
-  "rawStateTypes": [],
-  "rawState": []
+  "rawStateTypes": [
+    "uint64"
+  ],
+  "rawState": [
+    "0"
+  ]
 }

@@ -24,39 +24,4 @@ library TransferLib {
             }
         }
     }
-
-    /**
-     * @notice safe transfer N ERC20
-     * @dev The length of tokens and values are assumed to be the same and should be checked before calling.
-     */
-    function batchSafeTransferERC20From(IERC20[] calldata tokens, address from, address to, uint256[] calldata values)
-        internal
-    {
-        uint256 length = tokens.length;
-        for (uint256 i; i < length;) {
-            tokens[i].safeTransferFrom(from, to, values[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @notice safe transfer N token ids of N ERC721 respectively
-     * @dev The length of tokens and values are assumed to be the same and should be checked before calling.
-     */
-    function batchSafeTransferERC721From(
-        IERC721[] calldata tokens,
-        address from,
-        address to,
-        uint256[] calldata tokenIds
-    ) internal {
-        uint256 length = tokens.length;
-        for (uint256 i; i < length;) {
-            tokens[i].safeTransferFrom(from, to, tokenIds[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
 }

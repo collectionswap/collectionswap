@@ -171,7 +171,7 @@ describe("Pausability", function () {
           const expectedEventName = `${capitalizedFunctionGroup}${
             // @ts-ignore
             pauseVariables[variableToFlip] ? "P" : "Unp"
-          }aused`;
+          }ause`;
           await expect(tx).to.emit(factory, expectedEventName);
           await checkVariables(factory);
         }
@@ -249,7 +249,7 @@ describe("Pausability", function () {
         const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
         await nft.connect(poolOwner).setApprovalForAll(pool2.address, true);
 
-        const quote = (await pool2.getSellNFTQuote(1))[3];
+        const quote = (await pool2.getSellNFTQuote(1))[2];
         // Check functionality is consistent with state
         await expect(
           pool2
@@ -335,7 +335,7 @@ describe("Pausability", function () {
         const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
         await nft.connect(poolOwner).setApprovalForAll(newPoolAddress, true);
 
-        const quote = (await pool.getSellNFTQuote(1))[3];
+        const quote = (await pool.getSellNFTQuote(1))[2];
         // Check functionality is consistent with state
         await expect(
           pool
@@ -371,7 +371,7 @@ describe("Pausability", function () {
         const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
         await nft.connect(poolOwner).setApprovalForAll(newPoolAddress, true);
 
-        const quote = (await pool.getSellNFTQuote(1))[3];
+        const quote = (await pool.getSellNFTQuote(1))[2];
         // Check functionality is consistent with state
         await expect(
           pool
@@ -404,7 +404,7 @@ describe("Pausability", function () {
           poolOwner
         )) as CollectionPoolEnumerableETH;
 
-        const quote = (await pool.getBuyNFTQuote(1))[3];
+        const quote = (await pool.getBuyNFTQuote(1))[2];
         await test20.mint(poolOwner.address, quote);
         await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
@@ -440,7 +440,7 @@ describe("Pausability", function () {
           poolOwner
         )) as CollectionPoolEnumerableETH;
 
-        const quote = (await pool.getBuyNFTQuote(1))[3];
+        const quote = (await pool.getBuyNFTQuote(1))[2];
         await test20.mint(poolOwner.address, quote);
         await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
@@ -474,7 +474,7 @@ describe("Pausability", function () {
           poolOwner
         )) as CollectionPoolEnumerableETH;
 
-        const quote = (await pool.getBuyNFTQuote(1))[3];
+        const quote = (await pool.getBuyNFTQuote(1))[2];
         await test20.mint(poolOwner.address, quote);
         await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
@@ -510,7 +510,7 @@ describe("Pausability", function () {
           poolOwner
         )) as CollectionPoolEnumerableETH;
 
-        const quote = (await pool.getBuyNFTQuote(1))[3];
+        const quote = (await pool.getBuyNFTQuote(1))[2];
         await test20.mint(poolOwner.address, quote);
         await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
@@ -548,7 +548,7 @@ describe("Pausability", function () {
         const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
         await nft.connect(poolOwner).setApprovalForAll(newPoolAddress, true);
 
-        const quote = (await pool.getSellNFTQuote(1))[3];
+        const quote = (await pool.getSellNFTQuote(1))[2];
         // Check functionality is consistent with state
         await expect(
           pool
@@ -584,7 +584,7 @@ describe("Pausability", function () {
         const tokenIds = await mintRandomNfts(nft, poolOwner.address, 1);
         await nft.connect(poolOwner).setApprovalForAll(newPoolAddress, true);
 
-        const quote = (await pool.getSellNFTQuote(1))[3];
+        const quote = (await pool.getSellNFTQuote(1))[2];
         // Check functionality is consistent with state
         await expect(
           pool
@@ -617,7 +617,7 @@ describe("Pausability", function () {
           poolOwner
         )) as CollectionPoolEnumerableETH;
 
-        const quote = (await pool.getBuyNFTQuote(1))[3];
+        const quote = (await pool.getBuyNFTQuote(1))[2];
         await test20.mint(poolOwner.address, quote);
         await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
@@ -652,7 +652,7 @@ describe("Pausability", function () {
         )) as CollectionPoolEnumerableETH;
         await pool.pausePoolSwaps();
 
-        const quote = (await pool.getBuyNFTQuote(1))[3];
+        const quote = (await pool.getBuyNFTQuote(1))[2];
         await test20.mint(poolOwner.address, quote);
         await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
@@ -686,7 +686,7 @@ describe("Pausability", function () {
           poolOwner
         )) as CollectionPoolEnumerableETH;
 
-        const quote = (await pool.getBuyNFTQuote(1))[3];
+        const quote = (await pool.getBuyNFTQuote(1))[2];
         await test20.mint(poolOwner.address, quote);
         await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state
@@ -721,7 +721,7 @@ describe("Pausability", function () {
         )) as CollectionPoolEnumerableETH;
         await pool.pausePoolSwaps();
 
-        const quote = (await pool.getBuyNFTQuote(1))[3];
+        const quote = (await pool.getBuyNFTQuote(1))[2];
         await test20.mint(poolOwner.address, quote);
         await test20.connect(poolOwner).approve(pool.address, quote);
         // Check functionality is consistent with state

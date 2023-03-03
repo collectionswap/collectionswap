@@ -20,20 +20,20 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
 
     /// @inheritdoc CollectionPool
     function _selectArbitraryNFTs(IERC721, uint256 numNFTs) internal view override returns (uint256[] memory nftIds) {
-        nftIds = new uint256[](numNFTs);
+        uint256 lastIndex = idSet.length();
+        if (numNFTs > 0 && numNFTs <= lastIndex) {
+            nftIds = new uint256[](numNFTs);
+            // NOTE: We start from last index to first index to save on gas when we eventully _withdrawNFTs on results
+            lastIndex = lastIndex - 1;
 
-        // NOTE: We start from last index to first index to save on gas when we eventully _withdrawNFTs on results
-        // crash if nothing to select (numNFTs is always > 1)
-        uint256 lastIndex = idSet.length() - 1;
+            for (uint256 i; i < numNFTs;) {
+                uint256 nftId = idSet.at(lastIndex);
+                nftIds[i] = nftId;
 
-        for (uint256 i; i < numNFTs;) {
-            // will throw if numNFTs > length due to underflow
-            uint256 nftId = idSet.at(lastIndex);
-            nftIds[i] = nftId;
-
-            unchecked {
-                --lastIndex;
-                ++i;
+                unchecked {
+                    --lastIndex;
+                    ++i;
+                }
             }
         }
     }
@@ -88,7 +88,7 @@ abstract contract CollectionPoolMissingEnumerable is CollectionPool {
     }
 
     /// @inheritdoc ICollectionPool
-    function NFTsLength() external view returns (uint256) {
+    function NFTsCount() external view returns (uint256) {
         return idSet.length();
     }
 }
