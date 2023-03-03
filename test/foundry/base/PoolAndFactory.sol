@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {StdCheats} from "forge-std/StdCheats.sol";
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 
@@ -25,8 +24,9 @@ import {Test721} from "../../../contracts/test/mocks/Test721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {Test1155} from "../../../contracts/test/mocks/Test1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {ERC1820Registry} from "../interfaces/ERC1820Registry.sol";
 
-abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable, ERC1155Holder {
+abstract contract PoolAndFactory is Test, ERC721Holder, Configurable, ERC1155Holder {
     uint128 delta = 1.1 ether;
     uint128 spotPrice = 1 ether;
     uint256 tokenAmount = 10 ether;
@@ -44,6 +44,8 @@ abstract contract PoolAndFactory is StdCheats, Test, ERC721Holder, Configurable,
     CollectionPool pool;
 
     function setUp() public {
+        ERC1820Registry.deploy();
+
         bondingCurve = setupCurve();
         test721 = setup721();
         CollectionPoolEnumerableETH enumerableETHTemplate = new CollectionPoolEnumerableETH();

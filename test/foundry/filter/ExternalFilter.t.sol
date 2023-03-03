@@ -231,4 +231,7 @@ contract Factory is Test721 {
     // pretend to be a factory
     uint24 public constant protocolFeeMultiplier = 0.003e6;
     bool public constant swapPaused = false;
+
+    function depositRoyaltiesNotification(address, CollectionPool.RoyaltyDue[] memory, uint8) public {
+    }
 }
