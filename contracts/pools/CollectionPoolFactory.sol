@@ -8,6 +8,7 @@ import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
+import {IERC1820Registry} from "@openzeppelin/contracts/utils/introspection/IERC1820Registry.sol";
 
 // @dev Solmate's ERC20 is used instead of OZ's ERC20 so we can use safeTransferLib for cheaper safeTransfers for
 // ETH and ERC20 tokens
@@ -46,6 +47,8 @@ contract CollectionPoolFactory is
     using CollectionPoolCloner for address;
     using SafeTransferLib for address payable;
     using SafeTransferLib for ERC20;
+
+    IERC1820Registry internal constant _ERC1820_REGISTRY = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
 
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
     bytes4 private constant INTERFACE_ID_ERC721_ENUMERABLE = type(IERC721Enumerable).interfaceId;
@@ -249,6 +252,9 @@ contract CollectionPoolFactory is
         whenCreationNotPaused
         returns (ICollectionPool pool, uint256 tokenId)
     {
+        address is777 = _ERC1820_REGISTRY.getInterfaceImplementer(address(params.token), keccak256("ERC777Token"));
+        require(is777 == address(0), "ERC777 not supported");
+
         (pool, tokenId) = _createPoolERC20(params);
 
         _initializePoolERC20(pool, params);
@@ -259,6 +265,9 @@ contract CollectionPoolFactory is
         whenCreationNotPaused
         returns (ICollectionPool pool, uint256 tokenId)
     {
+        address is777 = _ERC1820_REGISTRY.getInterfaceImplementer(address(params.token), keccak256("ERC777Token"));
+        require(is777 == address(0), "ERC777 not supported");
+
         (pool, tokenId) = _createPoolERC20(params);
 
         // Check if nfts are allowed before initializing to save gas on transferring nfts on revert.
