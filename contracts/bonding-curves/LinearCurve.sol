@@ -83,7 +83,7 @@ contract LinearCurve is Curve, CurveErrorCodes {
         // We first calculate the change in spot price after selling all of the items
         uint256 totalPriceDecrease = params.delta * numItems;
 
-        uint256 lastSpotPrice = params.spotPrice - (totalPriceDecrease - params.delta);
+        uint256 lastSpotPrice = params.spotPrice <= (totalPriceDecrease - params.delta) ? 0 : params.spotPrice - (totalPriceDecrease - params.delta);
 
         // If the current spot price is less than the total amount that the spot price should change by...
         if (params.spotPrice < totalPriceDecrease) {
@@ -105,12 +105,12 @@ contract LinearCurve is Curve, CurveErrorCodes {
         /// multiplied by the number of items sold, where average buy price is
         /// the average of first and last transacted price. These are spotPrice
         /// and lastSpotPrice respectively
-        outputValue = numItems * (params.spotPrice + lastSpotPrice) / 2;
+        outputValue = numItems * (lastSpotPrice + params.spotPrice) / 2;
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
         uint256 royaltyAmount;
-        uint256 rawAmount = params.spotPrice + params.delta;
+        uint256 rawAmount = uint256(params.spotPrice) + params.delta;
         for (uint256 i = 0; i < numItems;) {
             rawAmount -= params.delta;
             royaltyAmount = rawAmount.fmul(feeMultipliers.royaltyNumerator, FEE_DENOMINATOR);
