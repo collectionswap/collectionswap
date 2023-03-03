@@ -83,6 +83,8 @@ contract LinearCurve is Curve, CurveErrorCodes {
         // We first calculate the change in spot price after selling all of the items
         uint256 totalPriceDecrease = params.delta * numItems;
 
+        uint256 lastSpotPrice = params.spotPrice - (totalPriceDecrease - params.delta);
+
         // If the current spot price is less than the total amount that the spot price should change by...
         if (params.spotPrice < totalPriceDecrease) {
             // Then we set the new spot price to be 0. (Spot price is never negative)
@@ -102,8 +104,8 @@ contract LinearCurve is Curve, CurveErrorCodes {
         /// @dev For an arithmetic progression the total price is the average sell price
         /// multiplied by the number of items sold, where average buy price is
         /// the average of first and last transacted price. These are spotPrice
-        /// and (newSpotPrice + delta) respectively
-        outputValue = numItems * (params.spotPrice + newParams.spotPrice + params.delta) / 2;
+        /// and lastSpotPrice respectively
+        outputValue = numItems * (params.spotPrice + lastSpotPrice) / 2;
 
         fees.royalties = new uint256[](numItems);
         uint256 totalRoyalty;
