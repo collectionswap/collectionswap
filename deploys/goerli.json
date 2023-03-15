@@ -1,17 +1,17 @@
 {
   "contracts": {
-    "CollectionPoolEnumerableETH": "0x50B6Fdccc2fffd6125BdB9B5c8B3E28B6C2dE02B",
-    "CollectionPoolMissingEnumerableETH": "0x893C7999A10Fb7d58a2319a11E655F4d504E8479",
-    "CollectionPoolEnumerableERC20": "0x7CE2E596352fb37690a20888b69e308dA6eEe493",
-    "CollectionPoolMissingEnumerableERC20": "0x0f4f58c020b0e8ab4729C6E35e58A0c30B87B2DD",
-    "LinearCurve": "0xD0F777F37Ad4418D96469DF5F9A25E4057B24ab2",
-    "ExponentialCurve": "0x48F7b0C56Ab3Fa38cB40e8089d2Ebf96F1f67A7C",
-    "XykCurve": "0x0564EF8AAfD658A088127556886e6dd56A35E867",
-    "SigmoidCurve": "0xd7083fccf12e65b7E2b88f24F940A7e2C625B43a",
-    "CollectionPoolFactory": "0x11a975d5878fd70303939690010412e0E065e7Ec",
-    "CollectionRouter": "0xF071649c5f6E1a32A852c04b0dC12540F2Ae7410"
+    "CollectionPoolEnumerableETH": "0xCc4E76c4d813eB61C3F2DE640EC2CFdd10342d78",
+    "CollectionPoolMissingEnumerableETH": "0x24c0d9a091Be6185E74c0010b23Cd1CEd611b1e9",
+    "CollectionPoolEnumerableERC20": "0x3344810a96d40117Db118a1A229Ace9CF6485D0a",
+    "CollectionPoolMissingEnumerableERC20": "0x6736Cf1Fec64b28C8B5D5916D6242f5dC8b93E0D",
+    "LinearCurve": "0xde8dC1B14B300D114346ca7EA1bFEc025FE62097",
+    "ExponentialCurve": "0xcAB90B6773e0cEE981392405d57E0fB1a4373F76",
+    "XykCurve": "0x89cE19A73b901CE9f0d6D3F6156bC6A1a1d33abE",
+    "SigmoidCurve": "0xAF91C66F1e6B29b94285b9D8bCa6164452F073d4",
+    "CollectionPoolFactory": "0x047486453fA504BCdc2a7ca42F33ae1568f1b28b",
+    "CollectionRouter": "0x39a82dFeaB4704F0Cf4A5275E9910Ee45e1d3E3a"
   },
   "deployer": "0xfAA7a22A0898BD687dC5aF8b344ddcCC0645D165",
-  "safe": "0x0dB0c25CF55b0eF9FA8Ff56dA406F1f104bce7d5",
-  "commit": "da13d2c3e491c2a8281dc99eef4667145a500279"
+  "safe": "0x3E5c63644E683549055b9Be8653de26E0B4CD36E",
+  "commit": "071f4e1d09071795493cecc02cadd28c84bd4118"
 }
