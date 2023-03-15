@@ -3,15 +3,9 @@ pragma solidity ^0.8.0;
 
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import {EventType} from "./CollectionStructsAndEnums.sol";
 
 interface IPoolActivityMonitor is IERC165 {
-    enum EventType {
-        BOUGHT_NFT_FROM_POOL,
-        SOLD_NFT_TO_POOL,
-        DEPOSIT_TOKEN,
-        DEPOSIT_NFT
-    }
-
     /**
      * @dev This hook allows pool owners (i.e. owner of the LP token) to observe
      * changes to pools initiated by third-parties, i.e. swaps and deposits.

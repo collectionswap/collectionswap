@@ -20,6 +20,7 @@ import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol"
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
+import {PoolType, NFTs} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 // Gives more realistic scenarios where swaps have to go through multiple pools, for more accurate gas profiling
 abstract contract RouterMultiPool is
@@ -82,7 +83,7 @@ abstract contract RouterMultiPool is
                 test721,
                 bondingCurve,
                 payable(address(0)),
-                ICollectionPool.PoolType.TRADE,
+                PoolType.TRADE,
                 modifyDelta(0),
                 0,
                 uint128(i * 1 ether),

@@ -19,6 +19,7 @@ import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
 import {ERC1820Registry} from "../interfaces/ERC1820Registry.sol";
+import {PoolType, CreateERC20PoolParams} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 abstract contract UsingERC20 is Configurable, RouterCaller {
     using SafeTransferLib for ERC20;
@@ -41,7 +42,7 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
         IERC721 nft,
         ICurve bondingCurve,
         address payable assetRecipient,
-        CollectionPool.PoolType poolType,
+        PoolType poolType,
         uint128 delta,
         uint24 fee,
         uint128 spotPrice,
@@ -65,7 +66,7 @@ abstract contract UsingERC20 is Configurable, RouterCaller {
 
         // initialize the pool
         (ICollectionPool pool, ) = factory.createPoolERC20(
-            ICollectionPoolFactory.CreateERC20PoolParams(
+            CreateERC20PoolParams(
                 test20,
                 nft,
                 bondingCurve,

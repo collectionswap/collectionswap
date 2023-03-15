@@ -19,29 +19,13 @@ import {IExternalFilter} from "../filter/IExternalFilter.sol";
 import {TokenIDFilter} from "../filter/TokenIDFilter.sol";
 import {MultiPauser} from "../lib/MultiPauser.sol";
 import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
+import {PoolVariant, PoolType, RoyaltyDue, NFTs, EventType} from "../pools/CollectionStructsAndEnums.sol";
 
 /// @title The base contract for an NFT/TOKEN AMM pool
 /// @author Collection
 /// @notice This implements the core swap logic from NFT to TOKEN
 abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilter, MultiPauser, ICollectionPool {
     using Strings for uint256;
-    /**
-     * @dev The RoyaltyDue struct is used to track information about royalty payments that are due on NFT swaps.
-     * It contains two fields:
-     * @dev amount: The amount of the royalty payment, in the token's base units.
-     * This value is calculated based on the price of the NFT being swapped, and the royaltyNumerator value set in the AMM pool contract.
-     * @dev recipient: The address to which the royalty payment should be sent.
-     * This value is determined by the NFT being swapped, and it is specified in the ERC2981 metadata for the NFT.
-     * @dev When a user swaps an NFT for tokens using the AMM pool contract, a RoyaltyDue struct is created to track the amount
-     * and recipient of the royalty payment that is due on the NFT swap. This struct is then used to facilitate the payment of
-     * the royalty to the appropriate recipient.
-     */
-
-    struct RoyaltyDue {
-        uint256 amount;
-        address recipient;
-    }
-
     /**
      * @dev The _INTERFACE_ID_ERC2981 constant specifies the interface ID for the ERC2981 standard. This standard is used for tracking
      * royalties on non-fungible tokens (NFTs). It defines a standard interface for NFTs that includes metadata about the royalties that
@@ -52,6 +36,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * This can be overridden by the royaltyNumerator field in the AMM pool contract.
      * @dev For more information about the ERC2981 standard, see https://eips.ethereum.org/EIPS/eip-2981
      */
+
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
     bool private initialized;
@@ -384,7 +369,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         emit SwapNFTOutPool(nftIds, inputAmount, fees.trade, fees.protocol, royaltiesDue);
 
-        notifySwap(IPoolActivityMonitor.EventType.BOUGHT_NFT_FROM_POOL, nftIds.length, lastSwapPrice, inputAmount);
+        notifySwap(EventType.BOUGHT_NFT_FROM_POOL, nftIds.length, lastSwapPrice, inputAmount);
     }
 
     /**
@@ -402,7 +387,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @return outputAmount The amount of token received
      */
     function swapNFTsForToken(
-        ICollectionPool.NFTs calldata nfts,
+        NFTs calldata nfts,
         uint256 minExpectedTokenOutput,
         address payable tokenRecipient,
         bool isRouter,
@@ -451,7 +436,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         /// when compiling with 150 runs viaIR
         uint256[] memory amounts = new uint256[](3);
 
-        notifySwap(IPoolActivityMonitor.EventType.SOLD_NFT_TO_POOL, nfts.ids.length, lastSwapPrice, outputAmount);
+        notifySwap(EventType.SOLD_NFT_TO_POOL, nfts.ids.length, lastSwapPrice, outputAmount);
     }
 
     function balanceToFulfillSellNFT(uint256 numNFTs) external view returns (uint256 balance) {
@@ -547,7 +532,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     /**
      * @notice Returns the pool's variant (NFT is enumerable or not, pool uses ETH or ERC20)
      */
-    function poolVariant() public pure virtual returns (ICollectionPoolFactory.PoolVariant);
+    function poolVariant() public pure virtual returns (PoolVariant);
 
     function factory() public pure returns (ICollectionPoolFactory _factory) {
         uint256 paramsLength = _immutableParamsLength();
@@ -857,7 +842,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
                 }
 
                 IERC721 _nft = nft();
-                ICollectionPoolFactory.PoolVariant variant = poolVariant();
+                PoolVariant variant = poolVariant();
 
                 // Call router to pull NFTs
                 // If more than 1 NFT is being transfered, do balance check instead of ownership check,
@@ -1171,12 +1156,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         );
     }
 
-    function notifySwap(
-        IPoolActivityMonitor.EventType eventType,
-        uint256 numNFTs,
-        uint256 lastSwapPrice,
-        uint256 swapValue
-    ) internal {
+    function notifySwap(EventType eventType, uint256 numNFTs, uint256 lastSwapPrice, uint256 swapValue) internal {
         uint256[] memory amounts = new uint256[](3);
         amounts[0] = numNFTs;
         amounts[1] = lastSwapPrice;
@@ -1185,7 +1165,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         notifyChanges(eventType, amounts);
     }
 
-    function notifyDeposit(IPoolActivityMonitor.EventType eventType, uint256 amount) internal {
+    function notifyDeposit(EventType eventType, uint256 amount) internal {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount;
 
@@ -1206,7 +1186,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         return (size > 0);
     }
 
-    function notifyChanges(IPoolActivityMonitor.EventType eventType, uint256[] memory amounts) internal {
+    function notifyChanges(EventType eventType, uint256[] memory amounts) internal {
         if (isContract(owner())) {
             if (contractImplementsInterface(owner(), type(IPoolActivityMonitor).interfaceId)) {
                 IPoolActivityMonitor(owner()).onBalancesChanged(address(this), eventType, amounts);
@@ -1224,7 +1204,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
 
         (uint256 rawBuyPrice, uint256 rawSellPrice) = getRawBuyAndSellPrices();
         emit NFTDeposit(nft(), nftIds.length, rawBuyPrice, rawSellPrice);
-        notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
+        notifyDeposit(EventType.DEPOSIT_NFT, nftIds.length);
     }
 
     function depositNFTs(uint256[] calldata nftIds, bytes32[] calldata proof, bool[] calldata proofFlags) external {
@@ -1234,7 +1214,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         (uint256 rawBuyPrice, uint256 rawSellPrice) = getRawBuyAndSellPrices();
         emit NFTDeposit(nft(), nftIds.length, rawBuyPrice, rawSellPrice);
 
-        notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_NFT, nftIds.length);
+        notifyDeposit(EventType.DEPOSIT_NFT, nftIds.length);
     }
 
     /**

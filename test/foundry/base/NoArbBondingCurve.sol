@@ -19,6 +19,7 @@ import {Test721} from "../../../contracts/test/mocks/Test721.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
+import {PoolType, NFTs} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurable {
     uint256[] idList;
@@ -84,7 +85,7 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
             test721,
             bondingCurve,
             payable(address(0)),
-            ICollectionPool.PoolType.TRADE,
+            PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -135,7 +136,7 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
             test721.setApprovalForAll(address(pool), true);
             startBalance = getBalance(address(this));
             pool.swapNFTsForToken(
-                ICollectionPool.NFTs(
+                NFTs(
                     idList,
                     new bytes32[](0),
                     new bool[](0)
@@ -217,7 +218,7 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
             test721,
             bondingCurve,
             payable(address(0)),
-            ICollectionPool.PoolType.TRADE,
+            PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -282,7 +283,7 @@ abstract contract NoArbBondingCurve is StdCheats, Test, ERC721Holder, Configurab
                 )
             );
             pool.swapNFTsForToken(
-                ICollectionPool.NFTs(
+                NFTs(
                     idList,
                     new bytes32[](0),
                     new bool[](0)

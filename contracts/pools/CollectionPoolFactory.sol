@@ -30,6 +30,14 @@ import {CollectionPoolEnumerableERC20} from "./CollectionPoolEnumerableERC20.sol
 import {CollectionPoolMissingEnumerableETH} from "./CollectionPoolMissingEnumerableETH.sol";
 import {CollectionPoolMissingEnumerableERC20} from "./CollectionPoolMissingEnumerableERC20.sol";
 import {MultiPauser} from "../lib/MultiPauser.sol";
+import {
+    PoolVariant,
+    CreateETHPoolParams,
+    NFTFilterParams,
+    CreateERC20PoolParams,
+    RouterStatus,
+    RoyaltyDue
+} from "./CollectionStructsAndEnums.sol";
 
 /**
  * @dev The ETH balance of this contract is used both to store protocol fees
@@ -91,11 +99,6 @@ contract CollectionPoolFactory is
     mapping(ERC20 => uint256) royaltiesStored;
     /// @dev Uses address 0 for ETH royalties
     mapping(address => mapping(ERC20 => uint256)) public royaltiesClaimable;
-
-    struct RouterStatus {
-        bool allowed;
-        bool wasEverAllowed;
-    }
 
     mapping(CollectionRouter => RouterStatus) public override routerStatus;
 
@@ -327,11 +330,10 @@ contract CollectionPoolFactory is
      * @param royaltiesDue An array of the recipients and amounts due each address
      * @param poolVariant the variant of the pool being interacted with
      */
-    function depositRoyaltiesNotification(
-        ERC20 token,
-        CollectionPool.RoyaltyDue[] calldata royaltiesDue,
-        PoolVariant poolVariant
-    ) external payable {
+    function depositRoyaltiesNotification(ERC20 token, RoyaltyDue[] calldata royaltiesDue, PoolVariant poolVariant)
+        external
+        payable
+    {
         require(isPoolVariant(msg.sender, poolVariant), "Not pool");
         uint256 length = royaltiesDue.length;
         uint256 amountRequired;

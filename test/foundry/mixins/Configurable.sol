@@ -6,6 +6,7 @@ import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
+import {PoolType} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 abstract contract Configurable {
     function getBalance(address a) public virtual returns (uint256);
@@ -15,7 +16,7 @@ abstract contract Configurable {
         IERC721 nft,
         ICurve bondingCurve,
         address payable assetRecipient,
-        CollectionPool.PoolType poolType,
+        PoolType poolType,
         uint128 delta,
         uint24 fee,
         uint128 spotPrice,

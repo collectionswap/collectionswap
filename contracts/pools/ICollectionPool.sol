@@ -4,29 +4,12 @@ pragma solidity ^0.8.0;
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
+import {PoolVariant, PoolType, RoyaltyDue, NFTs} from "./CollectionStructsAndEnums.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {ITokenIDFilter} from "../filter/ITokenIDFilter.sol";
 import {IExternalFilter} from "../filter/IExternalFilter.sol";
 
 interface ICollectionPool is ITokenIDFilter {
-    enum PoolType {
-        TOKEN,
-        NFT,
-        TRADE
-    }
-
-    /**
-     * @param ids The list of IDs of the NFTs to sell to the pool
-     * @param proof Merkle multiproof proving list is allowed by pool
-     * @param proofFlags Merkle multiproof flags for proof
-     */
-    struct NFTs {
-        uint256[] ids;
-        bytes32[] proof;
-        bool[] proofFlags;
-    }
-
     function bondingCurve() external view returns (ICurve);
 
     function curveParams() external view returns (ICurve.Params memory params);
@@ -36,7 +19,7 @@ interface ICollectionPool is ITokenIDFilter {
      */
     function getAllHeldIds() external view returns (uint256[] memory);
 
-    function poolVariant() external view returns (ICollectionPoolFactory.PoolVariant);
+    function poolVariant() external view returns (PoolVariant);
 
     function fee() external view returns (uint24);
 
@@ -212,7 +195,7 @@ interface ICollectionPool is ITokenIDFilter {
      * @return outputAmount The amount of token received
      */
     function swapNFTsForToken(
-        ICollectionPool.NFTs calldata nfts,
+        NFTs calldata nfts,
         uint256 minExpectedTokenOutput,
         address payable tokenRecipient,
         bool isRouter,

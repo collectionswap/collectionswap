@@ -19,6 +19,7 @@ import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFa
 
 import {UsingERC20} from "./UsingERC20.sol";
 import {ERC1820Registry} from "../interfaces/ERC1820Registry.sol";
+import {PoolType, CreateERC20PoolParams} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 contract Test777 is ERC777, ERC1820Implementer {
     constructor(address owner) ERC777("Test777", "T777", new address[](0)) {
@@ -38,7 +39,7 @@ abstract contract UsingERC777 is UsingERC20, IERC777Recipient {
         IERC721 nft,
         ICurve bondingCurve,
         address payable assetRecipient,
-        CollectionPool.PoolType poolType,
+        PoolType poolType,
         uint128 delta,
         uint24 fee,
         uint128 spotPrice,
@@ -66,7 +67,7 @@ abstract contract UsingERC777 is UsingERC20, IERC777Recipient {
 
         // initialize the pool
         (ICollectionPool pool, ) = factory.createPoolERC20(
-            ICollectionPoolFactory.CreateERC20PoolParams(
+            CreateERC20PoolParams(
                 test20,
                 nft,
                 bondingCurve,

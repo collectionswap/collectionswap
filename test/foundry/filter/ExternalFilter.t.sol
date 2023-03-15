@@ -19,8 +19,8 @@ import {CollectionPoolCloner} from "../../../contracts/lib/CollectionPoolCloner.
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {CollectionPoolEnumerableERC20} from "../../../contracts/pools/CollectionPoolEnumerableERC20.sol";
 import {CollectionPoolEnumerableETH} from "../../../contracts/pools/CollectionPoolEnumerableETH.sol";
-import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
+import {NFTs, RoyaltyDue} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 abstract contract ExternalFilter is Test, IExternalFilter, ERC165, ERC721Holder {
     CollectionPool pool;
@@ -85,7 +85,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC165, ERC721Holder 
 
         pool.setTokenIDFilter(root, "");
 
-        ICollectionPool.NFTs memory nfts = ICollectionPool.NFTs(ids, proof, proofFlags);
+        NFTs memory nfts = NFTs(ids, proof, proofFlags);
 
         pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
     }
@@ -130,7 +130,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC165, ERC721Holder 
         pool.setExternalFilter(address(this));
         allTokensAllowed = true;
 
-        ICollectionPool.NFTs memory nfts = ICollectionPool.NFTs(ids, proof, proofFlags);
+        NFTs memory nfts = NFTs(ids, proof, proofFlags);
 
         pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
     }
@@ -142,7 +142,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC165, ERC721Holder 
         pool.setExternalFilter(address(this));
         allTokensAllowed = false;
 
-        ICollectionPool.NFTs memory nfts = ICollectionPool.NFTs(ids, proof, proofFlags);
+        NFTs memory nfts = NFTs(ids, proof, proofFlags);
 
         vm.expectRevert(CollectionPool.NFTsNotAllowed.selector);
         pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
@@ -155,7 +155,7 @@ abstract contract ExternalFilter is Test, IExternalFilter, ERC165, ERC721Holder 
         pool.setExternalFilter(address(this));
         allTokensAllowed = false;
 
-        ICollectionPool.NFTs memory nfts = ICollectionPool.NFTs(ids, proof, proofFlags);
+        NFTs memory nfts = NFTs(ids, proof, proofFlags);
 
         vm.expectRevert(CollectionPool.NFTsNotAllowed.selector);
         pool.swapNFTsForToken(nfts, 0, payable(address(this)), false, address(0), new bytes(0));
@@ -232,6 +232,6 @@ contract Factory is Test721 {
     uint24 public constant protocolFeeMultiplier = 0.003e6;
     bool public constant swapPaused = false;
 
-    function depositRoyaltiesNotification(address, CollectionPool.RoyaltyDue[] memory, uint8) public {
+    function depositRoyaltiesNotification(address, RoyaltyDue[] memory, uint8) public {
     }
 }

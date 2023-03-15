@@ -10,6 +10,7 @@ import {ICollectionPoolFactory} from "./ICollectionPoolFactory.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
 import {CollectionRouter} from "../routers/CollectionRouter.sol";
+import {RoyaltyDue, EventType} from "./CollectionStructsAndEnums.sol";
 
 /**
  * @title An NFT/Token pool where the token is ETH
@@ -192,7 +193,7 @@ abstract contract CollectionPoolETH is CollectionPool {
      */
     receive() external payable {
         emit TokenDeposit(nft(), ERC20(address(0)), msg.value);
-        notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, msg.value);
+        notifyDeposit(EventType.DEPOSIT_TOKEN, msg.value);
     }
 
     /**
@@ -203,6 +204,6 @@ abstract contract CollectionPoolETH is CollectionPool {
         // Only allow calls without function selector
         require(msg.data.length == _immutableParamsLength());
         emit TokenDeposit(nft(), ERC20(address(0)), msg.value);
-        notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, msg.value);
+        notifyDeposit(EventType.DEPOSIT_TOKEN, msg.value);
     }
 }

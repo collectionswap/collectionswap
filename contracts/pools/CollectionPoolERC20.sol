@@ -11,6 +11,7 @@ import {CollectionRouter} from "../routers/CollectionRouter.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
+import {PoolVariant, RoyaltyDue, EventType} from "./CollectionStructsAndEnums.sol";
 
 /**
  * @title An NFT/Token pool where the token is an ERC20
@@ -58,7 +59,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         if (msg.value != 0) revert ReceivedETH();
 
         ERC20 _token = token();
-        ICollectionPoolFactory.PoolVariant variant = poolVariant();
+        PoolVariant variant = poolVariant();
 
         uint256 totalRoyaltiesPaid;
         uint256 royaltiesSentToFactory;
@@ -152,7 +153,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         address tokenSender,
         bool isRouter,
         CollectionRouter router,
-        ICollectionPoolFactory.PoolVariant poolVariant
+        PoolVariant poolVariant
     ) internal returns (uint256 totalRoyaltiesPaid, uint256 royaltiesSentToFactory) {
         ERC20 _token = token();
         /// @dev Local scope to prevent stack too deep
@@ -217,7 +218,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     function _depositERC20Notification(ERC20 a, uint256 amount) internal {
         if (a == token()) {
             emit TokenDeposit(nft(), a, amount);
-            notifyDeposit(IPoolActivityMonitor.EventType.DEPOSIT_TOKEN, amount);
+            notifyDeposit(EventType.DEPOSIT_TOKEN, amount);
         }
     }
 
@@ -283,7 +284,7 @@ abstract contract CollectionPoolERC20 is CollectionPool {
         address from,
         address to,
         uint256 amount,
-        ICollectionPoolFactory.PoolVariant variant
+        PoolVariant variant
     ) internal {
         uint256 beforeBalance = _token.balanceOf(to);
         router.poolTransferERC20From(_token, from, to, amount, variant);

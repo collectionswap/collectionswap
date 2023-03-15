@@ -9,6 +9,7 @@ import {CollectionPool} from "../pools/CollectionPool.sol";
 import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
+import {PoolVariant, NFTs} from "../pools/CollectionStructsAndEnums.sol";
 
 contract CollectionRouter {
     using SafeTransferLib for address payable;
@@ -487,7 +488,7 @@ contract CollectionRouter {
                     if (poolOutput >= swapList[i].minOutput) {
                         // Do the swap and update outputAmount with how many tokens we got
                         outputAmount += swapInfo.pool.swapNFTsForToken(
-                            ICollectionPool.NFTs(swapInfo.nftIds, swapInfo.proof, swapInfo.proofFlags),
+                            NFTs(swapInfo.nftIds, swapInfo.proof, swapInfo.proofFlags),
                             0,
                             tokenRecipient,
                             true,
@@ -564,7 +565,7 @@ contract CollectionRouter {
                         if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
                             // Do the swap and update outputAmount with how many tokens we got
                             outputAmount += params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
-                                ICollectionPool.NFTs(
+                                NFTs(
                                     params.nftToTokenTrades[i].swapInfo.nftIds,
                                     params.nftToTokenTrades[i].swapInfo.proof,
                                     params.nftToTokenTrades[i].swapInfo.proofFlags
@@ -639,7 +640,7 @@ contract CollectionRouter {
                         if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
                             // Do the swap and update outputAmount with how many tokens we got
                             outputAmount += params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
-                                ICollectionPool.NFTs(
+                                NFTs(
                                     params.nftToTokenTrades[i].swapInfo.nftIds,
                                     params.nftToTokenTrades[i].swapInfo.proof,
                                     params.nftToTokenTrades[i].swapInfo.proofFlags
@@ -676,21 +677,15 @@ contract CollectionRouter {
      * @param amount The amount of tokens to transfer
      * @param variant The pool variant of the pool contract
      */
-    function poolTransferERC20From(
-        ERC20 token,
-        address from,
-        address to,
-        uint256 amount,
-        ICollectionPoolFactory.PoolVariant variant
-    ) external {
+    function poolTransferERC20From(ERC20 token, address from, address to, uint256 amount, PoolVariant variant)
+        external
+    {
         // verify caller is a trusted pool contract
         require(factory.isPoolVariant(msg.sender, variant), "Not pool");
 
         // verify caller is an ERC20 pool
         require(
-            variant == ICollectionPoolFactory.PoolVariant.ENUMERABLE_ERC20
-                || variant == ICollectionPoolFactory.PoolVariant.MISSING_ENUMERABLE_ERC20,
-            "Not ERC20 pool"
+            variant == PoolVariant.ENUMERABLE_ERC20 || variant == PoolVariant.MISSING_ENUMERABLE_ERC20, "Not ERC20 pool"
         );
 
         // transfer tokens to pool
@@ -706,13 +701,7 @@ contract CollectionRouter {
      * @param id The ID of the NFT to transfer
      * @param variant The pool variant of the pool contract
      */
-    function poolTransferNFTFrom(
-        IERC721 nft,
-        address from,
-        address to,
-        uint256 id,
-        ICollectionPoolFactory.PoolVariant variant
-    ) external {
+    function poolTransferNFTFrom(IERC721 nft, address from, address to, uint256 id, PoolVariant variant) external {
         // verify caller is a trusted pool contract
         require(factory.isPoolVariant(msg.sender, variant), "Not pool");
 
@@ -901,7 +890,7 @@ contract CollectionRouter {
             // Do the swap for token and then update outputAmount
             // Note: minExpectedTokenOutput is set to 0 since we're doing an aggregate slippage check below
             outputAmount += swapList[i].pool.swapNFTsForToken(
-                ICollectionPool.NFTs(swapList[i].nftIds, swapList[i].proof, swapList[i].proofFlags),
+                NFTs(swapList[i].nftIds, swapList[i].proof, swapList[i].proofFlags),
                 0,
                 tokenRecipient,
                 true,

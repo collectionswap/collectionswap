@@ -21,6 +21,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {Test721} from "../../../contracts/test/mocks/Test721.sol";
+import {PoolType, NFTs, CreateETHPoolParams} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 contract XykCurveTest is StdCheats, Test, ERC721Holder {
     using FixedPointMathLib for uint256;
@@ -68,12 +69,12 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         }
 
         (ethPool, ) = factory.createPoolETH{value: value}(
-            ICollectionPoolFactory.CreateETHPoolParams(
+            CreateETHPoolParams(
                 nft,
                 curve,
                 payable(0),
                 address(this),
-                ICollectionPool.PoolType.TRADE,
+                PoolType.TRADE,
                 uint128(numNfts),
                 0,
                 uint128(value),
@@ -240,7 +241,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         setUpEthPool(numNfts, value);
         factory.changeProtocolFeeMultiplier((2 * 1e6) / 100); // 2%
         uint256 numItemsToBuy = 3;
-        uint256 expectedProtocolFee = ethPool.poolType() == ICollectionPool.PoolType.TRADE
+        uint256 expectedProtocolFee = ethPool.poolType() == PoolType.TRADE
             ? 0
             : (2 * ((numItemsToBuy * value) / (numNfts - numItemsToBuy))) / 100;
 
@@ -263,7 +264,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
         setUpEthPool(numNfts, value);
         factory.changeProtocolFeeMultiplier((2 * 1e6) / 100); // 2%
         uint256 numItemsToSell = 3;
-        uint256 expectedProtocolFee = ethPool.poolType() == ICollectionPool.PoolType.TRADE
+        uint256 expectedProtocolFee = ethPool.poolType() == PoolType.TRADE
             ? 0
             : (2 * ((numItemsToSell * value) / (numNfts + numItemsToSell))) / 100;
 
@@ -361,7 +362,7 @@ contract XykCurveTest is StdCheats, Test, ERC721Holder {
 
         // act
         uint256 outputAmount = ethPool.swapNFTsForToken(
-            ICollectionPool.NFTs(
+            NFTs(
                 idList,
                 new bytes32[](0),
                 new bool[](0)

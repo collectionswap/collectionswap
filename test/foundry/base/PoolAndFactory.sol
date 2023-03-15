@@ -25,6 +25,7 @@ import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {Test1155} from "../../../contracts/test/mocks/Test1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {ERC1820Registry} from "../interfaces/ERC1820Registry.sol";
+import {PoolType} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 abstract contract PoolAndFactory is Test, ERC721Holder, Configurable, ERC1155Holder {
     uint128 delta = 1.1 ether;
@@ -73,7 +74,7 @@ abstract contract PoolAndFactory is Test, ERC721Holder, Configurable, ERC1155Hol
             test721,
             bondingCurve,
             payable(address(0)),
-            ICollectionPool.PoolType.TRADE,
+            PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -93,7 +94,7 @@ abstract contract PoolAndFactory is Test, ERC721Holder, Configurable, ERC1155Hol
             test721,
             bondingCurve,
             payable(address(0)),
-            ICollectionPool.PoolType.TRADE,
+            PoolType.TRADE,
             delta,
             0,
             spotPrice,
@@ -138,7 +139,7 @@ abstract contract PoolAndFactory is Test, ERC721Holder, Configurable, ERC1155Hol
         // verify pool variables
         assertEq(address(pool.nft()), address(test721));
         assertEq(address(pool.bondingCurve()), address(bondingCurve));
-        assertEq(uint256(pool.poolType()), uint256(ICollectionPool.PoolType.TRADE));
+        assertEq(uint256(pool.poolType()), uint256(PoolType.TRADE));
         assertEq(pool.curveParams().delta, delta);
         assertEq(pool.curveParams().spotPrice, spotPrice);
         assertEq(pool.owner(), address(this));

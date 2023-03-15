@@ -12,6 +12,7 @@ import {CollectionPool} from "../pools/CollectionPool.sol";
 import {ICollectionPoolFactory} from "../pools/ICollectionPoolFactory.sol";
 import {CurveErrorCodes} from "../bonding-curves/CurveErrorCodes.sol";
 import {ICurve} from "../bonding-curves/ICurve.sol";
+import {PoolVariant, NFTs} from "../pools/CollectionStructsAndEnums.sol";
 
 contract MultiRouter {
     using SafeTransferLib for address payable;
@@ -112,7 +113,7 @@ contract MultiRouter {
                         if (poolOutput >= params.nftToTokenTrades[i].minOutput) {
                             // Do the swap
                             params.nftToTokenTrades[i].swapInfo.pool.swapNFTsForToken(
-                                ICollectionPool.NFTs(
+                                NFTs(
                                     params.nftToTokenTrades[i].swapInfo.nftIds,
                                     params.nftToTokenTrades[i].swapInfo.proof,
                                     params.nftToTokenTrades[i].swapInfo.proofFlags
@@ -151,13 +152,12 @@ contract MultiRouter {
      */
     function poolTransferERC20From(ERC20 token, address from, address to, uint256 amount, uint8 variant) external {
         // verify caller is an ERC20 pool contract
-        ICollectionPoolFactory.PoolVariant _variant = ICollectionPoolFactory.PoolVariant(variant);
+        PoolVariant _variant = PoolVariant(variant);
         require(erc721factory.isPoolVariant(msg.sender, _variant), "Not pool");
 
         // verify caller is an ERC20 pool
         require(
-            _variant == ICollectionPoolFactory.PoolVariant.ENUMERABLE_ERC20
-                || _variant == ICollectionPoolFactory.PoolVariant.MISSING_ENUMERABLE_ERC20,
+            _variant == PoolVariant.ENUMERABLE_ERC20 || _variant == PoolVariant.MISSING_ENUMERABLE_ERC20,
             "Not ERC20 pool"
         );
         // transfer tokens to pool
@@ -173,13 +173,7 @@ contract MultiRouter {
      * @param id The ID of the NFT to transfer
      * @param variant The pool variant of the pool contract
      */
-    function poolTransferNFTFrom(
-        IERC721 nft,
-        address from,
-        address to,
-        uint256 id,
-        ICollectionPoolFactory.PoolVariant variant
-    ) external {
+    function poolTransferNFTFrom(IERC721 nft, address from, address to, uint256 id, PoolVariant variant) external {
         // verify caller is a trusted pool contract
         require(erc721factory.isPoolVariant(msg.sender, variant), "Not pool");
         // transfer NFTs to pool

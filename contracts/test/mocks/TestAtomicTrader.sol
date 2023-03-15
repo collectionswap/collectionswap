@@ -4,6 +4,7 @@ import "../../pools/ICollectionPoolFactory.sol";
 import "../../pools/ICollectionPool.sol";
 import "../../pools/CollectionPool.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {PoolType, CreateETHPoolParams} from "../../pools/CollectionStructsAndEnums.sol";
 
 contract TestAtomicTrader is IERC721Receiver {
     ICollectionPoolFactory factory;
@@ -31,12 +32,12 @@ contract TestAtomicTrader is IERC721Receiver {
 
         // create pool pool
         (ICollectionPool pool,) = factory.createPoolETH{value: msg.value}(
-            ICollectionPoolFactory.CreateETHPoolParams({
+            CreateETHPoolParams({
                 nft: nft,
                 bondingCurve: curve,
                 assetRecipient: payable(0),
                 receiver: msg.sender,
-                poolType: ICollectionPool.PoolType.TRADE,
+                poolType: PoolType.TRADE,
                 delta: delta,
                 fee: 0.05e6,
                 spotPrice: spotPrice,

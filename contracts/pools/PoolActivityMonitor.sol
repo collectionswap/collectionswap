@@ -5,6 +5,7 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {EventType} from "./CollectionStructsAndEnums.sol";
 
 abstract contract PoolActivityMonitor is ERC165, IPoolActivityMonitor, IERC721Receiver {
     /**

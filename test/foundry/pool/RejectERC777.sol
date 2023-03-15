@@ -16,8 +16,7 @@ import {CollectionPoolMissingEnumerableETH} from "../../../contracts/pools/Colle
 import {CollectionPoolEnumerableERC20} from "../../../contracts/pools/CollectionPoolEnumerableERC20.sol";
 import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/pools/CollectionPoolMissingEnumerableERC20.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
-import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
-import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
+import {CreateETHPoolParams, PoolType} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 import {Test721Enumerable} from "../../../contracts/test/mocks/Test721Enumerable.sol";
 
 import {UsingERC20} from "../mixins/UsingERC20.sol";
@@ -84,13 +83,13 @@ contract RejectERC777 is Test, IERC777Recipient {
 
         // initialize the pool
         factory.createPoolERC20(
-            ICollectionPoolFactory.CreateERC20PoolParams(
+            CreateERC20PoolParams(
                 test20,
                 test721,
                 ICurve(address(0)),//bondingCurve,
                 payable(0),
                 address(this),
-                ICollectionPool.PoolType.TRADE,
+                PoolType.TRADE,
                 delta,
                 0,
                 spotPrice,

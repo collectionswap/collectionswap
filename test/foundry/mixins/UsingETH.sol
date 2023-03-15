@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ICurve} from "../../../contracts/bonding-curves/ICurve.sol";
-import {ICollectionPoolFactory} from "../../../contracts/pools/ICollectionPoolFactory.sol";
 import {ICollectionPool} from "../../../contracts/pools/ICollectionPool.sol";
 import {CollectionPool} from "../../../contracts/pools/CollectionPool.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
@@ -11,6 +10,7 @@ import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol"
 import {CollectionPoolETH} from "../../../contracts/pools/CollectionPoolETH.sol";
 import {Configurable} from "./Configurable.sol";
 import {RouterCaller} from "./RouterCaller.sol";
+import {PoolType, CreateETHPoolParams} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 abstract contract UsingETH is Configurable, RouterCaller {
     function modifyInputAmount(uint256 inputAmount)
@@ -39,7 +39,7 @@ abstract contract UsingETH is Configurable, RouterCaller {
         IERC721 nft,
         ICurve bondingCurve,
         address payable assetRecipient,
-        CollectionPool.PoolType poolType,
+        PoolType poolType,
         uint128 delta,
         uint24 fee,
         uint128 spotPrice,
@@ -47,7 +47,7 @@ abstract contract UsingETH is Configurable, RouterCaller {
         uint256,
         address
     ) public payable override returns (CollectionPool) {
-        ICollectionPoolFactory.CreateETHPoolParams memory params = ICollectionPoolFactory.CreateETHPoolParams(
+        CreateETHPoolParams memory params = CreateETHPoolParams(
             nft,
             bondingCurve,
             assetRecipient,

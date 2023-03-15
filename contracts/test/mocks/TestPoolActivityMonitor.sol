@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {IPoolActivityMonitor} from "../../pools/IPoolActivityMonitor.sol";
 import {PoolActivityMonitor} from "../../pools/PoolActivityMonitor.sol";
+import {EventType} from "../../pools/CollectionStructsAndEnums.sol";
 
 contract TestPoolActivityMonitor is PoolActivityMonitor {
     event BoughtFromPool(address poolAddress, uint256 numNFTs, uint256 lastSwapPrice, uint256 swapValue);
@@ -18,13 +19,13 @@ contract TestPoolActivityMonitor is PoolActivityMonitor {
         external
         override
     {
-        if (eventType == IPoolActivityMonitor.EventType.BOUGHT_NFT_FROM_POOL) {
+        if (eventType == EventType.BOUGHT_NFT_FROM_POOL) {
             emit BoughtFromPool(poolAddress, amounts[0], amounts[1], amounts[2]);
-        } else if (eventType == IPoolActivityMonitor.EventType.SOLD_NFT_TO_POOL) {
+        } else if (eventType == EventType.SOLD_NFT_TO_POOL) {
             emit SoldToPool(poolAddress, amounts[0], amounts[1], amounts[2]);
-        } else if (eventType == IPoolActivityMonitor.EventType.DEPOSIT_TOKEN) {
+        } else if (eventType == EventType.DEPOSIT_TOKEN) {
             emit DepositToken(poolAddress, amounts[0]);
-        } else if (eventType == IPoolActivityMonitor.EventType.DEPOSIT_NFT) {
+        } else if (eventType == EventType.DEPOSIT_NFT) {
             emit DepositNFT(poolAddress, amounts[0]);
         }
     }

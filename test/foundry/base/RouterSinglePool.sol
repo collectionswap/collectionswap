@@ -20,6 +20,7 @@ import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol"
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
+import {PoolType} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 abstract contract RouterSinglePool is
     StdCheats,
@@ -77,7 +78,7 @@ abstract contract RouterSinglePool is
             test721,
             bondingCurve,
             payable(address(0)),
-            ICollectionPool.PoolType.TRADE,
+            PoolType.TRADE,
             modifyDelta(uint64(delta)),
             0,
             spotPrice,

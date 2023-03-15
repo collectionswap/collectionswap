@@ -21,6 +21,7 @@ import {CollectionRouter} from "../../../contracts/routers/CollectionRouter.sol"
 import {IERC721Mintable} from "../interfaces/IERC721Mintable.sol";
 import {Configurable} from "../mixins/Configurable.sol";
 import {RouterCaller} from "../mixins/RouterCaller.sol";
+import {PoolType, NFTs} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 
 abstract contract RouterRobustSwap is
     StdCheats,
@@ -88,7 +89,7 @@ abstract contract RouterRobustSwap is
             test721,
             bondingCurve,
             payable(address(0)),
-            ICollectionPool.PoolType.TRADE,
+            PoolType.TRADE,
             modifyDelta(0),
             0,
             0.1 ether,
@@ -108,7 +109,7 @@ abstract contract RouterRobustSwap is
             test721,
             bondingCurve,
             payable(address(0)),
-            ICollectionPool.PoolType.TRADE,
+            PoolType.TRADE,
             modifyDelta(0),
             0,
             0.2 ether,
@@ -128,7 +129,7 @@ abstract contract RouterRobustSwap is
             test721,
             bondingCurve,
             payable(address(0)),
-            ICollectionPool.PoolType.TRADE,
+            PoolType.TRADE,
             modifyDelta(0),
             0,
             0.3 ether,
