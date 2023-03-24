@@ -210,7 +210,11 @@ export async function getSafe(
     ethers: hre.ethers,
     signerOrProvider: deployer,
   });
-  const safeAddress = process.env.GNOSIS_SAFE_ADDRESS as string;
+  const safeAddress = process.env.GNOSIS_SAFE_ADDRESS;
+  if (safeAddress === undefined) {
+    throw new Error("Set GNOSIS_SAFE_ADDRESS env variable");
+  }
+
   const safe = await Safe.create({ ethAdapter, safeAddress });
   console.log("Safe Address:", safe.getAddress());
   const isDeployerSafeOwner = await safe.isOwner(await deployer.getAddress());
