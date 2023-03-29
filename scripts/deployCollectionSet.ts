@@ -21,7 +21,8 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   const config = configs[networkId];
 
   const [deployer] = config.USE_LEDGER
-    ? [new LedgerSigner(hre.ethers.provider)]
+    ? [new LedgerSigner(hre.ethers.provider]
+    // ? [new LedgerSigner(hre.ethers.provider, "m/44'/60'/0'/0/5" )] // mainnet deployed with a multi-account ledger
     : await hre.ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
   console.log(`Deployer: ${deployerAddress}`);
