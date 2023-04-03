@@ -1,0 +1,81 @@
+@startuml
+title Trade Pool Creation
+
+start
+
+:Create ETHTokenPool with Filtered NFTs;
+note right
+  User calls createPoolETHFiltered
+  with CreateETHPoolParams and
+  NFTFilterParams as inputs.
+end note
+
+-> CollectionPoolFactory Contract;
+
+:Initialize CreateETHPoolParams struct;
+note right
+  Define the parameters needed for
+  creating an ETH pool.
+end note
+
+:Initialize NFTFilterParams struct;
+note right
+  Define the parameters needed for
+  filtering NFTs, including
+  merkleRoot, encodedTokenIDs,
+  initialProof, initialProofFlags,
+  and externalFilter.
+end note
+
+-> Call createPoolETHFiltered;
+
+if (Creation Not Paused) then (yes)
+  :Instantiate the CollectionPool;
+  note right
+    Calls _createPoolETH function
+    to create a new pool.
+  end note
+
+  :Set Token ID Filter;
+  note right
+    Set the Merkle root and encoded
+    Token IDs for filtering NFTs.
+    For more stable sets (e.g. stable traits)
+  end note
+
+  :Check if NFTs are allowed;
+  note right
+    Verify if the NFTs from the
+    initialNFTIDs are accepted based
+    on the Merkle proof and flags.
+  end note
+
+  :Set External Filter;
+  note right
+    Set the external filter address
+    for additional filtering.
+    For more dynamic sets (e.g. OpenSea marked)
+  end note
+
+  :Initialize Pool;
+  note right
+    Calls _initializePoolETH to
+    transfer initial NFTs and ETH
+    to the pool.
+  end note
+
+  :Return the new pool address and tokenId;
+  note right
+    Returns the newly created pool
+    address and the tokenId used.
+  end note
+else (no)
+  :Abort pool creation;
+  note right
+    Pool creation is paused and
+    cannot proceed.
+  end note
+endif
+
+stop
+@enduml

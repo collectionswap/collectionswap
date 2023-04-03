@@ -1,0 +1,144 @@
+@startuml
+title Trade Pool Creation
+
+start
+
+:Prepare ETHTokenPool with Filtered NFTs;
+note right
+  User calls createPoolETHFiltered
+  with CreateETHPoolParams and
+  NFTFilterParams as inputs.
+end note
+
+-> CollectionPoolFactory Contract;
+
+:Prepare CreateETHPoolParams struct;
+note right
+  Define the parameters needed for
+  creating an ETH pool.
+end note
+
+:Prepare NFTFilterParams struct;
+note right
+  Define the parameters needed for
+  filtering NFTs, including
+  merkleRoot, encodedTokenIDs,
+  initialProof, initialProofFlags,
+  and externalFilter.
+end note
+
+-> Call createPoolETHFiltered;
+
+if (Creation Not Paused) then (yes)
+  :Call _createPoolETH function;
+
+  if (Bonding curve is whitelisted) then (yes)
+    :Validate royalty state;
+    note right
+      Check the royalty parameters
+      based on the NFT contract and
+      royalty-related inputs.
+    end note
+
+    if (Royalty state is valid) then (yes)
+      :Check NFT's Enumerable support;
+      note right
+        Determine if NFT supports the
+        ERC721 Enumerable interface.
+      end note
+
+      :Select pool template;
+      note right
+        Choose the appropriate pool
+        template based on NFT's
+        Enumerable support.
+      end note
+
+      :Instantiate the CollectionPool;
+      note right
+        Create a new pool using the
+        selected template.
+      end note
+
+      :Mint new token;
+      note right
+        Create a new token representing
+        ownership of the pool.
+      end note
+
+      :Emit NewPool event;
+      note right
+        Emit an event for the creation
+        of the new pool.
+      end note
+
+    else (no)
+      :Abort pool creation;
+      note right
+        Pool creation cannot proceed
+        due to invalid royalty state.
+      end note
+    endif
+
+  else (no)
+    :Abort pool creation;
+    note right
+      Pool creation cannot proceed
+      due to unapproved bonding curve.
+    end note
+  endif
+
+  :Set Token ID Filter;
+  note right
+    Set the Merkle root and encoded
+    Token IDs for filtering NFTs.
+  end note
+
+  :Ensure initial NFTs are allowed 
+  by pool's token ID filter;
+  note right
+    Verify if the NFTs from the
+    initialNFTIDs are accepted based
+    on the Merkle proof and flags.
+    Emit "AcceptsTokenIDs" event with filter and accepted set.
+  end note
+
+  :Set External Filter;
+  note right
+    Set the external filter address
+    for additional filtering.
+  end note
+
+  :Initialize Pool;
+  note right
+    Calls _initializePoolETH to
+    transfer initial NFTs and ETH
+    to the pool.
+  end note
+
+  if (Valid initialization) then (yes)
+    :Return the new pool address and tokenId;
+    note right
+      Returns the newly created pool
+      address and the tokenId used.
+    end note
+  else (no)
+    :Abort pool creation;
+    note right
+      Pool creation is aborted due to:
+      - trade fee > 90%,
+      - asset recipient not address 0,
+      - invalid bonding curve params.
+end note
+endif
+
+else (no)
+:Abort pool creation;
+note right
+Pool creation is paused and
+cannot proceed.
+end note
+endif
+
+stop
+@enduml

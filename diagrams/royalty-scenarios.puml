@@ -1,0 +1,70 @@
+@startuml
+title Royalty Scenarios for NFT and TRADE Pools
+
+skinparam node {
+  BackgroundColor White
+  BorderColor Black
+}
+
+skinparam partition {
+  BackgroundColor White
+  BorderColor Black
+}
+
+partition "Royalty Scenarios" {
+  start
+  :royaltyNumerator is set;
+  if (Non-zero) then (Yes)
+    :NFT Collection implements ERC2981;
+    if (Yes) then (Yes)
+      :receiver is set in ERC2981;
+      if (Yes) then (Yes)
+        note right
+          **Royalties:**
+          Sent to ERC2981 Receiver
+        end note
+      else (No)
+        :royaltyRecipientFallback is set;
+        if (Yes) then (Yes)
+          note right
+            **Royalties:**
+            Sent to the royaltyRecipientFallback
+          end note
+        else (No)
+          if (TRADE Pool) then (Yes)
+            note left
+              **Royalties:**
+              Sent to the pool
+            end note
+          else (No)
+            note right
+              **Royalties:**
+              Sent to asset recipient
+            end note
+          endif
+        endif
+      endif
+    else (No)
+      :royaltyRecipientFallback is set;
+      if (Yes) then (Yes)
+        note left
+          **Royalties:**
+          Sent to the royaltyRecipientFallback
+        end note
+      else (No)
+        note right
+          **Configuration:**
+          Not allowed
+        end note
+      endif
+    endif
+  else (No)
+    note right
+      **Royalties:**
+      No royalties
+    end note
+  endif
+  stop
+}
+
+@enduml

@@ -1,0 +1,108 @@
+@startuml
+
+package "Curves" {
+  ' Interface classes
+  interface ICurve
+
+  ' Abstract classes
+  abstract Curve
+
+  ' Regular classes
+  class CurveErrorCodes
+
+  ' Connections
+  Curve --|> ICurve
+
+  ' Curve subclasses
+  Curve <|-- LinearCurve
+  Curve <|-- ExponentialCurve
+  Curve <|-- SigmoidCurve
+  Curve <|-- XykCurve
+
+  ' CurveErrorCodes subclasses
+  CurveErrorCodes <|-- LinearCurve
+  CurveErrorCodes <|-- ExponentialCurve
+  CurveErrorCodes <|-- SigmoidCurve
+  CurveErrorCodes <|-- XykCurve
+}
+
+package "PoolMixins" {
+  abstract CollectionPoolEnumerable
+  abstract CollectionPoolMissingEnumerable
+  abstract CollectionPoolETH
+  abstract CollectionPoolERC20
+}
+
+' Regular classes
+class ERC721
+
+package "PoolActivityMonitor" {
+  class PoolActivityMonitor
+  interface IPoolActivityMonitor
+  IPoolActivityMonitor <|-- PoolActivityMonitor
+}
+
+package "CollectionPoolInterface" {
+  interface ITokenIDFilter
+  interface ICollectionPool
+  class TokenIDFilter
+  class MultiPauser
+}
+
+abstract CollectionPool
+' CollectionPool subclasses
+CollectionPool <|-- CollectionPoolETH
+CollectionPool <|-- CollectionPoolERC20
+CollectionPool <|-- CollectionPoolEnumerable
+CollectionPool <|-- CollectionPoolMissingEnumerable
+
+' Connections
+ITokenIDFilter <|-- TokenIDFilter
+ITokenIDFilter <|-- ICollectionPool
+TokenIDFilter <|-- CollectionPool
+ICollectionPool <|-- CollectionPool
+MultiPauser <|-- CollectionPool
+
+' CollectionPool relationships
+CollectionPool o.. ICurve
+IPoolActivityMonitor o.. CollectionPool
+
+package "ConcretePoolTypes" {
+  class CollectionPoolEnumerableETH
+  class CollectionPoolMissingEnumerableETH
+  class CollectionPoolEnumerableERC20
+  class CollectionPoolMissingEnumerableERC20
+}
+
+' CollectionPoolEnumerable subclasses
+CollectionPoolEnumerable <|-- CollectionPoolEnumerableETH
+CollectionPoolETH <|-- CollectionPoolEnumerableETH
+CollectionPoolEnumerable <|-- CollectionPoolEnumerableERC20
+CollectionPoolERC20 <|-- CollectionPoolEnumerableERC20
+
+' CollectionPoolMissingEnumerable subclasses
+CollectionPoolMissingEnumerable <|-- CollectionPoolMissingEnumerableETH
+CollectionPoolETH <|-- CollectionPoolMissingEnumerableETH
+CollectionPoolMissingEnumerable <|-- CollectionPoolMissingEnumerableERC20
+CollectionPoolERC20 <|-- CollectionPoolMissingEnumerableERC20
+
+package "Factory" {
+  interface ICollectionPoolFactory
+  class CollectionPoolFactory
+  ' CollectionPoolFactory relationships
+  ERC721 <|-- CollectionPoolFactory
+  ICollectionPoolFactory <|-- CollectionPoolFactory
+
+  ' CollectionPoolFactory connected classes
+  CollectionPoolFactory o.. CollectionPool
+}
+
+' Router relationships and grouping
+package "Routers" {
+  class CollectionRouter
+  class MultiRouter
+}
+CollectionRouter o.. CollectionPool
+MultiRouter o.. CollectionPool
+
+@enduml

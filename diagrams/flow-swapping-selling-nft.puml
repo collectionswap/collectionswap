@@ -1,0 +1,85 @@
+@startuml
+title Swapping and Trading - Selling NFTs
+
+start
+
+:Call CollectionRouter.swapNFTsForToken;
+
+:Check deadline;
+note right
+  Revert transaction if the deadline
+  has passed.
+end note
+
+:_swapNFTsForToken;
+note right
+  Call each of the specified pools'
+  swap functions.
+end note
+
+-> CollectionPoolETH.swapNFTsForToken;
+
+:Validate inputs;
+note right
+  Ensure pool type is Token or two-sided,
+  check for valid NFT quantity, verify
+  accepted NFT IDs, and check if the pool
+  is not in the creation block.
+end note
+
+:_calculateSellInfoAndUpdatePoolParams;
+note right
+  Calculate token amount to be received
+  and adjust pool params if necessary.
+end note
+
+:_getRoyaltiesDue;
+note right
+  Calculate royalties for each NFT ID.
+end note
+
+if (NFT contract supports ERC2981) then (yes)
+  :Use ERC2981 royalty info;
+  note right
+    Retrieve royalty recipient for
+    each NFT ID.
+  end note
+else (no)
+  if (pool's royaltyRecipientFallback not address 0) then (yes)
+    :Use royaltyRecipientFallback;
+    note right
+      Use pool's royaltyRecipientFallback
+      for royalty payment.
+    end note
+  else (no)
+    :Use default recipient;
+    note right
+      Use pool's assetRecipient for 1-sided pools.
+      For 2-sided pools, royalties go to the pool itself.
+    end note
+  endif
+endif
+
+:_sendTokenOutputAndPayProtocolFees;
+note right
+  Send token output and pay royalties
+  and protocol fees.
+end note
+
+:_takeNFTsFromSender;
+note right
+  Transfer NFTs from the sender to the pool.
+end note
+
+:emit SwapNFTInPool event;
+note right
+  Emit an event for the NFT swap.
+end note
+
+:notifySwap;
+note right
+  Notify listeners of the swap event.
+end note
+
+stop
+@enduml

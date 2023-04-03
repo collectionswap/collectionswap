@@ -1,0 +1,108 @@
+@startuml
+title Swapping and Trading - Buying NFTs
+
+start
+
+:Call CollectionRouter.robustSwapETHForAnyNFTs;
+note right
+  Swap against a list of pools, specifying a maximum
+  cost and number of arbitrary NFTs for each pool.
+  Skip a pool if NFTs cost exceeds the max cost.
+end note
+
+-> Call CollectionPool.swapTokenForAnyNFTs;
+
+:CollectionPool.swapTokenForAnyNFTs (standalone);
+note right
+  An external function allowing anyone to
+  swap against a given pool.
+end note
+
+:_selectArbitraryNFTs (CollectionPoolEnumerable);
+note right
+  For brevity, only showing the
+  CollectionPoolEnumerable version.
+  Uses a bitmap for accounting legal NFTs.
+end note
+
+-> Call CollectionPool.swapTokenForSpecificNFTs;
+
+:CollectionPool.swapTokenForSpecificNFTs (standalone);
+note right
+  An external function allowing anyone to
+  swap against a given pool for specific NFTs.
+end note
+
+:Validate inputs;
+note right
+  Ensure pool type is NFT or two-sided,
+  check for valid NFT quantity, and
+  verify pool is not in creation block.
+end note
+
+:Call bondingCurve.getBuyInfo;
+note right
+  Compute pricing information for
+  purchasing NFTs.
+end note
+
+:_calculateBuyInfoAndUpdatePoolParams;
+note right
+  Calculate token amount needed and
+  adjust pool params if necessary.
+end note
+
+:Check input against maxExpectedTokenInput;
+note right
+  Revert transaction if input exceeds
+  the maximum expected token input.
+end note
+
+:_getRoyaltiesDue;
+note right
+  Calculate royalties for each NFT ID.
+end note
+
+if (NFT contract supports ERC2981) then (yes)
+  :Use ERC2981 royalty recipient;
+  note right
+    Retrieve royalty recipient for
+    each NFT ID.
+  end note
+else (no)
+  :Use royaltyRecipientFallback;
+  note right
+    If royaltyRecipientFallback is address 0,
+    use pool's assetRecipient for 1-sided pools.
+    For 2-sided pools, it goes to the pool itself.
+  end note
+endif
+
+:_pullTokenInputAndPayProtocolFee;
+note right
+  Pull token input and pay royalties
+  and protocol fees.
+end note
+
+:_withdrawNFTs;
+note right
+  Transfer NFTs to the recipient.
+end note
+
+:_refundTokenToSender;
+note right
+  Refund excess tokens to the sender.
+end note
+
+:emit SwapNFTOutPool event;
+note right
+  Emit an event for the NFT swap.
+end note
+
+:notifySwap;
+note right
+  Notify listeners of the swap event.
+end note
+
+stop
+@enduml

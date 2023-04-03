@@ -1,0 +1,115 @@
+@startuml
+title ExponentialCurve Control Flow
+
+note left
+  ExponentialCurve is a specific
+  case of Curve (bonding curve logic).
+end note
+
+start
+
+:Entry points: getBuyInfo or getSellInfo;
+
+if (getBuyInfo) then (yes)
+  :validateDelta;
+  note right
+    Ensures delta is greater than 1e18
+    (FixedPointMathLib.WAD).
+  end note
+
+  :decodeDeltaN;
+  note right
+    Decodes deltaN from params.state.
+  end note
+
+  :update newParams;
+  note right
+    Updates newParams with new state.
+  end note
+
+  :calculate rawAmount;
+  note right
+    Calculates the rawAmount based on
+    spotPrice, delta, and deltaN.
+  end note
+
+  :calculate buySpotPrice;
+  note right
+    Adjusts the buy price upwards
+    to avoid arbitrage.
+    (Ensures buy and sell prices differ
+    by delta to prevent immediate profit)
+  end note
+
+  :calculate inputValue;
+  note right
+    Calculates the total cost of
+    buying numItems NFTs.
+    (inclusive of fees)
+    When buying NFTs, users pay the
+    cost plus fees.
+  end note
+
+  :calculate fees.royalties;
+  note right
+    Calculates royalties for each NFT.
+  end note
+
+  :getInputValueAndFees;
+  note right
+    Calculates the input value with
+    applied fees and total royalties.
+  end note
+
+else (getSellInfo)
+  :validateDelta;
+  note right
+    Ensures delta is greater than 1e18
+    (FixedPointMathLib.WAD).
+  end note
+
+  :decodeDeltaN;
+  note right
+    Decodes deltaN from params.state.
+  end note
+
+  :update newParams;
+  note right
+    Updates newParams with new state.
+  end note
+
+  :calculate rawAmount;
+  note right
+    Calculates the rawAmount based on
+    spotPrice, delta, and deltaN.
+  end note
+
+  :calculate outputValue;
+  note right
+    Calculates the total revenue of
+    selling numItems NFTs.
+    (exclusive of fees)
+    When selling NFTs, users receive
+    the value minus fees.
+  end note
+
+  :calculate fees.royalties;
+  note right
+    Calculates royalties for each NFT.
+  end note
+
+  :getOutputValueAndFees;
+  note right
+    Calculates the output value with
+    applied fees and total royalties.
+  end note
+endif
+
+:Return calculated values;
+note right
+  Returns the newParams, inputValue or
+  outputValue, fees, and lastSwapPrice.
+end note
+
+stop
+@enduml

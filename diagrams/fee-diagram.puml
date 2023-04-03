@@ -1,0 +1,51 @@
+@startuml
+title Fee Structure Visualization for NFT and TRADE Pools
+
+!define COLLECTION Collection.xyz
+!define USER User
+!define NFTCOLLECTION NFTCollection
+
+skinparam legend {
+  BackgroundColor White
+  BorderColor Black
+}
+
+legend right
+  Beneficial Parties and Fees
+
+  Flat fee (as a % of trade) -> COLLECTION
+  Carry fee (as a % of user set trade fee) -> COLLECTION
+  User-defined fee -> USER
+  Royalty -> NFTCOLLECTION
+endlegend
+
+actor COLLECTION
+actor USER
+actor NFTCOLLECTION
+
+note right of COLLECTION
+  Flat fee (NFT/TOKEN pools):
+    - One-time liquidity
+    - Charged as a % of trade
+
+  Carry fee (TRADE pools):
+    - Infinitely tradable
+    - Initially set to zero
+    - Can be changed through governance
+    - Charged as a % of the user-defined fee, which is itself a % of trade
+end note
+
+note right of USER
+  User-defined fee:
+    - Set by the pool owner
+    - Determines the carry fee
+    - Charged as a % of trade
+end note
+
+note right of NFTCOLLECTION
+  Royalty:
+    - Set by royaltyNumerator
+    - Default equal to ERC2981 amount
+    - Cannot be overridden if set in ERC2981
+end note
+@enduml
