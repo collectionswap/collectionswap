@@ -61,4 +61,13 @@ export const configs: { [key: number]: Config } = {
       "0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f",
     SUBSCRIPTION_ID: "1234",
   },
+  // Base-Goerli
+  84531: {
+    ...baseConfig,
+    USE_LEDGER: false,
+    USE_SAFE: true,
+    // VRF_COORDINATOR: "",
+    // KEY_HASH: "",
+    // SUBSCRIPTION_ID: "",
+  }
 };

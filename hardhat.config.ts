@@ -87,12 +87,13 @@ const config: HardhatUserConfig = {
         mainnet: 1,
         goerli: 5,
         mumbai: 80001,
+        "base-goerli": 84531,
       }).map(([networkName, chainId]) => {
         return [
           networkName,
           {
             chainId,
-            url: process.env[`${networkName.toUpperCase()}_URL`] || "",
+            url: process.env[`${networkName.replace(/-/, '_').toUpperCase()}_URL`] || "",
             accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
           },
         ];
@@ -103,7 +104,7 @@ const config: HardhatUserConfig = {
     // hardhat verify --list-networks
     apiKey: {
       ...Object.fromEntries(
-        ["mainnet", "goerli"].map((networkName) => [
+        ["mainnet", "goerli", "base-goerli"].map((networkName) => [
           networkName,
           process.env.ETHERSCAN_API_KEY,
         ])
@@ -115,6 +116,16 @@ const config: HardhatUserConfig = {
         ])
       ),
     } as Record<string, string> | undefined,
+    customChains: [
+      {
+        network: "base-goerli",
+        chainId: 84531,
+        urls: {
+         apiURL: "https://api-goerli.basescan.org/api",
+         browserURL: "https://goerli.basescan.org"
+        }
+      }
+    ]
   },
   paths: {
     tests: "./test/hh",
