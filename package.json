@@ -13,6 +13,7 @@
     "lint:ci": "eslint scripts test hardhat.config.ts --ext .ts",
     "solhint": "solhint 'contracts/**/*.sol'",
     "deploy": "node scripts/noUnstagedChanges.js && hardhat clean && hardhat compile && hardhat deployCollectionSet",
+    "deployCurve": "node scripts/noUnstagedChanges.js && hardhat clean && hardhat compile && hardhat deployAndVerifyCurve",
     "verify": "hardhat verifyEtherscanCollectionSet",
     "verify:tenderly": "hardhat verifyTenderlyCollectionSet"
   },

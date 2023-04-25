@@ -25,6 +25,13 @@ task(
   await verifyEtherscanCollectionSet(taskArgs, hre);
 });
 
+task("deployAndVerifyCurve", "deploy curve and verify on Etherscan").setAction(
+  async (taskArgs, hre) => {
+    const { deployAndVerifyCurve } = await import("./deployAndVerifyCurve");
+    await deployAndVerifyCurve(hre);
+  }
+);
+
 task(
   "verifyEtherscanCollectionSet",
   "verify Collection set contracts on Etherscan"

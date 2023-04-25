@@ -69,5 +69,5 @@ export const configs: { [key: number]: Config } = {
     // VRF_COORDINATOR: "",
     // KEY_HASH: "",
     // SUBSCRIPTION_ID: "",
-  }
+  },
 };
