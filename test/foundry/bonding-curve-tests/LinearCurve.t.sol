@@ -43,8 +43,8 @@ contract LinearCurveTest is Test {
             );
         assertEq(newParams.spotPrice, 3.5 ether, "Spot price incorrect");
         assertEq(newParams.delta, 0.1 ether, "Delta incorrect");
-        assertEq(inputValue, 16.632 ether, "Input value incorrect");
-        assertEq(fees.protocol, 0.0495 ether, "Protocol fee incorrect");
+        assertEq(inputValue, 16.632 ether, "Input value incorrect"); // (3.1 + 3.2 + 3.3 + 3.4 + 3.5 = 16.5) * 1.008
+        assertEq(fees.protocol, 0.0495 ether, "Protocol fee incorrect"); // 16.5 * 0.003
     }
 
     function test_getBuyInfoWithoutFee(
