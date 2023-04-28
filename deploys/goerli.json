@@ -8,6 +8,8 @@
     "ExponentialCurve": "0x1130D1DfeBEb1Ad7F196df62A5cff2146A380de2",
     "XykCurve": "0x6f9f01C0500aa6dE43D29D2487De53cD0Ef2390d",
     "SigmoidCurve": "0x213E6bC3bfd3F9da3F61a26441692A963F19fdc7",
+    "LinearCurveWithSpreadInflator": "0x624397A79337B22BD161e09f08aFB60f8bee780A",
+    "ExponentialCurveWithSpreadInflator": "0x76Ee7d278dfb1Ef5f813699C37837D46b0f7cF90",
     "CollectionPoolFactory": "0x6e3E4E843e1Ed2269b30f13E9057269253A279f8",
     "CollectionRouter": "0x4998A748F6E21a73Ba423E9fFA192b91b969c6E5"
   },
