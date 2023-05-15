@@ -63,6 +63,9 @@ contract CollectionPoolFactory is
 
     uint256 private constant CREATION_PAUSE = 0;
     uint256 private constant SWAP_PAUSE = 1;
+    /// @notice For pausing everything that isn't covered by the above lock
+    /// besides withdrawals
+    uint256 private constant OTHERS_PAUSE = 2;
 
     /**
      * @dev The MAX_PROTOCOL_FEE constant specifies the maximum fee that can be charged by the AMM pool contract
@@ -109,6 +112,11 @@ contract CollectionPoolFactory is
         _;
     }
 
+    modifier whenOthersNotPaused() {
+        require(!othersPaused(), "Function is paused");
+        _;
+    }
+
     event NewPool(address indexed collection, address indexed poolAddress);
     event TokenDeposit(address indexed poolAddress);
     event ProtocolFeeRecipientUpdate(address indexed recipientAddress);
@@ -121,6 +129,8 @@ contract CollectionPoolFactory is
     event CreationUnpause();
     event SwapPause();
     event SwapUnpause();
+    event OthersPause();
+    event OthersUnpause();
 
     error InsufficientValue(uint256 msgValue, uint256 amountRequired);
 
@@ -210,6 +220,10 @@ contract CollectionPoolFactory is
         return isPaused(CREATION_PAUSE);
     }
 
+    function othersPaused() public view returns (bool) {
+        return isPaused(OTHERS_PAUSE);
+    }
+
     /**
      * Pool creation functions. Pausable
      */
@@ -286,44 +300,6 @@ contract CollectionPoolFactory is
     }
 
     /**
-     * Deposit functions. Not pausable
-     */
-
-    /**
-     * @dev Used to deposit NFTs into a pool after creation and emit an event for indexing
-     */
-    function depositNFTs(
-        uint256[] calldata ids,
-        bytes32[] calldata proof,
-        bool[] calldata proofFlags,
-        address recipient,
-        address from
-    ) external {
-        bool _isPool = isPool(recipient);
-        require(_isPool, "Not a pool");
-
-        CollectionPool pool = CollectionPool(recipient);
-        require(pool.acceptsTokenIDs(ids, proof, proofFlags), "NFTs not allowed");
-
-        // transfer NFTs from caller to recipient
-        _depositNFTs(pool.nft(), ids, pool, from);
-    }
-
-    /**
-     * @dev Used to deposit ERC20 tokens into a pool after creation and emit an event for indexing
-     */
-    function depositERC20(ERC20 token, uint256 amount, address recipient, address from) external {
-        bool _isPool = isPool(recipient);
-        require(_isPool, "Not a pool");
-
-        CollectionPool pool = CollectionPool(recipient);
-
-        // transfer NFTs from caller to recipient
-        token.safeTransferFrom(from, recipient, amount);
-        pool.depositERC20Notification(token, amount);
-    }
-
-    /**
      * @notice Update royalty bookkeeping in `token` currency according to
      * `royaltiesDue`. Only callable by pools
      * @param token The ERC20 token that royalties are in. ERC20(address(0)) for ETH
@@ -333,6 +309,7 @@ contract CollectionPoolFactory is
     function depositRoyaltiesNotification(ERC20 token, RoyaltyDue[] calldata royaltiesDue, PoolVariant poolVariant)
         external
         payable
+        whenOthersNotPaused
     {
         require(isPoolVariant(msg.sender, poolVariant), "Not pool");
         uint256 length = royaltiesDue.length;
@@ -401,6 +378,16 @@ contract CollectionPoolFactory is
     function unpauseSwap() external onlyOwner {
         unpause(SWAP_PAUSE);
         emit SwapUnpause();
+    }
+
+    function pauseOthers() external onlyOwner {
+        pause(OTHERS_PAUSE);
+        emit OthersPause();
+    }
+
+    function unpauseOthers() external onlyOwner {
+        unpause(OTHERS_PAUSE);
+        emit OthersUnpause();
     }
 
     /**
@@ -684,7 +671,7 @@ contract CollectionPoolFactory is
         payable(address(_pool)).safeTransferETH(msg.value);
 
         // transfer initial NFTs from sender to pool and notify pool
-        _depositNFTs(_params.nft, _params.initialNFTIDs, _pool, msg.sender);
+        _depositNFTs(_params.nft, _params.initialNFTIDs, _pool);
     }
 
     function _createPoolERC20(CreateERC20PoolParams calldata params)
@@ -734,15 +721,15 @@ contract CollectionPoolFactory is
         _params.token.safeTransferFrom(msg.sender, address(_pool), _params.initialTokenBalance);
 
         // transfer initial NFTs from sender to pool and notify pool
-        _depositNFTs(_params.nft, _params.initialNFTIDs, _pool, msg.sender);
+        _depositNFTs(_params.nft, _params.initialNFTIDs, _pool);
     }
 
     /**
      * @dev Transfers NFTs from sender and notifies pool. `ids` must already have been verified
      */
-    function _depositNFTs(IERC721 _nft, uint256[] calldata nftIds, ICollectionPool pool, address from) internal {
+    function _depositNFTs(IERC721 _nft, uint256[] calldata nftIds, ICollectionPool pool) internal {
         // transfer NFTs from caller to recipient
-        TransferLib.bulkSafeTransferERC721From(_nft, from, address(pool), nftIds);
+        TransferLib.bulkSafeTransferERC721From(_nft, msg.sender, address(pool), nftIds);
         pool.depositNFTsNotification(nftIds);
     }
 

@@ -742,12 +742,11 @@ async function loadCreateFilteredPool(numAccepted: number, numInitial: number) {
   );
 
   await collectionPoolETH.setTokenIDFilter(merkleRoot, encodedTokenIDs);
-  await collectionPoolFactory.depositNFTs(
+  await nft.setApprovalForAll(collectionPoolETH.address, true);
+  await collectionPoolETH.depositNFTs(
     initialNFTIDs,
     initialProof,
-    initialProofFlags,
-    collectionPoolETH.address,
-    owner.address
+    initialProofFlags
   );
   return {
     collectionPoolFactory,

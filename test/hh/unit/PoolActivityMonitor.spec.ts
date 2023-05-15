@@ -289,21 +289,6 @@ describe(`Testing pool monitor notifications`, function () {
             .to.emit(poolMonitor, "DepositNFT")
             .withArgs(pool.address, i);
         });
-
-        it(`Should emit deposit events for depositing ${i} NFTs through factory`, async function () {
-          const tokenIds = await mintAndApproveRandomNfts(
-            nftContract,
-            user,
-            collectionPoolFactory.address,
-            i
-          );
-          const tx = await collectionPoolFactory
-            .connect(user)
-            .depositNFTs(tokenIds, [], [], pool.address, user.address);
-          await expect(tx)
-            .to.emit(poolMonitor, "DepositNFT")
-            .withArgs(pool.address, i);
-        });
       }
 
       if (isEth) {
@@ -319,18 +304,6 @@ describe(`Testing pool monitor notifications`, function () {
             .to.emit(poolMonitor, "DepositToken")
             .withArgs(pool.address, amount);
         });
-        it(`Should should revert on depositing ERC20 via the factory`, async function () {
-          const amount = randomEthValue();
-          await test20.mint(user.address, amount);
-          await test20
-            .connect(user)
-            .approve(collectionPoolFactory.address, amount);
-          await expect(
-            collectionPoolFactory
-              .connect(user)
-              .depositERC20(test20.address, amount, pool.address, user.address)
-          ).to.be.revertedWithCustomError(pool, "InvalidModification");
-        });
       } else {
         it(`Should emit deposit events for depositing ERC20 via the pool`, async function () {
           const amount = randomEthValue();
@@ -343,24 +316,6 @@ describe(`Testing pool monitor notifications`, function () {
           )
             .connect(user)
             .depositERC20(test20.address, amount);
-          await expect(tx)
-            .to.emit(poolMonitor, "DepositToken")
-            .withArgs(pool.address, amount);
-        });
-
-        it(`Should emit deposit events for depositing ERC20 via the factory`, async function () {
-          const amount = randomEthValue();
-          await test20.mint(user.address, amount);
-          await test20
-            .connect(user)
-            .approve(collectionPoolFactory.address, amount);
-          const initialPoolBalance = await test20.balanceOf(pool.address);
-          const tx = await collectionPoolFactory
-            .connect(user)
-            .depositERC20(test20.address, amount, pool.address, user.address);
-          expect(await test20.balanceOf(pool.address)).to.equal(
-            initialPoolBalance.add(amount)
-          );
           await expect(tx)
             .to.emit(poolMonitor, "DepositToken")
             .withArgs(pool.address, amount);

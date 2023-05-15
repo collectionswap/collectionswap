@@ -16,7 +16,7 @@ import {CollectionPoolMissingEnumerableETH} from "../../../contracts/pools/Colle
 import {CollectionPoolEnumerableERC20} from "../../../contracts/pools/CollectionPoolEnumerableERC20.sol";
 import {CollectionPoolMissingEnumerableERC20} from "../../../contracts/pools/CollectionPoolMissingEnumerableERC20.sol";
 import {CollectionPoolFactory} from "../../../contracts/pools/CollectionPoolFactory.sol";
-import {CreateETHPoolParams, PoolType} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
+import {CreateETHPoolParams, CreateERC20PoolParams, PoolType} from "../../../contracts/pools/CollectionStructsAndEnums.sol";
 import {Test721Enumerable} from "../../../contracts/test/mocks/Test721Enumerable.sol";
 
 import {UsingERC20} from "../mixins/UsingERC20.sol";

@@ -54,16 +54,6 @@ interface ICollectionPoolFactory is IERC721 {
         external
         returns (ICollectionPool pool, uint256 tokenId);
 
-    function depositNFTs(
-        uint256[] calldata ids,
-        bytes32[] calldata proof,
-        bool[] calldata proofFlags,
-        address recipient,
-        address from
-    ) external;
-
-    function depositERC20(ERC20 token, uint256 amount, address recipient, address from) external;
-
     function depositRoyaltiesNotification(ERC20 token, RoyaltyDue[] calldata royaltiesDue, PoolVariant poolVariant)
         external
         payable;
