@@ -130,7 +130,8 @@ abstract contract CollectionPoolETH is CollectionPool {
      * @notice Withdraws all token owned by the pool to the owner address.
      * @dev Only callable by the owner.
      */
-    function withdrawAllETH() external onlyAuthorized {
+    function withdrawAllETH() external {
+        requireAuthorized();
         uint256 _accruedTradeFee = accruedTradeFee;
         accruedTradeFee = 0;
 
@@ -156,7 +157,8 @@ abstract contract CollectionPoolETH is CollectionPool {
      * @param amount The amount of token to send to the owner. If the pool's balance is less than
      * this value, the transaction will be reverted.
      */
-    function withdrawETH(uint256 amount) external onlyAuthorized {
+    function withdrawETH(uint256 amount) external {
+        requireAuthorized();
         require(liquidity() >= amount, "Too little ETH");
 
         payable(owner()).safeTransferETH(amount);
@@ -166,7 +168,8 @@ abstract contract CollectionPoolETH is CollectionPool {
     }
 
     /// @inheritdoc ICollectionPool
-    function withdrawERC20(ERC20 a, uint256 amount) external onlyAuthorized {
+    function withdrawERC20(ERC20 a, uint256 amount) external {
+        requireAuthorized();
         a.safeTransfer(owner(), amount);
     }
 
@@ -183,15 +186,12 @@ abstract contract CollectionPoolETH is CollectionPool {
         }
     }
 
-    function depositERC20Notification(ERC20, uint256) external view onlyFactory {
-        revert InvalidModification();
-    }
-
     /**
      * @dev All ETH transfers into the pool are accepted. This is the main method
      * for the owner to top up the pool's token reserves.
      */
     receive() external payable {
+        assertDepositsNotPaused();
         emit TokenDeposit(nft(), ERC20(address(0)), msg.value);
         notifyDeposit(EventType.DEPOSIT_TOKEN, msg.value);
     }
@@ -201,6 +201,7 @@ abstract contract CollectionPoolETH is CollectionPool {
      * for the owner to top up the pool's token reserves.
      */
     fallback() external payable {
+        assertDepositsNotPaused();
         // Only allow calls without function selector
         require(msg.data.length == _immutableParamsLength());
         emit TokenDeposit(nft(), ERC20(address(0)), msg.value);

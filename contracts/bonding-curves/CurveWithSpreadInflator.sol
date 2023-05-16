@@ -8,7 +8,8 @@ abstract contract CurveWithSpreadInflator is Curve {
 
     function deserializeProps(bytes calldata props)
         internal
-        pure virtual
+        pure
+        virtual
         returns (bool bidAskInflatorIsFlatAmount, uint248 inflator)
     {
         return abi.decode(props, (bool, uint248));

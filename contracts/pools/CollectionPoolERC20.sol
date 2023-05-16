@@ -203,19 +203,8 @@ abstract contract CollectionPoolERC20 is CollectionPool {
      * @dev Deposit ERC20s into pool
      */
     function depositERC20(ERC20 a, uint256 amount) external {
+        assertDepositsNotPaused();
         a.safeTransferFrom(msg.sender, address(this), amount);
-        _depositERC20Notification(a, amount);
-    }
-
-    /**
-     * @notice Used by factory to notify pools of deposits initiated on the factory
-     * side
-     */
-    function depositERC20Notification(ERC20 a, uint256 amount) external onlyFactory {
-        _depositERC20Notification(a, amount);
-    }
-
-    function _depositERC20Notification(ERC20 a, uint256 amount) internal {
         if (a == token()) {
             emit TokenDeposit(nft(), a, amount);
             notifyDeposit(EventType.DEPOSIT_TOKEN, amount);
@@ -226,7 +215,8 @@ abstract contract CollectionPoolERC20 is CollectionPool {
      * @notice Withdraws all pool token owned by the pool to the owner address.
      * @dev Only callable by the owner.
      */
-    function withdrawAllERC20() external onlyAuthorized {
+    function withdrawAllERC20() external {
+        requireAuthorized();
         uint256 _accruedTradeFee = accruedTradeFee;
         accruedTradeFee = 0;
 
@@ -248,7 +238,8 @@ abstract contract CollectionPoolERC20 is CollectionPool {
     }
 
     /// @inheritdoc ICollectionPool
-    function withdrawERC20(ERC20 a, uint256 amount) external onlyAuthorized {
+    function withdrawERC20(ERC20 a, uint256 amount) external {
+        requireAuthorized();
         if (a == token()) {
             uint256 funds = liquidity();
             if (funds < amount) revert InsufficientERC20Liquidity(funds, amount);

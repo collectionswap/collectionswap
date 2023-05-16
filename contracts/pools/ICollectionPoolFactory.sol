@@ -36,6 +36,10 @@ interface ICollectionPoolFactory is IERC721 {
 
     function creationPaused() external view returns (bool);
 
+    function depositPaused() external view returns (bool);
+
+    function othersPaused() external view returns (bool);
+
     function createPoolETH(CreateETHPoolParams calldata params)
         external
         payable

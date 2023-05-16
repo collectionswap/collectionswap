@@ -93,7 +93,10 @@ const config: HardhatUserConfig = {
           networkName,
           {
             chainId,
-            url: process.env[`${networkName.replace(/-/, '_').toUpperCase()}_URL`] || "",
+            url:
+              process.env[
+                `${networkName.replace(/-/, "_").toUpperCase()}_URL`
+              ] || "",
             accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
           },
         ];
@@ -121,11 +124,11 @@ const config: HardhatUserConfig = {
         network: "base-goerli",
         chainId: 84531,
         urls: {
-         apiURL: "https://api-goerli.basescan.org/api",
-         browserURL: "https://goerli.basescan.org"
-        }
-      }
-    ]
+          apiURL: "https://api-goerli.basescan.org/api",
+          browserURL: "https://goerli.basescan.org",
+        },
+      },
+    ],
   },
   paths: {
     tests: "./test/hh",

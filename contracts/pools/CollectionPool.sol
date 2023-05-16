@@ -158,9 +158,12 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         _;
     }
 
-    modifier whenPoolSwapsNotPaused() {
+    function assertPoolSwapsNotPaused() internal view {
         if (poolSwapsPaused()) revert SwapsArePaused();
-        _;
+    }
+
+    function assertDepositsNotPaused() internal view {
+        if (factory().depositPaused()) revert SwapsArePaused();
     }
 
     function poolSwapsPaused() public view returns (bool) {
@@ -183,9 +186,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     }
 
     /// @dev Throws if called by accounts that were not authorized by the owner.
-    modifier onlyAuthorized() {
+    function requireAuthorized() internal view {
         factory().requireAuthorizedForToken(msg.sender, tokenId());
-        _;
     }
 
     /// @dev Transfers ownership of the contract to a new account (`newOwner`).
@@ -315,7 +317,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address nftRecipient,
         bool isRouter,
         address routerCaller
-    ) external payable virtual whenPoolSwapsNotPaused returns (uint256 inputAmount) {
+    ) external payable virtual returns (uint256 inputAmount) {
         IERC721 _nft = nft();
         uint256[] memory tokenIds = _selectArbitraryNFTs(_nft, numNFTs);
         if (tokenIds.length == 0) revert InvalidSwapQuantity();
@@ -343,7 +345,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         address nftRecipient,
         bool isRouter,
         address routerCaller
-    ) public payable virtual nonReentrant whenPoolSwapsNotPaused returns (uint256 inputAmount) {
+    ) public payable virtual nonReentrant returns (uint256 inputAmount) {
+        assertPoolSwapsNotPaused();
         // Input validation
         // Can only buy from NFT or two sided pools
         if (poolType() == PoolType.TOKEN) revert InvalidSwap();
@@ -393,7 +396,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         bool isRouter,
         address routerCaller,
         bytes calldata externalFilterContext
-    ) external virtual nonReentrant whenPoolSwapsNotPaused returns (uint256 outputAmount) {
+    ) external virtual nonReentrant returns (uint256 outputAmount) {
+        assertPoolSwapsNotPaused();
         // Store locally to remove extra calls
         ICollectionPoolFactory _factory = factory();
 
@@ -430,11 +434,6 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
         _takeNFTsFromSender(nfts.ids, _factory, isRouter, routerCaller);
 
         emit SwapNFTInPool(nfts.ids, outputAmount, fees.trade, fees.protocol, royaltiesDue);
-
-        /// @dev for some reason this causes the bytecode size to drop below the
-        /// 24kb limit. Even the magic number 3 is better than 0 for some reason
-        /// when compiling with 150 runs viaIR
-        uint256[] memory amounts = new uint256[](3);
 
         notifySwap(EventType.SOLD_NFT_TO_POOL, nfts.ids.length, lastSwapPrice, outputAmount);
     }
@@ -890,7 +889,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      */
 
     /// @inheritdoc ICollectionPool
-    function withdrawERC721(IERC721 a, uint256[] calldata nftIds) external override onlyAuthorized {
+    function withdrawERC721(IERC721 a, uint256[] calldata nftIds) external override {
+        requireAuthorized();
         IERC721 _nft = nft();
         address _owner = owner();
 
@@ -920,7 +920,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param ids The NFT ids to transfer
      * @param amounts The amounts of each id to transfer
      */
-    function withdrawERC1155(IERC1155 a, uint256[] calldata ids, uint256[] calldata amounts) external onlyAuthorized {
+    function withdrawERC1155(IERC1155 a, uint256[] calldata ids, uint256[] calldata amounts) external {
+        requireAuthorized();
         if (address(a) == address(nft())) revert UseWithdrawERC721Instead();
 
         a.safeBatchTransferFrom(address(this), owner(), ids, amounts, "");
@@ -1048,7 +1049,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param target The contract to call
      * @param data The calldata to pass to the contract
      */
-    function call(address payable target, bytes calldata data) external onlyAuthorized returns (bytes memory) {
+    function call(address payable target, bytes calldata data) external returns (bytes memory) {
+        requireAuthorized();
         ICollectionPoolFactory _factory = factory();
         // Only whitelisted targets can be called
         if (!_factory.callAllowed(target)) revert CallNotAllowed();
@@ -1063,11 +1065,8 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
      * @param calls The calldata for each call to make
      * @param revertOnFail Whether or not to revert the entire tx if any of the calls fail
      */
-    function multicall(bytes[] calldata calls, bool revertOnFail)
-        external
-        onlyAuthorized
-        returns (bytes[] memory results)
-    {
+    function multicall(bytes[] calldata calls, bool revertOnFail) external returns (bytes[] memory results) {
+        requireAuthorized();
         bool success;
         uint256 length = calls.length;
         results = new bytes[](length);
@@ -1208,6 +1207,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     }
 
     function depositNFTs(uint256[] calldata nftIds, bytes32[] calldata proof, bool[] calldata proofFlags) external {
+        assertDepositsNotPaused();
         if (!acceptsTokenIDs(nftIds, proof, proofFlags)) revert NFTsNotAccepted();
         _depositNFTs(msg.sender, nftIds);
 

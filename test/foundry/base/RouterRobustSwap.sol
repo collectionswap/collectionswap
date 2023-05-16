@@ -66,7 +66,6 @@ abstract contract RouterRobustSwap is
         router = new CollectionRouter(factory);
 
         // Set approvals
-        test721.setApprovalForAll(address(factory), true);
         test721.setApprovalForAll(address(router), true);
         factory.setBondingCurveAllowed(bondingCurve, true);
         factory.setRouterAllowed(router, true);
@@ -102,7 +101,8 @@ abstract contract RouterRobustSwap is
             nftIds[j] = nftIndex;
             nftIndex++;
         }
-        factory.depositNFTs(nftIds, proof, proofFlags, address(pool1), address(this));
+        test721.setApprovalForAll(address(pool1), true);
+        pool1.depositNFTs(nftIds, proof, proofFlags);
 
         pool2 = this.setupPool{value: modifyInputAmount(10 ether)}(
             factory,
@@ -122,7 +122,8 @@ abstract contract RouterRobustSwap is
             nftIds[j] = nftIndex;
             nftIndex++;
         }
-        factory.depositNFTs(nftIds, proof, proofFlags, address(pool2), address(this));
+        test721.setApprovalForAll(address(pool2), true);
+        pool2.depositNFTs(nftIds, proof, proofFlags);
 
         pool3 = this.setupPool{value: modifyInputAmount(10 ether)}(
             factory,
@@ -142,7 +143,8 @@ abstract contract RouterRobustSwap is
             nftIds[j] = nftIndex;
             nftIndex++;
         }
-        factory.depositNFTs(nftIds, proof, proofFlags, address(pool3), address(this));
+        test721.setApprovalForAll(address(pool3), true);
+        pool3.depositNFTs(nftIds, proof, proofFlags);
 
         // Mint NFTs 30-39 to this contract
         for (uint256 i = 0; i < 10; i++) {

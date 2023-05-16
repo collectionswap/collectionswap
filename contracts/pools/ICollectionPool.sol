@@ -29,8 +29,6 @@ interface ICollectionPool is ITokenIDFilter {
 
     function royaltyNumerator() external view returns (uint24);
 
-    function poolSwapsPaused() external view returns (bool);
-
     function externalFilter() external view returns (IExternalFilter);
 
     /**
@@ -72,12 +70,6 @@ interface ICollectionPool is ITokenIDFilter {
      * @dev Must only be called by factory. NFT IDs must have been validated against the filter.
      */
     function depositNFTsNotification(uint256[] calldata nftIds) external;
-
-    /**
-     * @dev Used by factory to indicate deposited ERC20 tokens.
-     * @dev Must only be called by factory.
-     */
-    function depositERC20Notification(ERC20 a, uint256 amount) external;
 
     /**
      * @notice Returns number of NFTs in pool that matches filter

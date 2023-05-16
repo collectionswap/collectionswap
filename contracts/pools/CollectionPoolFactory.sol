@@ -63,9 +63,10 @@ contract CollectionPoolFactory is
 
     uint256 private constant CREATION_PAUSE = 0;
     uint256 private constant SWAP_PAUSE = 1;
+    uint256 private constant DEPOSIT_PAUSE = 2;
     /// @notice For pausing everything that isn't covered by the above lock
     /// besides withdrawals
-    uint256 private constant OTHERS_PAUSE = 2;
+    uint256 private constant OTHERS_PAUSE = 3;
 
     /**
      * @dev The MAX_PROTOCOL_FEE constant specifies the maximum fee that can be charged by the AMM pool contract
@@ -131,6 +132,8 @@ contract CollectionPoolFactory is
     event SwapUnpause();
     event OthersPause();
     event OthersUnpause();
+    event DepositPause();
+    event DepositUnpause();
 
     error InsufficientValue(uint256 msgValue, uint256 amountRequired);
 
@@ -218,6 +221,10 @@ contract CollectionPoolFactory is
 
     function creationPaused() public view returns (bool) {
         return isPaused(CREATION_PAUSE);
+    }
+
+    function depositPaused() external view returns (bool) {
+        return isPaused(DEPOSIT_PAUSE);
     }
 
     function othersPaused() public view returns (bool) {
@@ -378,6 +385,16 @@ contract CollectionPoolFactory is
     function unpauseSwap() external onlyOwner {
         unpause(SWAP_PAUSE);
         emit SwapUnpause();
+    }
+
+    function pauseDeposit() external onlyOwner {
+        pause(DEPOSIT_PAUSE);
+        emit DepositPause();
+    }
+
+    function unpauseDeposit() external onlyOwner {
+        unpause(DEPOSIT_PAUSE);
+        emit DepositUnpause();
     }
 
     function pauseOthers() external onlyOwner {
