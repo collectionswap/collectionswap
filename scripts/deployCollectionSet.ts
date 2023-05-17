@@ -19,11 +19,11 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
   const networkId = hre.network.config.chainId as number;
   console.log(`NetworkId: ${networkId}`);
   const config = configs[networkId];
-
+  const derivationPath = "m/44'/60'/1'/0/0";
   const [deployer] = config.USE_LEDGER
     ? [new LedgerSigner(hre.ethers.provider)]
-    : // ? [new LedgerSigner(hre.ethers.provider, "m/44'/60'/0'/0/5" )] // mainnet deployed with a multi-account ledger
-      await hre.ethers.getSigners();
+    // ? [new LedgerSigner(hre.ethers.provider, derivationPath)] // mainnet deployed with a multi-account ledger
+    : await hre.ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
   console.log(`Deployer: ${deployerAddress}`);
 
@@ -72,10 +72,13 @@ export async function deployCollectionSet(hre: HardhatRuntimeEnvironment) {
     await factory.setRouterAllowed(routerAddresses[i], true);
   }
 
-  if (config.USE_SAFE) {
-    console.log(`Transferring Ownership of Factory to Safe Address`);
-    await factory.transferOwnership(safeAddress);
-  }
+  // Set LP Token Base URI
+  await factory.setBaseURI(`https://api.collection.xyz/networks/${networkId}/collections/${factory.address.toLowerCase()}/lp-tokens/`);
+
+  // if (config.USE_SAFE) {
+  //   console.log(`Transferring Ownership of Factory to Safe Address`);
+  //   await factory.transferOwnership(safeAddress);
+  // }
 
   console.log("exporting addresses...");
 
@@ -150,6 +153,8 @@ export async function deployCurves(
     "ExponentialCurve",
     "XykCurve",
     "SigmoidCurve",
+    "LinearCurveWithSpreadInflator",
+    "ExponentialCurveWithSpreadInflator",
   ];
   const curveAddresses: string[] = [];
 
@@ -222,7 +227,6 @@ export async function getSafe(
 
   if (!isDeployerSafeOwner) {
     console.log("Deployer is not owner of the Safe");
-    process.exitCode = 1;
   }
 
   return safe;

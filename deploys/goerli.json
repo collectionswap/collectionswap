@@ -1,19 +1,19 @@
 {
   "contracts": {
-    "CollectionPoolEnumerableETH": "0x862Bd769D11503EC1413B6258bcC4EC404B3340a",
-    "CollectionPoolMissingEnumerableETH": "0x86EeBB3fbfAD7250354D435DdEf806e4da6aC6D8",
-    "CollectionPoolEnumerableERC20": "0xef9F304D35cc6CE379C4c0cDD71C2b0401C0d29F",
-    "CollectionPoolMissingEnumerableERC20": "0xc14Ec5CC6429b1385A7F0430d50E54523bD66574",
-    "LinearCurve": "0xed0b81E4bd20Ede0fb7901E9650101fD9A8fa92b",
-    "ExponentialCurve": "0x1130D1DfeBEb1Ad7F196df62A5cff2146A380de2",
-    "XykCurve": "0x6f9f01C0500aa6dE43D29D2487De53cD0Ef2390d",
-    "SigmoidCurve": "0x213E6bC3bfd3F9da3F61a26441692A963F19fdc7",
-    "LinearCurveWithSpreadInflator": "0x624397A79337B22BD161e09f08aFB60f8bee780A",
-    "ExponentialCurveWithSpreadInflator": "0x76Ee7d278dfb1Ef5f813699C37837D46b0f7cF90",
-    "CollectionPoolFactory": "0x6e3E4E843e1Ed2269b30f13E9057269253A279f8",
-    "CollectionRouter": "0x4998A748F6E21a73Ba423E9fFA192b91b969c6E5"
+    "CollectionPoolEnumerableETH": "0xb38b392EDB9231b6EEEd4910f30b92971035C254",
+    "CollectionPoolMissingEnumerableETH": "0x7F00ba2F7A32B85Ea13F6826ba5EdF1E14C30D47",
+    "CollectionPoolEnumerableERC20": "0xA3f271ffb95229687A39Aeeca57b0779fAF3E4bc",
+    "CollectionPoolMissingEnumerableERC20": "0x2EFa7B790b2fBe4c535008b45c29E96841664450",
+    "LinearCurve": "0xE1e493A5caccEFf8FC302356f9A1f3E353f6Ac3a",
+    "ExponentialCurve": "0xf8b6aD5dd7F4E72932E6D30225f0cd22DfC62a14",
+    "XykCurve": "0x710e32d392722d3448f4D84e7eD96ce956647503",
+    "SigmoidCurve": "0x6051A2A8967C16395Dfb5322DF354194C3Afd6D9",
+    "LinearCurveWithSpreadInflator": "0xf22ceBF02e796259F33828A8EE0E1A2C99946C9b",
+    "ExponentialCurveWithSpreadInflator": "0x123d9359358febf459C1ba8a681A9C403Bf7D2DA",
+    "CollectionPoolFactory": "0xE285994f188130757E045D9ffB95B99c24D6E84e",
+    "CollectionRouter": "0x27047724982F20F1652810797d16AFf3df73C38A"
   },
   "deployer": "0x0cF19a07d0C2C1F16f1a6403A6A4f9c08394B66A",
   "safe": "0x0dB0c25CF55b0eF9FA8Ff56dA406F1f104bce7d5",
-  "commit": "fdcb7767494cbb701849d6a4d57666907e5386cc"
+  "commit": "2db31afaac7b49512deabe7ce77e4e17a3e715a0"
 }
