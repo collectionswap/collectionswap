@@ -21,9 +21,33 @@ import {MultiPauser} from "../lib/MultiPauser.sol";
 import {IPoolActivityMonitor} from "./IPoolActivityMonitor.sol";
 import {PoolVariant, PoolType, RoyaltyDue, NFTs, EventType} from "../pools/CollectionStructsAndEnums.sol";
 
-/// @title The base contract for an NFT/TOKEN AMM pool
-/// @author Collection
-/// @notice This implements the core swap logic from NFT to TOKEN
+/**
+ * @title The base contract for an NFT/TOKEN AMM pool
+ * @author Collection
+ * @notice This implements the core swap logic from NFT to TOKEN
+ * @dev In case of a vulnerability being detected, there are protocol level
+ * pause functions for all relevant pool functions as described below:
+ * 
+ * - Only withdrawals, view fns, internal fns, and onlyowner fns are exempt
+ *   - onlyOwner functions are exempt because we expect pool exploits to only
+ *     be able to affect that pool (thus owner has no incentive to exploit), or
+ *     attack another pool's the factory's external functions which are all guarded by pauses
+ *     or onlyOwner.
+ *   - Indirectly pausable functions are described below:
+ *     - initialize is guarded by factory creation pause
+ *     - setTokenIDFilter, setExternalFilter are guarded by onlyowner || factory
+ *       creation pause
+ *     - call/multicall functions guarded by only owner or authorized (lptoken's
+ *       721 approval)
+ *     - depositNFTsNotification guarded by onlyFactory, and access to 
+ *       depositNFTsNotification through the factory is guarded with create
+ *       pause
+ * 
+ * There exists a pool level swap pause function, which we expect to mainly be
+ * used to prevent trading and incurring impermanent loss when a user expects to
+ * not be able to monitor market conditions and change pool pricing for extended
+ * periods of time.
+ */
 abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilter, MultiPauser, ICollectionPool {
     using Strings for uint256;
     /**
@@ -130,6 +154,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     error InsufficientLiquidity(uint256 balance, uint256 accruedTradeFee);
     error RoyaltyNumeratorOverflow();
     error SwapsArePaused();
+    error DepositsArePaused();
     error InvalidPoolParams();
     error NotAuthorized();
     error InvalidModification();
@@ -163,7 +188,7 @@ abstract contract CollectionPool is ReentrancyGuard, ERC1155Holder, TokenIDFilte
     }
 
     function assertDepositsNotPaused() internal view {
-        if (factory().depositPaused()) revert SwapsArePaused();
+        if (factory().depositPaused()) revert DepositsArePaused();
     }
 
     function poolSwapsPaused() public view returns (bool) {

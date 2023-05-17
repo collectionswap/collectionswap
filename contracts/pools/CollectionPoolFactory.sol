@@ -43,6 +43,14 @@ import {
  * @dev The ETH balance of this contract is used both to store protocol fees
  * which the owner can withdraw, as well as royalties accumulated from swaps
  * made against pools deployed by this contract.
+ * 
+ * In case of a vulnerability being detected, there are pause functions for all
+ * relevant pool functions as described below:
+ * 
+ * - Only withdrawals, view fns, internal fns, and onlyowner fns are exempt.
+ *   - onlyOwner functions are exempt because pause functions are themselves
+ *     onlyOwner. So any exploit on onlyOwner functions is exploitable by the
+ *     exact same people who could unpause the vulnerable functions anyway.
  */
 contract CollectionPoolFactory is
     Ownable,

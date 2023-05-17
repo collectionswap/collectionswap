@@ -29,6 +29,8 @@ interface ICollectionPool is ITokenIDFilter {
 
     function royaltyNumerator() external view returns (uint24);
 
+    function poolSwapsPaused() external view returns (bool);
+
     function externalFilter() external view returns (IExternalFilter);
 
     /**
